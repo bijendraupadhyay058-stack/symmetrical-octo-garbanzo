@@ -1,0 +1,197 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-bg: #eef2f7;
+  --app-surface: #ffffff;
+  --app-elev: #f6f8fb;
+  --app-text: #0f172a;
+  --app-muted: #5b6b82;
+  --app-border: #dfe6ef;
+  --app-income: #15803d;
+  --app-income-soft: #e8f6ee;
+  --app-expense: #c62828;
+  --app-expense-soft: #fdecec;
+  --app-balance: #13315c;
+  --app-balance-soft: #e7eef8;
+  --app-primary: #0b2545;
+  --app-primary-fg: #ffffff;
+  --app-accent: #8ecae6;
+  /* chart series (validated for colour-vision deficiency) */
+  --chart-income: #15803d;
+  --chart-expense: #ef6b6b;
+  --chart-s1: #2a78d6;
+  --chart-s2: #eb6834;
+  --chart-grid: #e3e8ef;
+  color-scheme: light;
+}
+
+.dark {
+  --app-bg: #0a1220;
+  --app-surface: #121c2f;
+  --app-elev: #18243b;
+  --app-text: #e6ebf3;
+  --app-muted: #97a6bd;
+  --app-border: #24324d;
+  --app-income: #4ade80;
+  --app-income-soft: #11291d;
+  --app-expense: #f87171;
+  --app-expense-soft: #2e1618;
+  --app-balance: #93c5fd;
+  --app-balance-soft: #14243f;
+  --app-primary: #2b5a9a;
+  --app-primary-fg: #ffffff;
+  --app-accent: #8ecae6;
+  --chart-income: #3aa863;
+  --chart-expense: #a33a3a;
+  --chart-s1: #3987e5;
+  --chart-s2: #d95926;
+  --chart-grid: #24324d;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--app-bg);
+  --color-surface: var(--app-surface);
+  --color-elev: var(--app-elev);
+  --color-fg: var(--app-text);
+  --color-muted: var(--app-muted);
+  --color-line: var(--app-border);
+  --color-income: var(--app-income);
+  --color-income-soft: var(--app-income-soft);
+  --color-expense: var(--app-expense);
+  --color-expense-soft: var(--app-expense-soft);
+  --color-balance: var(--app-balance);
+  --color-balance-soft: var(--app-balance-soft);
+  --color-primary: var(--app-primary);
+  --color-primary-fg: var(--app-primary-fg);
+  --color-accent: var(--app-accent);
+}
+
+@theme {
+  --color-navy-900: #0b2545;
+  --color-navy-800: #13315c;
+  --color-navy-700: #1d4477;
+  --color-navy-600: #2b5a9a;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+html,
+body {
+  background: var(--app-bg);
+  color: var(--app-text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.06)];
+}
+@utility btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition select-none active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-primary text-primary-fg hover:brightness-110;
+}
+@utility btn-income {
+  @apply btn bg-income text-white dark:text-[#06210f];
+}
+@utility btn-expense {
+  @apply btn bg-expense text-white dark:text-[#2a0606];
+}
+@utility btn-outline {
+  @apply btn border border-line bg-surface text-fg hover:bg-elev;
+}
+@utility btn-ghost {
+  @apply btn text-fg hover:bg-elev;
+}
+@utility btn-danger {
+  @apply btn bg-expense text-white dark:text-[#2a0606];
+}
+@utility input {
+  @apply min-h-12 w-full rounded-xl border border-line bg-surface px-3.5 text-base text-fg outline-none placeholder:text-muted/70 focus:border-navy-600 focus:ring-2 focus:ring-navy-600/20;
+}
+@utility label {
+  @apply mb-1.5 block text-[13px] font-semibold text-muted;
+}
+@utility chip {
+  @apply inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 text-[13px] font-medium text-fg;
+}
+@utility chip-active {
+  @apply chip border-primary bg-primary text-primary-fg;
+}
+@utility fin-table {
+  @apply w-full border-collapse text-[13px];
+  & th {
+    @apply sticky top-0 z-[1] bg-navy-900 px-2.5 py-2 text-left text-[12px] font-semibold whitespace-nowrap text-white;
+  }
+  & td {
+    @apply border-b border-line px-2.5 py-2 align-top;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .fin-table th {
+    background: #e5e7eb !important;
+    color: #000 !important;
+    position: static;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.22s ease-out;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out;
+}
