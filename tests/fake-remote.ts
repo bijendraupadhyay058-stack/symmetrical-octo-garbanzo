@@ -24,7 +24,7 @@ export class FakeServer {
         this.pushes++
         const t = this.table(table)
         const existing = t.get(row.id as string)
-        const data = { ...row }
+        const data: Record<string, unknown> = { ...row }
         if (table === 'transactions') {
           const clash = [...t.values()].some((r) => r.voucher_no === data.voucher_no && r.id !== data.id)
           if (clash) {
@@ -33,14 +33,14 @@ export class FakeServer {
           }
         }
         if (!existing) {
-          const rec = { ...data, version: 1, sync_seq: ++this.seq }
+          const rec: Record<string, unknown> = { ...data, version: 1, sync_seq: ++this.seq }
           t.set(rec.id as string, rec)
           return { status: 'ok', row: structuredClone(rec) as unknown as AnyRecord }
         }
         const same = Object.keys(row).every((k) => k === 'version' || k === 'updated_at' || JSON.stringify(existing[k]) === JSON.stringify(row[k]))
         if (same) return { status: 'ok', row: structuredClone(existing) as unknown as AnyRecord }
         if ((existing.version as number) !== Math.max(baseVersion, 1)) return { status: 'conflict', row: structuredClone(existing) as unknown as AnyRecord }
-        const rec = { ...existing, ...data, version: (existing.version as number) + 1, sync_seq: ++this.seq }
+        const rec: Record<string, unknown> = { ...existing, ...data, version: (existing.version as number) + 1, sync_seq: ++this.seq }
         t.set(rec.id as string, rec)
         return { status: 'ok', row: structuredClone(rec) as unknown as AnyRecord }
       },

@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:db": "bash scripts/test-db.sh",
     "test:e2e": "playwright test",
-    "icons": "node scripts/generate-icons.mjs"
+    "icons": "node scripts/generate-icons.mjs",
+    "prebuild": "node scripts/build-sw.mjs"
   },
   "engines": {
     "node": ">=20.9"

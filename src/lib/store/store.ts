@@ -33,7 +33,7 @@ function emptySnapshot(businessId: string): DataSnapshot {
 
 /** Strips local-only and server bookkeeping fields before a record leaves the device. */
 export function toWire(record: AnyRecord): Record<string, unknown> {
-  const { _sync, ...rest } = record as BaseRecord & Record<string, unknown>
+  const { _sync, ...rest } = record as unknown as BaseRecord & Record<string, unknown>
   void _sync
   delete rest.sync_seq
   return rest
@@ -100,7 +100,8 @@ export class LocalStore {
 
   get<T extends TableName>(table: T, id: string): TableMap[T] | undefined {
     if (table === 'business_profiles') return (this.snap.profile?.id === id ? this.snap.profile : undefined) as TableMap[T]
-    return (this.snap[table] as AnyRecord[]).find((r) => r.id === id) as TableMap[T] | undefined
+    const list = this.snap[table as Exclude<TableName, 'business_profiles'>] as AnyRecord[]
+    return list.find((r) => r.id === id) as TableMap[T] | undefined
   }
 
   /**
