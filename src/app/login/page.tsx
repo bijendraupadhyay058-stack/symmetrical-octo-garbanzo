@@ -8,9 +8,12 @@ import { useApp, cloudAvailable } from '@/components/app-provider'
 import { Logo, Splash } from '@/components/splash'
 import { Field, Segmented } from '@/components/ui'
 import { isLocalModeAllowed } from '@/lib/supabase/client'
+import { hasLocalPassword } from '@/lib/security/local-auth'
+import { useFeedback } from '@/components/feedback'
 
 export default function LoginPage() {
-  const { phase, signIn, signUp, openDemo, startLocal } = useApp()
+  const { phase, signIn, signUp, openDemo, startLocal, eraseLocal } = useApp()
+  const { confirm, toast } = useFeedback()
   const router = useRouter()
   const cloud = cloudAvailable()
   const localAllowed = isLocalModeAllowed()
@@ -21,6 +24,10 @@ export default function LoginPage() {
   const [business, setBusiness] = useState('FIN TAX PRO')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
+  // Device-only books already exist here: ask for their password, never set a new one.
+  const [localExists, setLocalExists] = useState(false)
+  useEffect(() => setLocalExists(hasLocalPassword('local')), [])
+  const unlockLocal = tab === 'local' && localExists
 
   useEffect(() => {
     if (phase === 'ready') router.replace('/dashboard')
@@ -31,7 +38,7 @@ export default function LoginPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setMsg(null)
-    if (tab !== 'signin') {
+    if (tab !== 'signin' && !unlockLocal) {
       if (password.length < 8) return setMsg({ kind: 'error', text: 'Use a password of at least 8 characters.' })
       if (password !== password2) return setMsg({ kind: 'error', text: 'Passwords do not match.' })
       if (!business.trim()) return setMsg({ kind: 'error', text: 'Enter your business name.' })
@@ -46,7 +53,8 @@ export default function LoginPage() {
         if (err === 'CONFIRM_EMAIL') setMsg({ kind: 'info', text: 'Account created. Open the confirmation link sent to your email, then sign in.' })
         else if (err) setMsg({ kind: 'error', text: err })
       } else {
-        await startLocal(business, password)
+        const err = await startLocal(business, password)
+        if (err) setMsg({ kind: 'error', text: err })
       }
     } finally {
       setBusy(false)
@@ -81,7 +89,7 @@ export default function LoginPage() {
             </p>
           )}
           <form onSubmit={submit} className="space-y-4">
-            {tab !== 'signin' && (
+            {tab !== 'signin' && !unlockLocal && (
               <Field label="Business name">
                 <input className="input" value={business} onChange={(e) => setBusiness(e.target.value)} required />
               </Field>
@@ -91,10 +99,10 @@ export default function LoginPage() {
                 <input className="input" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </Field>
             )}
-            <Field label={tab === 'local' ? 'App password (to unlock this app)' : 'Password'}>
-              <input className="input" type="password" autoComplete={tab === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Field label={unlockLocal ? 'App password' : tab === 'local' ? 'App password (to unlock this app)' : 'Password'}>
+              <input className="input" type="password" autoComplete={tab === 'signin' || unlockLocal ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} required />
             </Field>
-            {tab !== 'signin' && (
+            {tab !== 'signin' && !unlockLocal && (
               <Field label="Confirm password">
                 <input className="input" type="password" autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
               </Field>
@@ -103,8 +111,31 @@ export default function LoginPage() {
               <p role="alert" className={`rounded-xl p-3 text-sm font-medium ${msg.kind === 'error' ? 'bg-expense-soft text-expense' : 'bg-balance-soft text-balance'}`}>{msg.text}</p>
             )}
             <button className="btn-primary w-full" disabled={busy}>
-              {busy ? 'Please wait…' : tab === 'signin' ? 'Sign in' : tab === 'signup' ? 'Create account' : 'Start using CashBook'}
+              {busy ? 'Please wait…' : tab === 'signin' ? 'Sign in' : tab === 'signup' ? 'Create account' : unlockLocal ? 'Open CashBook' : 'Start using CashBook'}
             </button>
+            {unlockLocal && (
+              <button
+                type="button"
+                className="block w-full text-center text-sm font-semibold text-expense"
+                onClick={async () => {
+                  const r = await confirm({
+                    title: 'Erase the books on this device?',
+                    message: 'All entries stored only on this device will be permanently deleted. Download a backup first if you may need them. Type ERASE to confirm.',
+                    danger: true,
+                    confirmLabel: 'Erase',
+                    input: { label: 'Type ERASE', required: true },
+                  })
+                  if (!r.ok) return
+                  if (r.value !== 'ERASE') return toast('Not erased – you must type ERASE', 'error')
+                  await eraseLocal()
+                  setLocalExists(false)
+                  setPassword('')
+                  toast('Device books erased', 'info')
+                }}
+              >
+                Forgot password? Erase this device’s books and start again
+              </button>
+            )}
             {tab === 'signin' && (
               <Link href="/reset-password" className="block text-center text-sm font-semibold text-balance">Forgot password?</Link>
             )}

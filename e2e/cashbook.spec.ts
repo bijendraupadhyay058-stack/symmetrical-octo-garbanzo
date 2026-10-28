@@ -127,3 +127,20 @@ test('installed app opens offline after first visit (service worker)', async ({ 
   await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible()
   await context.setOffline(false)
 })
+
+test('device-only books cannot be reopened with a new password', async ({ page }) => {
+  await setUp(page)
+  await page.goto('/settings')
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Sign out' }).click()
+  await page.waitForURL('**/login')
+  // Only the existing password is asked for – no "set a new password" form.
+  await expect(page.getByLabel('Confirm password')).toHaveCount(0)
+  await page.getByLabel('App password').fill('attacker-pass')
+  await page.getByRole('button', { name: 'Open CashBook' }).click()
+  await expect(page.getByText('Incorrect password for the CashBook on this device.')).toBeVisible()
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByLabel('App password').fill('secret-pass-1')
+  await page.getByRole('button', { name: 'Open CashBook' }).click()
+  await page.waitForURL('**/dashboard')
+})

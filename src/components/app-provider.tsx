@@ -12,7 +12,7 @@ import { DEMO_BUSINESS_ID, DEMO_DB_NAME, seedDemo } from '@/lib/demo'
 import { autoSnapshot } from '@/lib/backup'
 import { uuid } from '@/lib/ids'
 import { fyOf, todayIST } from '@/lib/dates'
-import { forgetLocalSecrets, rememberPassword, verifyBiometric, verifyLocalPassword, biometricEnabled } from '@/lib/security/local-auth'
+import { forgetLocalSecrets, hasLocalPassword, rememberPassword, verifyBiometric, verifyLocalPassword, biometricEnabled } from '@/lib/security/local-auth'
 import type { DataSnapshot } from '@/lib/types'
 
 export type Mode = 'cloud' | 'local' | 'demo'
@@ -35,7 +35,9 @@ interface AppContextValue {
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string, businessName: string) => Promise<string | null>
   signOut: (opts?: { eraseDevice?: boolean }) => Promise<void>
-  startLocal: (businessName: string, password: string) => Promise<void>
+  /** Opens device-only mode. Returns an error message, or null on success. */
+  startLocal: (businessName: string, password: string) => Promise<string | null>
+  eraseLocal: () => Promise<void>
   openDemo: () => Promise<void>
   leaveDemo: () => Promise<void>
   resetDemo: () => Promise<void>
@@ -355,9 +357,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setPhase('signed-out')
     },
     startLocal: async (businessName, password) => {
-      await rememberPassword('local', password)
+      // Never replace the password of books that already exist on this device:
+      // whoever opens them must know the existing password.
+      if (hasLocalPassword('local')) {
+        if (!(await verifyLocalPassword('local', password))) return 'Incorrect password for the CashBook on this device.'
+      } else {
+        const db = await openLocalDb('fintaxpro-local')
+        const existing = await db.get('meta', 'business_id')
+        db.close()
+        if (existing) return 'CashBook data already exists on this device but its password is missing. Erase this device’s books to start again.'
+        await rememberPassword('local', password)
+      }
       setPhase('loading')
       await bootLocal(businessName)
+      unlocked()
+      return null
+    },
+    eraseLocal: async () => {
+      await deleteLocalDb('fintaxpro-local')
+      forgetLocalSecrets('local')
     },
     openDemo: async () => {
       const prev = ls(LS.mode)

@@ -56,7 +56,7 @@ create table public.accounts (
 create table public.opening_balances (
   id uuid primary key,
   business_id uuid not null references public.business_profiles (id),
-  account_id uuid not null references public.accounts (id),
+  account_id uuid not null,
   as_of_date date not null,
   amount_paise bigint not null,
   reason text not null default '',
@@ -110,10 +110,10 @@ create table public.transactions (
   txn_date date not null,
   amount_paise bigint not null check (amount_paise > 0),
   payment_method text not null check (payment_method in ('cash', 'upi', 'bank_transfer', 'neft_rtgs', 'cheque', 'other')),
-  account_id uuid not null references public.accounts (id),
-  to_account_id uuid references public.accounts (id),
-  category_id uuid references public.categories (id),
-  client_id uuid references public.clients (id),
+  account_id uuid not null,
+  to_account_id uuid,
+  category_id uuid,
+  client_id uuid,
   party text not null default '',
   service text not null default '',
   narration text not null default '',
@@ -142,8 +142,8 @@ create table public.fee_bills (
   bill_no text not null,
   bill_date date not null,
   due_date date,
-  client_id uuid not null references public.clients (id),
-  category_id uuid references public.categories (id),
+  client_id uuid not null,
+  category_id uuid,
   service text not null default '',
   amount_paise bigint not null check (amount_paise > 0),
   narration text not null default '',
@@ -162,8 +162,8 @@ create unique index fee_bills_no_unique on public.fee_bills (business_id, bill_n
 create table public.fee_allocations (
   id uuid primary key,
   business_id uuid not null references public.business_profiles (id),
-  fee_bill_id uuid not null references public.fee_bills (id),
-  transaction_id uuid not null references public.transactions (id),
+  fee_bill_id uuid not null,
+  transaction_id uuid not null,
   amount_paise bigint not null check (amount_paise >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -177,10 +177,10 @@ create table public.recurring_templates (
   business_id uuid not null references public.business_profiles (id),
   name text not null,
   party text not null default '',
-  category_id uuid references public.categories (id),
+  category_id uuid,
   amount_paise bigint not null check (amount_paise > 0),
   payment_method text not null,
-  account_id uuid not null references public.accounts (id),
+  account_id uuid not null,
   narration text not null default '',
   day_of_month integer not null check (day_of_month between 1 and 31),
   next_due_date date not null,
@@ -191,13 +191,11 @@ create table public.recurring_templates (
   sync_seq bigint not null default nextval('public.sync_seq')
 );
 
-alter table public.transactions
-  add constraint transactions_template_fk foreign key (recurring_template_id) references public.recurring_templates (id);
 
 create table public.attachments (
   id uuid primary key,
   business_id uuid not null references public.business_profiles (id),
-  transaction_id uuid not null references public.transactions (id),
+  transaction_id uuid not null,
   file_name text not null,
   mime_type text not null check (mime_type in ('image/jpeg', 'image/png', 'image/webp', 'application/pdf')),
   size_bytes integer not null check (size_bytes between 1 and 5242880),
@@ -228,3 +226,34 @@ create table public.audit_logs (
   sync_seq bigint not null default nextval('public.sync_seq')
 );
 create index audit_logs_entity on public.audit_logs (business_id, entity_id);
+
+-- -------------------------------------------------- same-business references
+-- Composite foreign keys guarantee that a row can only reference accounts,
+-- categories, clients, bills and entries of its OWN business (a plain
+-- foreign key would accept another business's id).
+alter table public.accounts add constraint accounts_id_business unique (id, business_id);
+alter table public.categories add constraint categories_id_business unique (id, business_id);
+alter table public.clients add constraint clients_id_business unique (id, business_id);
+alter table public.transactions add constraint transactions_id_business unique (id, business_id);
+alter table public.fee_bills add constraint fee_bills_id_business unique (id, business_id);
+alter table public.recurring_templates add constraint recurring_templates_id_business unique (id, business_id);
+
+alter table public.opening_balances
+  add constraint opening_balances_account_fk foreign key (account_id, business_id) references public.accounts (id, business_id);
+alter table public.transactions
+  add constraint transactions_account_fk foreign key (account_id, business_id) references public.accounts (id, business_id),
+  add constraint transactions_to_account_fk foreign key (to_account_id, business_id) references public.accounts (id, business_id),
+  add constraint transactions_category_fk foreign key (category_id, business_id) references public.categories (id, business_id),
+  add constraint transactions_client_fk foreign key (client_id, business_id) references public.clients (id, business_id),
+  add constraint transactions_template_fk foreign key (recurring_template_id, business_id) references public.recurring_templates (id, business_id);
+alter table public.fee_bills
+  add constraint fee_bills_client_fk foreign key (client_id, business_id) references public.clients (id, business_id),
+  add constraint fee_bills_category_fk foreign key (category_id, business_id) references public.categories (id, business_id);
+alter table public.fee_allocations
+  add constraint fee_allocations_bill_fk foreign key (fee_bill_id, business_id) references public.fee_bills (id, business_id),
+  add constraint fee_allocations_txn_fk foreign key (transaction_id, business_id) references public.transactions (id, business_id);
+alter table public.recurring_templates
+  add constraint recurring_templates_account_fk foreign key (account_id, business_id) references public.accounts (id, business_id),
+  add constraint recurring_templates_category_fk foreign key (category_id, business_id) references public.categories (id, business_id);
+alter table public.attachments
+  add constraint attachments_txn_fk foreign key (transaction_id, business_id) references public.transactions (id, business_id);

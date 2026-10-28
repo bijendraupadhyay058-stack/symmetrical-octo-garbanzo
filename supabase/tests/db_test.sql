@@ -184,6 +184,15 @@ select pg_temp.expect_error($q$
     'fee_bill_id','70000000-0000-0000-0000-000000000001','transaction_id','60000000-0000-0000-0000-000000000007','amount_paise',100000))
 $q$, 'same client');
 
+-- fee bill numbers picked twice offline are renumbered, not rejected
+do $$
+declare r jsonb;
+begin
+  r := pg_temp.push('fee_bills', jsonb_build_object('id','70000000-0000-0000-0000-000000000002','business_id','10000000-0000-0000-0000-000000000001',
+    'bill_no','FB/26-27/001','bill_date','2026-04-02','client_id','40000000-0000-0000-0000-000000000001','amount_paise',100000,'service','TDS'));
+  if r->'row'->>'bill_no' <> 'FB/26-27/002' then raise exception 'bill not renumbered: %', r; end if;
+end $$;
+
 -- books lock
 update public.business_profiles set settings = '{"books_locked_until":"2026-04-03"}' where id = '10000000-0000-0000-0000-000000000001';
 select pg_temp.expect_error($q$ update public.transactions set narration = 'late edit' where id = '60000000-0000-0000-0000-000000000001' $q$, 'locked');
@@ -204,6 +213,20 @@ end $$;
 select pg_temp.expect_error($q$
   select pg_temp.push('clients', jsonb_build_object('id','40000000-0000-0000-0000-0000000000ff','business_id','10000000-0000-0000-0000-000000000001','code','C-9','name','Intruder'))
 $q$, 'row-level security');
+-- user B cannot attach their rows to user A's accounts/clients (composite FKs)
+do $$
+begin
+  perform pg_temp.push('business_profiles', jsonb_build_object('id','10000000-0000-0000-0000-0000000000b0','name','B Practice','settings','{}'::jsonb));
+end $$;
+select pg_temp.expect_error($q$
+  select pg_temp.push('opening_balances', jsonb_build_object('id','50000000-0000-0000-0000-0000000000b1','business_id','10000000-0000-0000-0000-0000000000b0',
+    'account_id','20000000-0000-0000-0000-000000000001','as_of_date','2026-04-01','amount_paise',-99999999,'reason','x'))
+$q$, 'foreign key');
+select pg_temp.expect_error($q$
+  select pg_temp.push('fee_bills', jsonb_build_object('id','70000000-0000-0000-0000-0000000000b1','business_id','10000000-0000-0000-0000-0000000000b0',
+    'bill_no','FB/26-27/001','bill_date','2026-04-01','client_id','40000000-0000-0000-0000-000000000001','amount_paise',100,'service','x'))
+$q$, 'foreign key');
+
 do $$
 declare n int;
 begin

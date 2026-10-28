@@ -7,10 +7,10 @@ PGBIN="${PGBIN:-$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -
 DATA="$(mktemp -d)"
 PORT="${PGPORT_TEST:-54329}"
 SOCK="$DATA"
-cleanup() { "$PGBIN/pg_ctl" -D "$DATA/db" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$DATA"; }
+RUNAS=""
+cleanup() { $RUNAS "$PGBIN/pg_ctl" -D "$DATA/db" -m fast -w stop >/dev/null 2>&1 || true; rm -rf "$DATA"; }
 trap cleanup EXIT
 
-RUNAS=""
 if [ "$(id -u)" = "0" ]; then
   chown -R postgres "$DATA" 2>/dev/null || true
   RUNAS="runuser -u postgres --"
@@ -26,4 +26,16 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 echo "Running database tests"
 "${PSQL[@]}" -d fintax_test -f "$ROOT/supabase/tests/db_test.sql"
+echo "Running concurrent cash withdrawal test"
+"${PSQL[@]}" -d fintax_test -f "$ROOT/supabase/tests/concurrency_setup.sql" >/dev/null
+"${PSQL[@]}" -d fintax_test -f "$ROOT/supabase/tests/concurrency_a.sql" >/dev/null &
+A_PID=$!
+sleep 0.5
+if "${PSQL[@]}" -d fintax_test -f "$ROOT/supabase/tests/concurrency_b.sql" >"$DATA/b.log" 2>&1; then
+  wait $A_PID
+  echo "FAIL: two concurrent cash withdrawals both committed"; cat "$DATA/b.log"; exit 1
+fi
+wait $A_PID
+grep -q "Insufficient cash" "$DATA/b.log" || { echo "FAIL: unexpected error"; cat "$DATA/b.log"; exit 1; }
+echo "concurrent withdrawal correctly refused"
 echo "All database tests passed"

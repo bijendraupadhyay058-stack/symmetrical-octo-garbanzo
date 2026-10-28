@@ -129,8 +129,16 @@ export class LocalStore {
     this.emit()
   }
 
-  /** Store rows exactly as received from the server (already synced). */
-  async putServerRows(table: TableName, rows: AnyRecord[], opts: { overwritePending?: boolean } = {}): Promise<number> {
+  /**
+   * Store rows exactly as received from the server (already synced).
+   * `expectChangedAt`: only overwrite a pending local record if it is still
+   * the exact edit we pushed (a newer local save in the meantime wins).
+   */
+  async putServerRows(
+    table: TableName,
+    rows: AnyRecord[],
+    opts: { overwritePending?: boolean; expectChangedAt?: string } = {},
+  ): Promise<number> {
     if (!rows.length) return 0
     const tx = this.db.transaction(table, 'readwrite')
     const store = tx.objectStore(table)
@@ -139,7 +147,10 @@ export class LocalStore {
       const local = (await store.get(row.id)) as AnyRecord | undefined
       // Never overwrite an unsynced local edit during a pull; the push step
       // detects version conflicts and preserves both copies.
-      if (local?._sync && local._sync.state !== 'synced' && !opts.overwritePending) continue
+      if (local?._sync && local._sync.state !== 'synced') {
+        if (!opts.overwritePending) continue
+        if (opts.expectChangedAt !== undefined && local._sync.changed_at !== opts.expectChangedAt) continue
+      }
       const rec = { ...row, _sync: { state: 'synced', changed_at: nowISO() } } as AnyRecord
       await store.put(rec)
       written.push(rec)

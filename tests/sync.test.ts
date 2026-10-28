@@ -113,3 +113,56 @@ describe('offline capture and synchronisation', () => {
     expect(laptop.get('transactions', t.id)!.narration).toBe('offline edit')
   })
 })
+
+describe('edits saved while a push is in flight', () => {
+  it('a conflicting push keeps the newest local edit for review', async () => {
+    const { phone, phoneSync, laptop, laptopSync, server } = await twoDevices()
+    const i = ids(phone)
+    await opening(phone, i.bank, 0)
+    const t = await postOk(phone, { type: 'income', date: '2026-04-02', rupees: 500, account: i.bank })
+    await phoneSync.sync()
+    await laptopSync.sync()
+    await saveTransaction(phone, { ...phone.get('transactions', t.id)!, narration: 'phone edit' })
+    await phoneSync.sync()
+    await saveTransaction(laptop, { ...laptop.get('transactions', t.id)!, narration: 'laptop edit 1' })
+    // While the laptop's (conflicting) push is in flight, the user saves again.
+    const base = server.remote()
+    const racing = new SyncEngine(laptop, {
+      ...base,
+      push: async (table, row, v) => {
+        const res = await base.push(table, row, v)
+        if (table === 'transactions') await saveTransaction(laptop, { ...laptop.get('transactions', t.id)!, narration: 'laptop edit 2' })
+        return res
+      },
+    })
+    await racing.sync()
+    expect(laptop.conflicts).toHaveLength(1)
+    expect((laptop.conflicts[0].local as { narration: string }).narration).toBe('laptop edit 2')
+    expect(laptop.get('transactions', t.id)!.narration).not.toBe('laptop edit 1')
+  })
+
+  it('a successful push does not overwrite an edit saved meanwhile', async () => {
+    const { phone, server } = await twoDevices()
+    const i = ids(phone)
+    await opening(phone, i.bank, 0)
+    const t = await postOk(phone, { type: 'income', date: '2026-04-02', rupees: 500, account: i.bank })
+    const base = server.remote()
+    let once = true
+    const racing = new SyncEngine(phone, {
+      ...base,
+      push: async (table, row, v) => {
+        const res = await base.push(table, row, v)
+        if (table === 'transactions' && once) {
+          once = false
+          await saveTransaction(phone, { ...phone.get('transactions', t.id)!, narration: 'edited during upload' })
+        }
+        return res
+      },
+    })
+    await racing.sync()
+    await racing.sync()
+    expect(phone.get('transactions', t.id)!.narration).toBe('edited during upload')
+    expect(server.table('transactions').get(t.id)!.narration).toBe('edited during upload')
+    expect(phone.conflicts).toHaveLength(0)
+  })
+})

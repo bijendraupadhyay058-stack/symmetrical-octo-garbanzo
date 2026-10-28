@@ -137,16 +137,16 @@ export class SyncEngine {
 
   /** Apply the server's copy, unless the user edited the record again while the push was in flight. */
   private async acceptServerRow(table: TableName, sent: AnyRecord, row: AnyRecord) {
+    const written = await this.store.putServerRows(table, [row], { overwritePending: true, expectChangedAt: sent._sync?.changed_at })
+    if (written) return
+    // A newer local edit exists: keep it pending, rebased on the new server version.
     const latest = this.store.get(table, sent.id)
-    if (latest && latest._sync?.changed_at !== sent._sync?.changed_at) {
-      // A newer local edit exists: keep it pending but rebase it on the new server version.
-      await this.store.save([{ table, record: { ...latest, version: row.version } as AnyRecord }])
-      return
-    }
-    await this.store.putServerRows(table, [row], { overwritePending: true })
+    if (latest) await this.store.save([{ table, record: { ...latest, version: row.version } as AnyRecord }])
   }
 
-  private async recordConflict(table: TableName, local: AnyRecord, server: AnyRecord) {
+  private async recordConflict(table: TableName, sent: AnyRecord, server: AnyRecord) {
+    // Preserve the user's LATEST copy, including any edit saved while the push was in flight.
+    const local = this.store.get(table, sent.id) ?? sent
     await this.store.addConflict({
       id: uuid(),
       table,
@@ -155,7 +155,8 @@ export class SyncEngine {
       server: server as unknown as Record<string, unknown>,
       detected_at: nowISO(),
     })
-    await this.store.putServerRows(table, [server], { overwritePending: true })
+    // If yet another edit lands meanwhile it stays pending and is reported as its own conflict on the next push.
+    await this.store.putServerRows(table, [server], { overwritePending: true, expectChangedAt: local._sync?.changed_at })
     await this.store.save([
       {
         table: 'audit_logs',

@@ -155,6 +155,32 @@ as $$
   where business_id = p_business and voucher_no like p_prefix || '/' || p_fy || '/%';
 $$;
 
+-- Fee bill numbers (FB/26-27/001) are renumbered the same way on collision.
+create or replace function public.tg_fee_bill_number()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_fy int;
+  v_fy_txt text;
+begin
+  if exists (select 1 from public.fee_bills b where b.business_id = new.business_id and b.bill_no = new.bill_no and b.id <> new.id)
+     or new.bill_no !~ '^FB/\d{2}-\d{2}/\d+$' then
+    v_fy := case when extract(month from new.bill_date) >= 4 then extract(year from new.bill_date)::int else extract(year from new.bill_date)::int - 1 end;
+    v_fy_txt := lpad((v_fy % 100)::text, 2, '0') || '-' || lpad(((v_fy + 1) % 100)::text, 2, '0');
+    select 'FB/' || v_fy_txt || '/' || lpad((coalesce(max(substring(bill_no from '\d+$')::int), 0) + 1)::text, 3, '0')
+      into new.bill_no
+      from public.fee_bills
+      where business_id = new.business_id and bill_no like 'FB/' || v_fy_txt || '/%';
+  end if;
+  return new;
+end;
+$$;
+create trigger b_fee_bill_number before insert or update on public.fee_bills
+  for each row execute function public.tg_fee_bill_number();
+
 -- ------------------------------------------------- transaction validation
 create or replace function public.cash_first_negative(p_account uuid, p_from date)
 returns table (day date, balance bigint)
@@ -257,7 +283,13 @@ begin
       and a.id in (new.account_id, new.to_account_id,
                    case when tg_op = 'UPDATE' then old.account_id end,
                    case when tg_op = 'UPDATE' then old.to_account_id end)
+    order by a.id
   loop
+    -- Serialise writers per cash account: a concurrent transaction touching
+    -- the same account waits here until we commit, and its check (a new
+    -- statement, so a fresh snapshot) then sees our entry. Locks are taken in
+    -- id order to avoid deadlocks.
+    perform 1 from public.accounts where id = v_acc for update;
     if exists (select 1 from public.cash_first_negative(v_acc, '0001-01-01'::date) f where f.day < v_from) then
       continue;
     end if;
