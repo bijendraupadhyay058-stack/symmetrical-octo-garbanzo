@@ -53,4 +53,5 @@ def invoice_to_record(row: Invoice, file_name: str = "", prior: bool = False) ->
         original_invoice_date=row.original_invoice_date, supplier_period=row.supplier_period,
         source_file=file_name, source_rows=row.source_rows, db_id=row.id, is_prior_period=prior,
         description=row.description or "", ims_action=row.ims_action or "",
+        supply_type=getattr(row, "supply_type", "") or "",
     )

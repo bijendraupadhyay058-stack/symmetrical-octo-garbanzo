@@ -101,13 +101,14 @@ class TrackingService:
                      "category": ln.category, "status": ln.status, "remarks": ln.remarks, "run_at": run.started_at}
                     for ln, run in s.execute(q)]
 
-    def fy_overview(self, client_id: int, fy: str) -> list[dict]:
-        """Latest single-month run of each month of the financial year."""
+    def fy_overview(self, client_id: int, fy: str, side: str = "BOOKS") -> list[dict]:
+        """Latest single-month run of each month of the financial year (``side``: BOOKS inward, SALES outward)."""
         p_from, p_to = fy_periods(fy)
         months = months_between(p_from, p_to)
         with self.db.session() as s:
             runs = s.scalars(select(ReconRun).where(ReconRun.client_id == client_id,
                                                     ReconRun.period_from == ReconRun.period_to,
+                                                    ReconRun.comparison.like(f"{side}%"),
                                                     ReconRun.period_from.in_(months)).order_by(ReconRun.id)).all()
         latest = {r.period_from: r for r in runs}
         rows = []
@@ -144,4 +145,5 @@ class TrackingService:
         in_scope = [(f, per_file.get(f.id, 0)) for f in files
                     if per_file.get(f.id) or (f.period and p_from <= f.period <= p_to)]
         return {"books": counts.get("BOOKS", 0), "gstr2b": counts.get("GSTR2B", 0),
-                "gstr2a": counts.get("GSTR2A", 0), "files": in_scope}
+                "gstr2a": counts.get("GSTR2A", 0), "sales": counts.get("SALES", 0), "gstr1": counts.get("GSTR1", 0),
+                "files": in_scope}

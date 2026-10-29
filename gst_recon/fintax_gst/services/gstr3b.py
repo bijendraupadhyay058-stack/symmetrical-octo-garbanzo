@@ -1,6 +1,7 @@
 """GSTR-3B import and retrieval. Re-importing a period supersedes earlier values (kept, audited)."""
 from __future__ import annotations
 
+from decimal import Decimal
 from pathlib import Path
 
 from sqlalchemy import select
@@ -40,25 +41,28 @@ class Gstr3bService:
             s.flush()
             superseded = 0
             for p, table in preview.entries.items():
+                # only the tables present in the new file are superseded (a Table 3.1 file keeps Table 4)
                 for old in s.scalars(select(Gstr3bEntry).where(Gstr3bEntry.client_id == client_id,
                                                                Gstr3bEntry.period == p,
+                                                               Gstr3bEntry.table_code.in_(list(table)),
                                                                Gstr3bEntry.active.is_(True))):
                     old.active = False
                     superseded += 1
                 for code, v in sorted(table.items()):
                     s.add(Gstr3bEntry(client_id=client_id, source_file_id=sf.id, period=p, table_code=code,
-                                      igst=v.igst, cgst=v.cgst, sgst=v.sgst, cess=v.cess))
+                                      igst=v.igst, cgst=v.cgst, sgst=v.sgst, cess=v.cess, taxable=v.taxable))
             audit(s, "IMPORT", "gstr3b", sf.id, {"periods": preview.periods, "superseded_rows": superseded,
                                                  "warnings": preview.warnings}, user, client_id)
         return sf, preview
 
     def values(self, client_id: int, periods: list[str] | None = None) -> dict[str, dict[str, Gstr3bValues]]:
-        """Active GSTR-3B Table 4 values: period -> table code -> values."""
+        """Active GSTR-3B values (Tables 3.1 and 4): period -> table code -> values."""
         with self.db.session() as s:
             q = select(Gstr3bEntry).where(Gstr3bEntry.client_id == client_id, Gstr3bEntry.active.is_(True))
             if periods is not None:
                 q = q.where(Gstr3bEntry.period.in_(periods))
             out: dict[str, dict[str, Gstr3bValues]] = {}
             for e in s.scalars(q):
-                out.setdefault(e.period, {})[e.table_code] = Gstr3bValues(e.igst, e.cgst, e.sgst, e.cess)
+                out.setdefault(e.period, {})[e.table_code] = Gstr3bValues(e.igst, e.cgst, e.sgst, e.cess,
+                                                                          e.taxable or Decimal(0))
         return out

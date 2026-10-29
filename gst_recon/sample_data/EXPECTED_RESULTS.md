@@ -46,3 +46,8 @@ Rows that must be rejected at import (books):
 * `gstr3b_2025-04.json`: 4(A)(5) is ₹2,000 more than GSTR-2B supports → possible statutory discrepancy; 4(B)(1) reverses ₹1,440 for ANC/77 (Section 17(5)).
 * `ims_2025-04.json`: GCH-2201 rejected but present in GSTR-2B (recompute GSTR-2B); KTX-2290 kept pending (explains why it is missing in GSTR-2B); OSL/377 accepted but not in books.
 * ITC review flags ANC/77 (Section 17(5)(b)(i) food and (h) gifts indicators), SRW-310 (reverse charge), KTX-2301 (GSTR-2B ITC not available) and all books documents not in GSTR-2B (Section 16(2)(aa)).
+
+## Outward supplies (Phase 4)
+
+* `tally_sales_register_2025-04.xlsx` vs `gstr1_2025-04.json`: 5 perfect B2B matches, one invoice not in GSTR-1, one in GSTR-1 only, a taxable-value difference, a wrong customer GSTIN (probable), a credit note and an SEZ supply; B2C, export and exempt sales are compared at summary level.
+* GSTR-1 B2CS leaves out ₹1,000 taxable value; GSTR-3B 3.1(a) tax is ₹3,600 lower than GSTR-1 → possible short payment in the liability working.

@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, insert, select
 
 from ..core.models import Source
 from ..db.database import Database
-from ..db.models import Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
+from ..db.models import Gstr1Summary, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
 from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
 from ..importers.pipeline import ImportPreview, preview_file
@@ -100,7 +100,7 @@ class ImportService:
                 "itc_reason": r.itc_reason, "is_amendment": r.is_amendment,
                 "original_invoice_no": r.original_invoice_no[:100], "original_invoice_date": r.original_invoice_date,
                 "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
-                "description": r.description, "ims_action": r.ims_action,
+                "description": r.description, "ims_action": r.ims_action, "supply_type": r.supply_type[:40],
             } for r in new_records]
             for i in range(0, len(rows), BATCH):
                 if cancel:
@@ -115,6 +115,9 @@ class ImportService:
             if issues:
                 s.execute(insert(ImportIssue), issues)
             self._save_other_itc(s, client_id, sf.id, preview)
+            if preview.outward_summary:
+                s.execute(insert(Gstr1Summary), [{"client_id": client_id, "source_file_id": sf.id,
+                                                  "period": preview.period, **row} for row in preview.outward_summary])
             audit(s, "IMPORT", "source_file", sf.id, preview.summary(), user, client_id)
         progress(100, "Import complete")
         return sf
@@ -179,16 +182,16 @@ class ImportService:
             count = s.scalar(select(func.count()).select_from(Invoice).where(Invoice.source_file_id == file_id))
             s.execute(delete(ImportIssue).where(ImportIssue.source_file_id == file_id))
             s.execute(delete(OtherItc).where(OtherItc.source_file_id == file_id))
-            periods = set(s.scalars(select(Gstr3bEntry.period).where(Gstr3bEntry.source_file_id == file_id)))
+            s.execute(delete(Gstr1Summary).where(Gstr1Summary.source_file_id == file_id))
+            keys = set(s.execute(select(Gstr3bEntry.period, Gstr3bEntry.table_code)
+                                 .where(Gstr3bEntry.source_file_id == file_id)).all())
             s.execute(delete(Gstr3bEntry).where(Gstr3bEntry.source_file_id == file_id))
-            for p in periods:  # the previous import of that period becomes current again
-                latest = s.scalar(select(func.max(Gstr3bEntry.source_file_id)).where(
-                    Gstr3bEntry.client_id == client_id, Gstr3bEntry.period == p))
-                if latest:
-                    for e in s.scalars(select(Gstr3bEntry).where(Gstr3bEntry.client_id == client_id,
-                                                                 Gstr3bEntry.period == p,
-                                                                 Gstr3bEntry.source_file_id == latest)):
-                        e.active = True
+            for p, code in keys:  # the previous import of that table becomes current again
+                latest = s.scalar(select(Gstr3bEntry).where(
+                    Gstr3bEntry.client_id == client_id, Gstr3bEntry.period == p, Gstr3bEntry.table_code == code)
+                    .order_by(Gstr3bEntry.source_file_id.desc()).limit(1))
+                if latest is not None:
+                    latest.active = True
             s.execute(delete(Invoice).where(Invoice.source_file_id == file_id))
             audit(s, "DELETE", "source_file", file_id, {"file": sf.file_name, "documents": count}, user, client_id)
             s.delete(sf)

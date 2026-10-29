@@ -33,10 +33,20 @@ TABLE4 = {
     "4D1": "4(D)(1) ITC reclaimed which was reversed under 4(B)(2) in an earlier period",
     "4D2": "4(D)(2) Ineligible ITC under section 16(4) & ITC restricted due to PoS rules",
 }
+TABLE31 = {
+    "31A": "3.1(a) Outward taxable supplies (other than zero rated, nil rated and exempted)",
+    "31B": "3.1(b) Outward taxable supplies (zero rated)",
+    "31C": "3.1(c) Other outward supplies (nil rated, exempted)",
+    "31D": "3.1(d) Inward supplies (liable to reverse charge)",
+    "31E": "3.1(e) Non-GST outward supplies",
+}
+ALL_TABLES = {**TABLE31, **TABLE4}
+_JSON_31 = {"osup_det": "31A", "osup_zero": "31B", "osup_nil_exmp": "31C", "isup_rev": "31D", "osup_nongst": "31E"}
 _JSON_AVL = {"IMPG": "4A1", "IMPS": "4A2", "ISRC": "4A3", "ISD": "4A4", "OTH": "4A5"}
 _JSON_REV = {"RUL": "4B1", "OTH": "4B2"}
 _JSON_INELG = {"RUL": "4D1", "OTH": "4D2"}
 _HEADERS = {"period": ["period", "tax period", "return period", "month"],
+            "taxable": ["taxable value", "taxable", "total taxable value"],
             "table": ["table", "table code", "row", "gstr 3b table"],
             "igst": ["igst", "integrated tax"], "cgst": ["cgst", "central tax"],
             "sgst": ["sgst", "state ut tax", "state tax", "sgst utgst"], "cess": ["cess"]}
@@ -48,18 +58,20 @@ class Gstr3bValues:
     cgst: Decimal = ZERO
     sgst: Decimal = ZERO
     cess: Decimal = ZERO
+    taxable: Decimal = ZERO  # used by Table 3.1 rows only
 
     @property
     def total(self) -> Decimal:
+        """Total tax (taxable value excluded)."""
         return self.igst + self.cgst + self.sgst + self.cess
 
     def __add__(self, other: "Gstr3bValues") -> "Gstr3bValues":
         return Gstr3bValues(self.igst + other.igst, self.cgst + other.cgst, self.sgst + other.sgst,
-                            self.cess + other.cess)
+                            self.cess + other.cess, self.taxable + other.taxable)
 
     def __sub__(self, other: "Gstr3bValues") -> "Gstr3bValues":
         return Gstr3bValues(self.igst - other.igst, self.cgst - other.cgst, self.sgst - other.sgst,
-                            self.cess - other.cess)
+                            self.cess - other.cess, self.taxable - other.taxable)
 
 
 @dataclass
@@ -77,7 +89,7 @@ class Gstr3bPreview:
 def normalize_table_code(text) -> str | None:
     code = "".join(ch for ch in str(text or "").upper() if ch.isalnum())
     code = code.replace("TABLE", "")
-    return code if code in TABLE4 else None
+    return code if code in ALL_TABLES else None
 
 
 def _amount(value, where: str) -> Decimal:
@@ -93,13 +105,20 @@ def _from_json(js: dict, period: str | None, preview: Gstr3bPreview) -> None:
     if not p:
         raise ValueError("GSTR-3B JSON has no ret_period – specify the period (YYYY-MM)")
     elg = data.get("itc_elg")
-    if not isinstance(elg, dict):
-        raise UnsupportedFileError("JSON has no 'itc_elg' (GSTR-3B Table 4) section")
+    sup = data.get("sup_details")
+    if not isinstance(elg, dict) and not isinstance(sup, dict):
+        raise UnsupportedFileError("JSON has neither 'sup_details' (Table 3.1) nor 'itc_elg' (Table 4)")
+    elg = elg if isinstance(elg, dict) else {}
     table: dict[str, Gstr3bValues] = {}
 
     def vals(d, where):
         return Gstr3bValues(_amount(d.get("iamt"), where), _amount(d.get("camt"), where),
-                            _amount(d.get("samt"), where), _amount(d.get("csamt"), where))
+                            _amount(d.get("samt"), where), _amount(d.get("csamt"), where),
+                            _amount(d.get("txval"), where))
+
+    for key, code in _JSON_31.items():
+        if isinstance(sup, dict) and isinstance(sup.get(key), dict):
+            table[code] = vals(sup[key], key)
 
     for key, mapping in (("itc_avl", _JSON_AVL), ("itc_rev", _JSON_REV), ("itc_inelg", _JSON_INELG)):
         for item in elg.get(key, []) or []:
@@ -138,7 +157,8 @@ def _from_table(rows: list[tuple[int, list]], period: str | None, preview: Gstr3
         p = parse_period(cell("period")) if cell("period") not in (None, "") else period
         if not p:
             raise ValueError(f"Row {n}: period missing – add a Period column or specify the period")
-        v = Gstr3bValues(*(_amount(cell(k), f"row {n} {k.upper()}") for k in ("igst", "cgst", "sgst", "cess")))
+        v = Gstr3bValues(*(_amount(cell(k), f"row {n} {k.upper()}") for k in ("igst", "cgst", "sgst", "cess",
+                                                                              "taxable")))
         table = preview.entries.setdefault(p, {})
         if code in table:
             preview.warnings.append(f"Row {n}: {p} table {code} appears more than once – values added")
@@ -166,6 +186,8 @@ def preview_gstr3b(path: str | Path, period: str | None = None) -> Gstr3bPreview
     if not preview.entries:
         raise ValueError("No GSTR-3B Table 4 values found in the file")
     for p, table in preview.entries.items():
+        if not set(table) & set(TABLE4):
+            continue  # Table 3.1 only
         if "4C" not in table:  # derive net ITC when the file does not state it
             a = sum((table.get(c, Gstr3bValues()) for c in ("4A1", "4A2", "4A3", "4A4", "4A5")), Gstr3bValues())
             b = sum((table.get(c, Gstr3bValues()) for c in ("4B1", "4B2")), Gstr3bValues())

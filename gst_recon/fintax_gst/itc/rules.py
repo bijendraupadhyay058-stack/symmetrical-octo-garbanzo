@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import date
+from decimal import Decimal
 
 SEVERITIES = ("high", "medium", "info")
 
@@ -161,7 +162,29 @@ DEFAULT_RULES: list[Rule] = [
          guidance="ITC on documents not reflected in GSTR-2A/2B was capped at the stated percentage of eligible "
                   "reflected ITC. From 01-01-2022 Section 16(2)(aa) allows only reflected ITC."),
 ]
+DEFAULT_RULES += [
+    Rule("R88C", "GSTR-1 liability exceeds GSTR-3B beyond the notified limit (DRC-01B intimation)",
+         "Rule 88C, CGST Rules (inserted by Notification 26/2022–CT); Form GST DRC-01B", "period", "period", "high",
+         effective_from=date(2022, 12, 26), params={"amount": 2500000, "percent": 20},
+         guidance="Where tax payable per GSTR-1 exceeds tax paid through GSTR-3B by more than the notified amount "
+                  "or percentage, the taxpayer is intimated and must pay or explain in DRC-01B. Limits are "
+                  "parameters – keep them in line with the current notification."),
+    Rule("R88D", "GSTR-3B ITC exceeds GSTR-2B beyond the notified limit (DRC-01C intimation)",
+         "Rule 88D, CGST Rules (inserted by Notification 38/2023–CT); Form GST DRC-01C", "period", "period", "high",
+         effective_from=date(2023, 8, 4), params={"amount": 2500000, "percent": 20},
+         guidance="Where ITC availed in GSTR-3B exceeds ITC available in GSTR-2B by more than the notified amount "
+                  "or percentage, the excess must be paid back or explained in DRC-01C. Limits are parameters."),
+]
 DEFAULTS_BY_CODE = {r.code: r for r in DEFAULT_RULES}
+
+
+def intimation_threshold(rule: Rule | None, base: Decimal, period_start: date) -> Decimal | None:
+    """Rule 88C/88D style limit: the higher of a fixed amount and a percentage of ``base``."""
+    if rule is None or not rule.applies_on(period_start):
+        return None
+    amount = Decimal(str(rule.params.get("amount", 2500000)))
+    pct = Decimal(str(rule.params.get("percent", 20)))
+    return max(amount, abs(base) * pct / Decimal(100))
 
 
 def provisional_limit_pct(rule: Rule, period_start: date) -> int | None:

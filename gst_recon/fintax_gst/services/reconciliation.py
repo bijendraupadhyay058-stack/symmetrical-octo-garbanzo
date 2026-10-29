@@ -10,13 +10,14 @@ from pathlib import Path
 from sqlalchemy import and_, func, insert, select
 
 from ..core.models import (
-    CLOSED_STATUSES, PAIRED_CATEGORIES, Category, ExceptionStatus, ReconLine, ReconSettings, Source, fy_of,
+    CLOSED_STATUSES, LEFT_SOURCES, PAIRED_CATEGORIES, PARTNER, Category, ExceptionStatus, ReconLine, ReconSettings, Source, fy_of,
 )
 from ..db.database import Database
 from ..db.models import Client, Invoice, MatchDecision, ReconLineRow, ReconRun, SourceFile, utcnow
 from ..engine.matcher import CancelToken, ReconResult, manual_pair_line, reconcile, single_sided_line
 from ..engine.summary import dashboard
 from ..importers.parsing import parse_period
+from ..outward.liability import sales_code
 from .common import ServiceError, audit, dumps, invoice_to_record
 
 BATCH = 2000
@@ -77,17 +78,25 @@ class ReconciliationService:
                     out.append(invoice_to_record(r, files.get(r.source_file_id, ""), prior))
                 return out
 
-            books = load(Source.BOOKS)
+            left = PARTNER.get(compare_with, Source.BOOKS)
+            comparison = f"{left.value}_VS_{compare_with.value}"
+            books = load(left)
             g2b = load(compare_with)
+            if left == Source.SALES:
+                # Unregistered recipients (B2C), exports and nil/exempt/non-GST supplies are reported in
+                # GSTR-1 as section totals, so they are compared at summary level, not per invoice.
+                books = [r for r in books if r.supplier_gstin and sales_code(r) not in ("31C", "31E")]
+                g2b = [r for r in g2b if r.supplier_gstin]
             if not books and not g2b:
                 raise ServiceError(f"No books or {compare_with.value} documents imported for {p_from} to {p_to}")
             # Earlier-period books not yet paired in a reconciliation of an earlier period.
             consumed = set(s.scalars(
                 select(ReconLineRow.books_invoice_id).join(ReconRun, ReconRun.id == ReconLineRow.run_id).where(
-                    ReconRun.client_id == client_id, ReconRun.period_to < p_from,
+                    ReconRun.client_id == client_id, ReconRun.period_to < p_from, ReconRun.comparison == comparison,
                     ReconLineRow.books_invoice_id.is_not(None), ReconLineRow.gstr2b_invoice_id.is_not(None),
                     ReconLineRow.category.in_([c.value for c in PAIRED_CATEGORIES]))))
-            prior = [r for r in load(Source.BOOKS, prior=True) if r.db_id not in consumed]
+            prior = [r for r in load(left, prior=True) if r.db_id not in consumed and r.supplier_gstin
+                     and (left == Source.BOOKS or sales_code(r) not in ("31C", "31E"))]
 
             def engine_progress(pct, msg):
                 progress(5 + int(pct * 0.8), msg)
@@ -103,7 +112,7 @@ class ReconciliationService:
                                if r is not None})
             run = ReconRun(
                 client_id=client_id, financial_year=fy_of(period_start), period_from=p_from, period_to=p_to,
-                comparison=f"BOOKS_VS_{compare_with.value}", settings_json=dumps(settings.to_dict()),
+                comparison=comparison, settings_json=dumps(settings.to_dict()),
                 fingerprint=result.fingerprint, engine_version=result.engine_version,
                 summary_json=dumps(dashboard(result.lines)), source_file_ids=json.dumps(file_ids),
                 created_by=user or "", status="COMPLETED",
@@ -215,7 +224,7 @@ class ReconciliationService:
             names = {f.id: f.file_name for f in files}
             records = {}
             for inv_id, inv in invoices.items():
-                prior = inv.source_type == Source.BOOKS.value and inv.period < run.period_from
+                prior = Source(inv.source_type) in LEFT_SOURCES and inv.period < run.period_from
                 records[inv_id] = invoice_to_record(inv, names.get(inv.source_file_id, ""), prior)
             lines = []
             for r in line_rows:
@@ -289,7 +298,7 @@ class ReconciliationService:
         if invoice_id is None:
             return None
         inv = s.get(Invoice, invoice_id)
-        prior = inv.source_type == Source.BOOKS.value and inv.period < run.period_from
+        prior = Source(inv.source_type) in LEFT_SOURCES and inv.period < run.period_from
         return invoice_to_record(inv, inv.source_file.file_name if inv.source_file else "", prior)
 
     @staticmethod

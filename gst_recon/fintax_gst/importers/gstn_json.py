@@ -21,10 +21,17 @@ _2A_SECTIONS = {
 }
 
 
-def detect_json_kind(js: dict) -> str | None:
+def detect_json_kind(js: dict, hint: str | None = None) -> str | None:
     data = js.get("data", js) if isinstance(js, dict) else None
     if not isinstance(data, dict):
         return None
+    if isinstance(data.get("itc_elg"), dict) or isinstance(data.get("sup_details"), dict):
+        return "GSTR3B"
+    if set(data) & GSTR1_ONLY_KEYS:
+        return "GSTR1"
+    if hint == "GSTR1" and isinstance(data.get("b2b"), list) and not any(
+            "cfs" in s for s in data["b2b"] if isinstance(s, dict)):
+        return "GSTR1"
     if isinstance(data.get("docdata"), dict):
         return "GSTR2B"
     if isinstance(data.get("invdata"), dict) or isinstance(data.get("imsdata"), dict):
@@ -195,3 +202,99 @@ def flatten_gstr2a(js: dict) -> tuple[list[dict], str | None, list[str]]:
                     **amounts,
                 })
     return rows, period, warnings
+
+
+# ---------------------------------------------------------------- GSTR-1
+GSTR1_ONLY_KEYS = {"b2cs", "b2cl", "exp", "hsn", "nil", "doc_issue", "cdnur", "at", "txpd", "b2csa", "expa"}
+
+
+def _items_total(doc: dict) -> dict[str, Decimal]:
+    out = {"taxable": ZERO, "igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO}
+    for it in doc.get("itms", []) or [doc]:
+        det = it.get("itm_det", it)
+        for k, key in (("taxable", "txval"), ("igst", "iamt"), ("cgst", "camt"), ("sgst", "samt"),
+                       ("cess", "csamt")):
+            out[k] += parse_amount(det.get(key)) or ZERO
+    return out
+
+
+def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dict]]:
+    """GSTR-1 (GSTN JSON). Returns invoice-level rows for registered recipients (B2B, CDNR and their
+    amendments) and section summaries for every section (for the GSTR-1 vs GSTR-3B comparison)."""
+    data = js.get("data", js)
+    period = parse_period(data.get("fp") or data.get("ret_period"))
+    rows, warnings = [], []
+    summary: dict[tuple, dict] = {}
+
+    def add(section, supply, vals, pos="", rate="", sign=1, docs=1):
+        key = (section, supply, str(pos or ""), str(rate or ""))
+        s = summary.setdefault(key, {"section": section, "supply": supply, "pos": str(pos or ""),
+                                     "rate": str(rate or ""), "doc_count": 0, "taxable": ZERO, "igst": ZERO,
+                                     "cgst": ZERO, "sgst": ZERO, "cess": ZERO})
+        s["doc_count"] += docs
+        for k in ("taxable", "igst", "cgst", "sgst", "cess"):
+            s[k] += vals[k] * sign
+
+    def b2b_supply(doc) -> str:
+        if str(doc.get("rchrg", "N")).upper() == "Y":
+            return "RCM"
+        return "SEZ" if str(doc.get("inv_typ", "R")).upper() in ("SEWP", "SEWOP") else "REG"
+
+    for section, payload in data.items():
+        if section in ("gstin", "fp", "ret_period", "gt", "cur_gt", "hsn", "doc_issue", "fil_dt", "rtnprd"):
+            continue
+        if section in ("b2b", "b2ba"):
+            for si, sup in enumerate(payload):
+                for di, doc in enumerate(sup.get("inv", [])):
+                    vals = _items_total(doc)
+                    supply = b2b_supply(doc)
+                    add(section.upper(), supply, vals, doc.get("pos"))
+                    rows.append({"supplier_gstin": sup.get("ctin"), "invoice_no": doc.get("inum"),
+                                 "invoice_date": doc.get("idt"), "invoice_value": doc.get("val"),
+                                 "place_of_supply": doc.get("pos"), "reverse_charge": doc.get("rchrg"),
+                                 "doc_type": "INV", "supply_type": {"SEZ": "SEZ", "RCM": "Reverse charge"}.get(
+                                     supply, doc.get("inv_typ", "R")),
+                                 "original_invoice_no": doc.get("oinum"), "original_invoice_date": doc.get("oidt"),
+                                 "taxable_value": vals["taxable"], "igst": vals["igst"], "cgst": vals["cgst"],
+                                 "sgst": vals["sgst"], "cess": vals["cess"], "_amendment": section == "b2ba",
+                                 "_sheet": section, "_row": f"{section}[{si}].inv[{di}]"})
+        elif section in ("cdnr", "cdnra"):
+            for si, sup in enumerate(payload):
+                for di, doc in enumerate(sup.get("nt", [])):
+                    vals = _items_total(doc)
+                    ntty = str(doc.get("ntty", "C")).upper()
+                    add(section.upper(), b2b_supply(doc), vals, doc.get("pos"), sign=-1 if ntty == "C" else 1)
+                    rows.append({"supplier_gstin": sup.get("ctin"), "invoice_no": doc.get("nt_num"),
+                                 "invoice_date": doc.get("nt_dt"), "invoice_value": doc.get("val"),
+                                 "place_of_supply": doc.get("pos"), "reverse_charge": doc.get("rchrg"),
+                                 "doc_type": ntty, "supply_type": doc.get("inv_typ", "R"),
+                                 "original_invoice_no": doc.get("ont_num"), "original_invoice_date": doc.get("ont_dt"),
+                                 "taxable_value": vals["taxable"], "igst": vals["igst"], "cgst": vals["cgst"],
+                                 "sgst": vals["sgst"], "cess": vals["cess"], "_amendment": section == "cdnra",
+                                 "_sheet": section, "_row": f"{section}[{si}].nt[{di}]"})
+        elif section in ("b2cl", "b2cla"):
+            for grp in payload:
+                for doc in grp.get("inv", []):
+                    add(section.upper(), "INTER", _items_total(doc), grp.get("pos"))
+        elif section in ("b2cs", "b2csa"):
+            for d in payload:
+                add(section.upper(), str(d.get("sply_ty", "")).upper(), _items_total(d), d.get("pos"), d.get("rt"))
+        elif section in ("exp", "expa"):
+            for grp in payload:
+                for doc in grp.get("inv", []):
+                    add(section.upper(), str(grp.get("exp_typ", "")).upper(), _items_total(doc))
+        elif section in ("cdnur", "cdnura"):
+            for d in payload:
+                ntty = str(d.get("ntty", "C")).upper()
+                add(section.upper(), str(d.get("typ", "")).upper(), _items_total(d), d.get("pos"),
+                    sign=-1 if ntty == "C" else 1)
+        elif section == "nil":
+            for d in (payload.get("inv", []) if isinstance(payload, dict) else payload):
+                for key, sec in (("nil_amt", "NIL"), ("expt_amt", "EXEMPT"), ("ngsup_amt", "NONGST")):
+                    amt = parse_amount(d.get(key)) or ZERO
+                    if amt:
+                        add(sec, str(d.get("sply_ty", "")).upper(),
+                            {"taxable": amt, "igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO})
+        elif isinstance(payload, list):
+            warnings.append(f"GSTR-1 section '{section}' ({len(payload)} entries) is not compared in this version")
+    return rows, period, warnings, list(summary.values())

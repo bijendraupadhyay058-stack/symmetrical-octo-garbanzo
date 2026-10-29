@@ -128,6 +128,7 @@ class Invoice(Base):
     identity_hash: Mapped[str] = mapped_column(String(32))
     description: Mapped[str] = mapped_column(Text, default="")  # schema v3
     ims_action: Mapped[str] = mapped_column(String(2), default="")  # schema v3
+    supply_type: Mapped[str] = mapped_column(String(40), default="")  # schema v4
     source_file: Mapped[SourceFile] = relationship()
 
 
@@ -354,6 +355,7 @@ class Gstr3bEntry(Base):
     sgst: Mapped[Decimal] = mapped_column(DecimalText)
     cess: Mapped[Decimal] = mapped_column(DecimalText)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # schema v4 (Table 3.1 rows)
 
 
 class OtherItc(Base):
@@ -380,3 +382,82 @@ class OtherItc(Base):
 
 
 V3_TABLES = [User, AppSetting, ItcRuleRow, ItcReview, ItcClaim, Gstr3bEntry, OtherItc]
+
+
+# ------------------------------------------------------------------ schema v4
+class Gstr1Summary(Base):
+    """GSTR-1 section totals per period (B2B, B2CL, B2CS, CDNR, CDNUR, EXP, NIL, amendments)."""
+
+    __tablename__ = "gstr1_summary"
+    __table_args__ = (Index("ix_g1s_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    section: Mapped[str] = mapped_column(String(12))
+    pos: Mapped[str] = mapped_column(String(4), default="")
+    rate: Mapped[str] = mapped_column(String(8), default="")
+    supply: Mapped[str] = mapped_column(String(12), default="")  # INTRA / INTER / WPAY / WOPAY / NIL / EXEMPT / NONGST
+    doc_count: Mapped[int] = mapped_column(Integer, default=0)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+
+
+class SyncAuthorization(Base):
+    """The client's authorisation to keep their data in a synchronised (cloud) location."""
+
+    __tablename__ = "sync_authorizations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    granted_by: Mapped[str] = mapped_column(String(120))  # client's authorised signatory
+    scope: Mapped[str] = mapped_column(Text)
+    granted_on: Mapped[date] = mapped_column(Date)
+    expires_on: Mapped[date] = mapped_column(Date)
+    evidence: Mapped[str] = mapped_column(Text, default="")  # e.g. reference of the signed consent letter
+    recorded_by: Mapped[str] = mapped_column(String(80), default="")
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class SyncState(Base):
+    __tablename__ = "sync_state"
+    client_gstin: Mapped[str] = mapped_column(String(15), primary_key=True)
+    last_export_seq: Mapped[int] = mapped_column(Integer, default=0)
+    last_import_seq: Mapped[int] = mapped_column(Integer, default=0)
+    last_import_origin: Mapped[str] = mapped_column(String(64), default="")
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class LetterRecord(Base):
+    __tablename__ = "letters"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    supplier_gstin: Mapped[str] = mapped_column(String(15))
+    issues: Mapped[int] = mapped_column(Integer, default=0)
+    amount: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    files_json: Mapped[str] = mapped_column(Text, default="[]")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WorkingPaper(Base):
+    __tablename__ = "working_papers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    period_from: Mapped[str] = mapped_column(String(7))
+    period_to: Mapped[str] = mapped_column(String(7))
+    prepared_by: Mapped[str] = mapped_column(String(80))
+    prepared_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    reviewed_by: Mapped[str] = mapped_column(String(80), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    review_notes: Mapped[str] = mapped_column(Text, default="")
+    package_path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+
+
+V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

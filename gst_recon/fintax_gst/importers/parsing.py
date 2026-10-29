@@ -81,11 +81,12 @@ def parse_doc_type(value) -> DocType | None:
     if is_blank(value):
         return None
     text = re.sub(r"[^a-z]", "", str(value).lower())
-    if text in ("c", "cn", "crn", "cr", "creditnote", "credit", "cdnrc"):
+    if text in ("c", "cn", "crn", "cr", "creditnote", "credit", "cdnrc", "salesreturn", "salesreturns"):
         return DocType.CREDIT_NOTE
     if text in ("d", "dn", "dbn", "dr", "debitnote", "debit"):
         return DocType.DEBIT_NOTE
-    if text in ("i", "inv", "invoice", "taxinvoice", "r", "regular", "b2b", "bill", "purchase", "purchaseinvoice"):
+    if text in ("i", "inv", "invoice", "taxinvoice", "r", "regular", "b2b", "bill", "purchase", "purchaseinvoice",
+                "sales", "sale", "salesinvoice"):
         return DocType.INVOICE
     if "credit" in text:
         return DocType.CREDIT_NOTE

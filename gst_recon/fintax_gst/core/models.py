@@ -16,6 +16,36 @@ class Source(str, Enum):
     GSTR2B = "GSTR2B"
     GSTR2A = "GSTR2A"
     IMS = "IMS"  # Invoice Management System export (recipient's actions on supplier documents)
+    SALES = "SALES"  # own sales register (outward supplies)
+    GSTR1 = "GSTR1"  # GSTR-1 as filed / downloaded (outward supplies)
+
+
+#: Sources that represent the taxpayer's own books (left side of a reconciliation).
+LEFT_SOURCES = frozenset({Source.BOOKS, Source.SALES})
+#: Comparison partner of each books source.
+PARTNER = {Source.GSTR2B: Source.BOOKS, Source.GSTR2A: Source.BOOKS, Source.GSTR1: Source.SALES}
+
+
+def side_labels(comparison: str) -> tuple[str, str]:
+    """('Books', 'GSTR-2B') style labels for a run comparison such as 'SALES_VS_GSTR1'."""
+    right = comparison.split("_VS_")[-1] if comparison else "GSTR2B"
+    left = comparison.split("_VS_")[0] if comparison and "_VS_" in comparison else "BOOKS"
+    names = {"BOOKS": "Books", "SALES": "Sales register", "GSTR2B": "GSTR-2B", "GSTR2A": "GSTR-2A",
+             "GSTR1": "GSTR-1"}
+    return names.get(left, left), names.get(right, right)
+
+
+def relabel(text: str, comparison: str) -> str:
+    """Rewrite inward wording ('Books', 'GSTR-2B') for the run's actual comparison."""
+    left, right = side_labels(comparison)
+    if (left, right) == ("Books", "GSTR-2B"):
+        return text
+    text = text.replace("GSTR-2B", right).replace("Books", left).replace("books", left.lower())
+    if left == "Sales register":
+        for a, b in (("Input Tax Credit", "Output tax"), ("Purchase", "Sales"), ("purchase", "sales"),
+                     ("ITC", "Tax"), ("Supplier", "Customer"), ("supplier", "customer")):
+            text = text.replace(a, b)
+    return text
 
 
 class DocType(str, Enum):
@@ -150,6 +180,7 @@ class InvoiceRecord:
     original_invoice_date: date | None = None
     supplier_period: str = ""
     description: str = ""  # narration / expense head / item description (used by ITC rules)
+    supply_type: str = ""  # e.g. Regular, SEZ with payment, Export – outward summaries use it
     ims_action: str = ""  # IMS only: A accepted, R rejected, P pending, N no action (deemed accepted)
     source_file: str = ""
     source_rows: str = ""
@@ -198,7 +229,7 @@ class InvoiceRecord:
         GSTR-2A/2B records include the return period: the same invoice reported
         in two periods is two separate portal records (and is then flagged as a
         duplicate during reconciliation), not a repeated import."""
-        parts = [self.period if self.source != Source.BOOKS else "", self.ims_action,
+        parts = [self.period if self.source not in LEFT_SOURCES else "", self.ims_action,
             self.source.value, self.supplier_gstin, self.doc_type.value, self.invoice_no_norm,
             self.invoice_date.isoformat(), *(str(getattr(self, f).normalize()) for f in AMOUNT_FIELDS),
             "A" if self.is_amendment else "O",

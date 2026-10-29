@@ -50,7 +50,8 @@ SYNONYMS: dict[str, list[str]] = {
     "voucher_date": ["date", "voucher date", "posting date", "entry date", "booking date", "accounting date"],
     "voucher_type": ["voucher type", "vch type", "voucher type name"],
     "doc_type": ["document type", "doc type", "type of document", "note type", "document category", "ntty"],
-    "supply_type": ["invoice type", "note supply type", "supply type", "inv typ"],
+    "supply_type": ["invoice type", "note supply type", "supply type", "inv typ", "type of supply",
+                    "nature of supply", "export type"],
     "invoice_value": [
         "invoice value", "total invoice value", "note value", "gross total", "bill amount", "invoice amount",
         "total amount", "document value", "val", "value",
@@ -86,7 +87,7 @@ LEDGER_PATTERNS = {
     "cgst": re.compile(r"\b(cgst|central tax)\b"),
     "sgst": re.compile(r"\b(sgst|utgst|state tax|state ut tax)\b"),
     "cess": re.compile(r"\bcess\b"),
-    "taxable_value": re.compile(r"^(purchase|purchases)\b"),
+    "taxable_value": re.compile(r"^(purchase|purchases|sales|sale)\b"),
 }
 
 REQUIRED_FIELDS = ("supplier_gstin", "invoice_no", "invoice_date")

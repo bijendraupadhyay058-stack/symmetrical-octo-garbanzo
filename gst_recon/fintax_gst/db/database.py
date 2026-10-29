@@ -55,12 +55,27 @@ def _migration_3(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V3_TABLES])
 
 
+def _migration_4(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    from .models import V4_TABLES, Base
+
+    insp = sa_inspect(conn)
+    for table, column, ddl in (("invoices", "supply_type", "VARCHAR(40) NOT NULL DEFAULT ''"),
+                               ("gstr3b_entries", "taxable", "VARCHAR(40) NOT NULL DEFAULT '0'")):
+        if column not in {c["name"] for c in insp.get_columns(table)}:
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V4_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "initial schema: clients, imports, invoices, reconciliation runs, audit log", _migration_1),
     (2, "manual match decisions, vendor follow-up register, evidence attachments", _migration_2),
     (3, "users, settings, ITC rules/reviews/claims, GSTR-3B, ISD/imports, IMS columns", _migration_3),
+    (4, "outward supplies (sales, GSTR-1), GSTR-3B 3.1, sync authorisations, letters, working papers",
+     _migration_4),
 ]
 
 

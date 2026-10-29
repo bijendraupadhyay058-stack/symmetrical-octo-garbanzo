@@ -22,7 +22,8 @@ from sqlalchemy import delete, select
 
 from ..db.database import Database
 from ..db.models import (
-    AppSetting, Attachment, AuditLog, Client, Gstr3bEntry, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
+    AppSetting, Attachment, AuditLog, Client, Gstr1Summary, Gstr3bEntry, LetterRecord, SyncAuthorization,
+    WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, Vendor,
 )
 from .auth import Session, require
@@ -144,6 +145,10 @@ class SecurityService:
                 (ItcReview, ItcReview.client_id == client_id), (ItcRuleRow, ItcRuleRow.client_id == client_id),
                 (Vendor, Vendor.client_id == client_id), (ReconRun, ReconRun.client_id == client_id),
                 (Gstr3bEntry, Gstr3bEntry.client_id == client_id), (OtherItc, OtherItc.client_id == client_id),
+                (Gstr1Summary, Gstr1Summary.client_id == client_id),
+                (SyncAuthorization, SyncAuthorization.client_id == client_id),
+                (LetterRecord, LetterRecord.client_id == client_id),
+                (WorkingPaper, WorkingPaper.client_id == client_id),
                 (ImportIssue, ImportIssue.source_file_id.in_(file_ids)), (Invoice, Invoice.client_id == client_id),
                 (SourceFile, SourceFile.client_id == client_id),
             ):

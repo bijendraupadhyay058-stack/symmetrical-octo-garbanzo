@@ -27,6 +27,17 @@ def itc_report_data(db: Database, run_id: int, as_of: date | None = None):
                          ims_notes if ims_rows else [], as_of)
 
 
+def outward_report_data(db: Database, run_id: int):
+    from ..reports.outward_sheets import OutwardReportData
+    from .outward import OutwardService
+    from .reconciliation import months_between
+
+    ctx = ReconciliationService(db).load(run_id)
+    periods = months_between(ctx.run.period_from, ctx.run.period_to)
+    svc = OutwardService(db)
+    return OutwardReportData(svc.liability(ctx.client.id, periods), svc.summaries(ctx.client.id, periods))
+
+
 def export_run(db: Database, run_id: int, out_dir: str | Path, pdf: bool = True,
                user: str | None = None, as_of: date | None = None) -> list[Path]:
     ctx = ReconciliationService(db).load(run_id)
@@ -34,9 +45,12 @@ def export_run(db: Database, run_id: int, out_dir: str | Path, pdf: bool = True,
     out_dir = Path(out_dir)
     vendors = VendorService(db).all(ctx.client.id)
     evidence = AttachmentService(db).counts(run_id)
-    itc = itc_report_data(db, run_id, as_of)
+    if ctx.run.comparison.startswith("SALES"):
+        itc, outward = None, outward_report_data(db, run_id)
+    else:
+        itc, outward = itc_report_data(db, run_id, as_of), None
     paths = [export_excel(ctx, out_dir / default_report_name(ctx.client, ctx.run, "xlsx"), issues, vendors, evidence,
-                          itc)]
+                          itc, outward)]
     if pdf:
         paths.append(export_pdf(ctx, out_dir / default_report_name(ctx.client, ctx.run, "pdf")))
     with db.session() as s:

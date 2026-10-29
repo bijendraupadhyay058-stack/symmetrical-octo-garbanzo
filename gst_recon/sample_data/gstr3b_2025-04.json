@@ -1,6 +1,35 @@
 {
   "gstin": "27AAPFU0939F1ZV",
   "ret_period": "042025",
+  "sup_details": {
+    "osup_det": {
+      "txval": 404000.0,
+      "iamt": 34380.0,
+      "camt": 17370.0,
+      "samt": 17370.0,
+      "csamt": 0
+    },
+    "osup_zero": {
+      "txval": 340000.0,
+      "iamt": 16200.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0
+    },
+    "osup_nil_exmp": {
+      "txval": 12000.0
+    },
+    "isup_rev": {
+      "txval": 0.0,
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0
+    },
+    "osup_nongst": {
+      "txval": 0
+    }
+  },
   "itc_elg": {
     "itc_avl": [
       {

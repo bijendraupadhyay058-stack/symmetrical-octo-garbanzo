@@ -390,7 +390,9 @@ def write_gstr3b_json(path: Path) -> None:
     rev = {"cgst": D(720), "sgst": D(720)}  # 17(5) food reversal (ANC/77)
     net = {k: oth.get(k, 0) + rcm.get(k, 0) + impg.get(k, 0) + isd.get(k, 0) - rev.get(k, 0)
            for k in ("igst", "cgst", "sgst", "cess")}
-    payload = {"gstin": CLIENT["gstin"], "ret_period": "042025", "itc_elg": {
+    from .samples_outward import gstr3b_31
+
+    payload = {"gstin": CLIENT["gstin"], "ret_period": "042025", "sup_details": gstr3b_31(), "itc_elg": {
         "itc_avl": [row("IMPG", impg), row("IMPS", {}), row("ISRC", rcm), row("ISD", isd), row("OTH", oth)],
         "itc_rev": [row("RUL", rev), row("OTH", {})],
         "itc_net": {k: v for k, v in row("", net).items() if k != "ty"},
@@ -455,6 +457,9 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_gstr3b_json(files["gstr3b_april_json"])
     write_gstr3b_template(files["gstr3b_template_csv"])
     write_ims_json(files["ims_april_json"])
+    from .samples_outward import write_outward
+
+    files.update(write_outward(out))
     lines = ["# Demo dataset – expected reconciliation outcome", "",
              f"Client: {CLIENT['name']} ({CLIENT['gstin']}), FY 2025-26, period April 2025.", "",
              "| # | Scenario | Expected category | Note |", "|---|---|---|---|"]
@@ -471,5 +476,11 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "* ITC review flags ANC/77 (Section 17(5)(b)(i) food and (h) gifts indicators), SRW-310 (reverse "
               "charge), KTX-2301 (GSTR-2B ITC not available) and all books documents not in GSTR-2B "
               "(Section 16(2)(aa))."]
+    lines += ["", "## Outward supplies (Phase 4)", "",
+              "* `tally_sales_register_2025-04.xlsx` vs `gstr1_2025-04.json`: 5 perfect B2B matches, one invoice not "
+              "in GSTR-1, one in GSTR-1 only, a taxable-value difference, a wrong customer GSTIN (probable), a "
+              "credit note and an SEZ supply; B2C, export and exempt sales are compared at summary level.",
+              "* GSTR-1 B2CS leaves out ₹1,000 taxable value; GSTR-3B 3.1(a) tax is ₹3,600 lower than GSTR-1 → "
+              "possible short payment in the liability working."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

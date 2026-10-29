@@ -11,7 +11,7 @@ from decimal import Decimal
 
 from ..core.gstin import normalize_gstin, validate_gstin
 from ..core.invoice_no import clean_raw_invoice_no
-from ..core.models import DocType, InvoiceRecord, Source, period_of
+from ..core.models import LEFT_SOURCES, DocType, InvoiceRecord, Source, period_of
 from ..core.money import ZERO, AmountParseError, parse_amount
 from .parsing import (
     DateParseError, parse_bool, parse_date, parse_doc_type, parse_ims_action, parse_period, parse_text,
@@ -54,8 +54,13 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     errors: list[str] = []
     warnings: list[str] = []
 
+    outward = ctx.source in (Source.SALES, Source.GSTR1)
     gstin = normalize_gstin(parse_text(row.get("supplier_gstin")))
-    if not gstin:
+    if outward and gstin in ("URP", "UNREGISTERED", "B2C", "NA", "NIL", "CONSUMER", "CASH"):
+        gstin = ""
+    if not gstin and outward:
+        pass  # unregistered recipient (B2C) or export: compared at summary level, not invoice by invoice
+    elif not gstin:
         errors.append("Supplier GSTIN missing (unregistered purchases cannot be reconciled with GSTR-2B)")
     else:
         ok, problem = validate_gstin(gstin)
@@ -86,7 +91,8 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     # Document type, from the supplier's point of view.
     doc_type: DocType | None = None
     if ctx.layout == "tally" and row.get("voucher_type") is not None:
-        doc_type = tally_voucher_doc_type(row.get("voucher_type"))
+        doc_type = (parse_doc_type(row.get("voucher_type")) if outward  # own sales: no buyer/supplier flip
+                    else tally_voucher_doc_type(row.get("voucher_type")))
         if doc_type is None:
             warnings.append(f"Voucher type '{row.get('voucher_type')}' not recognised – treated as invoice")
     if doc_type is None and row.get("doc_type") is not None:
@@ -132,7 +138,7 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     if abs(t["cgst"] - t["sgst"]) > Decimal("1"):
         warnings.append(f"CGST ({t['cgst']}) and SGST ({t['sgst']}) are not equal")
 
-    if ctx.source == Source.BOOKS:
+    if ctx.source in LEFT_SOURCES:
         if voucher_date is not None:
             period = period_of(voucher_date)
         elif ctx.period:
@@ -178,5 +184,6 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
         supplier_period=parse_period(row.get("supplier_period")) or parse_text(row.get("supplier_period")),
         source_file=ctx.file_name, source_rows=str(row.get("_row", "")),
         description=parse_text(row.get("description"))[:500], ims_action=ims_action,
+        supply_type=parse_text(row.get("supply_type"))[:40],
     )
     return RowOutcome(record, errors, warnings)

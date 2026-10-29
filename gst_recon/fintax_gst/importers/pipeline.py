@@ -12,12 +12,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..core.models import AMOUNT_FIELDS, InvoiceRecord, Source
+from ..core.models import AMOUNT_FIELDS, LEFT_SOURCES, InvoiceRecord, Source
 from ..core.money import ZERO
 from .column_mapping import (
     Column, MappingResult, apply_template, auto_map, build_columns, header_score, normalize_header,
 )
-from .gstn_json import detect_json_kind, flatten_gstr2a, flatten_gstr2b, flatten_ims
+from .gstn_json import detect_json_kind, flatten_gstr1, flatten_gstr2a, flatten_gstr2b, flatten_ims
 from .parsing import parse_period
 from .readers import SUPPORTED_EXTENSIONS, RawTable, UnsupportedFileError, read_csv, read_excel, read_json, zip_members
 from .validation import RowContext, build_record
@@ -28,6 +28,7 @@ LAYOUT_LABELS = {
     "gstr2a_excel": "GSTR-2A (GST portal Excel)",
     "gstr2a_json": "GSTR-2A (GST portal JSON)",
     "ims_json": "IMS download (GST portal JSON)",
+    "gstr1_json": "GSTR-1 (GST portal JSON)",
     "tally": "TallyPrime purchase register",
     "generic": "Custom purchase register",
 }
@@ -71,6 +72,7 @@ class ImportPreview:
     file_warnings: list[str] = field(default_factory=list)
     columns: dict[str, list[str]] = field(default_factory=dict)  # sheet -> column labels (for re-mapping)
     other_itc: list[dict] = field(default_factory=list)  # GSTR-2B ISD credits and imports (bills of entry)
+    outward_summary: list[dict] = field(default_factory=list)  # GSTR-1 section totals
     total_rows: int = 0
     existing_record_hashes: set[str] = field(default_factory=set)
     already_imported_file_id: int | None = None
@@ -206,6 +208,12 @@ def _process_table(builder: _Builder, table: RawTable, template: dict | None, ex
         return
     header_idx, columns = located
     mapping = apply_template(columns, template) if template else auto_map(columns)
+    if (builder.p.source == Source.SALES and "invoice_date" not in mapping.indices
+            and "voucher_date" in mapping.indices):  # in a sales register the voucher is the invoice
+        mapping.indices["invoice_date"] = mapping.indices["voucher_date"]
+        mapping.fields["invoice_date"] = mapping.fields["voucher_date"]
+        mapping.missing_required = [f for f in mapping.missing_required if f != "invoice_date"]
+        mapping.notes.append("Invoice date taken from the voucher date column (sales register)")
     if not mapping.complete:
         raise MappingRequired(table.name, mapping, columns)
     builder.p.mappings[table.name] = mapping
@@ -285,6 +293,8 @@ def _expected_source(layout: str) -> Source | None:
         return Source.GSTR2A
     if layout.startswith("ims"):
         return Source.IMS
+    if layout.startswith("gstr1"):
+        return Source.GSTR1
     return Source.BOOKS
 
 
@@ -309,7 +319,7 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
         msuffix = Path(name).suffix.lower()
         if msuffix == ".json":
             js = read_json(data)
-            kind = detect_json_kind(js)
+            kind = detect_json_kind(js, source.value)
             if kind is None:
                 raise UnsupportedFileError(f"{name}: JSON is not a recognised GSTR-2B/GSTR-2A/IMS layout")
             if kind == "GSTR2B":
@@ -317,14 +327,22 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
                 preview.other_itc.extend(other)
             elif kind == "IMS":
                 rows, json_period, warnings = flatten_ims(js)
+            elif kind == "GSTR1":
+                rows, json_period, warnings, preview.outward_summary = flatten_gstr1(js)
+            elif kind == "GSTR3B":
+                raise UnsupportedFileError(f"{name} is a GSTR-3B return – import it with the GSTR-3B import")
             else:
                 rows, json_period, warnings = flatten_gstr2a(js)
-            preview.layout = {"GSTR2B": "gstr2b_json", "IMS": "ims_json"}.get(kind, "gstr2a_json")
+            preview.layout = {"GSTR2B": "gstr2b_json", "IMS": "ims_json", "GSTR1": "gstr1_json"}.get(kind,
+                                                                                                "gstr2a_json")
             _check_source(preview)
             preview.period = preview.period or json_period
             preview.file_warnings += warnings
             _require_period(preview)
             builder = _Builder(preview, "gstn")
+            if preview.outward_summary:
+                preview.issues.append(RowIssue("", "", "info", f"{len(preview.outward_summary)} GSTR-1 section "
+                                               "total(s) read for the GSTR-1 vs GSTR-3B comparison"))
             if preview.other_itc:
                 preview.issues.append(RowIssue("", "", "info", f"{len(preview.other_itc)} ISD / import (bill of "
                                                "entry) record(s) read for the GSTR-3B Table 4 working"))
@@ -356,7 +374,7 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
                 elif _has_data_rows(t):
                     preview.file_warnings.append(f"Sheet '{t.name}' is not reconciled in this version (not imported)")
         else:
-            if preview.source != Source.BOOKS:
+            if preview.source not in LEFT_SOURCES:
                 _require_period(preview)
             builder = _Builder(preview, preview.layout)
             imported_any = False
@@ -389,12 +407,13 @@ def _has_data_rows(t: RawTable) -> bool:
 
 def _check_source(preview: ImportPreview) -> None:
     expected = _expected_source(preview.layout)
-    if preview.source == Source.BOOKS and expected != Source.BOOKS:
+    own_books = preview.source in LEFT_SOURCES
+    if own_books and expected != Source.BOOKS:
         raise UnsupportedFileError(f"{preview.file_name} looks like a {LAYOUT_LABELS[preview.layout]} file, "
-                                   "not a purchase register")
-    if preview.source != Source.BOOKS and expected == Source.BOOKS and preview.layout == "tally":
-        raise UnsupportedFileError(f"{preview.file_name} looks like a TallyPrime purchase register, not GSTR data")
-    if preview.source != Source.BOOKS and expected not in (Source.BOOKS, preview.source):
+                                   "not a purchase/sales register")
+    if not own_books and expected == Source.BOOKS and preview.layout == "tally":
+        raise UnsupportedFileError(f"{preview.file_name} looks like a TallyPrime register, not GSTR data")
+    if not own_books and expected not in (Source.BOOKS, preview.source):
         raise UnsupportedFileError(f"{preview.file_name} is a {LAYOUT_LABELS[preview.layout]} file but was "
                                    f"imported as {preview.source.value}")
 

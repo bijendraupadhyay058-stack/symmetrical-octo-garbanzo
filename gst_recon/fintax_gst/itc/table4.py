@@ -23,7 +23,7 @@ from ..core.models import PAIRED_CATEGORIES, PARTIAL_CATEGORIES, Category, DocTy
 from ..core.money import ZERO
 from ..importers.gstr3b import TABLE4, Gstr3bValues
 from .review import DocReview
-from .rules import Rule, provisional_limit_pct
+from .rules import Rule, intimation_threshold, provisional_limit_pct
 
 A_CODES = ("4A1", "4A2", "4A3", "4A4", "4A5")
 B_CODES = ("4B1", "4B2")
@@ -161,6 +161,14 @@ def build_period(period: str, gstr2b: list[InvoiceRecord], other_itc: list[dict]
                           else "Section 16(2)(aa) – only ITC reflected in GSTR-2B")
             w.findings.append(Finding("statutory", "high", f"4(A)(5) claimed exceeds GSTR-2B by "
                                       f"₹{claimed - auto['4A5'].total:,.2f} ({basis_text})", claimed - allowed))
+        r88d = next((r for r in rules if r.code == "R88D"), None)
+        claimed_all = sum((filed_rows.get(c, Gstr3bValues()).total for c in A_CODES), ZERO)
+        available = sum((auto[c].total for c in A_CODES), ZERO)
+        limit = intimation_threshold(r88d, available, start)
+        if limit is not None and claimed_all - available > limit:
+            w.findings.append(Finding("statutory", "high", f"ITC in GSTR-3B exceeds GSTR-2B by "
+                                      f"₹{claimed_all - available:,.2f}, above the Rule 88D limit of ₹{limit:,.2f} "
+                                      "– DRC-01C intimation expected", claimed_all - available))
         inelig = filed_rows.get("4D2", Gstr3bValues()).total
         if auto["4D2"].total - inelig > tolerance:
             w.findings.append(Finding("statutory", "medium", "GSTR-2B ITC marked unavailable is not fully reported "

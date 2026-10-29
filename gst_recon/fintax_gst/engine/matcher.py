@@ -38,8 +38,8 @@ from .. import ENGINE_VERSION
 from ..core.gstin import pan_of
 from ..core.invoice_no import normalize_invoice_no, same_text
 from ..core.models import (
-    AMOUNT_FIELDS, Category, DocType, ExceptionStatus, Flag, InvoiceRecord, ReconLine,
-    ReconSettings, Source,
+    AMOUNT_FIELDS, LEFT_SOURCES, Category, DocType, ExceptionStatus, Flag, InvoiceRecord, ReconLine,
+    ReconSettings,
 )
 from ..core.money import ZERO, q2
 
@@ -377,7 +377,7 @@ class _Engine:
             b, g = self.by_uid.get(b_uid), self.by_uid.get(g_uid)
             if b is None or g is None or b_uid in self.used or g_uid in self.used:
                 continue
-            if b.source != Source.BOOKS or g.source == Source.BOOKS:
+            if b.source not in LEFT_SOURCES or g.source in LEFT_SOURCES:
                 continue
             line = self._pair_line(b, g, "manual")
             if note:
@@ -491,7 +491,7 @@ class _Engine:
                         f"'{o.invoice_no}' ({c}%)" for c, o in others)],
                     candidates=[o.uid for _, o in others],
                 )
-                if r.source == Source.BOOKS:
+                if r.source in LEFT_SOURCES:
                     line.books = r
                 else:
                     line.gstr2b = r
@@ -603,10 +603,10 @@ def reconcile(
     settings = settings or ReconSettings()
     books, gstr2b, prior_books = list(books), list(gstr2b), list(prior_books)
     for r in books:
-        if r.source != Source.BOOKS:
+        if r.source not in LEFT_SOURCES:
             raise ValueError(f"{r.uid} is not a books record")
     for r in gstr2b:
-        if r.source == Source.BOOKS:
+        if r.source in LEFT_SOURCES:
             raise ValueError(f"{r.uid} is a books record passed as GSTR-2B")
     manual_pairs, rejected_pairs = list(manual_pairs), list(rejected_pairs)
     engine = _Engine(books, gstr2b, prior_books, settings, period_start, progress, cancel,
@@ -632,8 +632,8 @@ def manual_pair_line(b: InvoiceRecord, g: InvoiceRecord, settings: ReconSettings
 def single_sided_line(record: InvoiceRecord, settings: ReconSettings, period_start: date | None,
                       note: str = "") -> ReconLine:
     """Line for a record left without a counterpart (e.g. after the user rejects a pair)."""
-    engine = _Engine([record] if record.source == Source.BOOKS else [],
-                     [] if record.source == Source.BOOKS else [record], [], settings, period_start, None, None)
+    left = record.source in LEFT_SOURCES
+    engine = _Engine([record] if left else [], [] if left else [record], [], settings, period_start, None, None)
     engine._pass_missing()
     line = engine.lines[0]
     if note:

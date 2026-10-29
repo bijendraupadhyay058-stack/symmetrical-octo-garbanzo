@@ -255,6 +255,8 @@ class ItcService:
     # --------------------------------------------------------------- review
     def review_run(self, run_id: int, as_of: date | None = None) -> tuple[list[DocReview], dict]:
         ctx = self.recon.load(run_id)
+        if not ctx.run.comparison.startswith("BOOKS"):
+            return [], {}  # outward runs carry no input tax credit
         cid = ctx.client.id
         periods = months_between(ctx.run.period_from, ctx.run.period_to)
         ims_rows, _ = self.ims_compare(cid, periods)
@@ -293,6 +295,7 @@ class ItcService:
     def _latest_month_runs(self, s, client_id: int, months: list[str]) -> dict[str, int]:
         runs = s.scalars(select(ReconRun).where(ReconRun.client_id == client_id,
                                                 ReconRun.period_from == ReconRun.period_to,
+                                                ReconRun.comparison.like("BOOKS%"),
                                                 ReconRun.period_from.in_(months)).order_by(ReconRun.id)).all()
         return {r.period_from: r.id for r in runs}
 
