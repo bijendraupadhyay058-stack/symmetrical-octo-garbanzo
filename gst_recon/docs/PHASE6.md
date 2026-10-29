@@ -68,6 +68,14 @@ mapping once, wherever the user happens to be.
 
 ## 4. Windows build in CI
 
+**Result:** every job passed on commit a9c9ae8:
+
+* Ubuntu tests;
+* Windows tests;
+* PostgreSQL suite;
+* Windows build: executables, smoke test, CLI demo and the Inno Setup installer, uploaded
+  as the `FinTaxPro-windows` artifact of about 183 MB.
+
 `.github/workflows/gst-recon.yml` now has three jobs:
 
 * **test** on Ubuntu and Windows: the full suite and the demo.

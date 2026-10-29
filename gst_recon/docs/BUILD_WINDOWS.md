@@ -42,6 +42,17 @@ this script on a GitHub Windows runner on every push that changes `gst_recon/` (
 demand). It uploads the executables and installer as the `FinTaxPro-windows` artifact.
 Set `FINTAX_BUILD_PYTHON=python` when the `py` launcher is not installed.
 
+**Verified:** CI run 40931038348 (commit a9c9ae8, 29 Oct 2026) on `windows-latest` ran this
+script end to end:
+
+* the test suite;
+* both PyInstaller builds;
+* `FinTaxPro.exe --smoke-test`;
+* the CLI demo from `FinTaxPro-GST.exe`;
+* the Inno Setup compile of `FinTaxPro-Setup-1.0.0.exe`.
+
+The build is unsigned until a certificate is configured.
+
 Manual equivalent:
 
 ```powershell
