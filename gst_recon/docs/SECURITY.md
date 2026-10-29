@@ -17,10 +17,15 @@
 | import, reconcile, review exceptions, ITC claims | ✓ | ✓ | ✓ | |
 | manage clients, ITC rules, settings, backups | ✓ | ✓ | | |
 | restore, delete client data, manage users | ✓ | | | |
+| supplier letters, prepare working papers | ✓ | ✓ | ✓ | |
+| sign off working papers (not one's own) | ✓ | ✓ | | |
+| sync: record client authorisation, export, import | ✓ | ✓ | | |
 
-Permissions are enforced where the user acts: in the desktop app (buttons are disabled
-and actions refused) and in the CLI (checked before the command runs). A future web API
-must call `services.auth.require()` on every request.
+Permissions are enforced where the user acts:
+
+* in the desktop app, where buttons are disabled and actions refused;
+* in the CLI, checked before the command runs;
+* in the web view, checked on every request.
 
 ## Encryption and backups
 
@@ -46,8 +51,33 @@ must call `services.auth.require()` on every request.
 * On SSDs and journaling file systems, overwriting is best-effort. Full-disk encryption is
   the dependable protection.
 
+## Sync packages
+
+* Exporting needs an **active client authorisation**: the signatory, the reference of the
+  signed consent, the scope and the validity, recorded and audited. A revoked or expired
+  authorisation blocks exports, and an imported package with an expired authorisation is
+  refused.
+* Packages (`FTPSY1`) are encrypted like backups: scrypt key from a password of at least
+  10 characters, then Fernet. Only ciphertext reaches the cloud folder.
+* Replay protection works per origin computer and sequence number. Local changes since
+  the last sync are a conflict and are never overwritten silently: replacing them needs
+  an explicit choice and takes a database backup first.
+
+## Web view
+
+* Read-only. Login uses the same users, lockout and roles. The session cookie is
+  HMAC-signed, HttpOnly and SameSite=Strict, expires after 30 minutes and is Secure over
+  HTTPS.
+* `Cache-Control: no-store`, a Content Security Policy without external sources, and
+  `X-Frame-Options: DENY`. API documentation endpoints are disabled.
+* By default the view is served only to this computer (127.0.0.1). Serving to other
+  devices is refused until users exist. It also needs a TLS certificate and key, or an
+  explicit `--allow-http-lan` for a trusted office network.
+* Downloads need the *export* permission and are audited.
+
 ## Privacy
 
-* The application works fully offline and makes no network calls.
+* The application works offline. It opens no outbound connection. The only listening
+  socket is the web view, and only when a user starts it.
 * It never asks for GST portal user names, passwords or OTPs.
 * No client data is sent to any external service, AI or otherwise.

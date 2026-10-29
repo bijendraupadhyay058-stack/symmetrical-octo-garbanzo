@@ -82,6 +82,7 @@ scripts/                 Service-worker build, icon generator, DB test runner
 
 The `gst_recon/` folder contains **FIN TAX PRO – Smart GST Reconciliation & ITC Management
 System**, an offline Python desktop application (PySide6) and command-line tool. It reconciles
-TallyPrime and custom purchase registers with GSTR-2B/2A and produces an audit-ready Excel
-workbook. See
+TallyPrime and custom purchase registers with GSTR-2B/2A, and sales registers with GSTR-1 and
+GSTR-3B. It produces audit-ready Excel workbooks, compliance summaries, supplier letters and
+working papers, and it has a read-only web view for phones. See
 [gst_recon/README.md](gst_recon/README.md).

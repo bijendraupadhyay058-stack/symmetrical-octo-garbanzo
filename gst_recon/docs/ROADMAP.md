@@ -47,21 +47,32 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
   with retention, secure delete and client purge, audit export.
 * Inno Setup installer script.
 
-## Phase 4 – second development phase (from the specification)
-* GSTR-1 vs GSTR-3B and sales register vs GSTR-1 reconciliation (same engine; outward
-  source types).
-* Annual GST reconciliation dashboard across all clients, and a client-wise compliance
-  summary.
-* Automated supplier discrepancy letters (Word/PDF from the vendor register).
-* Period-wise audit working papers pack.
+## Phase 4 – second development phase ✅
+* Sales register vs GSTR-1 reconciliation, using the same engine with outward source
+  types.
+* GSTR-1 section totals and the sales register vs GSTR-3B Table 3.1 liability working:
+  possible short payment, Rule 88C/88D limits, segment differences.
+* Client-wise compliance summary (PDF) and an annual dashboard across all clients (Excel,
+  desktop, web).
+* Supplier discrepancy letters (Word, PDF, unsent e-mail draft), with a letter register
+  and vendor follow-up update.
+* Period-wise audit working-paper ZIPs with manifest, integrity check and reviewer sign-off.
+* Client-authorised encrypted sync packages through a cloud folder, with conflict and
+  replay protection.
+* Read-only, mobile-friendly web interface (FastAPI) with login, installable on Android.
+* Schema v4.
+
+## Next
 * Portal Table 8A import (when a stable export exists), to replace the computed 8A.
+* QRMP due dates and CBIC due-date extensions in the compliance calendar.
+* Optional PostgreSQL deployment of the web view for multi-office firms. The services are
+  already database-agnostic through SQLAlchemy.
+* A signed Windows installer.
 
 ## Android / web expansion
-1. Add `fintax_gst/api/` – FastAPI routers calling the existing services (no engine changes).
-2. Swap SQLite for PostgreSQL through SQLAlchemy for multi-user/cloud deployments; keep
-   SQLite for the offline desktop.
-3. Responsive web dashboard (read-only first: dashboards, reports, pending register),
-   installable as a PWA on Android; uploads go through the same import pipeline.
-4. Client-authorised synchronisation from desktop to cloud, per-client isolation enforced
-   in the service layer; GST data is never sent to external AI services without explicit
-   permission.
+1. ✅ Read-only, responsive web view (`fintax_gst/web/`, FastAPI) on the existing
+   services, installable on Android from the browser.
+2. ✅ Client-authorised synchronisation through encrypted packages; per-client data only.
+3. Next: uploads through the same import pipeline from the web view; PostgreSQL through
+   SQLAlchemy for multi-office deployments, keeping SQLite for the offline desktop.
+4. GST data is never sent to external AI services.

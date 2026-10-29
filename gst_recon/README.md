@@ -6,7 +6,7 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1, 2 and 3 are complete.** The release includes:
+**Status: Phases 1–4 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
 * exception management with manual match and unmatch, and the vendor follow-up register
@@ -16,6 +16,10 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
   Table 8 and IMS comparison
 * **security**: login, roles, encrypted backups, retention, secure purge and audit export
 * Excel and PDF reports, a **PySide6 desktop application** and a command-line tool
+* **Phase 4**: sales register vs GSTR-1 reconciliation, GSTR-1 vs GSTR-3B liability
+  working, client compliance summary and annual dashboard, supplier discrepancy letters,
+  audit working-paper packs, client-authorised encrypted sync, and a read-only web
+  interface for phones ([docs/PHASE4.md](docs/PHASE4.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -47,9 +51,19 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   cross-checks, complete reconciliation, category sheets, supplier-wise and month-wise
   summaries with charts, GSTR-3B working, pending action register with status drop-down,
   source files and settings) plus a PDF summary.
+* **Outward supplies** – sales register vs GSTR-1 with the same engine; GSTR-1 section
+  totals and the sales register vs GSTR-3B Table 3.1 with classified findings (possible
+  short payment, Rule 88C limit, segment differences).
+* **Compliance** – month-by-month status of every client (red / amber / green) with
+  issues and due dates; annual dashboard in Excel, client summary in PDF.
+* **Letters and working papers** – supplier letters in Word, PDF and unsent e-mail drafts;
+  period-wise working-paper ZIPs with manifest, SHA-256 check and reviewer sign-off.
+* **Sync and web** – encrypted sync packages for a cloud folder, only with the client's
+  recorded authorisation; read-only web view with login for Android phones.
 * **Safety** – local SQLite database, exact decimal money, transactional imports and runs
   (cancel = nothing saved), backups before migrations, backup/restore commands, audit log.
-  No GST portal credentials are needed and no data leaves the computer.
+  No GST portal credentials are needed. No data leaves the computer unless you export an
+  encrypted sync package or start the web view yourself.
 
 ## Install
 
@@ -71,7 +85,9 @@ fintax-gst demo --out demo_output
 
 This creates a fresh database, generates the sample files, imports March and April books
 and April GSTR-2B, reconciles April 2025 and writes the Excel and PDF reports into
-`demo_output/reports/`. The sample files and the expected category of every scenario are
+`demo_output/reports/`. It then imports the April sales register and GSTR-1, reconciles
+them, and writes the outward workbook, the compliance dashboard and PDF, the supplier
+letters and a working-paper ZIP. The sample files and the expected category of every scenario are
 in [sample_data/](sample_data/) ([EXPECTED_RESULTS.md](sample_data/EXPECTED_RESULTS.md)).
 
 ## Desktop application
@@ -91,12 +107,16 @@ The navigation on the left opens these pages:
 | **ITC review** | Flags for professional review with statutory references and guidance (17(5) indicators, 16(2)(aa), 16(4) time limit, RCM, ITC not available, IMS, credit notes). Confirm or dismiss each flag with a reason. ITC summary buckets. Claim register: claim eligible documents, reverse, reclaim – never twice. Rule configuration for all clients or one client. |
 | **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template). Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export. |
 | **IMS** | Import the IMS download and compare with books and GSTR-2B: rejected but booked, rejected but still in GSTR-2B (recompute), pending, accepted but not booked, value differences. Nothing is done on the portal. |
+| **Sales & GSTR-1** | Import the sales register and GSTR-1, reconcile them, and see the GSTR-1 / sales register vs GSTR-3B Table 3.1 working with segments and classified differences. |
+| **Compliance** | Every client's status for the financial year, month by month, with issues; export the dashboard (Excel) or a client compliance PDF. |
+| **Letters & papers** | Supplier discrepancy letters (Word / PDF / e-mail draft) from the current run; prepare, verify and sign off audit working papers. |
 | **Suppliers** | Supplier summary with all sort options and drill-down to invoices. Vendor follow-up register (contact, status, next follow-up date, remarks); due follow-ups are flagged. |
 | **Open items** | Every document without a confirmed counterpart, across all periods, listed once. Double-click for its history across runs. |
 | **History** | All runs with their summaries. Open a run, or re-run a period: review work and manual decisions carry forward. Lists the active manual decisions. |
 | **Imports** | Imported files with SHA-256, counts and the full import log (including rejected rows). Import a file here, or remove an import no run has used. |
 | **Clients** | Client master (GSTIN validated, PAN and state derived). |
 | **Security** | Users and roles, change password, encrypted backup and restore, automatic backup and retention, audit log viewer and CSV export, permanent client deletion. |
+| **Sync & web** | Record or revoke the client's sync authorisation, export or import encrypted sync packages, start or stop the read-only web view. |
 | **Settings** | Default tolerances, backup now, restore, data folder. |
 
 On first start the app asks you to create the administrator. After that, every start
@@ -120,6 +140,10 @@ re-applies them (see [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md
 | ![ITC review](docs/screenshots/itc_review.png) | ![GSTR-3B](docs/screenshots/gstr3b_table4.png) |
 | **IMS review** | **Security** |
 | ![IMS](docs/screenshots/ims.png) | ![Security](docs/screenshots/security.png) |
+| **Sales & GSTR-1** | **Compliance dashboard** |
+| ![Sales & GSTR-1](docs/screenshots/outward.png) | ![Compliance](docs/screenshots/compliance.png) |
+| **Letters & papers** | **Sync & web** |
+| ![Letters & papers](docs/screenshots/letters.png) | ![Sync & web](docs/screenshots/sync.png) |
 
 ## Everyday workflow from the command line
 
@@ -181,6 +205,25 @@ fintax-gst --login admin audit-export --out audit.csv
 fintax-gst --login admin purge-client --client 1 --confirm 27AAPFU0939F1ZV
 ```
 
+Phase 4 – outward supplies, compliance, letters, working papers, sync and web:
+
+```bash
+fintax-gst --login admin import --client 1 --source sales --file tally_sales_register_2025-04.xlsx
+fintax-gst --login admin import --client 1 --source gstr1 --file GSTR1_042025.json
+fintax-gst --login admin reconcile --client 1 --from 2025-04 --compare gstr1 --export reports/
+fintax-gst --login admin liability --client 1 --from 2025-04            # GSTR-1 vs sales vs 3B Table 3.1
+fintax-gst --login admin compliance --fy 2025-26 --out reports/ --pdf    # all clients
+fintax-gst --login admin letters --run 1 --out letters/ --signatory "R. Kulkarni"
+fintax-gst --login admin papers prepare --run 1 --out working_papers/
+fintax-gst --login partner papers review --id 1 --notes "Reviewed"       # a different user signs off
+fintax-gst --login admin papers verify --id 1
+fintax-gst --login admin sync authorise --client 1 --granted-by "Ganesh Patil (Proprietor)" \
+    --valid-until 2026-03-31 --evidence "Consent letter 2025/014"
+fintax-gst --login admin sync export --client 1 --folder "D:/OneDrive/FinTaxSync"   # FINTAX_SYNC_PASSWORD or prompt
+fintax-gst --login admin sync import --file "D:/OneDrive/FinTaxSync/FTP_SYNC_....ftpsync"
+fintax-gst --login admin serve --host 0.0.0.0 --certfile cert.pem --keyfile key.pem
+```
+
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
 `backup [--to file]`, `restore file`, `sample-data --out dir`. Use `--db path` to work with
 a specific database file.
@@ -202,7 +245,8 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # 160 tests: engine, importers, ITC module, security, reports, CLI, desktop UI
+python -m pytest              # 177 tests: engine, importers, ITC, outward, compliance, letters,
+                              # working papers, sync, web, security, reports, CLI, desktop UI
 python scripts/benchmark.py 10000 50000
 ```
 
@@ -230,9 +274,10 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
-* [docs/SECURITY.md](docs/SECURITY.md) – login, roles, encryption, backups, deletion
+* [docs/PHASE4.md](docs/PHASE4.md) – sales vs GSTR-1, GSTR-3B liability, compliance, letters, working papers, sync, web
+* [docs/SECURITY.md](docs/SECURITY.md) – login, roles, encryption, backups, deletion, sync and web
 * [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) – Windows executables (desktop and CLI)
-* [docs/ROADMAP.md](docs/ROADMAP.md) – Phase 2, Phase 3, Android/web
+* [docs/ROADMAP.md](docs/ROADMAP.md) – phases and what comes next
 
 ## Professional note
 

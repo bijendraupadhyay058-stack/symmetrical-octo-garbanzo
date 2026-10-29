@@ -4,10 +4,11 @@
 
 ```
             ┌───────────────────────────────────────────────────────────┐
-            │ cli.py (argparse)            ui/ (PySide6 desktop)         │  presentation
-            │                              Future  → api/ (FastAPI)      │
+            │ cli.py (argparse)   ui/ (PySide6 desktop)   web/ (FastAPI) │  presentation
+            │                                                            │
             ├───────────────────────────────────────────────────────────┤
-            │ services/  clients · imports · reconciliation · reports    │  use-cases, transactions, audit
+            │ services/  clients · imports · reconciliation · reports ·  │  use-cases, transactions, audit
+            │   outward · compliance · letters · papers · sync · auth    │
             ├───────────────┬───────────────────────┬───────────────────┤
             │ importers/    │ engine/                │ reports/          │
             │ readers       │ matcher (pure)         │ excel_report      │
@@ -39,8 +40,12 @@ gst_recon/
 ├── fintax_gst/
 │   ├── __init__.py            product name, version
 │   ├── __main__.py            python -m fintax_gst
-│   ├── cli.py                 command-line interface (Phase 1 UI)
-│   ├── samples.py             demo datasets + expected outcomes
+│   ├── cli.py                 command-line interface (+ cli_phase3.py, cli_phase4.py)
+│   ├── samples.py             demo datasets + expected outcomes (samples_outward.py: sales/GSTR-1)
+│   ├── outward/liability.py   GSTR-1 sections → GSTR-3B Table 3.1, liability working (pure)
+│   ├── compliance/summary.py  month status (RAG), client compliance (pure)
+│   ├── letters/               supplier letter content (pure) and Word/PDF/e-mail rendering
+│   ├── web/                   read-only FastAPI app and templates
 │   ├── core/
 │   │   ├── models.py          InvoiceRecord, ReconLine, Category, Flag, statuses, settings
 │   │   ├── money.py           Decimal parsing/rounding/Indian formatting
@@ -76,7 +81,8 @@ gst_recon/
 │   │   ├── theme.py           colours and stylesheet
 │   │   ├── dialogs/           import preview, column mapping, client form
 │   │   └── pages/             dashboard, workflow, exceptions, suppliers,
-│   │                          history + open items, clients, imports, settings
+│   │                          history + open items, clients, imports, settings, itc, returns,
+│   │                          security, phase4 (sales & GSTR-1, compliance, letters, sync)
 │   ├── services/
 │   │   ├── followup.py        vendor follow-up register, evidence attachments
 │   │   ├── itc.py             rules, reviews, claim register, IMS, Table 4, annual
@@ -87,11 +93,18 @@ gst_recon/
 │   │   ├── clients.py         client master
 │   │   ├── imports.py         preview/commit, repeated-import protection, templates
 │   │   ├── reconciliation.py  runs, reload, carry-forward, exception updates
-│   │   ├── reports.py         export Excel + PDF for a run
+│   │   ├── reports.py         export Excel + PDF for a run (inward or outward)
+│   │   ├── outward.py         GSTR-1 summaries, sales documents, liability working
+│   │   ├── compliance.py      client summary, annual dashboard
+│   │   ├── letters.py         supplier letters and letter register
+│   │   ├── papers.py          working-paper packages, review sign-off, verification
+│   │   ├── sync.py            client authorisation, encrypted sync packages
 │   │   └── common.py          audit log, conversions
 │   └── reports/
 │       ├── excel_report.py    17-sheet workbook
-│       └── pdf_report.py      PDF summary
+│       ├── pdf_report.py      PDF summary
+│       ├── outward_sheets.py  GSTR-1 vs GSTR-3B and GSTR-1 section sheets
+│       └── compliance_report.py  annual dashboard workbook, client compliance PDF
 ├── tests/                     pytest suite
 ├── sample_data/               generated demo files + EXPECTED_RESULTS.md
 ├── scripts/benchmark.py       performance measurement
@@ -118,6 +131,9 @@ gst_recon/
 | `itc_rules`, `itc_reviews`, `itc_claims` (v3) | rule overrides, reviewer decisions, claim/reverse/reclaim register |
 | `gstr3b_entries`, `itc_other` (v3) | GSTR-3B Table 4 values (superseded, never overwritten); ISD credits and bills of entry |
 | `invoices.description`, `invoices.ims_action` (v3) | narration for rules; IMS action for IMS records |
+| `invoices.supply_type`, `gstr3b_entries.taxable`, `gstr1_summary` (v4) | outward supply type; Table 3.1 taxable values; GSTR-1 section totals |
+| `letters`, `working_papers` (v4) | letter register; working-paper packages with SHA-256 and sign-off |
+| `sync_authorizations`, `sync_state` (v4) | client consent for sync; last export/import sequence and origin |
 
 **Desktop threading.** Imports, reconciliation and export run on a `QThread` behind a
 progress dialog. Services check the `CancelToken` between batches and write inside one
