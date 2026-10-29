@@ -1,0 +1,24 @@
+name: GST reconciliation (Python)
+on:
+  push:
+    paths: ["gst_recon/**", ".github/workflows/gst-recon.yml"]
+  pull_request:
+    paths: ["gst_recon/**", ".github/workflows/gst-recon.yml"]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: gst_recon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pandas openpyxl SQLAlchemy rapidfuzz reportlab pytest
+      - run: python -m pytest
+      - run: python -m fintax_gst demo --out demo_output
