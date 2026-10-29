@@ -13,7 +13,7 @@ from ..db.database import Database
 from ..db.models import Attachment, ReconLineRow, ReconRun, Vendor
 from .common import ServiceError, audit
 
-FOLLOWUP_STATUSES = ["Not contacted", "Mail sent", "Reminder sent", "Supplier confirmed correction",
+FOLLOWUP_STATUSES = ["Not contacted", "Letter issued", "Mail sent", "Reminder sent", "Supplier confirmed correction",
                      "Supplier disputes", "Closed"]
 VENDOR_FIELDS = ("name", "contact_person", "email", "phone", "followup_status", "next_followup", "remarks")
 MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024

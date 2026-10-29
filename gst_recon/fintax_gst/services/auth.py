@@ -43,6 +43,10 @@ PERMISSIONS = {
     "delete_data": {"admin"},
     "restore": {"admin"},
     "manage_users": {"admin"},
+    "letters": {"admin", "manager", "accountant"},
+    "prepare_papers": {"admin", "manager", "accountant"},
+    "review_papers": {"admin", "manager"},
+    "sync": {"admin", "manager"},
 }
 MAX_FAILED = 5
 LOCK_MINUTES = 15

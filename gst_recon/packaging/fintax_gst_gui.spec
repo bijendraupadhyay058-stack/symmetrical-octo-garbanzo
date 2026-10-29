@@ -2,11 +2,14 @@
 # Build:  pyinstaller --noconfirm --clean packaging/fintax_gst_gui.spec
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files
+
 root = Path(SPECPATH).parent  # noqa: F821 - provided by PyInstaller
 
 a = Analysis(  # noqa: F821
     [str(root / "packaging" / "entry_gui.py")],
     pathex=[str(root)],
+    datas=collect_data_files("docx"),  # Word letter template
     hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer",
                    "PySide6.QtCharts", "cryptography.fernet"],
     excludes=["tkinter", "matplotlib", "IPython", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
