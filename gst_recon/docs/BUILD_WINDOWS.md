@@ -37,8 +37,10 @@ To distribute, copy the `dist\FinTaxPro` folder (and the CLI folder, if needed).
 wrap it with an installer such as Inno Setup. The target PC does not need Python. The
 desktop folder is about 300 MB, mostly Qt libraries.
 
-**Verified so far:** only on Linux, where the GUI spec builds and passes `--smoke-test`.
-The Windows build has not been run yet. Run the script on a Windows PC before shipping.
+**Continuous integration.** The `windows-build` job in `.github/workflows/gst-recon.yml` runs
+this script on a GitHub Windows runner on every push that changes `gst_recon/` (and on
+demand). It uploads the executables and installer as the `FinTaxPro-windows` artifact.
+Set `FINTAX_BUILD_PYTHON=python` when the `py` launcher is not installed.
 
 Manual equivalent:
 

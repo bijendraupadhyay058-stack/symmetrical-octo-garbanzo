@@ -557,7 +557,20 @@ def authenticate(db: Database, args) -> Session:
     return session
 
 
+def _utf8_output() -> None:
+    """Amounts are printed with ₹. On Windows, redirected output (pipes, log files, CI) uses the
+    ANSI code page, which has no ₹ – switch such streams to UTF-8 instead of failing."""
+    for stream in (sys.stdout, sys.stderr):
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if encoding != "utf8" and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):  # pragma: no cover - stream already in use in a way that forbids it
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_output()
     args = build_parser().parse_args(argv)
     setup_logging(default_home(), args.verbose)
     try:

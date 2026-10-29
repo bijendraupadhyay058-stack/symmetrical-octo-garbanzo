@@ -101,3 +101,22 @@ def test_cli_gstr9(tmp_path, sample_files, capsys):
     out = capsys.readouterr().out
     assert "4N" in out and "B2BA" in out and "original not imported" in out
     assert list((tmp_path / "out").glob("FINTAXPRO_GSTR9_Working_*.xlsx"))
+
+
+def test_cli_output_survives_a_non_utf8_console(tmp_path, sample_files, monkeypatch):
+    """Windows pipes use cp1252, which has no ₹: the CLI must not crash on it."""
+    import io
+    import sys
+
+    buf = io.BytesIO()
+    out = io.TextIOWrapper(buf, encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", out)
+    dbp = str(tmp_path / "enc.db")
+    assert main(["--db", dbp, "client", "add", "--gstin", CLIENT["gstin"], "--name", CLIENT["name"]]) == 0
+    assert main(["--db", dbp, "import", "--client", CLIENT["gstin"], "--source", "books",
+                 "--file", str(sample_files["books_april"])]) == 0
+    assert main(["--db", dbp, "import", "--client", CLIENT["gstin"], "--source", "gstr2b",
+                 "--file", str(sample_files["gstr2b_april_json"])]) == 0
+    assert main(["--db", dbp, "reconcile", "--client", CLIENT["gstin"], "--from", "2025-04"]) == 0  # prints ₹
+    sys.stdout.flush()
+    assert "₹" in buf.getvalue().decode("utf-8")

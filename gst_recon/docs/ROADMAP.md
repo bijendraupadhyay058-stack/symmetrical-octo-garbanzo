@@ -73,11 +73,20 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 * Opt-in uploads from the web view (preview, then confirm).
 * Authenticode signing step in the Windows build.
 
+## Phase 6 ✅
+* Fixed: the `fintax_gst/reports` package had been excluded by `.gitignore`; CI now
+  passes on a fresh checkout.
+* GSTR-9 working for Tables 4, 5, 6, 7 and 9 from GSTR-1, GSTR-3B and the sales register,
+  with amendments resolved against their originals.
+* Column mapping in the web view; saved templates are tried automatically everywhere.
+* CI: Ubuntu and Windows tests, the PostgreSQL suite, and a Windows job that builds,
+  smoke-tests and packages the executables and installer.
+
 ## Next
-* Run and verify the Windows build and installer on a Windows PC, and sign it with the
-  firm's certificate.
-* Column mapping in the web view, so unknown layouts can be uploaded from a phone.
-* GSTR-9 tables beyond Table 8 (outward supplies, tax paid) from GSTR-1 and GSTR-3B data.
+* Import GSTR-1 advance tables (11A/11B) for GSTR-9 4F, and GSTR-3B Table 6.1 payments
+  for Table 9 "paid".
+* GSTR-9C reconciliation statement (books turnover and tax vs GSTR-9).
+* Sign the Windows build with the firm's code-signing certificate.
 
 ## Android / web expansion
 1. ✅ Read-only, responsive web view (`fintax_gst/web/`, FastAPI) on the existing

@@ -45,6 +45,7 @@ gst_recon/
 │   ├── outward/liability.py   GSTR-1 sections → GSTR-3B Table 3.1, liability working (pure)
 │   ├── compliance/summary.py  month status (RAG), client compliance (pure)
 │   ├── compliance/calendar.py due dates: monthly, QRMP, annual, recorded extensions (pure)
+│   ├── gstr9/working.py       GSTR-9 Tables 4–7 and 9 from GSTR-1, GSTR-3B and books (pure)
 │   ├── letters/               supplier letter content (pure) and Word/PDF/e-mail rendering
 │   ├── web/                   read-only FastAPI app and templates
 │   ├── core/
@@ -101,12 +102,14 @@ gst_recon/
 │   │   ├── papers.py          working-paper packages, review sign-off, verification
 │   │   ├── sync.py            client authorisation, encrypted sync packages
 │   │   ├── calendar.py        due-date extensions, upcoming returns across clients
+│   │   ├── gstr9.py           GSTR-9 working for a client and year
 │   │   └── common.py          audit log, conversions
 │   └── reports/
 │       ├── excel_report.py    17-sheet workbook
 │       ├── pdf_report.py      PDF summary
 │       ├── outward_sheets.py  GSTR-1 vs GSTR-3B and GSTR-1 section sheets
-│       └── compliance_report.py  annual dashboard workbook, client compliance PDF
+│       ├── compliance_report.py  annual dashboard workbook, client compliance PDF
+│       └── gstr9_sheets.py    GSTR-9 Tables 4–7, 9 and amendments sheets
 ├── tests/                     pytest suite
 ├── sample_data/               generated demo files + EXPECTED_RESULTS.md
 ├── scripts/benchmark.py       performance measurement

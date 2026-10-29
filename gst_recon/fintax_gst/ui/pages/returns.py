@@ -125,11 +125,11 @@ class ReturnsPage(LazyPage):
         bl.addWidget(section("Table 9 – tax payable (Table 4N) and declared in GSTR-3B; amendments"))
         self.g9_tax_model = RowsModel(["Tax", "Payable", "Declared in GSTR-3B", "Declared − Payable"],
                                       kinds=["text", "money", "money", "money"])
-        t9 = Table()
-        t9.setModel(self.g9_tax_model)
-        t9.setSortingEnabled(False)
-        t9.setMaximumHeight(150)
-        bl.addWidget(t9)
+        self.g9_t9 = Table()
+        self.g9_t9.setModel(self.g9_tax_model)
+        self.g9_t9.setSortingEnabled(False)
+        self.g9_t9.setMinimumHeight(140)
+        bl.addWidget(self.g9_t9)
         self.g9_am_model = RowsModel(["Period", "Section", "Document", "Original", "Change taxable", "Change tax",
                                       "Row", "Status"],
                                      kinds=["text", "text", "text", "text", "money", "money", "text", "text"])
@@ -141,7 +141,7 @@ class ReturnsPage(LazyPage):
         self.g9_note.setWordWrap(True)
         bl.addWidget(self.g9_note)
         split.addWidget(box)
-        split.setSizes([480, 260])
+        split.setSizes([420, 330])
         lay.addWidget(split, 1)
         return w
 
@@ -167,6 +167,7 @@ class ReturnsPage(LazyPage):
         self.g9_table.fit(520)
         self.g9_tax_model.set_rows([[h, p.total, d.total if d is not None else None,
                                      (d.total - p.total) if d is not None else None] for h, p, d in w.table9])
+        self.g9_t9.fit(260)
         self.g9_am_model.set_rows([[a["period"], a["section"], a["document"], a["original"],
                                     a["delta"].taxable if a["delta"] else None,
                                     a["delta"].total if a["delta"] else None, a["row"], a["status"]]

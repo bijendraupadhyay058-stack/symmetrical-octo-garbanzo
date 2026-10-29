@@ -6,7 +6,7 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1–5 are complete.** The release includes:
+**Status: Phases 1–6 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
 * exception management with manual match and unmatch, and the vendor follow-up register
@@ -24,6 +24,9 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
   a returns calendar for monthly and QRMP filers with recorded CBIC extensions,
   PostgreSQL support, opt-in uploads from the web view, and a signed Windows build
   ([docs/PHASE5.md](docs/PHASE5.md))
+* **Phase 6**: GSTR-9 working for Tables 4–7 and 9 next to Table 8, column mapping in the
+  web view with automatic reuse of saved templates, and CI that builds and smoke-tests
+  the Windows executables and installer ([docs/PHASE6.md](docs/PHASE6.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -152,6 +155,8 @@ re-applies them (see [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md
 | ![Letters & papers](docs/screenshots/letters.png) | ![Sync & web](docs/screenshots/sync.png) |
 | **GSTR-9 Table 8 with portal 8A** | **Returns calendar** |
 | ![Table 8A](docs/screenshots/table8a.png) | ![Returns calendar](docs/screenshots/calendar.png) |
+| **GSTR-9 Tables 4–7, 9** | |
+| ![GSTR-9 working](docs/screenshots/gstr9.png) | |
 
 ## Everyday workflow from the command line
 
@@ -244,6 +249,7 @@ fintax-gst --login admin calendar extend --return GSTR-3B --period 2025-04 --due
 fintax-gst --login admin setting set web_uploads true
 fintax-gst --login admin db-copy --to "postgresql+psycopg://fintax@dbserver/fintax"
 fintax-gst --db "postgresql+psycopg://fintax@dbserver/fintax" --login admin runs --client 1
+fintax-gst --login admin gstr9 --client 1 --fy 2025-26 --out reports/     # GSTR-9 Tables 4–9 + Table 8
 ```
 
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
@@ -267,8 +273,8 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # 187 tests: engine, importers, ITC, outward, compliance, letters, working
-                              # papers, sync, web, Table 8A, calendar, security, reports, CLI, desktop UI
+python -m pytest              # 191 tests: engine, importers, ITC, outward, compliance, letters, working
+                              # papers, sync, web, Table 8A, calendar, GSTR-9, security, reports, CLI, desktop UI
 FINTAX_TEST_DB_URL=postgresql+psycopg://user@localhost/fintax_test python -m pytest   # same suite on PostgreSQL
 python scripts/benchmark.py 10000 50000
 ```
@@ -297,6 +303,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/PHASE6.md](docs/PHASE6.md) – GSTR-9 working, web column mapping, Windows CI build
 * [docs/PHASE5.md](docs/PHASE5.md) – Table 8A, returns calendar, PostgreSQL, web uploads, signing
 * [docs/PHASE4.md](docs/PHASE4.md) – sales vs GSTR-1, GSTR-3B liability, compliance, letters, working papers, sync, web
 * [docs/SECURITY.md](docs/SECURITY.md) – login, roles, encryption, backups, deletion, sync and web
