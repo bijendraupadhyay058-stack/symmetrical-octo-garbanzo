@@ -26,6 +26,8 @@ from .cli_phase3 import add_commands as add_phase3_commands
 from .cli_phase3 import permission_for as _permission_phase3
 from .cli_phase4 import add_commands as add_phase4_commands
 from .cli_phase4 import permission_for as _permission_phase4
+from .cli_phase5 import add_commands as add_phase5_commands
+from .cli_phase5 import permission_for as _permission_phase5
 from .services.auth import Session
 from .services.common import ServiceError, current_user
 from .services.imports import ImportService
@@ -102,7 +104,7 @@ def print_dashboard(lines, comparison: str = "BOOKS_VS_GSTR2B") -> None:
 
 # --------------------------------------------------------------- commands
 def cmd_init(db: Database, args) -> None:
-    print(f"Database ready at {db.path} (schema v{db.current_version()})")
+    print(f"Database ready at {db.location} (schema v{db.current_version()})")
 
 
 def cmd_client(db: Database, args) -> None:
@@ -303,6 +305,21 @@ def cmd_restore(db: Database, args) -> None:
     print(f"Database restored from {args.file}. Previous database saved as {safety}")
 
 
+def cmd_db_copy(db: Database, args) -> None:
+    from .db.database import copy_database
+
+    target = args.to or os.environ.get("FINTAX_TARGET_DB_URL")
+    if not target:
+        raise ServiceError("Give --to with the target database (file path or URL), or set FINTAX_TARGET_DB_URL")
+    counts = copy_database(db, target, progress=_bar)
+    print(f"\nCopied {sum(counts.values())} rows from {db.location} to the target database:")
+    for name, n in counts.items():
+        if n:
+            print(f"  {name:<22} {n:>8}")
+    print("Evidence files stay in the data folder; point the new installation to the same folder "
+          "(FINTAX_HOME) or copy it.")
+
+
 def cmd_sample_data(_db, args) -> None:
     from .samples import write_all
 
@@ -367,7 +384,9 @@ def cmd_demo(_db, args) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="fintax-gst", description=f"{PRODUCT_FULL_NAME}\n{TAGLINE}",
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--db", help="database file (default: %(default)s)", default=None)
+    p.add_argument("--db", default=None,
+                   help="database file, or a server URL such as postgresql+psycopg://user@host/fintax "
+                        "(default: FINTAX_DB_URL, FINTAX_DB or the file in the data folder)")
     p.add_argument("--login", default=os.environ.get("FINTAX_USER"),
                    help="user name to log in with once users exist (password: FINTAX_PASSWORD or prompt)")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -393,7 +412,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     i = sub.add_parser("import", help="preview and import a purchase/sales register, GSTR-2B/2A, GSTR-1 or IMS file")
     i.add_argument("--client", required=True, help="client id or GSTIN")
-    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a", "ims", "sales", "gstr1"])
+    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a", "ims", "sales", "gstr1", "gstr8a"],
+                   help="gstr8a = GSTR-9 Table 8A document details (annual)")
     i.add_argument("--file", required=True)
     i.add_argument("--period", help="YYYY-MM (GSTR-2B period if not detected; books booking month override)")
     i.add_argument("--template", help="saved mapping template name")
@@ -413,8 +433,8 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--from", dest="period_from")
     r.add_argument("--to", dest="period_to")
     r.add_argument("--fy", help="whole financial year, e.g. 2025-26")
-    r.add_argument("--compare", default="gstr2b", choices=["gstr2b", "gstr2a", "gstr1"],
-                   help="gstr1 = sales register vs GSTR-1 (outward)")
+    r.add_argument("--compare", default="gstr2b", choices=["gstr2b", "gstr2a", "gstr1", "gstr8a"],
+                   help="gstr1 = sales register vs GSTR-1 (outward); gstr8a = books vs Table 8A (use --fy)")
     r.add_argument("--amount-tolerance", help="rupees per tax component (default 1.00)")
     r.add_argument("--date-tolerance", type=int, help="days (default 7)")
     r.add_argument("--fuzzy-threshold", type=int, help="0-100 (default 85)")
@@ -490,6 +510,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_phase3_commands(sub)
     add_phase4_commands(sub)
+    add_phase5_commands(sub)
+
+    dc = sub.add_parser("db-copy", help="copy all data into another empty database, e.g. SQLite → PostgreSQL")
+    dc.add_argument("--to", help="target: file path or URL (or FINTAX_TARGET_DB_URL); password via PGPASSWORD")
+    dc.set_defaults(func=cmd_db_copy, perm="restore")
 
     sd = sub.add_parser("sample-data", help="write demo input files")
     sd.add_argument("--out", required=True)
@@ -503,7 +528,7 @@ def build_parser() -> argparse.ArgumentParser:
 def permission_for(args) -> str | None:
     if getattr(args, "no_db", False):
         return None
-    return _permission_phase4(args) or _permission_phase3(args)
+    return _permission_phase5(args) or _permission_phase4(args) or _permission_phase3(args)
 
 
 def authenticate(db: Database, args) -> Session:

@@ -237,7 +237,7 @@ class SettingsPage(QWidget):
 
         frame2, dl = card()
         dl.addWidget(section("Data and backups"))
-        dl.addWidget(QLabel(f"Database: {state.db.path}"))
+        dl.addWidget(QLabel(f"Database: {state.db.location}"))
         row = QHBoxLayout()
         for text, fn in (("Back up now", self.backup), ("Restore from backup…", self.restore),
                          ("Open data folder", self.open_folder)):
@@ -274,7 +274,7 @@ class SettingsPage(QWidget):
         self.backup_lbl.setText(f"Backup written to {path}")
 
     def restore(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Restore backup", str(self.state.db.path.parent / "backups"),
+        path, _ = QFileDialog.getOpenFileName(self, "Restore backup", str(self.state.db.data_dir / "backups"),
                                               "SQLite backup (*.db)")
         if not path:
             return
@@ -291,6 +291,6 @@ class SettingsPage(QWidget):
         self.state.notify()
 
     def open_folder(self) -> None:
-        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.state.db.path.parent)))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.state.db.data_dir)))
 
 

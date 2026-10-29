@@ -460,4 +460,19 @@ class WorkingPaper(Base):
     sha256: Mapped[str] = mapped_column(String(64))
 
 
+class DueDateOverride(Base):
+    """A due-date extension notified by CBIC, recorded by the user (never assumed)."""
+
+    __tablename__ = "due_date_overrides"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    return_type: Mapped[str] = mapped_column(String(10))
+    period: Mapped[str] = mapped_column(String(7))
+    due_date: Mapped[date] = mapped_column(Date)
+    reference: Mapped[str] = mapped_column(String(120))
+    state_codes: Mapped[str] = mapped_column(String(200), default="")  # comma separated; empty = all states
+    recorded_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V5_TABLES = [DueDateOverride]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -9,7 +9,7 @@ from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDateEdit, QFileDialog, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QSpinBox, QSplitter, QVBoxLayout, QWidget,
+    QMessageBox, QPushButton, QSpinBox, QSplitter, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from ...compliance.summary import RAG_LABEL
@@ -277,13 +277,121 @@ class CompliancePage(LazyPage):
         self.m_tbl.horizontalHeader().setStretchLastSection(False)
         split.addWidget(self.m_tbl)
         split.setSizes([160, 520])
-        lay.addWidget(split, 1)
+        tabs = QTabWidget()
+        box = QWidget()
+        bl = QVBoxLayout(box)
+        bl.setContentsMargins(0, 6, 0, 0)
+        bl.addWidget(split, 1)
         hint = QLabel("Double-click a client to make it the current client.")
         hint.setObjectName("Muted")
-        lay.addWidget(hint)
+        bl.addWidget(hint)
+        tabs.addTab(box, "Clients")
+        tabs.addTab(self._calendar_tab(), "Returns calendar")
+        lay.addWidget(tabs, 1)
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()
+
+    def _calendar_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 6, 0, 0)
+        row = QHBoxLayout()
+        self.days = QSpinBox()
+        self.days.setRange(7, 120)
+        self.days.setValue(30)
+        self.days.setSuffix(" days ahead")
+        self.days.valueChanged.connect(lambda _v: self.show_calendar())
+        row.addWidget(QLabel("Returns due (with up to 60 days overdue) –"))
+        row.addWidget(self.days)
+        row.addStretch()
+        lay.addLayout(row)
+        self.u_model = RowsModel(["Due", "Return", "Period", "Client", "GSTIN", "Data", "Basis"],
+                                 kinds=["text", "text", "text", "text", "text", "text", "text"],
+                                 colors=self._due_color)
+        self.u_tbl = Table()
+        self.u_tbl.setModel(self.u_model)
+        self.u_tbl.setSortingEnabled(False)
+        lay.addWidget(self.u_tbl, 2)
+        lay.addWidget(section("Due-date extensions (recorded from CBIC notifications)"))
+        form = QHBoxLayout()
+        self.x_type = QComboBox()
+        from ...compliance.calendar import RETURN_TYPES
+
+        self.x_type.addItems(list(RETURN_TYPES))
+        self.x_period = QLineEdit()
+        self.x_period.setPlaceholderText("YYYY-MM or 2025-26")
+        self.x_due = QDateEdit(QDate.currentDate())
+        self.x_due.setCalendarPopup(True)
+        self.x_due.setDisplayFormat("dd-MM-yyyy")
+        self.x_ref = QLineEdit()
+        self.x_ref.setPlaceholderText("Notification / circular")
+        self.x_states = QLineEdit()
+        self.x_states.setPlaceholderText("State codes, e.g. 27,29 (blank = all)")
+        self.x_add = primary("Record extension")
+        self.x_add.clicked.connect(self.add_extension)
+        self.x_del = QPushButton("Delete selected")
+        self.x_del.clicked.connect(self.delete_extension)
+        for x in (self.x_type, self.x_period, self.x_due, self.x_ref, self.x_states, self.x_add, self.x_del):
+            form.addWidget(x)
+        lay.addLayout(form)
+        self.x_model = RowsModel(["#", "Return", "Period", "Due", "Reference", "States", "Recorded by"],
+                                 kinds=["int", "text", "text", "text", "text", "text", "text"])
+        self.x_tbl = Table()
+        self.x_tbl.setModel(self.x_model)
+        lay.addWidget(self.x_tbl, 1)
+        return w
+
+    def _due_color(self, row, col):
+        if col != 5:
+            return None
+        u = self.u_model.payload[row] if self.u_model.payload else None
+        if u is None:
+            return None
+        if u.overdue:
+            return QColor(RAG_COLORS["red"])
+        return QColor(RAG_COLORS["green"] if u.status == "imported" else RAG_COLORS["grey"])
+
+    def show_calendar(self) -> None:
+        from ...services.calendar import CalendarService
+
+        cal = CalendarService(self.state.db)
+        ups = cal.upcoming(days=self.days.value())
+        self.u_model.set_rows([[f"{u.item.due:%d-%m-%Y}", u.item.return_type + (" (optional)" if u.item.optional
+                                                                                 else ""),
+                                u.item.period, u.client, u.gstin,
+                                "OVERDUE – not imported" if u.overdue else u.status,
+                                u.item.basis] for u in ups], ups)
+        self.u_tbl.fit(320)
+        rows = cal.override_rows()
+        self.x_model.set_rows([[o.id, o.return_type, o.period, f"{o.due_date:%d-%m-%Y}", o.reference,
+                                o.state_codes or "all", o.recorded_by] for o in rows], rows)
+        self.x_tbl.fit(320)
+        for b in (self.x_add, self.x_del):
+            b.setEnabled(self.state.can("settings"))
+
+    def add_extension(self) -> None:
+        from ...services.calendar import CalendarService
+
+        try:
+            CalendarService(self.state.db).add_override(
+                self.x_type.currentText(), self.x_period.text().strip(), self.x_due.date().toPython(),
+                self.x_ref.text(), self.state.session, self.x_states.text().split(","))
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Extension", str(exc))
+            return
+        self.x_period.clear()
+        self.x_ref.clear()
+        self.x_states.clear()
+        self.reload()
+
+    def delete_extension(self) -> None:
+        from ...services.calendar import CalendarService
+
+        o = _selected(self.x_tbl)
+        if o is not None:
+            CalendarService(self.state.db).delete_override(o.id, self.state.session)
+            self.reload()
 
     def reload(self) -> None:
         from ...services.compliance import ComplianceService
@@ -304,6 +412,7 @@ class CompliancePage(LazyPage):
             src = self.c_tbl.model().mapFromSource(self.c_model.index(current, 0))
             self.c_tbl.selectRow(src.row())
         self.show_months()
+        self.show_calendar()
 
     def _current(self):
         return _selected(self.c_tbl)
@@ -564,6 +673,10 @@ class SyncPage(LazyPage):
         for w in (self.host, QLabel("Port"), self.port, self.cert, self.key, self.web_btn):
             r3.addWidget(w)
         lay.addLayout(r3)
+        self.uploads_cb = QCheckBox("Allow file uploads from the web view (users with the import permission; each "
+                                    "upload is previewed and saved only on confirmation)")
+        self.uploads_cb.toggled.connect(self.toggle_uploads)
+        lay.addWidget(self.uploads_cb)
         self.web_lbl = QLabel("Stopped.")
         self.web_lbl.setObjectName("Muted")
         self.web_lbl.setWordWrap(True)
@@ -580,8 +693,18 @@ class SyncPage(LazyPage):
 
         return SyncService(self.state.db)
 
+    def toggle_uploads(self, on: bool) -> None:
+        try:
+            self.state.security.set_setting("web_uploads", bool(on), self.state.session)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Web", str(exc))
+
     def reload(self) -> None:
         st = self.state
+        self.uploads_cb.blockSignals(True)
+        self.uploads_cb.setChecked(bool(st.security.setting("web_uploads")))
+        self.uploads_cb.setEnabled(st.can("settings"))
+        self.uploads_cb.blockSignals(False)
         can = st.can("sync")
         for b in (self.auth_btn, self.revoke_btn, self.export_btn, self.import_btn):
             b.setEnabled(can and (b is self.import_btn or st.client is not None))

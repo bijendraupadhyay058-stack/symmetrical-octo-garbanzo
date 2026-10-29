@@ -6,7 +6,7 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1–4 are complete.** The release includes:
+**Status: Phases 1–5 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
 * exception management with manual match and unmatch, and the vendor follow-up register
@@ -20,6 +20,10 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
   working, client compliance summary and annual dashboard, supplier discrepancy letters,
   audit working-paper packs, client-authorised encrypted sync, and a read-only web
   interface for phones ([docs/PHASE4.md](docs/PHASE4.md))
+* **Phase 5**: GSTR-9 Table 8A import (portal basis for 8A, books vs 8A reconciliation),
+  a returns calendar for monthly and QRMP filers with recorded CBIC extensions,
+  PostgreSQL support, opt-in uploads from the web view, and a signed Windows build
+  ([docs/PHASE5.md](docs/PHASE5.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -60,7 +64,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   period-wise working-paper ZIPs with manifest, SHA-256 check and reviewer sign-off.
 * **Sync and web** – encrypted sync packages for a cloud folder, only with the client's
   recorded authorisation; read-only web view with login for Android phones.
-* **Safety** – local SQLite database, exact decimal money, transactional imports and runs
+* **Annual and calendar** – import the portal's Table 8A document details; see returns due
+  and overdue across clients, with extensions recorded from CBIC notifications.
+* **Safety** – local SQLite database (or PostgreSQL for a shared office server), exact decimal money, transactional imports and runs
   (cancel = nothing saved), backups before migrations, backup/restore commands, audit log.
   No GST portal credentials are needed. No data leaves the computer unless you export an
   encrypted sync package or start the web view yourself.
@@ -105,10 +111,10 @@ The navigation on the left opens these pages:
 | **Reconcile** | The 10-step journey. Pick the client and the period (month, quarter, FY or custom range). Import the purchase register and GSTR-2B (plus earlier books or GSTR-2A, optional). Validate the imported files, set tolerances, start the reconciliation, review the summary, go to exceptions, export Excel and PDF. Long steps show a progress bar with **Cancel**; cancelling saves nothing. |
 | **Exceptions** | Colour-coded category filters with counts, search, and a status filter. Books and GSTR-2B side by side with every difference and reason. Set status, assignee, action date and remarks. **Confirm match**, **Manual match** (Ctrl+click two lines), **Unmatch**, **Pending clarification**. Attach evidence. Line history. |
 | **ITC review** | Flags for professional review with statutory references and guidance (17(5) indicators, 16(2)(aa), 16(4) time limit, RCM, ITC not available, IMS, credit notes). Confirm or dismiss each flag with a reason. ITC summary buckets. Claim register: claim eligible documents, reverse, reclaim – never twice. Rule configuration for all clients or one client. |
-| **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template). Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export. |
+| **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template). Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export; import the portal's Table 8A document details and reconcile the year's books with them. |
 | **IMS** | Import the IMS download and compare with books and GSTR-2B: rejected but booked, rejected but still in GSTR-2B (recompute), pending, accepted but not booked, value differences. Nothing is done on the portal. |
 | **Sales & GSTR-1** | Import the sales register and GSTR-1, reconcile them, and see the GSTR-1 / sales register vs GSTR-3B Table 3.1 working with segments and classified differences. |
-| **Compliance** | Every client's status for the financial year, month by month, with issues; export the dashboard (Excel) or a client compliance PDF. |
+| **Compliance** | Every client's status for the financial year, month by month, with issues; export the dashboard (Excel) or a client compliance PDF. *Returns calendar* tab: returns due and overdue across clients (monthly / QRMP), and due-date extensions recorded from CBIC notifications. |
 | **Letters & papers** | Supplier discrepancy letters (Word / PDF / e-mail draft) from the current run; prepare, verify and sign off audit working papers. |
 | **Suppliers** | Supplier summary with all sort options and drill-down to invoices. Vendor follow-up register (contact, status, next follow-up date, remarks); due follow-ups are flagged. |
 | **Open items** | Every document without a confirmed counterpart, across all periods, listed once. Double-click for its history across runs. |
@@ -116,7 +122,7 @@ The navigation on the left opens these pages:
 | **Imports** | Imported files with SHA-256, counts and the full import log (including rejected rows). Import a file here, or remove an import no run has used. |
 | **Clients** | Client master (GSTIN validated, PAN and state derived). |
 | **Security** | Users and roles, change password, encrypted backup and restore, automatic backup and retention, audit log viewer and CSV export, permanent client deletion. |
-| **Sync & web** | Record or revoke the client's sync authorisation, export or import encrypted sync packages, start or stop the read-only web view. |
+| **Sync & web** | Record or revoke the client's sync authorisation, export or import encrypted sync packages, start or stop the web view, allow uploads from it. |
 | **Settings** | Default tolerances, backup now, restore, data folder. |
 
 On first start the app asks you to create the administrator. After that, every start
@@ -144,6 +150,8 @@ re-applies them (see [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md
 | ![Sales & GSTR-1](docs/screenshots/outward.png) | ![Compliance](docs/screenshots/compliance.png) |
 | **Letters & papers** | **Sync & web** |
 | ![Letters & papers](docs/screenshots/letters.png) | ![Sync & web](docs/screenshots/sync.png) |
+| **GSTR-9 Table 8 with portal 8A** | **Returns calendar** |
+| ![Table 8A](docs/screenshots/table8a.png) | ![Returns calendar](docs/screenshots/calendar.png) |
 
 ## Everyday workflow from the command line
 
@@ -224,6 +232,20 @@ fintax-gst --login admin sync import --file "D:/OneDrive/FinTaxSync/FTP_SYNC_...
 fintax-gst --login admin serve --host 0.0.0.0 --certfile cert.pem --keyfile key.pem
 ```
 
+Phase 5 – Table 8A, calendar, PostgreSQL, web uploads:
+
+```bash
+fintax-gst --login admin import --client 1 --source gstr8a --file GSTR9_8A_2025-26.json
+fintax-gst --login admin annual --client 1 --fy 2025-26 --out reports/      # 8A from the portal file
+fintax-gst --login admin reconcile --client 1 --fy 2025-26 --compare gstr8a  # books vs Table 8A
+fintax-gst --login admin calendar                                            # due in 30 days + overdue
+fintax-gst --login admin calendar extend --return GSTR-3B --period 2025-04 --due 2025-05-27 \
+    --reference "Notification 9/2025-CT" --states 27
+fintax-gst --login admin setting set web_uploads true
+fintax-gst --login admin db-copy --to "postgresql+psycopg://fintax@dbserver/fintax"
+fintax-gst --db "postgresql+psycopg://fintax@dbserver/fintax" --login admin runs --client 1
+```
+
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
 `backup [--to file]`, `restore file`, `sample-data --out dir`. Use `--db path` to work with
 a specific database file.
@@ -245,8 +267,9 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # 177 tests: engine, importers, ITC, outward, compliance, letters,
-                              # working papers, sync, web, security, reports, CLI, desktop UI
+python -m pytest              # 187 tests: engine, importers, ITC, outward, compliance, letters, working
+                              # papers, sync, web, Table 8A, calendar, security, reports, CLI, desktop UI
+FINTAX_TEST_DB_URL=postgresql+psycopg://user@localhost/fintax_test python -m pytest   # same suite on PostgreSQL
 python scripts/benchmark.py 10000 50000
 ```
 
@@ -274,6 +297,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/PHASE5.md](docs/PHASE5.md) – Table 8A, returns calendar, PostgreSQL, web uploads, signing
 * [docs/PHASE4.md](docs/PHASE4.md) – sales vs GSTR-1, GSTR-3B liability, compliance, letters, working papers, sync, web
 * [docs/SECURITY.md](docs/SECURITY.md) – login, roles, encryption, backups, deletion, sync and web
 * [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) – Windows executables (desktop and CLI)

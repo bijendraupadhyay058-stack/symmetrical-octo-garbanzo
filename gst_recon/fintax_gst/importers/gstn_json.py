@@ -19,6 +19,8 @@ _2A_SECTIONS = {
     "b2b": ("inv", "INV", False), "b2ba": ("inv", "INV", True),
     "cdn": ("nt", None, False), "cdna": ("nt", None, True),
 }
+#: GSTR-9 Table 8A document details use GSTR-2A style records with GSTR-2B section names.
+_8A_SECTIONS = {**_2A_SECTIONS, "cdnr": ("nt", None, False), "cdnra": ("nt", None, True)}
 
 
 def detect_json_kind(js: dict, hint: str | None = None) -> str | None:
@@ -34,6 +36,8 @@ def detect_json_kind(js: dict, hint: str | None = None) -> str | None:
         return "GSTR1"
     if isinstance(data.get("docdata"), dict):
         return "GSTR2B"
+    if hint == "GSTR8A" and any(isinstance(data.get(k), list) for k in _8A_SECTIONS):
+        return "GSTR8A"
     if isinstance(data.get("invdata"), dict) or isinstance(data.get("imsdata"), dict):
         return "IMS"
     for key in ("b2b", "cdn", "b2ba", "cdna"):
@@ -173,7 +177,9 @@ def flatten_ims(js: dict) -> tuple[list[dict], str | None, list[str]]:
     return rows, period, warnings
 
 
-def flatten_gstr2a(js: dict) -> tuple[list[dict], str | None, list[str]]:
+def flatten_gstr2a(js: dict, sections: dict | None = None,
+                   label: str = "GSTR-2A") -> tuple[list[dict], str | None, list[str]]:
+    sections = sections or _2A_SECTIONS
     data = js.get("data", js)
     period = parse_period(data.get("fp") or data.get("ret_period"))
     rows, warnings = [], []
@@ -181,10 +187,11 @@ def flatten_gstr2a(js: dict) -> tuple[list[dict], str | None, list[str]]:
     for section, payload in data.items():
         if not isinstance(payload, list):
             continue
-        if section not in _2A_SECTIONS:
-            warnings.append(f"GSTR-2A section '{section}' ({len(payload)} suppliers) is not reconciled in this version")
+        if section not in sections:
+            warnings.append(f"{label} section '{section}' ({len(payload)} suppliers) is not reconciled in this "
+                            "version")
             continue
-        doc_key, fixed_type, amendment = _2A_SECTIONS[section]
+        doc_key, fixed_type, amendment = sections[section]
         for si, supplier in enumerate(payload):
             for di, doc in enumerate(supplier.get(doc_key, [])):
                 amounts = _sum_items(doc, "itms", "itm_det", names)
@@ -195,7 +202,8 @@ def flatten_gstr2a(js: dict) -> tuple[list[dict], str | None, list[str]]:
                     "invoice_date": doc.get("idt") or doc.get("nt_dt"),
                     "invoice_value": doc.get("val"), "place_of_supply": doc.get("pos"),
                     "reverse_charge": doc.get("rchrg"), "doc_type": fixed_type or doc.get("ntty"),
-                    "supply_type": doc.get("inv_typ"),
+                    "supply_type": doc.get("inv_typ"), "itc_availability": doc.get("itcavl"),
+                    "itc_reason": doc.get("rsn"),
                     "original_invoice_no": doc.get("oinum") or doc.get("ont_num"),
                     "original_invoice_date": doc.get("oidt") or doc.get("ont_dt"),
                     "_amendment": amendment, "_sheet": section, "_row": f"{section}[{si}].{doc_key}[{di}]",
@@ -298,3 +306,9 @@ def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dic
         elif isinstance(payload, list):
             warnings.append(f"GSTR-1 section '{section}' ({len(payload)} entries) is not compared in this version")
     return rows, period, warnings, list(summary.values())
+
+
+def flatten_gstr8a(js: dict) -> tuple[list[dict], None, list[str]]:
+    """GSTR-9 Table 8A document details (portal JSON). Annual: no single return period."""
+    rows, _period, warnings = flatten_gstr2a(js, _8A_SECTIONS, "Table 8A")
+    return rows, None, warnings

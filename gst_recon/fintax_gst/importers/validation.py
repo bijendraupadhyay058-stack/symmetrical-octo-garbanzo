@@ -145,6 +145,8 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
             period = ctx.period
         else:
             period = period_of(invoice_date)
+    elif ctx.source == Source.GSTR8A:
+        period = period_of(invoice_date)  # an annual statement: each document belongs to its own month
     else:
         period = ctx.period or ""
 

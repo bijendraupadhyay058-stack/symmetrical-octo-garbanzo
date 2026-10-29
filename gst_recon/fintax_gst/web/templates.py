@@ -46,9 +46,10 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:24px 16px}
 </style></head><body>
 <header><a class="brand" href="/">FIN TAX PRO</a><span class="muted" style="color:#cfd8dc">GST reconciliation</span>
 <span class="sp"></span>{% if user %}<span class="who">{{ user.full_name or user.username }} · {{ role }}</span>
-<a href="/logout">Log out</a>{% endif %}</header>
+{% if can_upload %}<a href="/upload">Upload</a>{% endif %}<a href="/logout">Log out</a>{% endif %}</header>
 <main>{% block body %}{% endblock %}</main>
-<footer>Read-only view · data stays on the firm's computer · no portal access</footer>
+<footer>{% if can_upload %}Uploads are previewed before saving{% else %}Read-only view{% endif %} · data stays on
+the firm's computer · no portal access</footer>
 </body></html>"""
 
 LOGIN = """{% extends "base" %}{% block title %}Log in · FIN TAX PRO{% endblock %}{% block body %}
@@ -69,6 +70,12 @@ DASHBOARD = """{% extends "base" %}{% block title %}Annual dashboard · FIN TAX 
 <div class="card"><div class="k">Attention</div><div class="v">{{ counts.amber }}</div></div>
 <div class="card"><div class="k">Reconciled</div><div class="v">{{ counts.green }}</div></div>
 <div class="card"><div class="k">Pending exceptions</div><div class="v">{{ pending }}</div></div></div>
+{% if upcoming %}<h2>Returns due</h2><div class="tbl"><table><tr><th>Due</th><th>Return</th><th>Client</th>
+<th>Data</th></tr>{% for u in upcoming %}<tr><td>{{ u.item.due.strftime("%d-%m-%Y") }}</td><td>{{ u.item.return_type }}
+<div class="muted">{{ u.item.period }}{% if u.item.extended %} · {{ u.item.basis }}{% endif %}</div></td>
+<td>{{ u.client }}</td><td>{% if u.overdue %}<span class="pill red">Overdue</span>{% elif u.status == "imported" %}
+<span class="pill green">Imported</span>{% else %}<span class="pill grey">{{ u.status }}</span>{% endif %}</td></tr>
+{% endfor %}</table></div>{% endif %}
 <h2>Clients</h2><div class="list">{% for c in clients %}
 <a class="client card" href="/client/{{ c.client_id }}?fy={{ fy }}"><div class="row"><b style="flex:1">{{ c.name }}</b>
 <span class="pill {{ c.rag }}">{{ rag[c.rag] }}</span></div><div class="muted">{{ c.gstin }} · {{ c.months_with_data }}
@@ -134,7 +141,42 @@ RUN = """{% extends "base" %}{% block title %}Run {{ run.id }} · FIN TAX PRO{% 
 {% if pending_total > pending|length %}<p class="muted">First {{ pending|length }} shown – the Excel report has all.
 </p>{% endif %}{% endblock %}"""
 
-TEMPLATES = {"base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
+UPLOAD = """{% extends "base" %}{% block title %}Upload · FIN TAX PRO{% endblock %}{% block body %}
+<h1>Upload a file</h1><p class="muted">The file is checked first; nothing is saved until you confirm the preview.
+Files whose headings are not recognised need the column-mapping screen of the desktop app.</p>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form class="card" method="post" action="/upload" enctype="multipart/form-data" style="display:grid;gap:10px">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<label>Client<br><select name="client_id" required>{% for c in clients %}<option value="{{ c.id }}"
+{% if c.id == client_id %}selected{% endif %}>{{ c.name }} · {{ c.gstin }}</option>{% endfor %}</select></label>
+<label>File type<br><select name="source">{% for k, v in sources %}<option value="{{ k }}">{{ v }}</option>
+{% endfor %}</select></label>
+<label>Period (YYYY-MM, only if the file does not state it)<br><input name="period" placeholder="2025-04"
+pattern="\\d{4}-\\d{2}"></label>
+<label>File (Excel, CSV, JSON or ZIP, up to {{ max_mb }} MB)<br><input type="file" name="file" required
+accept=".xlsx,.xlsm,.xls,.csv,.json,.zip"></label>
+<button class="btn" type="submit">Check file</button></form>{% endblock %}"""
+
+UPLOAD_PREVIEW = """{% extends "base" %}{% block title %}Preview · FIN TAX PRO{% endblock %}{% block body %}
+<h1>Check before saving</h1><div class="muted">{{ client.name }} · {{ file_name }} · {{ layout }}
+{% if period %} · period {{ period }}{% endif %}</div>
+<div class="cards" style="margin-top:12px">{% for label, value in figures %}<div class="card"><div class="k">{{ label }}
+</div><div class="v">{{ value }}</div></div>{% endfor %}</div>
+{% if warnings %}<h2>Warnings</h2><ul class="issues">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+{% if issues %}<h2>Rows needing attention (first {{ issues|length }})</h2><div class="tbl"><table><tr><th>Sheet</th>
+<th>Row</th><th>Type</th><th>Message</th></tr>{% for i in issues %}<tr><td>{{ i.sheet }}</td><td>{{ i.row }}</td>
+<td>{{ i.severity }}</td><td>{{ i.message }}</td></tr>{% endfor %}</table></div>{% endif %}
+{% if blocked %}<p class="err">{{ blocked }}</p>{% endif %}
+<div class="row" style="margin-top:14px">{% if not blocked %}<form method="post" action="/upload/{{ token }}/commit">
+<input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn" type="submit">Save import</button></form>
+{% endif %}<form method="post" action="/upload/{{ token }}/discard"><input type="hidden" name="csrf" value="{{ csrf }}">
+<button class="btn alt" type="submit">Discard</button></form></div>{% endblock %}"""
+
+DONE = """{% extends "base" %}{% block title %}Saved · FIN TAX PRO{% endblock %}{% block body %}
+<h1>{{ title }}</h1><p>{{ message }}</p><p><a class="btn" href="/client/{{ client_id }}">Open client</a>
+<a class="btn alt" href="/upload">Upload another file</a></p>{% endblock %}"""
+
+TEMPLATES = {"upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
 
 ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14"
 fill="#1F3864"/><rect x="10" y="46" width="44" height="6" fill="#00897B"/><text x="32" y="38" font-family="Arial"

@@ -62,17 +62,27 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 * Read-only, mobile-friendly web interface (FastAPI) with login, installable on Android.
 * Schema v4.
 
+## Phase 5 ✅
+* GSTR-9 Table 8A document details import: 8A on the portal basis, comparison with the
+  computed 8A, and a books vs Table 8A reconciliation for the year.
+* Returns calendar for monthly and QRMP filers (22nd/24th by state, IFF, PMT-06, GSTR-9),
+  with due-date extensions recorded from notifications; upcoming and overdue returns
+  across clients.
+* PostgreSQL support with snapshot backups, restore, `db-copy` from SQLite, and the full
+  test suite run on PostgreSQL.
+* Opt-in uploads from the web view (preview, then confirm).
+* Authenticode signing step in the Windows build.
+
 ## Next
-* Portal Table 8A import (when a stable export exists), to replace the computed 8A.
-* QRMP due dates and CBIC due-date extensions in the compliance calendar.
-* Optional PostgreSQL deployment of the web view for multi-office firms. The services are
-  already database-agnostic through SQLAlchemy.
-* A signed Windows installer.
+* Run and verify the Windows build and installer on a Windows PC, and sign it with the
+  firm's certificate.
+* Column mapping in the web view, so unknown layouts can be uploaded from a phone.
+* GSTR-9 tables beyond Table 8 (outward supplies, tax paid) from GSTR-1 and GSTR-3B data.
 
 ## Android / web expansion
 1. ✅ Read-only, responsive web view (`fintax_gst/web/`, FastAPI) on the existing
    services, installable on Android from the browser.
 2. ✅ Client-authorised synchronisation through encrypted packages; per-client data only.
-3. Next: uploads through the same import pipeline from the web view; PostgreSQL through
-   SQLAlchemy for multi-office deployments, keeping SQLite for the offline desktop.
+3. ✅ Uploads through the same import pipeline from the web view (opt-in); PostgreSQL for
+   shared deployments, with SQLite kept for the offline desktop.
 4. GST data is never sent to external AI services.

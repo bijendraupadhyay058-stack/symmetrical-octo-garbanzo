@@ -30,7 +30,8 @@ from .auth import Session, require
 from .common import ServiceError, audit
 
 MAGIC = b"FTPBK1"
-DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90}
+DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
+            "web_uploads": False}
 
 
 def _key(password: str, salt: bytes) -> bytes:
@@ -40,7 +41,7 @@ def _key(password: str, salt: bytes) -> bytes:
 class SecurityService:
     def __init__(self, db: Database):
         self.db = db
-        self.backup_dir = Path(db.path).parent / "backups"
+        self.backup_dir = db.data_dir / "backups"
 
     # -------------------------------------------------------------- settings
     def setting(self, key: str):
@@ -161,12 +162,13 @@ class SecurityService:
             audit(s, "PURGE_CLIENT", "client", client_id, {"gstin": gstin, "rows": counts}, by.username, None)
         for f in files:
             secure_unlink(Path(f))
-        att_dir = Path(self.db.path).parent / "attachments" / str(client_id)
+        att_dir = self.db.data_dir / "attachments" / str(client_id)
         if att_dir.exists():
             for p in sorted(att_dir.rglob("*"), reverse=True):
                 p.rmdir() if p.is_dir() else secure_unlink(p)
             att_dir.rmdir()
-        with self.db.engine.connect() as conn:
+        # reclaim the space of deleted rows (SQLite rewrites the file; PostgreSQL frees the tuples)
+        with self.db.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
             conn.exec_driver_sql("VACUUM")
         return counts
 

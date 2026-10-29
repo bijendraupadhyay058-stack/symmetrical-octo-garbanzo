@@ -68,7 +68,7 @@ class AttachmentService:
 
     def __init__(self, db: Database):
         self.db = db
-        self.root = Path(db.path).parent / "attachments"
+        self.root = db.data_dir / "attachments"
 
     def add(self, run_id: int, line_no: int, path: str | Path, user: str | None = None,
             description: str = "") -> Attachment:

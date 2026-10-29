@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
     QPushButton, QSplitter, QTabWidget, QVBoxLayout, QWidget,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 
 from ...core.models import Source
 from ...itc.annual import default_cutoff, fy_months
@@ -29,6 +29,8 @@ SEV_COLORS = {"high": "#FFCDD2", "medium": "#FFF3C4", "info": "#E3F2FD"}
 
 class ReturnsPage(LazyPage):
     """GSTR-3B import, Table 4 working with classified differences, and GSTR-9 Table 8."""
+
+    navigate = Signal(str)
 
     def __init__(self, state: AppState):
         super().__init__()
@@ -103,8 +105,13 @@ class ReturnsPage(LazyPage):
         self.annual_btn.clicked.connect(self.show_annual)
         self.export_annual_btn = QPushButton("Export annual workbook…")
         self.export_annual_btn.clicked.connect(self.export_annual)
+        self.import_8a_btn = QPushButton("Import Table 8A…")
+        self.import_8a_btn.setToolTip("GSTR-9 Table 8A document details downloaded from the GST portal (Excel/JSON)")
+        self.import_8a_btn.clicked.connect(self.import_8a_dialog)
+        self.recon_8a_btn = QPushButton("Reconcile books vs 8A")
+        self.recon_8a_btn.clicked.connect(self.reconcile_8a)
         for x in (QLabel("GSTR-2B up to"), self.cutoff_cb, QLabel("Portal 8A"), self.portal_8a, self.annual_btn,
-                  self.export_annual_btn):
+                  self.export_annual_btn, self.import_8a_btn, self.recon_8a_btn):
             row.addWidget(x)
         row.addStretch()
         lay.addLayout(row)
@@ -136,6 +143,8 @@ class ReturnsPage(LazyPage):
     def reload(self) -> None:
         st = self.state
         self.import_btn.setEnabled(st.can("import") and st.client is not None)
+        self.import_8a_btn.setEnabled(st.can("import") and st.client is not None)
+        self.recon_8a_btn.setEnabled(st.can("reconcile") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):
             cur = cb.currentText()
@@ -194,18 +203,43 @@ class ReturnsPage(LazyPage):
         t = st.itc.annual(st.client.id, st.fy, self.cutoff_cb.currentText(), portal)
         for k, v in (("a", t.a), ("b", t.b), ("c", t.c), ("d", t.d)):
             self.t8_cards[k].set(money(v.total, True), f"IGST {money(v.igst)} · CGST {money(v.cgst)}")
-        notes = []
-        if t.portal_8a is not None:
-            notes.append(f"Computed 8A differs from the portal figure by {money(t.a.total - t.portal_8a, True)}.")
+        notes = t.basis_notes()
         if t.b_periods_missing:
             notes.append(f"GSTR-3B not imported for {len(t.b_periods_missing)} month(s) – 8B incomplete.")
-        notes.append(f"{len(t.docs_8a_not_in_books)} GSTR-2B document(s) of the year are not in books; "
+        notes.append(f"{len(t.docs_8a_not_in_books)} 8A document(s) of the year are not in books; "
                      f"{len(t.books_not_in_8a)} books document(s) are not in 8A.")
         self.t8_note.setText(" ".join(notes))
         self.month_model.set_rows([[m.month, m.books_itc, m.gstr2b_itc, m.filed_4a5, m.filed_4b, m.filed_4c,
                                     m.claimed_register] for m in t.months])
 
     # ------------------------------------------------------------- actions
+    def import_8a_dialog(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "GSTR-9 Table 8A document details", "", FILE_FILTER)
+        if path:
+            self.import_8a_path(path)
+
+    def import_8a_path(self, path):
+        result = import_interactive(self, self.state, path, Source.GSTR8A, None)
+        self.reload()
+        if result is not None:
+            self.show_annual()
+        return result
+
+    def reconcile_8a(self) -> None:
+        """Document-level reconciliation of the whole year's books with Table 8A (same engine)."""
+        st = self.state
+        if st.client is None:
+            return
+        months = fy_months(st.fy)
+        task = run_task(self, "Reconciling books vs Table 8A", st.recon.run, st.client.id, months[0], months[-1],
+                        st.recon_settings(), compare_with=Source.GSTR8A, user=st.user)
+        if not task.ok:
+            QMessageBox.information(self, "Table 8A", task.message)
+            return
+        st.set_run(task.result_value)
+        st.notify()
+        self.navigate.emit("exceptions")
+
     def import_dialog(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "GSTR-3B (portal JSON or template)", "",
                                               "GSTR-3B (*.json *.csv *.xlsx);;All files (*)")

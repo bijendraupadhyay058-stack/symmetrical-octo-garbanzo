@@ -72,6 +72,7 @@ class ReconciliationService:
             def load(source: Source, prior: bool = False):
                 q = select(Invoice).where(Invoice.client_id == client_id, Invoice.source_type == source.value)
                 q = q.where(Invoice.period < p_from) if prior else q.where(Invoice.period.between(p_from, p_to))
+                q = q.order_by(Invoice.id)  # same input order on every database engine
                 out = []
                 for r in s.scalars(q):
                     file_of[r.id] = r.source_file_id

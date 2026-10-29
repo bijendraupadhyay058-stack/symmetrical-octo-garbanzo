@@ -17,17 +17,15 @@ from datetime import date
 from decimal import Decimal
 
 from ..core.money import ZERO
+from .calendar import DueItem, due_items, due_of
 
 RAG_ORDER = {"grey": 0, "green": 1, "amber": 2, "red": 3}
 RAG_LABEL = {"grey": "No data", "green": "Reconciled", "amber": "Attention", "red": "Action required"}
 
 
-def due_dates(period: str) -> dict[str, date]:
-    """Standard monthly due dates (GSTR-1: 11th, GSTR-3B: 20th of the next month).
-    Extensions notified by CBIC and QRMP due dates are not modelled."""
-    y, m = int(period[:4]), int(period[5:])
-    y, m = (y + 1, 1) if m == 12 else (y, m + 1)
-    return {"GSTR-1": date(y, m, 11), "GSTR-3B": date(y, m, 20)}
+def due_dates(period: str, frequency: str = "Monthly", state_code: str = "", overrides=()) -> dict[str, date]:
+    """Due date of each return for the tax period (see ``compliance.calendar``)."""
+    return {i.return_type: i.due for i in due_items(period, frequency, state_code, overrides)}
 
 
 @dataclass
@@ -49,6 +47,7 @@ class MonthStatus:
     output_gstr1: Decimal | None = None
     output_3b: Decimal | None = None
     output_sales: Decimal | None = None
+    due: list[DueItem] = field(default_factory=list)  # returns due for this period (frequency, extensions)
     issues: list[tuple[str, str]] = field(default_factory=list)  # (rag, text)
 
     @property
@@ -110,10 +109,14 @@ def assess(m: MonthStatus, today: date, tolerance: Decimal = Decimal("1.00")) ->
         add(("amber", f"{m.pending} reconciliation exception(s) pending review"))
     if m.itc_at_risk > tolerance:
         add(("amber", f"ITC at risk ₹{m.itc_at_risk:,.2f}"))
-    due = due_dates(m.period)["GSTR-3B"]
+    if not m.due:
+        m.due = due_items(m.period)
+    due3b = due_of(m.due, "GSTR-3B")
     if not m.gstr3b_imported:
-        add(("amber", f"GSTR-3B not imported (due {due:%d-%m-%Y})" if today > due else
-             f"GSTR-3B due {due:%d-%m-%Y}"))
+        if due3b is not None:  # QRMP: no GSTR-3B for the first two months of a quarter
+            ext = f", extended – {due3b.basis}" if due3b.extended else ""
+            add(("amber", f"GSTR-3B not imported (due {due3b.due:%d-%m-%Y}{ext})" if today > due3b.due else
+                 f"GSTR-3B due {due3b.due:%d-%m-%Y}{ext}"))
     else:
         if m.itc_excess > tolerance:
             add(("red", f"ITC claimed in GSTR-3B exceeds GSTR-2B by ₹{m.itc_excess:,.2f} (Section 16(2)(aa))"))

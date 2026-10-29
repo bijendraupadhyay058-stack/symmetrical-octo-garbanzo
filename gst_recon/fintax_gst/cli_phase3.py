@@ -178,6 +178,8 @@ def cmd_annual(db, args) -> None:
     for label, v in (("8A ITC as per GSTR-2B", t.a), ("8B ITC availed in GSTR-3B 4(A)(5)", t.b),
                      ("8C availed in next year", t.c), ("8D = 8A − (8B + 8C)", t.d)):
         print(f"  {label:<40} {fmt_inr(v.total):>16}")
+    for note in t.basis_notes():
+        print(f"  {note}")
     if t.b_periods_missing:
         print(f"  ! GSTR-3B missing for {len(t.b_periods_missing)} period(s): {', '.join(t.b_periods_missing)}")
     if args.out:

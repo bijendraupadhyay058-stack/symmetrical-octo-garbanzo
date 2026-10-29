@@ -18,12 +18,14 @@ class Source(str, Enum):
     IMS = "IMS"  # Invoice Management System export (recipient's actions on supplier documents)
     SALES = "SALES"  # own sales register (outward supplies)
     GSTR1 = "GSTR1"  # GSTR-1 as filed / downloaded (outward supplies)
+    GSTR8A = "GSTR8A"  # GSTR-9 Table 8A document details downloaded from the portal (annual)
 
 
 #: Sources that represent the taxpayer's own books (left side of a reconciliation).
 LEFT_SOURCES = frozenset({Source.BOOKS, Source.SALES})
 #: Comparison partner of each books source.
-PARTNER = {Source.GSTR2B: Source.BOOKS, Source.GSTR2A: Source.BOOKS, Source.GSTR1: Source.SALES}
+PARTNER = {Source.GSTR2B: Source.BOOKS, Source.GSTR2A: Source.BOOKS, Source.GSTR1: Source.SALES,
+           Source.GSTR8A: Source.BOOKS}
 
 
 def side_labels(comparison: str) -> tuple[str, str]:
@@ -31,7 +33,7 @@ def side_labels(comparison: str) -> tuple[str, str]:
     right = comparison.split("_VS_")[-1] if comparison else "GSTR2B"
     left = comparison.split("_VS_")[0] if comparison and "_VS_" in comparison else "BOOKS"
     names = {"BOOKS": "Books", "SALES": "Sales register", "GSTR2B": "GSTR-2B", "GSTR2A": "GSTR-2A",
-             "GSTR1": "GSTR-1"}
+             "GSTR1": "GSTR-1", "GSTR8A": "Table 8A"}
     return names.get(left, left), names.get(right, right)
 
 

@@ -2,10 +2,10 @@
 
 * **8A** – ITC as per GSTR-2B for documents dated in the financial year (B2B, B2BA,
   CDNR, CDNRA; excluding reverse charge, ISD and imports and ITC marked
-  unavailable), taken from GSTR-2B periods from April of the year up to a
-  configurable cut-off period. The portal's own Table 8A is authoritative; set
-  the cut-off to the basis the portal uses for the year (and enter the
-  portal figure, if available, to compare).
+  unavailable). When the portal's *Table 8A document details* have been imported
+  they are the basis (the portal is authoritative) and the figure computed from the
+  imported GSTR-2B periods (April up to a configurable cut-off) is kept alongside for
+  comparison, with the documents found on only one side.
 * **8B** – ITC availed in GSTR-3B Table 4(A)(5) of the year's periods (stand-in for
   Table 6(B) + 6(H)).
 * **8C** – ITC on the year's documents availed in the next year's periods up to the
@@ -53,6 +53,10 @@ class Table8:
     c: Gstr3bValues
     portal_8a: Decimal | None = None
     months: list[MonthLine] = field(default_factory=list)
+    basis: str = "computed"  # "portal" when the Table 8A document details are the basis of 8A
+    a_computed: Gstr3bValues | None = None  # 8A computed from GSTR-2B (when the portal basis is used)
+    portal_not_in_2b: list[InvoiceRecord] = field(default_factory=list)
+    gstr2b_not_in_portal: list[InvoiceRecord] = field(default_factory=list)
     docs_8a_not_in_books: list[InvoiceRecord] = field(default_factory=list)
     books_not_in_8a: list[InvoiceRecord] = field(default_factory=list)
     b_periods_missing: list[str] = field(default_factory=list)
@@ -61,6 +65,25 @@ class Table8:
     def d(self) -> Gstr3bValues:
         return self.a - (self.b + self.c)
 
+    def basis_notes(self) -> list[str]:
+        """How 8A was arrived at and how it compares with the other figures available."""
+        notes = []
+        if self.basis == "portal":
+            notes.append(f"8A is taken from the portal's Table 8A document details imported for FY {self.fy}.")
+            if self.a_computed is not None:
+                notes.append(f"8A computed from the imported GSTR-2B (up to {self.cutoff}): "
+                             f"₹{self.a_computed.total:,.2f}; difference from the portal ₹"
+                             f"{self.a.total - self.a_computed.total:,.2f} – {len(self.portal_not_in_2b)} "
+                             f"document(s) only in 8A, {len(self.gstr2b_not_in_portal)} only in the imported "
+                             "GSTR-2B.")
+        else:
+            notes.append(f"8A is computed from the GSTR-2B periods imported up to {self.cutoff}; import the "
+                         "portal's Table 8A document details to use the authoritative figure.")
+        if self.portal_8a is not None:
+            notes.append(f"Portal Table 8A entered: ₹{self.portal_8a:,.2f}; 8A used here: ₹{self.a.total:,.2f}; "
+                         f"difference ₹{self.a.total - self.portal_8a:,.2f}.")
+        return notes
+
 
 def _key(r: InvoiceRecord):
     return (r.supplier_gstin, r.doc_type, r.invoice_no_norm)
@@ -68,11 +91,15 @@ def _key(r: InvoiceRecord):
 
 def gstr9_table8(fy: str, gstr2b: list[InvoiceRecord], books: list[InvoiceRecord],
                  filed: dict[str, dict[str, Gstr3bValues]], claims: list[tuple[str, ClaimAction]],
-                 cutoff: str | None = None, portal_8a: Decimal | None = None) -> Table8:
+                 cutoff: str | None = None, portal_8a: Decimal | None = None,
+                 portal_docs: list[InvoiceRecord] | None = None) -> Table8:
     cutoff = cutoff or default_cutoff(fy)
     months = fy_months(fy)
-    in_8a = [r for r in gstr2b if fy_of(r.invoice_date) == fy and months[0] <= r.period <= cutoff
-             and not r.reverse_charge and r.itc_availability != "N"]
+    computed = [r for r in gstr2b if fy_of(r.invoice_date) == fy and months[0] <= r.period <= cutoff
+                and not r.reverse_charge and r.itc_availability != "N"]
+    portal = [r for r in portal_docs or [] if fy_of(r.invoice_date) == fy and not r.reverse_charge
+              and r.itc_availability != "N"]
+    in_8a = portal if portal_docs else computed
     a = Gstr3bValues()
     for r in in_8a:
         a = a + doc_values(r)
@@ -96,6 +123,14 @@ def gstr9_table8(fy: str, gstr2b: list[InvoiceRecord], books: list[InvoiceRecord
     t = Table8(fy, cutoff, a, b, c, portal_8a, b_periods_missing=missing,
                docs_8a_not_in_books=[r for r in in_8a if _key(r) not in bkeys],
                books_not_in_8a=[r for r in books_fy if _key(r) not in akeys])
+    if portal_docs:
+        t.basis = "portal"
+        t.a_computed = Gstr3bValues()
+        for r in computed:
+            t.a_computed = t.a_computed + doc_values(r)
+        ckeys = {_key(r) for r in computed}
+        t.portal_not_in_2b = [r for r in portal if _key(r) not in ckeys]
+        t.gstr2b_not_in_portal = [r for r in computed if _key(r) not in akeys]
     lines = {m: MonthLine(m) for m in months}
     for r in books:
         if r.period in lines:

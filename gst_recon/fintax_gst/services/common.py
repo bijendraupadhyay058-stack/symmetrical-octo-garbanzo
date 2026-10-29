@@ -38,8 +38,13 @@ def dumps(value) -> str:
 
 def audit(session: Session, action: str, entity: str, entity_id="", details: dict | None = None,
           user: str | None = None, client_id: int | None = None) -> None:
-    session.add(AuditLog(user=user or current_user(), client_id=client_id, action=action, entity=entity,
-                         entity_id=str(entity_id), details_json=dumps(details or {})))
+    entity_id = str(entity_id)
+    limit = AuditLog.__table__.c.entity_id.type.length
+    if len(entity_id) > limit:  # keep the full reference in the details, a recognisable tail in the column
+        details = {**(details or {}), "entity_ref": entity_id}
+        entity_id = "…" + entity_id[-(limit - 1):]
+    session.add(AuditLog(user=(user or current_user())[:80], client_id=client_id, action=action, entity=entity,
+                         entity_id=entity_id, details_json=dumps(details or {})))
 
 
 def invoice_to_record(row: Invoice, file_name: str = "", prior: bool = False) -> InvoiceRecord:

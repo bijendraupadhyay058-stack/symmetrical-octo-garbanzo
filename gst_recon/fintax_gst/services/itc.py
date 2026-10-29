@@ -334,9 +334,10 @@ class ItcService:
         with self.db.session() as s:
             g2b = self._docs(s, client_id, Source.GSTR2B, span)
             books = [r for r in self._docs(s, client_id, Source.BOOKS) if r.period in span or r.period in months]
+            portal = self._docs(s, client_id, Source.GSTR8A, months)
         filed = self.gstr3b.values(client_id, months)
         claims = self._claim_actions(client_id, span)
-        return gstr9_table8(fy, g2b, books, filed, claims, cutoff, portal_8a)
+        return gstr9_table8(fy, g2b, books, filed, claims, cutoff, portal_8a, portal or None)
 
     def doc_type_of(self, invoice_id: int) -> DocType:
         with self.db.session() as s:

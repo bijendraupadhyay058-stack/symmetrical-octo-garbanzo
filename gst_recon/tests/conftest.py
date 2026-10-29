@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 from datetime import date
 from decimal import Decimal
 
@@ -30,9 +31,27 @@ def rec(source: str, no: str, dt: date | str = "2025-04-10", taxable="1000", igs
     )
 
 
+TEST_DB_URL = os.environ.get("FINTAX_TEST_DB_URL")  # e.g. postgresql+psycopg://user@localhost/fintax_test
+
+
+def _reset_server_schema(url: str) -> None:
+    from sqlalchemy import create_engine
+
+    engine = create_engine(url)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP SCHEMA public CASCADE")
+        conn.exec_driver_sql("CREATE SCHEMA public")
+    engine.dispose()
+
+
 @pytest.fixture
 def db(tmp_path):
-    database = open_database(tmp_path / "test.db")
+    """SQLite by default; the whole suite runs on PostgreSQL when FINTAX_TEST_DB_URL is set."""
+    if TEST_DB_URL:
+        _reset_server_schema(TEST_DB_URL)
+        database = open_database(TEST_DB_URL, data_dir=tmp_path)
+    else:
+        database = open_database(tmp_path / "test.db")
     yield database
     database.dispose()
 

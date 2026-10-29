@@ -74,6 +74,21 @@ Permissions are enforced where the user acts:
   devices is refused until users exist. It also needs a TLS certificate and key, or an
   explicit `--allow-http-lan` for a trusted office network.
 * Downloads need the *export* permission and are audited.
+* **Uploads** are off unless an administrator or manager enables them (`web_uploads`). They
+  then need the *import* permission and a CSRF token bound to the session. They are
+  limited to Excel/CSV/JSON/ZIP files of up to 25 MB, and each one is previewed and saved
+  only when the uploader confirms it, within 15 minutes. Saved uploads are audited and
+  kept in the data folder as source files.
+
+## PostgreSQL deployments
+
+* Keep the database server on the office network or behind a VPN. Use TLS
+  (`sslmode=require` in the URL) and a dedicated database user, and provide the password
+  through `PGPASSWORD` or a `.pgpass` file rather than the command line. The application
+  never displays it.
+* Backups of a server database are SQLite snapshots, so the same encrypted backup and
+  restore applies.
+* PostgreSQL has no secure-delete setting. Encrypt the server's disk.
 
 ## Privacy
 

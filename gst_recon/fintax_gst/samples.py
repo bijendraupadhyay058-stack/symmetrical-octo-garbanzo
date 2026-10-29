@@ -435,6 +435,44 @@ def write_ims_json(path: Path) -> None:
                                indent=2), encoding="utf-8")
 
 
+#: GSTR-9 Table 8A extras: KTX-2290 (missing in April GSTR-2B) was filed late by the supplier and is in 8A;
+#: OSL/412 (May) was never booked.
+TABLE8A_LATE = "KTX-2290"
+TABLE8A_NOT_BOOKED = intra("OSL", "OSL/412", date(2025, 5, 14), "12400")
+
+
+def table8a_docs() -> list[Doc]:
+    late = [d for d in books_docs() if d.no == TABLE8A_LATE]
+    in_fy = [d for d in g2b_docs() if not d.rcm and d.dt >= date(2025, 4, 1)]  # 8A: documents dated in the FY
+    return in_fy + late + [TABLE8A_NOT_BOOKED]
+
+
+def write_gstr8a_json(path: Path, docs: list[Doc]) -> None:
+    """GSTR-9 Table 8A document details as downloaded from the portal (FY 2025-26)."""
+    sections: dict[str, dict[str, dict]] = {"b2b": {}, "b2ba": {}, "cdnr": {}}
+    for d in docs:
+        gst, name = SUPPLIERS[d.sup]
+        item = {"num": 1, "itm_det": {"rt": d.rate, "txval": float(D(d.taxable)), "iamt": float(D(d.igst)),
+                                      "camt": float(D(d.cgst)), "samt": float(D(d.sgst)), "csamt": float(D(d.cess))}}
+        base = {"val": float(_value(d)), "pos": "27", "rchrg": "N", "itcavl": "Y" if d.itc == "Yes" else "N",
+                "rsn": "P" if d.reason else "", "itms": [item]}
+        if d.doc in ("CRN", "DBN"):
+            sec, key = "cdnr", "nt"
+            doc = {"ntty": "C" if d.doc == "CRN" else "D", "nt_num": d.no, "nt_dt": d.dt.strftime("%d-%m-%Y"), **base}
+        elif d.original_no:
+            sec, key = "b2ba", "inv"
+            doc = {"oinum": d.original_no, "oidt": d.original_dt.strftime("%d-%m-%Y"), "inum": d.no,
+                   "idt": d.dt.strftime("%d-%m-%Y"), "inv_typ": "R", **base}
+        else:
+            sec, key = "b2b", "inv"
+            doc = {"inum": d.no, "idt": d.dt.strftime("%d-%m-%Y"), "inv_typ": "R", **base}
+        filed = "042025" if d.dt.month == 4 and d.no != TABLE8A_LATE else "062025"
+        sections[sec].setdefault(gst, {"ctin": gst, "trdnm": name, "fldtr1": filed, key: []})[key].append(doc)
+    payload = {"data": {"gstin": CLIENT["gstin"], "fy": "2025-26", "gendt": "15-11-2026",
+                        **{sec: list(v.values()) for sec, v in sections.items()}}}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def write_all(out_dir: str | Path) -> dict[str, Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -447,6 +485,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "gstr3b_april_json": out / "gstr3b_2025-04.json",
         "gstr3b_template_csv": out / "gstr3b_template_2025-03.csv",
         "ims_april_json": out / "ims_2025-04.json",
+        "gstr8a_json": out / "gstr9_table8a_2025-26.json",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -457,6 +496,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_gstr3b_json(files["gstr3b_april_json"])
     write_gstr3b_template(files["gstr3b_template_csv"])
     write_ims_json(files["ims_april_json"])
+    write_gstr8a_json(files["gstr8a_json"], table8a_docs())
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -482,5 +522,11 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "credit note and an SEZ supply; B2C, export and exempt sales are compared at summary level.",
               "* GSTR-1 B2CS leaves out ₹1,000 taxable value; GSTR-3B 3.1(a) tax is ₹3,600 lower than GSTR-1 → "
               "possible short payment in the liability working."]
+    lines += ["", "## GSTR-9 Table 8A (Phase 5)", "",
+              "* `gstr9_table8a_2025-26.json` holds the April GSTR-2B documents (excluding reverse charge), "
+              f"{TABLE8A_LATE} (missing in April GSTR-2B, filed late by the supplier) and "
+              f"{TABLE8A_NOT_BOOKED.no} dated May 2025, which is not in the books.",
+              "* Books vs Table 8A for FY 2025-26: KTX-2290 matches; OSL/412 and OSL/377 are in 8A but not in the "
+              "books; KTX-2301 (ITC not available) stays out of the 8A total."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

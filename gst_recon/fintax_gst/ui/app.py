@@ -104,7 +104,7 @@ class MainWindow(QMainWindow):
         root.addLayout(body, 1)
         self.setCentralWidget(central)
         role = ROLES.get(state.session.role, state.session.role)
-        self.statusBar().showMessage(f"Database: {state.db.path} · {state.session.full_name or state.user} ({role}) "
+        self.statusBar().showMessage(f"Database: {state.db.location} · {state.session.full_name or state.user} ({role}) "
                                      "· offline – no data leaves this computer")
         state.clientChanged.connect(self._sync_header)
         state.dataChanged.connect(self._fill_clients)
@@ -230,7 +230,7 @@ def main(argv: list[str] | None = None) -> int:
         for key, _label in NAV:
             win.go(key)
             app.processEvents()
-        print(f"{PRODUCT_NAME} {__version__}: {len(NAV)} pages OK, database {db.path}")
+        print(f"{PRODUCT_NAME} {__version__}: {len(NAV)} pages OK, database {db.location}")
         db.dispose()
         return 0
     code = app.exec()

@@ -5,13 +5,14 @@ import logging
 import os
 import shutil
 import sqlite3
+import tempfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Iterator
 
-from sqlalchemy import create_engine, event, inspect, select
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, delete, event, inspect, select, text
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from .models import V1_TABLES, SchemaMigration, utcnow
@@ -29,6 +30,35 @@ def default_home() -> Path:
 
 def default_db_path() -> Path:
     return Path(os.environ["FINTAX_DB"]) if os.environ.get("FINTAX_DB") else default_home() / "fintaxpro.db"
+
+
+def is_server_url(target) -> bool:
+    """True for a database server URL such as ``postgresql+psycopg://user@host/db``."""
+    return isinstance(target, str) and "://" in target and not target.startswith("sqlite")
+
+
+def copy_rows(src: Engine, dst: Engine, batch: int = 2000, progress: Callable | None = None) -> dict[str, int]:
+    """Copy every application table from ``src`` to ``dst`` (same schema version; ``dst``
+    tables must be empty). Ids are kept, so references stay valid."""
+    with src.connect() as sc, dst.begin() as dc:
+        return _copy(sc, dc, batch, progress)
+
+
+def _copy(sc, dc, batch: int = 2000, progress: Callable | None = None) -> dict[str, int]:
+    from .models import Base
+
+    counts = {}
+    tables = [t for t in Base.metadata.sorted_tables if t.name != "schema_migrations"]
+    for i, t in enumerate(tables):
+        n = 0
+        result = sc.execute(select(t).order_by(*t.primary_key.columns))
+        while rows := result.fetchmany(batch):
+            dc.execute(t.insert(), [dict(r._mapping) for r in rows])
+            n += len(rows)
+        counts[t.name] = n
+        if progress:
+            progress(int((i + 1) * 100 / len(tables)), f"Copied {t.name}")
+    return counts
 
 
 def _migration_1(conn) -> None:
@@ -68,6 +98,12 @@ def _migration_4(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V4_TABLES])
 
 
+def _migration_5(conn) -> None:
+    from .models import V5_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V5_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -76,20 +112,43 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (3, "users, settings, ITC rules/reviews/claims, GSTR-3B, ISD/imports, IMS columns", _migration_3),
     (4, "outward supplies (sales, GSTR-1), GSTR-3B 3.1, sync authorisations, letters, working papers",
      _migration_4),
+    (5, "GST due-date extensions recorded by the user", _migration_5),
 ]
 
 
 class Database:
-    def __init__(self, path: str | Path | None = None, echo: bool = False):
-        self.path = Path(path) if path else default_db_path()
-        if str(self.path) != ":memory:":
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Sessions are never shared between threads, but the desktop app runs long
-        # operations on a worker thread, so pooled connections may change thread.
-        self.engine: Engine = create_engine(f"sqlite:///{self.path}", echo=echo, future=True,
-                                            connect_args={"check_same_thread": False, "timeout": 30})
-        event.listen(self.engine, "connect", self._on_connect)
+    """A SQLite file (the default, fully offline) or a PostgreSQL server.
+
+    ``data_dir`` holds evidence attachments and backups. For SQLite it is the folder of
+    the database file; for a server it defaults to the application home folder.
+    """
+
+    def __init__(self, path: str | Path | None = None, echo: bool = False, data_dir: str | Path | None = None):
+        if path is None:
+            path = os.environ.get("FINTAX_DB_URL") or default_db_path()
+        self.is_sqlite = not is_server_url(str(path))
+        if self.is_sqlite:
+            self.path = Path(str(path).removeprefix("sqlite:///"))
+            if str(self.path) != ":memory:":
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+            self.data_dir = Path(data_dir) if data_dir else self.path.parent
+            # Sessions are never shared between threads, but the desktop app runs long
+            # operations on a worker thread, so pooled connections may change thread.
+            self.engine: Engine = create_engine(f"sqlite:///{self.path}", echo=echo, future=True,
+                                                connect_args={"check_same_thread": False, "timeout": 30})
+            event.listen(self.engine, "connect", self._on_connect)
+        else:
+            self.url = make_url(str(path))
+            self.data_dir = Path(data_dir) if data_dir else default_home()
+            self.path = self.data_dir / "server.db"  # never opened; kept for callers that expect a path
+            self.engine = create_engine(self.url, echo=echo, future=True, pool_pre_ping=True)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
         self.Session = sessionmaker(self.engine, expire_on_commit=False, future=True)
+
+    @property
+    def location(self) -> str:
+        """Where the data lives, for display (passwords are never shown)."""
+        return str(self.path) if self.is_sqlite else self.url.render_as_string(hide_password=True)
 
     @staticmethod
     def _on_connect(dbapi_conn, _record) -> None:
@@ -107,9 +166,9 @@ class Database:
             versions = s.scalars(select(SchemaMigration.version)).all()
         return max(versions, default=0)
 
-    def migrate(self, backup: bool = True) -> list[int]:
+    def migrate(self, backup: bool = True, upto: int | None = None) -> list[int]:
         current = self.current_version()
-        pending = [m for m in MIGRATIONS if m[0] > current]
+        pending = [m for m in MIGRATIONS if m[0] > current and (upto is None or m[0] <= upto)]
         if pending and current > 0 and backup:
             self.backup(suffix=f"pre-migration-v{pending[0][0]}")
         applied = []
@@ -136,12 +195,22 @@ class Database:
             s.close()
 
     def backup(self, target: str | Path | None = None, suffix: str = "manual") -> Path:
-        """Consistent online backup using SQLite's backup API."""
+        """Consistent backup as a SQLite file: SQLite's online backup API, or for a server
+        a snapshot of every table in one repeatable-read transaction."""
         if target is None:
             stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            target = self.path.parent / "backups" / f"fintaxpro-{stamp}-{suffix}.db"
+            target = self.data_dir / "backups" / f"fintaxpro-{stamp}-{suffix}.db"
         target = Path(target)
         target.parent.mkdir(parents=True, exist_ok=True)
+        if not self.is_sqlite:
+            target.unlink(missing_ok=True)
+            snap = Database(target)
+            try:
+                snap.migrate(backup=False, upto=self.current_version())
+                copy_rows(self.engine.execution_options(isolation_level="REPEATABLE READ"), snap.engine)
+            finally:
+                snap.dispose()
+            return target
         src = sqlite3.connect(self.path)
         dst = sqlite3.connect(target)
         try:
@@ -161,17 +230,72 @@ class Database:
         finally:
             check.close()
         safety = self.backup(suffix="pre-restore")
+        if not self.is_sqlite:
+            self._restore_server(backup_file)
+            return safety
         self.engine.dispose()
         for extra in ("-wal", "-shm"):
             Path(str(self.path) + extra).unlink(missing_ok=True)
         shutil.copyfile(backup_file, self.path)
         return safety
 
+    def _restore_server(self, backup_file: Path) -> None:
+        """Replace all server tables with the contents of a SQLite backup (one transaction)."""
+        from .models import Base
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "restore.db"
+            shutil.copyfile(backup_file, work)
+            src = Database(work)
+            try:
+                src.migrate(backup=False, upto=self.current_version())
+                tables = [t for t in Base.metadata.sorted_tables if t.name != "schema_migrations"]
+                with src.engine.connect() as sc, self.engine.begin() as dc:  # all or nothing
+                    for t in reversed(tables):
+                        dc.execute(delete(t))
+                    _copy(sc, dc)
+            finally:
+                src.dispose()
+        self.reset_sequences()
+
+    def reset_sequences(self) -> None:
+        """After rows were inserted with explicit ids, move PostgreSQL id sequences past them."""
+        if self.is_sqlite or self.engine.dialect.name != "postgresql":
+            return
+        from .models import Base
+
+        with self.engine.begin() as conn:
+            for t in Base.metadata.sorted_tables:
+                if "id" in t.c and t.c.id.autoincrement in (True, "auto") and t.c.id.type.python_type is int:
+                    conn.execute(text(f"SELECT setval(pg_get_serial_sequence('{t.name}', 'id'), "
+                                      f"COALESCE((SELECT MAX(id) FROM {t.name}), 1), "
+                                      f"(SELECT MAX(id) FROM {t.name}) IS NOT NULL)"))
+
     def dispose(self) -> None:
         self.engine.dispose()
 
 
-def open_database(path: str | Path | None = None) -> Database:
-    db = Database(path)
+def open_database(path: str | Path | None = None, data_dir: str | Path | None = None) -> Database:
+    db = Database(path, data_dir=data_dir)
     db.migrate()
     return db
+
+
+def copy_database(source: Database, target_url: str | Path, progress: Callable | None = None) -> dict[str, int]:
+    """Copy all data into another, empty database (e.g. move a SQLite file to PostgreSQL).
+    The target is brought to the same schema version first; nothing is copied if it holds data."""
+    from .models import Client
+
+    target = Database(target_url, data_dir=source.data_dir)
+    try:
+        target.migrate(backup=False, upto=source.current_version())
+        if target.current_version() != source.current_version():
+            raise ValueError("The target database has a newer schema than the source")
+        with target.Session() as s:
+            if s.scalar(select(Client.id).limit(1)) is not None:
+                raise ValueError("The target database already contains data – use an empty database")
+        counts = copy_rows(source.engine, target.engine, progress=progress)
+        target.reset_sequences()
+        return counts
+    finally:
+        target.dispose()

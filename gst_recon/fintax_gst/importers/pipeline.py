@@ -17,7 +17,7 @@ from ..core.money import ZERO
 from .column_mapping import (
     Column, MappingResult, apply_template, auto_map, build_columns, header_score, normalize_header,
 )
-from .gstn_json import detect_json_kind, flatten_gstr1, flatten_gstr2a, flatten_gstr2b, flatten_ims
+from .gstn_json import detect_json_kind, flatten_gstr1, flatten_gstr2a, flatten_gstr2b, flatten_gstr8a, flatten_ims
 from .parsing import parse_period
 from .readers import SUPPORTED_EXTENSIONS, RawTable, UnsupportedFileError, read_csv, read_excel, read_json, zip_members
 from .validation import RowContext, build_record
@@ -29,6 +29,8 @@ LAYOUT_LABELS = {
     "gstr2a_json": "GSTR-2A (GST portal JSON)",
     "ims_json": "IMS download (GST portal JSON)",
     "gstr1_json": "GSTR-1 (GST portal JSON)",
+    "gstr8a_excel": "GSTR-9 Table 8A document details (GST portal Excel)",
+    "gstr8a_json": "GSTR-9 Table 8A document details (GST portal JSON)",
     "tally": "TallyPrime purchase register",
     "generic": "Custom purchase register",
 }
@@ -266,6 +268,11 @@ def _aggregate_and_flag(preview: ImportPreview) -> None:
 
 def _layout_for_tables(tables: list[RawTable]) -> str:
     names = {t.name.strip().lower() for t in tables}
+    for t in tables:
+        for _n, values in t.rows[:8]:
+            text = " ".join(str(v) for v in values if v).lower()
+            if "table 8a" in text or "gstr-9" in text or "gstr 9" in text:
+                return "gstr8a_excel"
     if names & {"b2b-cdnr", "b2b-cdnra"} or ("b2b" in names and "read me" in names and "itc available" in names):
         return "gstr2b_excel"
     if "b2b" in names and names & {"cdnr", "b2ba", "cdnra"}:
@@ -295,6 +302,8 @@ def _expected_source(layout: str) -> Source | None:
         return Source.IMS
     if layout.startswith("gstr1"):
         return Source.GSTR1
+    if layout.startswith("gstr8a"):
+        return Source.GSTR8A
     return Source.BOOKS
 
 
@@ -329,12 +338,14 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
                 rows, json_period, warnings = flatten_ims(js)
             elif kind == "GSTR1":
                 rows, json_period, warnings, preview.outward_summary = flatten_gstr1(js)
+            elif kind == "GSTR8A":
+                rows, json_period, warnings = flatten_gstr8a(js)
             elif kind == "GSTR3B":
                 raise UnsupportedFileError(f"{name} is a GSTR-3B return – import it with the GSTR-3B import")
             else:
                 rows, json_period, warnings = flatten_gstr2a(js)
-            preview.layout = {"GSTR2B": "gstr2b_json", "IMS": "ims_json", "GSTR1": "gstr1_json"}.get(kind,
-                                                                                                "gstr2a_json")
+            preview.layout = {"GSTR2B": "gstr2b_json", "IMS": "ims_json", "GSTR1": "gstr1_json",
+                              "GSTR8A": "gstr8a_json"}.get(kind, "gstr2a_json")
             _check_source(preview)
             preview.period = preview.period or json_period
             preview.file_warnings += warnings
@@ -358,8 +369,10 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
             if not tables:
                 raise ValueError(f"Sheet '{sheet}' not found")
         preview.layout = _layout_for_tables(tables)
+        if preview.source == Source.GSTR8A and preview.layout in ("gstr2b_excel", "gstr2a_excel"):
+            preview.layout = "gstr8a_excel"  # the Table 8A download uses the same B2B / CDNR sheets
         _check_source(preview)
-        if preview.layout in ("gstr2b_excel", "gstr2a_excel"):
+        if preview.layout in ("gstr2b_excel", "gstr2a_excel", "gstr8a_excel"):
             preview.period = preview.period or detect_excel_period(tables)
             _require_period(preview)
             builder = _Builder(preview, "gstn")
@@ -419,5 +432,7 @@ def _check_source(preview: ImportPreview) -> None:
 
 
 def _require_period(preview: ImportPreview) -> None:
+    if preview.source == Source.GSTR8A:
+        return  # annual statement: each document's month comes from its date
     if not preview.period:
         raise ValueError(f"{preview.file_name}: return period could not be detected – specify it (YYYY-MM)")

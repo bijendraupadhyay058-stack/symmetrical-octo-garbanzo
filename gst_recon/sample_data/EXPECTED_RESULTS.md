@@ -51,3 +51,8 @@ Rows that must be rejected at import (books):
 
 * `tally_sales_register_2025-04.xlsx` vs `gstr1_2025-04.json`: 5 perfect B2B matches, one invoice not in GSTR-1, one in GSTR-1 only, a taxable-value difference, a wrong customer GSTIN (probable), a credit note and an SEZ supply; B2C, export and exempt sales are compared at summary level.
 * GSTR-1 B2CS leaves out ₹1,000 taxable value; GSTR-3B 3.1(a) tax is ₹3,600 lower than GSTR-1 → possible short payment in the liability working.
+
+## GSTR-9 Table 8A (Phase 5)
+
+* `gstr9_table8a_2025-26.json` holds the April GSTR-2B documents (excluding reverse charge), KTX-2290 (missing in April GSTR-2B, filed late by the supplier) and OSL/412 dated May 2025, which is not in the books.
+* Books vs Table 8A for FY 2025-26: KTX-2290 matches; OSL/412 and OSL/377 are in 8A but not in the books; KTX-2301 (ITC not available) stays out of the 8A total.

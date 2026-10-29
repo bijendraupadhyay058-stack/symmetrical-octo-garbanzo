@@ -13,6 +13,8 @@ from ..db.database import Database
 from ..db.models import Client, Gstr1Summary, Gstr3bEntry, Invoice, ReconRun, Vendor
 from ..importers.gstr3b import Gstr3bValues
 from ..itc.annual import fy_months
+from ..compliance.calendar import due_items
+from .calendar import CalendarService
 from .common import ServiceError
 from .outward import OutwardService
 
@@ -47,17 +49,19 @@ class ComplianceService:
                                                     ReconRun.period_from == ReconRun.period_to,
                                                     ReconRun.period_from.in_(months)).order_by(ReconRun.id)).all()
             latest = {(r.period_from, r.comparison.split("_")[0]): r for r in runs}
+            frequency, state_code = client.return_frequency or "Monthly", client.state_code
             due = s.scalar(select(func.count()).select_from(Vendor).where(
                 Vendor.client_id == client_id, Vendor.next_followup.is_not(None), Vendor.next_followup <= today))
             name, gstin = client.name, client.gstin
         out_periods = [p for p in months if (p, "SALES") in counts or p in g1_periods]
         liability = {w.period: w for w in OutwardService(self.db).liability(client_id, out_periods)} \
             if out_periods else {}
+        overrides = CalendarService(self.db).overrides()
         result = []
         for p in months:
             m = MonthStatus(p, counts.get((p, "BOOKS"), 0), counts.get((p, "GSTR2B"), 0),
                             counts.get((p, "SALES"), 0), counts.get((p, "GSTR1"), 0), p in g1_periods,
-                            any(k[0] == p for k in filed))
+                            any(k[0] == p for k in filed), due=due_items(p, frequency, state_code, overrides))
             inward, outward = latest.get((p, "BOOKS")), latest.get((p, "SALES"))
             if inward:
                 m.inward_run_id, m.inward = inward.id, json.loads(inward.summary_json or "{}")

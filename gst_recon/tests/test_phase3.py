@@ -398,6 +398,8 @@ def test_purge_client_removes_everything(db, sample_files, tmp_path):
         assert CLIENT["gstin"] in purge.details_json
     assert not __import__("pathlib").Path(att.stored_path).exists()
     assert [x.id for x in ClientService(db).list()] == [other.id]
+    if not db.is_sqlite:
+        return  # the file-level secure-delete check applies to SQLite
     raw = db.path.read_bytes()
     assert b"Mahalaxmi Steel" not in raw  # secure_delete + VACUUM: no residue in the file
 

@@ -40,10 +40,11 @@ gst_recon/
 ├── fintax_gst/
 │   ├── __init__.py            product name, version
 │   ├── __main__.py            python -m fintax_gst
-│   ├── cli.py                 command-line interface (+ cli_phase3.py, cli_phase4.py)
+│   ├── cli.py                 command-line interface (+ cli_phase3.py, cli_phase4.py, cli_phase5.py)
 │   ├── samples.py             demo datasets + expected outcomes (samples_outward.py: sales/GSTR-1)
 │   ├── outward/liability.py   GSTR-1 sections → GSTR-3B Table 3.1, liability working (pure)
 │   ├── compliance/summary.py  month status (RAG), client compliance (pure)
+│   ├── compliance/calendar.py due dates: monthly, QRMP, annual, recorded extensions (pure)
 │   ├── letters/               supplier letter content (pure) and Word/PDF/e-mail rendering
 │   ├── web/                   read-only FastAPI app and templates
 │   ├── core/
@@ -99,6 +100,7 @@ gst_recon/
 │   │   ├── letters.py         supplier letters and letter register
 │   │   ├── papers.py          working-paper packages, review sign-off, verification
 │   │   ├── sync.py            client authorisation, encrypted sync packages
+│   │   ├── calendar.py        due-date extensions, upcoming returns across clients
 │   │   └── common.py          audit log, conversions
 │   └── reports/
 │       ├── excel_report.py    17-sheet workbook
@@ -134,6 +136,13 @@ gst_recon/
 | `invoices.supply_type`, `gstr3b_entries.taxable`, `gstr1_summary` (v4) | outward supply type; Table 3.1 taxable values; GSTR-1 section totals |
 | `letters`, `working_papers` (v4) | letter register; working-paper packages with SHA-256 and sign-off |
 | `sync_authorizations`, `sync_state` (v4) | client consent for sync; last export/import sequence and origin |
+| `due_date_overrides` (v5) | due-date extensions recorded from CBIC notifications |
+
+**Database engines.** `Database` opens a SQLite file (default) or a server URL such as
+`postgresql+psycopg://user@host/db` (`--db`, `FINTAX_DB_URL`). Attachments, uploads and
+backups live in `Database.data_dir`. Backups are always SQLite files: SQLite's online
+backup API, or a repeatable-read snapshot of a server database. `copy_database` moves
+data between engines with ids kept.
 
 **Desktop threading.** Imports, reconciliation and export run on a `QThread` behind a
 progress dialog. Services check the `CancelToken` between batches and write inside one

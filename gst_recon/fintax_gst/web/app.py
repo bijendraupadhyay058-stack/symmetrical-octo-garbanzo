@@ -6,7 +6,10 @@ Security
   When no users exist the server only accepts connections from this computer.
 * The session cookie is HMAC-signed, HttpOnly, SameSite=Strict, expires after
   ``SESSION_MINUTES`` and is marked Secure when served over HTTPS.
-* Pages are read-only; nothing can be imported, changed or deleted from the web.
+* Pages are read-only. The one exception is file upload, which is off until an
+  administrator enables it (setting ``web_uploads``): an upload is previewed first and
+  saved only on confirmation, by a user with the *import* permission, through the same
+  import pipeline as the desktop. Every form carries a CSRF token bound to the session.
 * Responses are not cached (``Cache-Control: no-store``) and a strict Content Security
   Policy is sent; there are no external scripts, fonts or trackers.
 """
@@ -68,6 +71,21 @@ class Signer:
         return data if data.get("exp", 0) > time.time() else None
 
 
+MAX_UPLOAD_MB = 25
+PENDING_MINUTES = 15
+UPLOAD_SOURCES = [("BOOKS", "Purchase register"), ("GSTR2B", "GSTR-2B"), ("GSTR2A", "GSTR-2A"),
+                  ("SALES", "Sales register"), ("GSTR1", "GSTR-1"), ("IMS", "IMS download"),
+                  ("GSTR3B", "GSTR-3B"), ("GSTR8A", "GSTR-9 Table 8A document details")]
+UPLOAD_SUFFIXES = {".xlsx", ".xlsm", ".xls", ".csv", ".json", ".zip"}
+
+
+def _safe_name(name: str) -> str:
+    import re
+
+    name = Path(name or "upload").name
+    return re.sub(r"[^A-Za-z0-9._ -]+", "_", name).strip(" .")[:120] or "upload"
+
+
 def create_app(db: Database, secret: bytes | None = None, https: bool = False) -> FastAPI:
     app = FastAPI(title="FIN TAX PRO", version=__version__, docs_url=None, redoc_url=None, openapi_url=None)
     env = Environment(loader=DictLoader(TEMPLATES), autoescape=select_autoescape(default=True))
@@ -97,9 +115,23 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
             return None
         return Session(data["u"], data["r"], data.get("n", ""))
 
+    def uploads_enabled() -> bool:
+        from ..services.security import SecurityService
+
+        return bool(SecurityService(db).setting("web_uploads"))
+
     def page(name: str, request: Request, user: Session | None, status: int = 200, **ctx) -> HTMLResponse:
-        html = env.get_template(name).render(user=user, role=ROLES.get(user.role, user.role) if user else "", **ctx)
+        can_upload = bool(user and user.can("import") and uploads_enabled())
+        html = env.get_template(name).render(user=user, role=ROLES.get(user.role, user.role) if user else "",
+                                             can_upload=can_upload, **ctx)
         return HTMLResponse(html, status_code=status)
+
+    def csrf_of(request: Request) -> str:
+        token = request.cookies.get(COOKIE, "") or "local-setup"
+        return hmac.new(signer.secret, b"csrf|" + token.encode(), hashlib.sha256).hexdigest()
+
+    def csrf_ok(request: Request, value: str) -> bool:
+        return hmac.compare_digest(value or "", csrf_of(request))
 
     def guard(request: Request, permission: str = "view"):
         user = session_of(request)
@@ -147,7 +179,10 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
             fys.insert(0, fy)
         clients = compliance.annual_dashboard(fy)
         counts = {k: sum(1 for c in clients if c.rag == k) for k in RAG_LABEL}
-        return page("dashboard", request, user, fy=fy, fys=fys, clients=clients, counts=counts,
+        from ..services.calendar import CalendarService
+
+        upcoming = [u for u in CalendarService(db).upcoming(days=21) if u.status != "imported"][:30]
+        return page("dashboard", request, user, fy=fy, fys=fys, clients=clients, counts=counts, upcoming=upcoming,
                     pending=sum(c.pending for c in clients), can_export=user.can("export"))
 
     @app.get("/client/{client_id}", response_class=HTMLResponse)
@@ -241,6 +276,173 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
         with db.session() as s:
             audit(s, "EXPORT", "annual_dashboard", fy, {"via": "web"}, user.username)
         return file_response(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", tmp)
+
+    # ------------------------------------------------------------ uploads
+    pending: dict[str, dict] = {}  # token -> {user, client_id, kind, preview, dir, expires}
+
+    def upload_guard(request: Request):
+        user, denied = guard(request, "import")
+        if denied:
+            return None, denied
+        if not uploads_enabled():
+            return None, HTMLResponse("Uploads from the web view are switched off (Security settings).",
+                                      status_code=403)
+        return user, None
+
+    def drop(token: str) -> None:
+        import shutil
+
+        item = pending.pop(token, None)
+        if item and not item.get("kept"):
+            shutil.rmtree(item["dir"], ignore_errors=True)
+
+    def expire() -> None:
+        for token in [t for t, v in pending.items() if v["expires"] < time.time()]:
+            drop(token)
+
+    def clients_list():
+        from ..services.clients import ClientService
+
+        return ClientService(db).list()
+
+    @app.get("/upload", response_class=HTMLResponse)
+    def upload_form(request: Request, client_id: int | None = None):
+        user, denied = upload_guard(request)
+        if denied:
+            return denied
+        return page("upload", request, user, clients=clients_list(), sources=UPLOAD_SOURCES, client_id=client_id,
+                    csrf=csrf_of(request), max_mb=MAX_UPLOAD_MB)
+
+    @app.post("/upload", response_class=HTMLResponse)
+    async def upload(request: Request):
+        user, denied = upload_guard(request)
+        if denied:
+            return denied
+        form = await request.form()
+        if not csrf_ok(request, str(form.get("csrf", ""))):
+            return HTMLResponse("Invalid form token – reload the page", status_code=400)
+        expire()
+
+        def again(msg: str, status: int = 400):
+            return page("upload", request, user, status=status, clients=clients_list(), sources=UPLOAD_SOURCES,
+                        client_id=None, csrf=csrf_of(request), max_mb=MAX_UPLOAD_MB, error=msg)
+
+        upload_file = form.get("file")
+        source = str(form.get("source", ""))
+        period = str(form.get("period", "")).strip() or None
+        try:
+            client_id = int(str(form.get("client_id", "")))
+        except ValueError:
+            return again("Choose a client")
+        if source not in dict(UPLOAD_SOURCES) or upload_file is None or not getattr(upload_file, "filename", ""):
+            return again("Choose a file and its type")
+        name = _safe_name(upload_file.filename)
+        if Path(name).suffix.lower() not in UPLOAD_SUFFIXES:
+            return again("Use an Excel, CSV, JSON or ZIP file")
+        data = await upload_file.read(MAX_UPLOAD_MB * 1024 * 1024 + 1)
+        if len(data) > MAX_UPLOAD_MB * 1024 * 1024:
+            return again(f"File larger than {MAX_UPLOAD_MB} MB")
+        token = secrets.token_urlsafe(18)
+        folder = db.data_dir / "uploads" / str(client_id) / token
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / name
+        path.write_bytes(data)
+        from ..services.clients import ClientService
+
+        try:
+            client = ClientService(db).get(client_id)
+            if client is None:
+                raise ServiceError("Client not found")
+            if source == "GSTR3B":
+                from ..services.gstr3b import Gstr3bService
+
+                pv = Gstr3bService(db).preview(path, period)
+                figures = [("Periods", ", ".join(pv.periods) or "–"),
+                           ("Table rows", sum(len(t) for t in pv.entries.values()))]
+                ctx = dict(layout=pv.layout, period=", ".join(pv.periods), warnings=pv.warnings, issues=[],
+                           blocked=None if pv.entries else "No GSTR-3B values found in the file")
+            else:
+                from ..core.models import Source
+                from ..services.imports import ImportService
+
+                pv = ImportService(db).preview(client_id, path, Source(source), period)
+                new = len(pv.new_records)
+                figures = [("Documents", len(pv.records)), ("New documents", new),
+                           ("Already imported", len(pv.records) - new), ("Rows rejected", pv.rejected_rows),
+                           ("Duplicates in file", pv.count("duplicate"))]
+                blocked = None
+                if pv.already_imported_file_id:
+                    blocked = f"This file was already imported (import #{pv.already_imported_file_id})."
+                elif not new and not pv.outward_summary and not pv.other_itc:
+                    blocked = "Nothing new to import."
+                ctx = dict(layout=pv.layout_label, period=pv.period, warnings=pv.file_warnings,
+                           issues=[i for i in pv.issues if i.severity in ("error", "warning", "duplicate")][:50],
+                           blocked=blocked)
+        except Exception as exc:  # noqa: BLE001 - shown to the user; the upload is removed
+            import shutil
+
+            shutil.rmtree(folder, ignore_errors=True)
+            from ..importers.pipeline import MappingRequired
+
+            if isinstance(exc, MappingRequired):
+                return again("The headings of this file were not recognised. Map its columns once in the desktop "
+                             "app (the mapping is saved as a template), then upload again.", 422)
+            if isinstance(exc, (ServiceError, ValueError, FileNotFoundError)) or exc.__class__.__name__ == \
+                    "UnsupportedFileError":
+                return again(str(exc), 422)
+            raise
+        pending[token] = {"user": user.username, "client_id": client_id, "kind": source, "preview": pv,
+                          "dir": folder, "path": path, "period": period,
+                          "expires": time.time() + PENDING_MINUTES * 60}
+        return page("upload_preview", request, user, client=client, file_name=name, token=token,
+                    csrf=csrf_of(request), figures=figures, **ctx)
+
+    def take(request: Request, token: str, user: Session):
+        expire()
+        item = pending.get(token)
+        if item is None or item["user"] != user.username:
+            return None
+        return item
+
+    @app.post("/upload/{token}/commit", response_class=HTMLResponse)
+    def upload_commit(request: Request, token: str, csrf: str = Form("")):
+        user, denied = upload_guard(request)
+        if denied:
+            return denied
+        if not csrf_ok(request, csrf):
+            return HTMLResponse("Invalid form token – reload the page", status_code=400)
+        item = take(request, token, user)
+        if item is None:
+            return HTMLResponse("This preview has expired – upload the file again.", status_code=410)
+        try:
+            if item["kind"] == "GSTR3B":
+                from ..services.gstr3b import Gstr3bService
+
+                sf, _ = Gstr3bService(db).import_file(item["client_id"], item["path"], item["period"],
+                                                      f"{user.username} (web)")
+            else:
+                from ..services.imports import ImportService
+
+                sf = ImportService(db).commit(item["client_id"], item["preview"], f"{user.username} (web)")
+        except ServiceError as exc:
+            drop(token)
+            return HTMLResponse(str(exc), status_code=409)
+        item["kept"] = True  # the saved file stays as the import's source file
+        pending.pop(token, None)
+        return page("done", request, user, title="Import saved", client_id=item["client_id"],
+                    message=f"Import #{sf.id} saved: {sf.documents_imported} document(s) or values from "
+                            f"{sf.file_name}. Reconcile the period in the desktop app.")
+
+    @app.post("/upload/{token}/discard")
+    def upload_discard(request: Request, token: str, csrf: str = Form("")):
+        user, denied = upload_guard(request)
+        if denied:
+            return denied
+        if not csrf_ok(request, csrf):
+            return HTMLResponse("Invalid form token – reload the page", status_code=400)
+        if take(request, token, user) is not None:
+            drop(token)
+        return RedirectResponse("/upload", status_code=303)
 
     # ------------------------------------------------------------- PWA
     @app.get("/manifest.webmanifest")

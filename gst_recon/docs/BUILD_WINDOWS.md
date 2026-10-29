@@ -22,6 +22,14 @@ The script
    (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
    uninstalling never deletes the data folder).
 
+**Code signing (optional).** Unsigned programs trigger SmartScreen warnings. To sign, set
+`FINTAX_SIGN_CERT` to your code-signing certificate (`.pfx`) and `FINTAX_SIGN_PASSWORD`
+to its password before running the script. Install the Windows SDK, which provides
+`signtool.exe`. The script then signs `FinTaxPro.exe`, `FinTaxPro-GST.exe` and the
+installer with SHA-256 and an RFC 3161 timestamp, and verifies each signature. Set
+`FINTAX_SIGN_TIMESTAMP` to use another timestamp server. A certificate from a public CA is
+needed; the build cannot produce one.
+
 Check the desktop build with `dist\FinTaxPro\FinTaxPro.exe --smoke-test`. It opens every
 page once and exits with code 0.
 

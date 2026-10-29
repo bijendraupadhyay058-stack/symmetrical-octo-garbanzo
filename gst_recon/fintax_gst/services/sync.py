@@ -102,7 +102,7 @@ def _client_filter(model, client_id: int, ids: dict[str, list[int]]):
 class SyncService:
     def __init__(self, db: Database):
         self.db = db
-        self.attachments_root = Path(db.path).parent / "attachments"
+        self.attachments_root = db.data_dir / "attachments"
 
     # ------------------------------------------------------------ identity
     def installation_id(self) -> str:
