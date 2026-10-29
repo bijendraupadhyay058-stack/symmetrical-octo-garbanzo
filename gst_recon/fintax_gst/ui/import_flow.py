@@ -16,6 +16,8 @@ from .workers import run_task
 
 def _preview(state: AppState, client_id: int, path: Path, source: Source, period: str | None, template):
     try:
+        if template is None:
+            return state.imports.preview_auto(client_id, path, source, period)
         return state.imports.preview(client_id, path, source, period, template)
     except MappingRequired as exc:
         return exc

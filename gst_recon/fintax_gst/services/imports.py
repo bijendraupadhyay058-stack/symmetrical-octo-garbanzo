@@ -46,6 +46,28 @@ class ImportService:
             return list(s.scalars(select(ImportTemplate).order_by(ImportTemplate.name)))
 
     # -------------------------------------------------------------- preview
+    def preview_auto(self, client_id: int, path: str | Path, source: Source | str, period: str | None = None,
+                     sheet: str | None = None) -> ImportPreview:
+        """Preview with automatic heading detection; if the headings are not recognised, try the saved
+        templates of this source type (newest first). The template used is noted in the preview."""
+        from ..importers.pipeline import MappingRequired, RowIssue
+
+        try:
+            return self.preview(client_id, path, source, period, sheet=sheet)
+        except MappingRequired as first:
+            source = Source(source)
+            with self.db.session() as s:
+                templates = list(s.scalars(select(ImportTemplate).where(ImportTemplate.source_type == source.value)
+                                           .order_by(ImportTemplate.id.desc())))
+            for t in templates:
+                try:
+                    preview = self.preview(client_id, path, source, period, json.loads(t.mapping_json), sheet)
+                except MappingRequired:
+                    continue
+                preview.issues.insert(0, RowIssue("", "", "info", f"Column mapping from saved template '{t.name}'"))
+                return preview
+            raise first
+
     def preview(self, client_id: int, path: str | Path, source: Source | str, period: str | None = None,
                 template: str | dict | None = None, sheet: str | None = None) -> ImportPreview:
         if isinstance(template, str):

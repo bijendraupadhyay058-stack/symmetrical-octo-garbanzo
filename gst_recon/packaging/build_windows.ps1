@@ -2,7 +2,9 @@
 # (FinTaxPro-GST.exe). Run from the gst_recon folder in PowerShell:  .\packaging\build_windows.ps1
 $ErrorActionPreference = "Stop"
 
-py -3.12 -m venv .venv-build
+# FINTAX_BUILD_PYTHON may name the interpreter (e.g. "python" on a CI runner); default: the py launcher.
+if ($env:FINTAX_BUILD_PYTHON) { & $env:FINTAX_BUILD_PYTHON -m venv .venv-build } else { py -3.12 -m venv .venv-build }
+if ($LASTEXITCODE -ne 0) { throw "Could not create the build environment" }
 .\.venv-build\Scripts\python -m pip install --upgrade pip
 .\.venv-build\Scripts\python -m pip install -r requirements.txt
 
@@ -11,11 +13,14 @@ py -3.12 -m venv .venv-build
 if ($LASTEXITCODE -ne 0) { throw "Tests failed – build aborted" }
 
 .\.venv-build\Scripts\pyinstaller --noconfirm --clean packaging\fintax_gst_gui.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller (desktop) failed" }
 .\.venv-build\Scripts\pyinstaller --noconfirm --clean packaging\fintax_gst_cli.spec
+if ($LASTEXITCODE -ne 0) { throw "PyInstaller (CLI) failed" }
 
 Write-Host "Built dist\FinTaxPro\FinTaxPro.exe (desktop) and dist\FinTaxPro-GST\FinTaxPro-GST.exe (CLI)"
-.\dist\FinTaxPro\FinTaxPro.exe --smoke-test
-if ($LASTEXITCODE -ne 0) { throw "Desktop smoke test failed" }
+# FinTaxPro.exe is a windowed program: PowerShell does not wait for it unless asked to.
+$smoke = Start-Process -FilePath ".\dist\FinTaxPro\FinTaxPro.exe" -ArgumentList "--smoke-test" -Wait -PassThru -NoNewWindow
+if ($smoke.ExitCode -ne 0) { throw "Desktop smoke test failed (exit code $($smoke.ExitCode))" }
 
 # Optional Authenticode signing. Set FINTAX_SIGN_CERT to a code-signing certificate (.pfx)
 # and FINTAX_SIGN_PASSWORD to its password; signtool.exe comes with the Windows SDK.
@@ -38,6 +43,7 @@ Sign-Files @(".\dist\FinTaxPro\FinTaxPro.exe", ".\dist\FinTaxPro-GST\FinTaxPro-G
 $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 if (Test-Path $iscc) {
     & $iscc packaging\fintaxpro.iss
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
     Sign-Files @(".\dist\installer\FinTaxPro-Setup-1.0.0.exe")
     Write-Host "Installer: dist\installer\FinTaxPro-Setup-1.0.0.exe"
 } else {
@@ -45,3 +51,4 @@ if (Test-Path $iscc) {
 }
 Write-Host "Smoke test (CLI demo):"
 .\dist\FinTaxPro-GST\FinTaxPro-GST.exe demo --out "$env:TEMP\fintaxpro-demo"
+if ($LASTEXITCODE -ne 0) { throw "CLI demo failed" }

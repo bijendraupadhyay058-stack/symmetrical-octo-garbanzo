@@ -27,6 +27,7 @@ from fintax_gst.services.security import SecurityService
 from fintax_gst.web.app import create_app
 
 ADMIN = Session("admin", "admin", "Admin")
+CLIENT_SUPPLIER = "27AABCM1234K1ZM"
 SERVER_URL = os.environ.get("FINTAX_TEST_DB_URL")
 
 
@@ -224,11 +225,30 @@ def test_web_upload_preview_and_confirm(db, sample_files, tmp_path):
     t3 = re.search(r'/upload/([\w-]+)/commit', p3.text).group(1)
     assert "Import saved" in tc.post(f"/upload/{t3}/commit", data={"csrf": token}).text
     assert Gstr3bService(db).values(c.id, ["2025-04"])["2025-04"]
-    # unrecognised headings point to the desktop mapping screen
+    # unrecognised headings: map the columns in the browser, save a template, then preview and save
     weird = tmp_path / "weird.csv"
-    weird.write_text("foo,bar\n1,2\n3,4\n", encoding="utf-8")
+    weird.write_text("Party Tax Code,Bill Ref,Bill Dt,Basic Amt,Central Levy,State Levy\n"
+                     f"{CLIENT_SUPPLIER},WEB/1,05-04-2025,1000,90,90\n{CLIENT_SUPPLIER},WEB/2,06-04-2025,2000,180,180\n",
+                     encoding="utf-8")
     r = tc.post("/upload", data=data, files={"file": ("weird.csv", weird.read_bytes())})
-    assert r.status_code == 422 and "desktop app" in r.text
+    assert r.status_code == 200 and "Map the columns" in r.text and "Bill Ref" in r.text
+    mtoken = re.search(r'/upload/([\w-]+)/map', r.text).group(1)
+    assert tc.post(f"/upload/{mtoken}/commit", data={"csrf": token}).status_code == 409  # not previewed yet
+    partial = tc.post(f"/upload/{mtoken}/map", data={"csrf": token, "f_invoice_no": "Bill Ref"})
+    assert partial.status_code == 422 and "Supplier GSTIN" in partial.text
+    mapped = tc.post(f"/upload/{mtoken}/map", data={
+        "csrf": token, "f_supplier_gstin": "Party Tax Code", "f_invoice_no": "Bill Ref", "f_invoice_date": "Bill Dt",
+        "f_taxable_value": "Basic Amt", "f_cgst": "Central Levy", "f_sgst": "State Levy",
+        "template_name": "Web register"})
+    assert mapped.status_code == 200 and "Check before saving" in mapped.text
+    assert "Import saved" in tc.post(f"/upload/{mtoken}/commit", data={"csrf": token}).text
+    assert ImportService(db).get_template("Web register")["fields"]["invoice_no"] == ["Bill Ref"]
+    # the next file with the same headings is recognised through the saved template
+    weird2 = weird.read_text(encoding="utf-8").replace("WEB/", "WEB2/")
+    r2 = tc.post("/upload", data=data, files={"file": ("weird2.csv", weird2.encode())})
+    assert r2.status_code == 200 and "Check before saving" in r2.text
+    pv = ImportService(db).preview_auto(c.id, weird, Source.BOOKS)
+    assert any("saved template 'Web register'" in i.message for i in pv.issues)
     assert tc.post("/upload", data=data, files={"file": ("x.exe", b"MZ")}).status_code == 400
     tc.cookies.clear()
     _login(tc, "viewer1")

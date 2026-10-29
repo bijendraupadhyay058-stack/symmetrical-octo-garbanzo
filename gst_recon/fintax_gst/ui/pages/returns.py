@@ -51,6 +51,7 @@ class ReturnsPage(LazyPage):
         tabs = QTabWidget()
         tabs.addTab(self._table4_tab(), "GSTR-3B Table 4 working")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
+        tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         lay.addWidget(tabs, 1)
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
@@ -93,6 +94,84 @@ class ReturnsPage(LazyPage):
         split.addWidget(box)
         lay.addWidget(split, 1)
         return w
+
+    def _gstr9_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        row = QHBoxLayout()
+        self.g9_btn = primary("Prepare GSTR-9 working")
+        self.g9_btn.clicked.connect(self.show_gstr9)
+        self.g9_export_btn = QPushButton("Export annual workbook…")
+        self.g9_export_btn.clicked.connect(self.export_annual)
+        row.addWidget(self.g9_btn)
+        row.addWidget(self.g9_export_btn)
+        hint = QLabel("Returns = GSTR-1 (Tables 4–5) and GSTR-3B (4G, 6, 7); Books = sales register. "
+                      "A working paper for review, not the return as filed.")
+        hint.setObjectName("Muted")
+        row.addWidget(hint, 1)
+        lay.addLayout(row)
+        split = QSplitter(Qt.Vertical)
+        self.g9_model = RowsModel(["Table", "Description", "Returns taxable", "Returns tax", "Books taxable",
+                                   "Books tax", "Books − Returns tax", "Note"],
+                                  kinds=["text", "text", "money", "money", "money", "money", "money", "text"],
+                                  colors=self._g9_color)
+        self.g9_table = Table()
+        self.g9_table.setModel(self.g9_model)
+        self.g9_table.setSortingEnabled(False)
+        split.addWidget(self.g9_table)
+        box = QWidget()
+        bl = QVBoxLayout(box)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.addWidget(section("Table 9 – tax payable (Table 4N) and declared in GSTR-3B; amendments"))
+        self.g9_tax_model = RowsModel(["Tax", "Payable", "Declared in GSTR-3B", "Declared − Payable"],
+                                      kinds=["text", "money", "money", "money"])
+        t9 = Table()
+        t9.setModel(self.g9_tax_model)
+        t9.setSortingEnabled(False)
+        t9.setMaximumHeight(150)
+        bl.addWidget(t9)
+        self.g9_am_model = RowsModel(["Period", "Section", "Document", "Original", "Change taxable", "Change tax",
+                                      "Row", "Status"],
+                                     kinds=["text", "text", "text", "text", "money", "money", "text", "text"])
+        am = Table()
+        am.setModel(self.g9_am_model)
+        bl.addWidget(am)
+        self.g9_note = QLabel()
+        self.g9_note.setObjectName("Muted")
+        self.g9_note.setWordWrap(True)
+        bl.addWidget(self.g9_note)
+        split.addWidget(box)
+        split.setSizes([480, 260])
+        lay.addWidget(split, 1)
+        return w
+
+    SUBTOTALS = {"4H", "4M", "4N", "5G", "5L", "5M", "5N", "6I", "6J", "7I", "7J"}
+
+    def _g9_color(self, row, _col):
+        return QColor("#E0F2F1") if self.g9_model.rows[row][0] in self.SUBTOTALS else None
+
+    def show_gstr9(self) -> None:
+        from ...services.gstr9 import Gstr9Service
+
+        st = self.state
+        if st.client is None:
+            return
+        w = Gstr9Service(st.db).working(st.client.id, st.fy)
+        rows = []
+        for r in w.table4 + w.table5 + w.table6 + w.table7:
+            d = r.diff
+            rows.append([r.code, r.label, r.gstr1.taxable if r.gstr1 and r in w.table4 + w.table5 else None,
+                         r.gstr1.total if r.gstr1 else None, r.books.taxable if r.books else None,
+                         r.books.total if r.books else None, d.total if d else None, r.note])
+        self.g9_model.set_rows(rows)
+        self.g9_table.fit(520)
+        self.g9_tax_model.set_rows([[h, p.total, d.total if d is not None else None,
+                                     (d.total - p.total) if d is not None else None] for h, p, d in w.table9])
+        self.g9_am_model.set_rows([[a["period"], a["section"], a["document"], a["original"],
+                                    a["delta"].taxable if a["delta"] else None,
+                                    a["delta"].total if a["delta"] else None, a["row"], a["status"]]
+                                   for a in w.amendments])
+        self.g9_note.setText(" ".join(w.notes))
 
     def _annual_tab(self) -> QWidget:
         w = QWidget()

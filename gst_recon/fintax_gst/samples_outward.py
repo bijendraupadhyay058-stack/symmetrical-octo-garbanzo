@@ -198,8 +198,36 @@ def gstr3b_31() -> dict[str, dict]:
             "isup_rev": f({}), "osup_nongst": {"txval": 0}}
 
 
+#: May 2025 GSTR-1: one new B2B invoice, the April value difference (SGT/25-26/0013, 66,000 reported
+#: against 60,000 in the books) amended down through B2BA, and a B2CSA revising April's B2C total.
+MAY_INVOICE = Sale("RAJ", "SGT/25-26/0021", date(2025, 5, 6), "30000")
+AMENDED_0013 = Sale("VEN", "SGT/25-26/0013", A(15), "60000", inter=True)
+
+
+def write_gstr1_may_json(path: Path) -> None:
+    import json
+
+    g_raj, g_ven = CUSTOMERS["RAJ"][0], CUSTOMERS["VEN"][0]
+    may = MAY_INVOICE
+    amended = AMENDED_0013
+    b2b = [{"ctin": g_raj, "inv": [{"inum": may.no, "idt": may.dt.strftime("%d-%m-%Y"),
+                                    "val": float(D(may.taxable) + sum(tax(may).values())), "pos": "27",
+                                    "rchrg": "N", "inv_typ": "R", "itms": [_itm(may)]}]}]
+    b2ba = [{"ctin": g_ven, "inv": [{"oinum": amended.no, "oidt": amended.dt.strftime("%d-%m-%Y"),
+                                     "inum": amended.no, "idt": amended.dt.strftime("%d-%m-%Y"),
+                                     "val": float(D(amended.taxable) + sum(tax(amended).values())), "pos": "29",
+                                     "rchrg": "N", "inv_typ": "R", "itms": [_itm(amended)]}]}]
+    b2csa = [{"omon": "042025", "sply_ty": "INTRA", "pos": "27", "typ": "OE",
+              "itms": [{"rt": 18, "txval": 41000.0, "iamt": 0, "camt": 3690.0, "samt": 3690.0, "csamt": 0}]}]
+    payload = {"gstin": CLIENT["gstin"], "fp": "052025", "b2b": b2b, "b2ba": b2ba, "b2csa": b2csa,
+               "hsn": {"data": []}, "doc_issue": {"doc_det": []}}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
 def write_outward(out: Path) -> dict[str, Path]:
-    files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json"}
+    files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
+             "gstr1_may_json": out / "gstr1_2025-05.json"}
     write_sales_register(files["sales_april"])
     write_gstr1_json(files["gstr1_april_json"])
+    write_gstr1_may_json(files["gstr1_may_json"])
     return files

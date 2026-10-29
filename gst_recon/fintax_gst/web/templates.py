@@ -87,7 +87,7 @@ CLIENT = """{% extends "base" %}{% block title %}{{ c.name }} · FIN TAX PRO{% e
 <div class="row"><div style="flex:1"><h1>{{ c.name }}</h1><div class="muted">GSTIN {{ c.gstin }} · FY {{ c.fy }}</div>
 </div><span class="pill {{ c.rag }}">{{ rag[c.rag] }}</span>
 {% if can_export %}<a class="btn" href="/client/{{ c.client_id }}/compliance.pdf?fy={{ c.fy }}">Compliance PDF</a>
-{% endif %}</div>
+<a class="btn alt" href="/client/{{ c.client_id }}/gstr9.xlsx?fy={{ c.fy }}">GSTR-9 working</a>{% endif %}</div>
 <div class="cards" style="margin-top:12px">
 <div class="card"><div class="k">Months with data</div><div class="v">{{ c.months_with_data }}</div></div>
 <div class="card"><div class="k">Pending exceptions</div><div class="v">{{ c.pending }}</div></div>
@@ -143,7 +143,7 @@ RUN = """{% extends "base" %}{% block title %}Run {{ run.id }} · FIN TAX PRO{% 
 
 UPLOAD = """{% extends "base" %}{% block title %}Upload · FIN TAX PRO{% endblock %}{% block body %}
 <h1>Upload a file</h1><p class="muted">The file is checked first; nothing is saved until you confirm the preview.
-Files whose headings are not recognised need the column-mapping screen of the desktop app.</p>
+If the headings are not recognised you can map the columns on the next screen.</p>
 {% if error %}<p class="err">{{ error }}</p>{% endif %}
 <form class="card" method="post" action="/upload" enctype="multipart/form-data" style="display:grid;gap:10px">
 <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -172,11 +172,28 @@ UPLOAD_PREVIEW = """{% extends "base" %}{% block title %}Preview · FIN TAX PRO{
 {% endif %}<form method="post" action="/upload/{{ token }}/discard"><input type="hidden" name="csrf" value="{{ csrf }}">
 <button class="btn alt" type="submit">Discard</button></form></div>{% endblock %}"""
 
+MAPPING = """{% extends "base" %}{% block title %}Map columns · FIN TAX PRO{% endblock %}{% block body %}
+<h1>Map the columns</h1><div class="muted">{{ file_name }} · {{ where }} – the headings were not recognised.
+Choose the file column for each field; amounts may combine several columns (hold Ctrl or long-press).</div>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form class="card" method="post" action="/upload/{{ token }}/map" style="display:grid;gap:10px;margin-top:12px">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+{% for f, label, required, multi in fields %}<label>{{ label }}{% if required %} <b>*</b>{% endif %}<br>
+<select name="f_{{ f }}" {% if multi %}multiple size="3"{% endif %} style="width:100%">
+{% if not multi %}<option value="">—</option>{% endif %}
+{% for c in columns %}<option value="{{ c }}" {% if c in current.get(f, []) %}selected{% endif %}>{{ c }}</option>
+{% endfor %}</select></label>{% endfor %}
+<label>Save this mapping as a template (optional)<br><input name="template_name" placeholder="e.g. Client X register"
+maxlength="80"></label>
+<div class="row"><button class="btn" type="submit">Check file with this mapping</button></div></form>
+<form method="post" action="/upload/{{ token }}/discard" style="margin-top:10px"><input type="hidden" name="csrf"
+value="{{ csrf }}"><button class="btn alt" type="submit">Discard</button></form>{% endblock %}"""
+
 DONE = """{% extends "base" %}{% block title %}Saved · FIN TAX PRO{% endblock %}{% block body %}
 <h1>{{ title }}</h1><p>{{ message }}</p><p><a class="btn" href="/client/{{ client_id }}">Open client</a>
 <a class="btn alt" href="/upload">Upload another file</a></p>{% endblock %}"""
 
-TEMPLATES = {"upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
+TEMPLATES = {"mapping": MAPPING, "upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
 
 ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14"
 fill="#1F3864"/><rect x="10" y="46" width="44" height="6" fill="#00897B"/><text x="32" y="38" font-family="Arial"

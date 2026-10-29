@@ -133,8 +133,12 @@ def cmd_import(db: Database, args) -> None:
     client = ClientService(db).resolve(args.client)
     svc = ImportService(db)
     try:
-        preview = svc.preview(client.id, args.file, Source(args.source.upper()), args.period,
-                              _load_template(svc, args), args.sheet)
+        template = _load_template(svc, args)
+        if template is None:
+            preview = svc.preview_auto(client.id, args.file, Source(args.source.upper()), args.period, args.sheet)
+        else:
+            preview = svc.preview(client.id, args.file, Source(args.source.upper()), args.period, template,
+                                  args.sheet)
     except MappingRequired as exc:
         print(f"\nColumn mapping needed – {exc}")
         print("Detected so far:")
@@ -356,9 +360,9 @@ def cmd_demo(_db, args) -> None:
         print(f"Report: {p}")
     from .reports.annual_report import export_annual
 
-    print(f"Report: {export_annual(db, client.id, '2025-26', out / 'reports', user='demo')}")
     # Phase 4: outward supplies, compliance dashboard, supplier letters, working papers
-    for key, source in (("sales_april", Source.SALES), ("gstr1_april_json", Source.GSTR1)):
+    for key, source in (("sales_april", Source.SALES), ("gstr1_april_json", Source.GSTR1),
+                        ("gstr1_may_json", Source.GSTR1)):
         svc.commit(client.id, svc.preview(client.id, files[key], source), "demo")
     out_run = ReconciliationService(db).run(client.id, "2025-04", compare_with=Source.GSTR1, user="demo")
     print("\nSales register vs GSTR-1:")
@@ -378,6 +382,7 @@ def cmd_demo(_db, args) -> None:
     print(f"Supplier letters: {len(letters)} written to {out / 'reports'}")
     wp = WorkingPaperService(db).prepare(run_id, out / "working_papers", SETUP_SESSION)
     print(f"Working papers: {wp.package_path}")
+    print(f"Report: {export_annual(db, client.id, '2025-26', out / 'reports', user='demo')}")
     db.dispose()
 
 

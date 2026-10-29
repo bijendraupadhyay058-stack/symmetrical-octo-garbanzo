@@ -1,4 +1,4 @@
-"""Phase 5 commands: return due-date calendar and extensions."""
+"""Phase 5–6 commands: due-date calendar and extensions, settings, GSTR-9 working."""
 from __future__ import annotations
 
 from datetime import date
@@ -50,7 +50,41 @@ def cmd_setting(db, args) -> None:
         print(f"{key:<24} {json.dumps(sec.setting(key))}")
 
 
+def cmd_gstr9(db, args) -> None:
+    from .core.money import fmt_inr
+    from .services.clients import ClientService
+    from .services.gstr9 import Gstr9Service
+
+    client = ClientService(db).resolve(args.client)
+    w = Gstr9Service(db).working(client.id, args.fy)
+    print(f"GSTR-9 working – {client.name} ({client.gstin}) FY {args.fy}")
+    print(f"  {'Table':<7}{'Returns taxable':>17}{'Returns tax':>15}{'Books taxable':>17}{'Books tax':>15}")
+    for r in w.table4 + w.table5 + w.table6 + w.table7:
+        g, b = r.gstr1, r.books
+        taxable = fmt_inr(g.taxable) if g is not None and (r in w.table4 or r in w.table5) else ""
+        print(f"  {r.code:<7}{taxable:>17}{fmt_inr(g.total) if g else '':>15}"
+              f"{fmt_inr(b.taxable) if b else '':>17}{fmt_inr(b.total) if b else '':>15}")
+    for head, payable, declared in w.table9:
+        print(f"  Table 9 {head:<5} payable {fmt_inr(payable.total):>14}  declared in 3B "
+              f"{fmt_inr(declared.total) if declared is not None else '-':>14}")
+    for a in w.amendments:
+        change = fmt_inr(a["delta"].taxable) if a["delta"] else "-"
+        print(f"  Amendment {a['period']} {a['section']:<6} {a['document']:<22} change {change:>12}  {a['status']}")
+    for n in w.notes:
+        print(f"  ! {n}")
+    if args.out:
+        from .reports.annual_report import export_annual
+
+        print(f"Workbook: {export_annual(db, client.id, args.fy, args.out, user=args.user)}")
+
+
 def add_commands(sub) -> None:
+    g9 = sub.add_parser("gstr9", help="GSTR-9 working (Tables 4–9) from GSTR-1, GSTR-3B and the sales register")
+    g9.add_argument("--client", required=True)
+    g9.add_argument("--fy", required=True)
+    g9.add_argument("--out", help="folder for the annual workbook (Table 8 and Tables 4–9)")
+    g9.set_defaults(func=cmd_gstr9, perm="view")
+
     st = sub.add_parser("setting", help="application settings, e.g. setting set web_uploads true")
     st.add_argument("action", nargs="?", default="list", choices=["list", "set"])
     st.add_argument("key", nargs="?")

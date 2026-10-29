@@ -6,7 +6,7 @@ Security
   When no users exist the server only accepts connections from this computer.
 * The session cookie is HMAC-signed, HttpOnly, SameSite=Strict, expires after
   ``SESSION_MINUTES`` and is marked Secure when served over HTTPS.
-* Pages are read-only. The one exception is file upload, which is off until an
+* Pages are read-only. The one exception is file upload (with column mapping), which is off until an
   administrator enables it (setting ``web_uploads``): an upload is previewed first and
   saved only on confirmation, by a user with the *import* permission, through the same
   import pipeline as the desktop. Every form carries a CSRF token bound to the session.
@@ -263,6 +263,21 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
             audit(s, "EXPORT", "compliance_summary", client_id, {"fy": c.fy, "via": "web"}, user.username, client_id)
         return file_response(path, "application/pdf", tmp)
 
+    @app.get("/client/{client_id}/gstr9.xlsx")
+    def client_gstr9(request: Request, client_id: int, fy: str | None = None):
+        user, denied = guard(request, "export")
+        if denied:
+            return denied
+        from ..reports.annual_report import export_annual
+
+        tmp = tempfile.TemporaryDirectory()
+        try:
+            path = export_annual(db, client_id, fy or fy_of(date.today()), tmp.name, user=f"{user.username} (web)")
+        except ServiceError:
+            tmp.cleanup()
+            return Response(status_code=404)
+        return file_response(path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", tmp)
+
     @app.get("/dashboard.xlsx")
     def dashboard_xlsx(request: Request, fy: str | None = None):
         user, denied = guard(request, "export")
@@ -350,52 +365,111 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
         from ..services.clients import ClientService
 
         try:
-            client = ClientService(db).get(client_id)
-            if client is None:
-                raise ServiceError("Client not found")
-            if source == "GSTR3B":
-                from ..services.gstr3b import Gstr3bService
-
-                pv = Gstr3bService(db).preview(path, period)
-                figures = [("Periods", ", ".join(pv.periods) or "–"),
-                           ("Table rows", sum(len(t) for t in pv.entries.values()))]
-                ctx = dict(layout=pv.layout, period=", ".join(pv.periods), warnings=pv.warnings, issues=[],
-                           blocked=None if pv.entries else "No GSTR-3B values found in the file")
-            else:
-                from ..core.models import Source
-                from ..services.imports import ImportService
-
-                pv = ImportService(db).preview(client_id, path, Source(source), period)
-                new = len(pv.new_records)
-                figures = [("Documents", len(pv.records)), ("New documents", new),
-                           ("Already imported", len(pv.records) - new), ("Rows rejected", pv.rejected_rows),
-                           ("Duplicates in file", pv.count("duplicate"))]
-                blocked = None
-                if pv.already_imported_file_id:
-                    blocked = f"This file was already imported (import #{pv.already_imported_file_id})."
-                elif not new and not pv.outward_summary and not pv.other_itc:
-                    blocked = "Nothing new to import."
-                ctx = dict(layout=pv.layout_label, period=pv.period, warnings=pv.file_warnings,
-                           issues=[i for i in pv.issues if i.severity in ("error", "warning", "duplicate")][:50],
-                           blocked=blocked)
-        except Exception as exc:  # noqa: BLE001 - shown to the user; the upload is removed
+            ClientService(db).get(client_id)
+        except ServiceError as exc:
             import shutil
 
             shutil.rmtree(folder, ignore_errors=True)
-            from ..importers.pipeline import MappingRequired
+            return again(str(exc))
+        pending[token] = {"user": user.username, "client_id": client_id, "kind": source, "preview": None,
+                          "dir": folder, "path": path, "period": period, "name": name,
+                          "expires": time.time() + PENDING_MINUTES * 60}
+        return show_preview(request, user, token)
 
-            if isinstance(exc, MappingRequired):
-                return again("The headings of this file were not recognised. Map its columns once in the desktop "
-                             "app (the mapping is saved as a template), then upload again.", 422)
+    def show_preview(request: Request, user: Session, token: str, template: dict | None = None,
+                     mapping_error: str | None = None):
+        """Preview a pending upload; ask for a column mapping when the headings are unknown."""
+        from ..importers.pipeline import MappingRequired
+        from ..services.clients import ClientService
+
+        item = pending[token]
+        client = ClientService(db).get(item["client_id"])
+        try:
+            figures, ctx = run_preview(item, template)
+        except MappingRequired as exc:
+            return mapping_page(request, user, token, exc, mapping_error)
+        except Exception as exc:  # noqa: BLE001 - shown to the user; the upload is removed
+            drop(token)
             if isinstance(exc, (ServiceError, ValueError, FileNotFoundError)) or exc.__class__.__name__ == \
                     "UnsupportedFileError":
-                return again(str(exc), 422)
+                return page("upload", request, user, status=422, clients=clients_list(), sources=UPLOAD_SOURCES,
+                            client_id=item["client_id"], csrf=csrf_of(request), max_mb=MAX_UPLOAD_MB,
+                            error=str(exc))
             raise
-        pending[token] = {"user": user.username, "client_id": client_id, "kind": source, "preview": pv,
-                          "dir": folder, "path": path, "period": period,
-                          "expires": time.time() + PENDING_MINUTES * 60}
-        return page("upload_preview", request, user, client=client, file_name=name, token=token,
+        return page("upload_preview", request, user, client=client, file_name=item["name"], token=token,
                     csrf=csrf_of(request), figures=figures, **ctx)
+
+    def run_preview(item: dict, template: dict | None):
+        if item["kind"] == "GSTR3B":
+            from ..services.gstr3b import Gstr3bService
+
+            pv = Gstr3bService(db).preview(item["path"], item["period"])
+            item["preview"] = pv
+            figures = [("Periods", ", ".join(pv.periods) or "–"),
+                       ("Table rows", sum(len(t) for t in pv.entries.values()))]
+            return figures, dict(layout=pv.layout, period=", ".join(pv.periods), warnings=pv.warnings, issues=[],
+                                 blocked=None if pv.entries else "No GSTR-3B values found in the file")
+        from ..core.models import Source
+        from ..services.imports import ImportService
+
+        svc = ImportService(db)
+        if template is None:
+            pv = svc.preview_auto(item["client_id"], item["path"], Source(item["kind"]), item["period"])
+        else:
+            pv = svc.preview(item["client_id"], item["path"], Source(item["kind"]), item["period"], template)
+        item["preview"] = pv
+        new = len(pv.new_records)
+        figures = [("Documents", len(pv.records)), ("New documents", new),
+                   ("Already imported", len(pv.records) - new), ("Rows rejected", pv.rejected_rows),
+                   ("Duplicates in file", pv.count("duplicate"))]
+        blocked = None
+        if pv.already_imported_file_id:
+            blocked = f"This file was already imported (import #{pv.already_imported_file_id})."
+        elif not new and not pv.outward_summary and not pv.other_itc:
+            blocked = "Nothing new to import."
+        return figures, dict(layout=pv.layout_label, period=pv.period, warnings=pv.file_warnings,
+                             issues=[i for i in pv.issues if i.severity in ("error", "warning", "duplicate")][:50],
+                             blocked=blocked)
+
+    MULTI_FIELDS = {"taxable_value", "igst", "cgst", "sgst", "cess", "invoice_value"}
+
+    def mapping_page(request: Request, user: Session, token: str, exc, error: str | None = None):
+        from ..importers.column_mapping import FIELD_LABELS, REQUIRED_FIELDS
+
+        item = pending[token]
+        item["columns"] = [c.label for c in exc.columns]
+        fields = [(f, label, f in REQUIRED_FIELDS, f in MULTI_FIELDS) for f, label in FIELD_LABELS.items()
+                  if f != "ims_action" or item["kind"] == "IMS"]
+        return page("mapping", request, user, status=200 if error is None else 422, token=token,
+                    csrf=csrf_of(request), file_name=item["name"], where=f"sheet '{exc.sheet}'",
+                    columns=item["columns"], fields=fields, current=dict(exc.mapping.fields), error=error)
+
+    @app.post("/upload/{token}/map", response_class=HTMLResponse)
+    async def upload_map(request: Request, token: str):
+        from ..importers.column_mapping import FIELD_LABELS, REQUIRED_FIELDS
+
+        user, denied = upload_guard(request)
+        if denied:
+            return denied
+        form = await request.form()
+        if not csrf_ok(request, str(form.get("csrf", ""))):
+            return HTMLResponse("Invalid form token – reload the page", status_code=400)
+        item = take(request, token, user)
+        if item is None:
+            return HTMLResponse("This upload has expired – upload the file again.", status_code=410)
+        allowed = set(item.get("columns", []))
+        chosen = {f: [c for c in form.getlist(f"f_{f}") if c in allowed] for f in FIELD_LABELS}
+        template = {"fields": {f: cols for f, cols in chosen.items() if cols}}
+        missing = [FIELD_LABELS[f] for f in REQUIRED_FIELDS if f not in template["fields"]]
+        if missing:
+            return show_preview(request, user, token, None, "Choose a column for: " + ", ".join(missing))
+        name = str(form.get("template_name", "")).strip()[:80]
+        if name:
+            from ..core.models import Source
+            from ..services.imports import ImportService
+
+            ImportService(db).save_template(name, Source(item["kind"]), template, f"{user.username} (web)")
+        return show_preview(request, user, token, template)
 
     def take(request: Request, token: str, user: Session):
         expire()
@@ -414,6 +488,8 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
         item = take(request, token, user)
         if item is None:
             return HTMLResponse("This preview has expired – upload the file again.", status_code=410)
+        if item["preview"] is None:
+            return HTMLResponse("Map the columns and check the preview first.", status_code=409)
         try:
             if item["kind"] == "GSTR3B":
                 from ..services.gstr3b import Gstr3bService

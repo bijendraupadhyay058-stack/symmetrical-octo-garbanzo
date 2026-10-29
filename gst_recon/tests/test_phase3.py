@@ -445,8 +445,9 @@ def test_annual_workbook(db, sample_files, tmp_path):
     c, run = _demo(db, sample_files)
     out = export_annual(db, c.id, "2025-26", tmp_path, portal_8a=Decimal("120000"))
     wb = load_workbook(out)
-    assert wb.sheetnames == ["Table 8 Summary", "Month-wise ITC", "8A Docs Not in Books", "Books Not in 8A",
-                             "Claim Register", "ITC Rules Applied"]
+    assert wb.sheetnames[-3:] == ["GSTR-9 Tables 4-5", "GSTR-9 Tables 6-7-9", "GSTR-9 Amendments"]
+    assert wb.sheetnames[:-3] == ["Table 8 Summary", "Month-wise ITC", "8A Docs Not in Books", "Books Not in 8A",
+                                  "Claim Register", "ITC Rules Applied"]
     t = ItcService(db).annual(c.id, "2025-26")
     rows = list(wb["Table 8 Summary"].iter_rows(values_only=True))
     assert any(r[0] and str(r[0]).startswith("8D") and r[5] == t.d.total for r in rows)
