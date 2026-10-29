@@ -7,14 +7,14 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-from sqlalchemy import and_, insert, select
+from sqlalchemy import and_, func, insert, select
 
 from ..core.models import (
-    PAIRED_CATEGORIES, Category, ExceptionStatus, ReconLine, ReconSettings, Source, fy_of,
+    CLOSED_STATUSES, PAIRED_CATEGORIES, Category, ExceptionStatus, ReconLine, ReconSettings, Source, fy_of,
 )
 from ..db.database import Database
-from ..db.models import Client, Invoice, ReconLineRow, ReconRun, SourceFile, utcnow
-from ..engine.matcher import CancelToken, ReconResult, reconcile
+from ..db.models import Client, Invoice, MatchDecision, ReconLineRow, ReconRun, SourceFile, utcnow
+from ..engine.matcher import CancelToken, ReconResult, manual_pair_line, reconcile, single_sided_line
 from ..engine.summary import dashboard
 from ..importers.parsing import parse_period
 from .common import ServiceError, audit, dumps, invoice_to_record
@@ -92,8 +92,10 @@ class ReconciliationService:
             def engine_progress(pct, msg):
                 progress(5 + int(pct * 0.8), msg)
 
+            manual, rejected = self._decisions(s, client_id)
             result = reconcile(books, g2b, settings, prior_books=prior, period_start=period_start,
-                               progress=engine_progress, cancel=cancel)
+                               progress=engine_progress, cancel=cancel, manual_pairs=manual,
+                               rejected_pairs=rejected)
             if cancel:
                 cancel.check()
             progress(87, "Saving results")
@@ -137,23 +139,63 @@ class ReconciliationService:
         }
 
     @staticmethod
+    def _decisions(s, client_id: int):
+        manual, rejected = [], []
+        for d in s.scalars(select(MatchDecision).where(MatchDecision.client_id == client_id,
+                                                       MatchDecision.active.is_(True)).order_by(MatchDecision.id)):
+            pair = (f"I{d.books_invoice_id}", f"I{d.gstr2b_invoice_id}")
+            if d.decision == "MATCH":
+                note = f"Manually matched by {d.user or 'user'} on {d.created_at:%d-%m-%Y}"
+                manual.append((*pair, note + (f": {d.remarks}" if d.remarks else "")))
+            else:
+                rejected.append(pair)
+        return manual, rejected
+
+    @staticmethod
     def _carry_forward(s, client_id: int, p_from: str, p_to: str, lines: list[ReconLine], exclude_run: int) -> None:
-        """Copy review status/remarks from the latest earlier run of the same period
-        onto lines that pair the same documents in the same category."""
+        """Carry review work into a new run without duplicating documents.
+
+        * Same period re-run: status, remarks, assignee and action date of lines that
+          contain the same documents in the same category are copied (a line the user
+          marked *Pending Clarification* keeps that category unless it is now fully matched).
+        * Any other earlier run: remarks, assignee and action date of the latest earlier
+          line containing either document are carried so follow-up history continues
+          across months; the status is re-evaluated.
+        """
         prev = s.scalar(select(ReconRun).where(
             ReconRun.client_id == client_id, ReconRun.period_from == p_from, ReconRun.period_to == p_to,
             ReconRun.id != exclude_run)
             .order_by(ReconRun.id.desc()).limit(1))
-        if prev is None:
-            return
-        old = {(r.books_invoice_id, r.gstr2b_invoice_id, r.category): r
-               for r in s.scalars(select(ReconLineRow).where(ReconLineRow.run_id == prev.id))}
+        old = {}
+        if prev is not None:
+            for r in s.scalars(select(ReconLineRow).where(ReconLineRow.run_id == prev.id)):
+                old[(r.books_invoice_id, r.gstr2b_invoice_id)] = r
+        ids = {r.db_id for ln in lines for r in (ln.books, ln.gstr2b) if r is not None and r.db_id}
+        latest: dict[int, ReconLineRow] = {}
+        if ids:
+            q = (select(ReconLineRow).join(ReconRun, ReconRun.id == ReconLineRow.run_id)
+                 .where(ReconRun.client_id == client_id, ReconRun.id != exclude_run,
+                        (ReconLineRow.remarks != "") | (ReconLineRow.assigned_to != ""))
+                 .order_by(ReconLineRow.run_id))
+            for r in s.scalars(q):
+                for doc in (r.books_invoice_id, r.gstr2b_invoice_id):
+                    if doc in ids:
+                        latest[doc] = r
         for ln in lines:
-            key = (ln.books.db_id if ln.books else None, ln.gstr2b.db_id if ln.gstr2b else None, ln.category.value)
+            key = (ln.books.db_id if ln.books else None, ln.gstr2b.db_id if ln.gstr2b else None)
             o = old.get(key)
-            if o is not None and (o.remarks or o.assigned_to or o.status != ln.status.value):
+            if o is not None and o.category == Category.PENDING_CLARIFICATION.value \
+                    and ln.category != Category.FULLY_MATCHED:
+                ln.reasons.append(f"Marked pending clarification earlier (engine category: {ln.category.value})")
+                ln.category = Category.PENDING_CLARIFICATION
+            if o is not None and o.category == ln.category.value:
                 ln.status = ExceptionStatus(o.status)
                 ln.remarks, ln.assigned_to, ln.action_date = o.remarks, o.assigned_to, o.action_date
+                continue
+            src = next((latest[k] for k in key if k in latest), None)
+            if src is not None and not ln.remarks:
+                ln.remarks = f"[run #{src.run_id}] {src.remarks}" if src.remarks else ""
+                ln.assigned_to, ln.action_date = src.assigned_to, src.action_date
 
     # ------------------------------------------------------------- loading
     def load(self, run_id: int) -> RunContext:
@@ -162,14 +204,12 @@ class ReconciliationService:
             if run is None:
                 raise ServiceError(f"Reconciliation run {run_id} not found")
             client = s.get(Client, run.client_id)
-            line_rows = list(s.scalars(select(ReconLineRow).where(ReconLineRow.run_id == run_id)
-                                       .order_by(ReconLineRow.line_no)))
-            ids = {i for r in line_rows for i in (r.books_invoice_id, r.gstr2b_invoice_id) if i}
-            invoices = {}
-            id_list = sorted(ids)
-            for i in range(0, len(id_list), 900):
-                for inv in s.scalars(select(Invoice).where(Invoice.id.in_(id_list[i:i + 900]))):
-                    invoices[inv.id] = inv
+            # Core (not ORM) queries: loading 50k lines is several times faster this way.
+            lt, it = ReconLineRow.__table__, Invoice.__table__
+            line_rows = s.execute(select(lt).where(lt.c.run_id == run_id).order_by(lt.c.line_no)).all()
+            doc_ids = select(lt.c.books_invoice_id).where(lt.c.run_id == run_id).union(
+                select(lt.c.gstr2b_invoice_id).where(lt.c.run_id == run_id))
+            invoices = {inv.id: inv for inv in s.execute(select(it).where(it.c.id.in_(doc_ids))).all()}
             file_ids = json.loads(run.source_file_ids or "[]")
             files = list(s.scalars(select(SourceFile).where(SourceFile.id.in_(file_ids)).order_by(SourceFile.id)))
             names = {f.id: f.file_name for f in files}
@@ -227,8 +267,192 @@ class ReconciliationService:
             for k, v in changes.items():
                 setattr(row, k, v)
             run = s.get(ReconRun, run_id)
+            if "status" in changes:  # keep the stored summary's pending count current without a full reload
+                s.flush()
+                summary = json.loads(run.summary_json or "{}")
+                summary["pending_cases"] = s.scalar(select(func.count()).select_from(ReconLineRow).where(
+                    ReconLineRow.run_id == run_id,
+                    ReconLineRow.status.not_in([c.value for c in CLOSED_STATUSES])))
+                run.summary_json = dumps(summary)
             audit(s, "UPDATE", "recon_line", f"{run_id}:{line_no}", {"before": before, "after": changes}, user,
                   run.client_id)
+
+    # -------------------------------------------------- manual decisions
+    def _row(self, s, run_id: int, line_no: int) -> ReconLineRow:
+        row = s.scalar(select(ReconLineRow).where(ReconLineRow.run_id == run_id, ReconLineRow.line_no == line_no))
+        if row is None:
+            raise ServiceError(f"Line {line_no} not found in run {run_id}")
+        return row
+
+    @staticmethod
+    def _record(s, run: ReconRun, invoice_id: int | None):
+        if invoice_id is None:
+            return None
+        inv = s.get(Invoice, invoice_id)
+        prior = inv.source_type == Source.BOOKS.value and inv.period < run.period_from
+        return invoice_to_record(inv, inv.source_file.file_name if inv.source_file else "", prior)
+
+    @staticmethod
+    def _snapshot(row: ReconLineRow) -> dict:
+        return {"line_no": row.line_no, "category": row.category, "books_invoice_id": row.books_invoice_id,
+                "gstr2b_invoice_id": row.gstr2b_invoice_id, "status": row.status, "remarks": row.remarks}
+
+    @staticmethod
+    def _apply(row: ReconLineRow, ln: ReconLine) -> None:
+        row.category = ln.category.value
+        row.books_invoice_id = ln.books.db_id if ln.books else None
+        row.gstr2b_invoice_id = ln.gstr2b.db_id if ln.gstr2b else None
+        row.match_level, row.confidence = ln.match_level, ln.confidence
+        row.flags_json = json.dumps(ln.flags)
+        row.reasons_json = json.dumps(ln.reasons, ensure_ascii=False)
+        row.candidates_json = json.dumps(ln.candidates)
+        row.date_diff_days = ln.date_diff_days
+        row.status = ln.status.value
+
+    @staticmethod
+    def _decide(s, client_id: int, run_id: int, books_id: int, g_id: int, decision: str, remarks: str,
+                user: str | None) -> None:
+        for d in s.scalars(select(MatchDecision).where(
+                MatchDecision.client_id == client_id, MatchDecision.active.is_(True),
+                ((MatchDecision.books_invoice_id == books_id) | (MatchDecision.gstr2b_invoice_id == g_id)))):
+            # A document can be in only one confirmed pair; a new decision on the same
+            # pair supersedes the old one.
+            same_pair = (d.books_invoice_id, d.gstr2b_invoice_id) == (books_id, g_id)
+            if same_pair or (decision == "MATCH" and d.decision == "MATCH"):
+                d.active = False
+        s.add(MatchDecision(client_id=client_id, books_invoice_id=books_id, gstr2b_invoice_id=g_id,
+                            decision=decision, remarks=remarks or "", user=user or "", run_id=run_id))
+
+    def _note(self, user: str | None, remarks: str, verb: str) -> str:
+        note = f"{verb} by {user or 'user'} on {date.today():%d-%m-%Y}"
+        return note + (f": {remarks}" if remarks else "")
+
+    def _pair(self, s, run: ReconRun, keep: ReconLineRow, b, g, user, remarks) -> None:
+        if b.doc_type != g.doc_type:
+            raise ServiceError(f"Cannot pair a {b.doc_type.label} with a {g.doc_type.label}")
+        settings = ReconSettings.from_dict(json.loads(run.settings_json))
+        ln = manual_pair_line(b, g, settings, self._note(user, remarks, "Manually matched"))
+        self._apply(keep, ln)
+        if remarks:
+            keep.remarks = f"{keep.remarks}\n{remarks}".strip()
+        self._decide(s, run.client_id, run.id, b.db_id, g.db_id, "MATCH", remarks, user)
+
+    def confirm_match(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "") -> None:
+        """Confirm the suggested pair on a line (probable match, GSTIN mismatch, far-apart dates)."""
+        with self.db.session() as s:
+            run = s.get(ReconRun, run_id)
+            row = self._row(s, run_id, line_no)
+            if row.books_invoice_id is None or row.gstr2b_invoice_id is None:
+                raise ServiceError("This line has no suggested counterpart – use Manual Match with two lines")
+            if row.category == Category.MANUALLY_MATCHED.value:
+                raise ServiceError("This line is already manually matched")
+            before = self._snapshot(row)
+            self._pair(s, run, row, self._record(s, run, row.books_invoice_id),
+                       self._record(s, run, row.gstr2b_invoice_id), user, remarks)
+            audit(s, "CONFIRM_MATCH", "recon_line", f"{run_id}:{line_no}",
+                  {"before": before, "after": self._snapshot(row)}, user, run.client_id)
+        self.refresh_summary(run_id)
+
+    def manual_match(self, run_id: int, line_a: int, line_b: int, user: str | None = None,
+                     remarks: str = "") -> int:
+        """Pair a books-only line with a GSTR-2B-only line. Returns the surviving line number."""
+        if line_a == line_b:
+            raise ServiceError("Select two different lines")
+        with self.db.session() as s:
+            run = s.get(ReconRun, run_id)
+            rows = [self._row(s, run_id, n) for n in (line_a, line_b)]
+            books_rows = [r for r in rows if r.books_invoice_id and not r.gstr2b_invoice_id]
+            g_rows = [r for r in rows if r.gstr2b_invoice_id and not r.books_invoice_id]
+            if len(books_rows) != 1 or len(g_rows) != 1:
+                raise ServiceError("Manual match needs one line with only a books document and one line with "
+                                   "only a GSTR-2B document (unmatch a suggested pair first)")
+            keep, drop = sorted(rows, key=lambda r: r.line_no)
+            before = [self._snapshot(r) for r in rows]
+            b = self._record(s, run, books_rows[0].books_invoice_id)
+            g = self._record(s, run, g_rows[0].gstr2b_invoice_id)
+            keep.remarks = "\n".join(x for x in (keep.remarks, drop.remarks) if x)
+            s.delete(drop)
+            s.flush()
+            self._pair(s, run, keep, b, g, user, remarks)
+            audit(s, "MANUAL_MATCH", "recon_line", f"{run_id}:{keep.line_no}",
+                  {"before": before, "after": self._snapshot(keep),
+                   "note": f"line {drop.line_no} merged into line {keep.line_no}"}, user, run.client_id)
+            kept = keep.line_no
+        self.refresh_summary(run_id)
+        return kept
+
+    def unmatch(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "") -> int:
+        """Split a paired (or suggested) line; the pair is never matched again automatically.
+        Returns the line number given to the GSTR-2B document."""
+        with self.db.session() as s:
+            run = s.get(ReconRun, run_id)
+            row = self._row(s, run_id, line_no)
+            if row.books_invoice_id is None or row.gstr2b_invoice_id is None:
+                raise ServiceError("Only a line holding both a books and a GSTR-2B document can be unmatched")
+            before = self._snapshot(row)
+            settings = ReconSettings.from_dict(json.loads(run.settings_json))
+            start = date(int(run.period_from[:4]), int(run.period_from[5:]), 1)
+            b = self._record(s, run, row.books_invoice_id)
+            g = self._record(s, run, row.gstr2b_invoice_id)
+            note = self._note(user, remarks, "Pair rejected")
+            self._decide(s, run.client_id, run_id, b.db_id, g.db_id, "REJECT", remarks, user)
+            new_no = (s.scalar(select(func.max(ReconLineRow.line_no)).where(ReconLineRow.run_id == run_id)) or 0) + 1
+            g_line = single_sided_line(g, settings, start, note)
+            g_line.line_no = new_no
+            g_line.remarks = row.remarks
+            if b.is_prior_period:
+                # A prior-period booking only enters a run through its pairing.
+                s.delete(row)
+            else:
+                self._apply(row, single_sided_line(b, settings, start, note))
+            s.execute(insert(ReconLineRow), [self._line_row(run_id, g_line)])
+            audit(s, "UNMATCH", "recon_line", f"{run_id}:{line_no}",
+                  {"before": before, "gstr2b_line": new_no, "remarks": remarks}, user, run.client_id)
+        self.refresh_summary(run_id)
+        return new_no
+
+    def mark_pending_clarification(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "",
+                                   status: str = ExceptionStatus.CLIENT_CLARIFICATION.value) -> None:
+        with self.db.session() as s:
+            run = s.get(ReconRun, run_id)
+            row = self._row(s, run_id, line_no)
+            before = self._snapshot(row)
+            if row.category != Category.PENDING_CLARIFICATION.value:
+                reasons = json.loads(row.reasons_json)
+                reasons.append(f"Engine category before clarification request: {row.category}")
+                row.reasons_json = json.dumps(reasons, ensure_ascii=False)
+            row.category = Category.PENDING_CLARIFICATION.value
+            row.status = ExceptionStatus(status).value
+            if remarks:
+                row.remarks = f"{row.remarks}\n{remarks}".strip()
+            audit(s, "PENDING_CLARIFICATION", "recon_line", f"{run_id}:{line_no}",
+                  {"before": before, "after": self._snapshot(row)}, user, run.client_id)
+        self.refresh_summary(run_id)
+
+    def refresh_summary(self, run_id: int) -> dict:
+        ctx = self.load(run_id)
+        summary = dashboard(ctx.result.lines)
+        with self.db.session() as s:
+            s.get(ReconRun, run_id).summary_json = dumps(summary)
+        return summary
+
+    def decisions(self, client_id: int, active_only: bool = True) -> list[MatchDecision]:
+        with self.db.session() as s:
+            q = select(MatchDecision).where(MatchDecision.client_id == client_id)
+            if active_only:
+                q = q.where(MatchDecision.active.is_(True))
+            return list(s.scalars(q.order_by(MatchDecision.id)))
+
+    def line_history(self, run_id: int, line_no: int) -> list[dict]:
+        """Audit entries for a line (status changes, matches, unmatches)."""
+        from ..db.models import AuditLog
+
+        with self.db.session() as s:
+            rows = s.scalars(select(AuditLog).where(AuditLog.entity == "recon_line",
+                                                    AuditLog.entity_id == f"{run_id}:{line_no}")
+                             .order_by(AuditLog.id))
+            return [{"at": r.at, "user": r.user, "action": r.action, "details": json.loads(r.details_json)}
+                    for r in rows]
 
 
 def default_report_name(client: Client, run: ReconRun, ext: str) -> str:

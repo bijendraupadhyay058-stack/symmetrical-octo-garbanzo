@@ -4,7 +4,7 @@
 
 ```
             ┌───────────────────────────────────────────────────────────┐
- Phase 1 →  │ cli.py (argparse)            Phase 2 → ui/ (PySide6)       │  presentation
+            │ cli.py (argparse)            ui/ (PySide6 desktop)         │  presentation
             │                              Future  → api/ (FastAPI)      │
             ├───────────────────────────────────────────────────────────┤
             │ services/  clients · imports · reconciliation · reports    │  use-cases, transactions, audit
@@ -59,7 +59,20 @@ gst_recon/
 │   ├── db/
 │   │   ├── models.py          ORM tables (Decimal stored as exact text)
 │   │   └── database.py        engine, migrations, backup/restore
+│   ├── ui/                    PySide6 desktop app
+│   │   ├── app.py             main window, header (client/FY), navigation, entry point
+│   │   ├── state.py           shared state: services, current client/FY/run, run cache
+│   │   ├── workers.py         QThread runner with progress dialog and safe Cancel
+│   │   ├── import_flow.py     preview → re-map → confirm → save
+│   │   ├── widgets.py         KPI cards, table models, filters, lazy pages
+│   │   ├── charts.py          Qt Charts for the dashboard
+│   │   ├── theme.py           colours and stylesheet
+│   │   ├── dialogs/           import preview, column mapping, client form
+│   │   └── pages/             dashboard, workflow, exceptions, suppliers,
+│   │                          history + open items, clients, imports, settings
 │   ├── services/
+│   │   ├── followup.py        vendor follow-up register, evidence attachments
+│   │   ├── tracking.py        open items, document history, FY overview, period scope
 │   │   ├── clients.py         client master
 │   │   ├── imports.py         preview/commit, repeated-import protection, templates
 │   │   ├── reconciliation.py  runs, reload, carry-forward, exception updates
@@ -87,6 +100,19 @@ gst_recon/
 | `recon_runs` | each run: client, period, settings, input fingerprint, engine version, summary |
 | `recon_lines` | result lines; links to books/GSTR-2B invoices; status, remarks, assignee, action date |
 | `audit_log` | every create/update/import/delete/reconcile/export with user and before/after values |
+| `match_decisions` (v2) | user MATCH / REJECT decisions applied to every later run |
+| `vendors` (v2) | supplier contacts and follow-up status per client |
+| `attachments` (v2) | evidence files, copied into `attachments/` and verified by SHA-256 |
+
+**Desktop threading.** Imports, reconciliation and export run on a `QThread` behind a
+progress dialog. Services check the `CancelToken` between batches and write inside one
+transaction, so Cancel saves nothing. SQLite connections may move between threads
+(`check_same_thread=False`), but a session is never shared.
+
+**UI performance.** All pages share one copy of the loaded run (`AppState.run_context`).
+Hidden pages refresh only when they are shown. Saving a review updates the line in memory
+instead of reloading the run. Column widths are worked out from a sample of 150 rows.
+At 50,000 lines, saving a review takes 0.2 s and opening a page for the first time takes up to 2.7 s.
 
 Money columns are stored as decimal text (`DecimalText`) – no binary floating point anywhere.
 Migrations are ordered in `db/database.py::MIGRATIONS`; an automatic backup is taken before

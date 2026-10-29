@@ -1,6 +1,6 @@
 # Roadmap
 
-## Phase 1 – Functional MVP (this release) ✅
+## Phase 1 – Functional MVP ✅
 Project structure, SQLite database with migrations, client master (multiple GSTINs per PAN),
 TallyPrime / custom register / GSTR-2B / GSTR-2A import (Excel, CSV, JSON, ZIP) with
 automatic layout detection, column mapping and saved templates, import preview with
@@ -9,16 +9,27 @@ duplicates, credit/debit notes, amendments, previous period, GSTIN mismatch, fuz
 suggestions), exception status updates with audit trail, 17-sheet Excel workbook, PDF
 summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 
-## Phase 2 – Professional application
-* PySide6 desktop app (navy/white/teal) on the same services: client selector, 10-step
-  workflow wizard, import preview grid, drag-and-select column mapping, progress bar with
-  Cancel (QThread + `CancelToken`), dashboard cards and charts (monthly ITC, match %,
-  vendor mismatches, unmatched exposure), colour-coded category filters.
-* Exception workspace: inline status/remarks/assignee/action date, evidence attachments,
-  manual match / unmatch / correction with audit history (category *Manually Matched*).
-* Vendor follow-up register and supplier-wise drill-down; reconciliation history browser;
-  cross-period tracking of unresolved items.
-* Windows GUI executable (PyInstaller, windowed) and installer.
+## Phase 2 – Professional application ✅
+* PySide6 desktop app in navy, white and teal, built on the same services. It has:
+  * a client and financial-year selector
+  * the 10-step Reconcile page
+  * an import preview with documents, issues and the column mapping used
+  * a column-mapping screen where you drag or pick columns
+  * a progress bar with a safe Cancel
+  * a dashboard with 12 cards, 4 charts and a financial-year overview
+* Exceptions page:
+  * colour-coded category filters and search
+  * books and GSTR-2B side by side, with differences
+  * status, remarks, assignee and action date for each line
+  * confirm, manual match, unmatch and pending-clarification actions
+  * evidence attachments (checked by SHA-256) and line history
+* Manual decisions stay in force for every re-run (schema v2, `match_decisions`).
+* Supplier page: sorting, invoice-level drill-down and a vendor follow-up register.
+  Follow-up remarks are carried into the Excel supplier sheet.
+* Reconciliation history, re-runs, and a list of open items across periods.
+  Remarks follow a document into later periods.
+* Windowed PyInstaller build (`FinTaxPro.exe`) with `--smoke-test`.
+* Still to do: an installer (e.g. Inno Setup) and a signed executable.
 
 ## Phase 3 – Advanced GST features
 * GSTR-3B import, Table 4 working, GSTR-2B vs 3B vs books; ITC reversed/reclaimed tracking.

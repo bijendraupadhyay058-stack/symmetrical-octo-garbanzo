@@ -201,3 +201,65 @@ class AuditLog(Base):
 V1_TABLES = [
     SchemaMigration, Client, ImportTemplate, SourceFile, Invoice, ImportIssue, ReconRun, ReconLineRow, AuditLog,
 ]
+
+
+# ------------------------------------------------------------------ schema v2
+class MatchDecision(Base):
+    """A user's manual decision about a books / GSTR-2B pair. Active decisions are
+    re-applied by every later reconciliation run of the client."""
+
+    __tablename__ = "match_decisions"
+    __table_args__ = (Index("ix_decision_client_active", "client_id", "active"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    books_invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    gstr2b_invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    decision: Mapped[str] = mapped_column(String(10))  # MATCH | REJECT
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Vendor(Base):
+    """Supplier contact and follow-up register, per client and supplier GSTIN."""
+
+    __tablename__ = "vendors"
+    __table_args__ = (UniqueConstraint("client_id", "gstin", name="uq_vendor_client_gstin"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    gstin: Mapped[str] = mapped_column(String(15))
+    name: Mapped[str] = mapped_column(String(200), default="")
+    contact_person: Mapped[str] = mapped_column(String(120), default="")
+    email: Mapped[str] = mapped_column(String(200), default="")
+    phone: Mapped[str] = mapped_column(String(20), default="")
+    followup_status: Mapped[str] = mapped_column(String(40), default="")
+    next_followup: Mapped[date | None] = mapped_column(Date, nullable=True)
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Attachment(Base):
+    """Supporting evidence for an exception. The file is copied into the app's
+    attachment store; the line is identified by the documents it contains so the
+    evidence stays visible when the period is re-run."""
+
+    __tablename__ = "attachments"
+    __table_args__ = (Index("ix_attach_docs", "books_invoice_id", "gstr2b_invoice_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    line_no: Mapped[int] = mapped_column(Integer)
+    books_invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gstr2b_invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    file_name: Mapped[str] = mapped_column(String(255))
+    stored_path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V2_TABLES = [MatchDecision, Vendor, Attachment]

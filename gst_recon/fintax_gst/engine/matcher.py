@@ -91,8 +91,11 @@ def _fmt(d: date) -> str:
 
 
 class _Engine:
-    def __init__(self, books, gstr2b, prior_books, settings, period_start, progress, cancel):
+    def __init__(self, books, gstr2b, prior_books, settings, period_start, progress, cancel,
+                 manual_pairs=(), rejected_pairs=()):
         self.s = settings
+        self.manual_pairs = sorted(manual_pairs)
+        self.rejected = {(b, g) for b, g in rejected_pairs}
         self.books = sorted(books, key=InvoiceRecord.sort_key)
         self.g2b = sorted(gstr2b, key=InvoiceRecord.sort_key)
         self.prior = sorted(prior_books, key=InvoiceRecord.sort_key)
@@ -124,6 +127,9 @@ class _Engine:
                 self.used.add(r.uid)
         self.lines.append(line)
 
+    def _rejected(self, b: InvoiceRecord, g: InvoiceRecord) -> bool:
+        return (b.uid, g.uid) in self.rejected
+
     def _within(self, diff: Decimal) -> bool:
         return abs(diff) <= self.s.amount_tolerance
 
@@ -154,11 +160,13 @@ class _Engine:
         for key in sorted(bidx.keys() & gidx.keys()):
             bs, gs = bidx[key], gidx[key]
             if len(bs) == 1 and len(gs) == 1:
-                pairs.append((bs[0], gs[0]))
+                if not self._rejected(bs[0], gs[0]):
+                    pairs.append((bs[0], gs[0]))
                 continue
             edges = [
                 (b, g) for b in bs for g in gs
                 if abs((b.invoice_date - g.invoice_date).days) <= self.s.date_tolerance_days
+                and not self._rejected(b, g)
             ]
             pairs.extend(self._mutual_unique(edges))
         return pairs
@@ -216,11 +224,15 @@ class _Engine:
         flags: list = []
         reasons: list = []
         days = (b.invoice_date - g.invoice_date).days
+        manual = via == "manual"
         if via != "amendment" and not same_text(b.invoice_no, g.invoice_no):
             flags.append(Flag.NUMBER_VARIATION)
             reasons.append(f"Invoice number format differs: books '{b.invoice_no}' vs GSTR-2B '{g.invoice_no}'")
+        if manual and b.supplier_gstin != g.supplier_gstin:
+            flags.append(Flag.GSTIN_MISMATCH)
+            reasons.append(f"Supplier GSTIN differs: books {b.supplier_gstin} vs GSTR-2B {g.supplier_gstin}")
         if days:
-            if abs(days) > self.s.date_tolerance_days:
+            if abs(days) > self.s.date_tolerance_days and not manual:
                 return self._probable_pair(b, g, Flag.DATE_BEYOND_TOLERANCE, (
                     f"Invoice reference matches but dates differ by {abs(days)} days "
                     f"(books {_fmt(b.invoice_date)}, GSTR-2B {_fmt(g.invoice_date)}; "
@@ -256,7 +268,9 @@ class _Engine:
         if Flag.CESS_DIFF in flags:
             kinds.append(Category.CESS_DIFFERENCE)
 
-        if via == "prior":
+        if manual:
+            category = Category.MANUALLY_MATCHED
+        elif via == "prior":
             category = Category.PREVIOUS_PERIOD
         elif g.is_amendment:
             category = Category.AMENDED
@@ -281,7 +295,10 @@ class _Engine:
         status = ExceptionStatus.PENDING_REVIEW
         if category == Category.FULLY_MATCHED and Flag.ITC_NOT_AVAILABLE not in flags:
             status = ExceptionStatus.NO_ACTION
-        confidence = {"exact": 100, "loose": 95, "amendment": 90, "prior": 95}[via]
+        elif (manual and not set(kinds) - {Category.NUMBER_VARIATION}
+              and Flag.ITC_NOT_AVAILABLE not in flags):  # the user confirmed the reference itself
+            status = ExceptionStatus.RESOLVED
+        confidence = {"exact": 100, "loose": 95, "amendment": 90, "prior": 95, "manual": 100}[via]
         return ReconLine(
             line_no=0, category=category, books=b, gstr2b=g, match_level=level, confidence=confidence,
             flags=[f.value for f in flags], reasons=reasons, date_diff_days=days, status=status,
@@ -322,6 +339,8 @@ class _Engine:
                 members = dups[key]
                 refs = ", ".join(m.reference for m in members)
                 for m in members:
+                    if m.uid in self.used:  # manually matched copy keeps its manual line
+                        continue
                     line = ReconLine(
                         line_no=0, category=category, match_level=None,
                         reasons=[f"{len(members)} entries in {source_label} share supplier GSTIN, document type, "
@@ -352,6 +371,18 @@ class _Engine:
                     else:
                         line.books = r
                     self._add(line)
+
+    def _pass_manual(self) -> None:
+        for b_uid, g_uid, note in self.manual_pairs:
+            b, g = self.by_uid.get(b_uid), self.by_uid.get(g_uid)
+            if b is None or g is None or b_uid in self.used or g_uid in self.used:
+                continue
+            if b.source != Source.BOOKS or g.source == Source.BOOKS:
+                continue
+            line = self._pair_line(b, g, "manual")
+            if note:
+                line.reasons.insert(0, note)
+            self._add(line)
 
     def _pass_keys(self, via: str) -> None:
         if via == "exact":
@@ -401,7 +432,7 @@ class _Engine:
         edges = []
         for b in self._free(self.books):
             for g in gidx.get((b.doc_type.value, b.invoice_no_norm), []):
-                if (g.supplier_gstin != b.supplier_gstin
+                if (g.supplier_gstin != b.supplier_gstin and not self._rejected(b, g)
                         and self._within(b.signed("taxable") - g.signed("taxable"))
                         and self._within(b.signed("itc") - g.signed("itc"))):
                     edges.append((b, g))
@@ -424,6 +455,8 @@ class _Engine:
             scores = {}
             for b in bgroups[key]:
                 for g in ggroups[key]:
+                    if self._rejected(b, g):
+                        continue
                     conf, num, amt, dsc = self._similarity(b, g)
                     if num >= self.s.fuzzy_threshold or (num >= 60 and amt == 100 and dsc == 100):
                         cands[b.uid].append((conf, g))
@@ -486,6 +519,8 @@ class _Engine:
 
     # --------------------------------------------------------------------- run
     def run(self) -> list[ReconLine]:
+        self._tick(3, "Applying manual match decisions")
+        self._pass_manual()
         self._tick(5, "Detecting duplicate documents")
         self._duplicates()
         self._tick(20, "Matching on exact invoice reference")
@@ -536,8 +571,13 @@ class _Engine:
                 raise ReconciliationIntegrityError(f"{side} ITC does not reconcile: {expected} vs {actual}")
 
 
-def fingerprint(books, gstr2b, prior, settings: ReconSettings, period_start: date | None) -> str:
+def fingerprint(books, gstr2b, prior, settings: ReconSettings, period_start: date | None,
+                manual_pairs=(), rejected_pairs=()) -> str:
     h = hashlib.sha256()
+    for item in sorted(manual_pairs):
+        h.update(f"M|{item[0]}|{item[1]}\n".encode())
+    for item in sorted(rejected_pairs):
+        h.update(f"R|{item[0]}|{item[1]}\n".encode())
     h.update(json.dumps(settings.to_dict(), sort_keys=True).encode())
     h.update(str(period_start).encode())
     h.update(ENGINE_VERSION.encode())
@@ -555,7 +595,11 @@ def reconcile(
     period_start: date | None = None,
     progress: ProgressFn | None = None,
     cancel: CancelToken | None = None,
+    manual_pairs: Iterable[tuple[str, str, str]] = (),
+    rejected_pairs: Iterable[tuple[str, str]] = (),
 ) -> ReconResult:
+    """Reconcile. ``manual_pairs`` (books uid, GSTR-2B uid, note) are user-confirmed
+    pairs applied first; ``rejected_pairs`` are never paired by any automatic pass."""
     settings = settings or ReconSettings()
     books, gstr2b, prior_books = list(books), list(gstr2b), list(prior_books)
     for r in books:
@@ -564,10 +608,35 @@ def reconcile(
     for r in gstr2b:
         if r.source == Source.BOOKS:
             raise ValueError(f"{r.uid} is a books record passed as GSTR-2B")
-    engine = _Engine(books, gstr2b, prior_books, settings, period_start, progress, cancel)
+    manual_pairs, rejected_pairs = list(manual_pairs), list(rejected_pairs)
+    engine = _Engine(books, gstr2b, prior_books, settings, period_start, progress, cancel,
+                     manual_pairs, rejected_pairs)
     lines = engine.run()
     return ReconResult(
         lines=lines, settings=settings, books=engine.books, gstr2b=engine.g2b,
         prior_books_considered=len(prior_books), period_start=period_start,
-        fingerprint=fingerprint(books, gstr2b, prior_books, settings, period_start),
+        fingerprint=fingerprint(books, gstr2b, prior_books, settings, period_start, manual_pairs, rejected_pairs),
     )
+
+
+def manual_pair_line(b: InvoiceRecord, g: InvoiceRecord, settings: ReconSettings, note: str = "") -> ReconLine:
+    """Classify a user-confirmed pair exactly as a re-run would."""
+    engine = _Engine([], [], [], settings, None, None, None)
+    line = engine._pair_line(b, g, "manual")
+    if note:
+        line.reasons.insert(0, note)
+    line.flags = [f.value if isinstance(f, Flag) else f for f in line.flags]
+    return line
+
+
+def single_sided_line(record: InvoiceRecord, settings: ReconSettings, period_start: date | None,
+                      note: str = "") -> ReconLine:
+    """Line for a record left without a counterpart (e.g. after the user rejects a pair)."""
+    engine = _Engine([record] if record.source == Source.BOOKS else [],
+                     [] if record.source == Source.BOOKS else [record], [], settings, period_start, None, None)
+    engine._pass_missing()
+    line = engine.lines[0]
+    if note:
+        line.reasons.insert(0, note)
+    line.flags = [f.value if isinstance(f, Flag) else f for f in line.flags]
+    return line

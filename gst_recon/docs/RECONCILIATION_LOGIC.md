@@ -121,7 +121,30 @@ The same inputs and settings always produce the same lines (tested, including wi
 shuffled input order). Re-running a period carries forward status, remarks, assignee and
 action date of lines that pair the same documents in the same category.
 
-## 8. What the engine never does
+## 8. Manual decisions
+
+The reviewer can **confirm** a suggested pair, **pair** a books-only line with a
+GSTR-2B-only line, **unmatch** any pair, or mark a line **Pending Client or Supplier
+Clarification**. Each action is applied to the open run at once and audited.
+
+Confirmations and pairs are stored as `MATCH` decisions, unmatches as `REJECT` decisions
+(table `match_decisions`). Every later run of the client applies them:
+
+* `MATCH` pairs are applied **before** all automatic passes and classified exactly like
+  other pairs, under the category *Manually Matched* (differences are still listed).
+  A manual match whose only difference is the invoice-number text is set to *Resolved*.
+* `REJECT` pairs are never formed by any automatic pass (key, amendment, previous period,
+  GSTIN mismatch or fuzzy).
+* A new decision on the same pair replaces the old one. A new `MATCH` for a document
+  replaces its earlier `MATCH`.
+* Documents must have the same document type. A credit note is never paired with an invoice.
+* *Pending Clarification* is kept when the period is re-run, unless the documents are
+  now fully matched.
+
+After any change the run's summary is recalculated. Every document still appears exactly
+once, so the totals do not change.
+
+## 9. What the engine never does
 
 * It never confirms a fuzzy, GSTIN-mismatch or out-of-tolerance date match.
 * It never alters, merges or deletes a source value (rate-wise lines of one document in

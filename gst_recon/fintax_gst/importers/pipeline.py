@@ -68,6 +68,7 @@ class ImportPreview:
     issues: list[RowIssue] = field(default_factory=list)
     mappings: dict[str, MappingResult] = field(default_factory=dict)
     file_warnings: list[str] = field(default_factory=list)
+    columns: dict[str, list[str]] = field(default_factory=dict)  # sheet -> column labels (for re-mapping)
     total_rows: int = 0
     existing_record_hashes: set[str] = field(default_factory=set)
     already_imported_file_id: int | None = None
@@ -205,6 +206,7 @@ def _process_table(builder: _Builder, table: RawTable, template: dict | None, ex
     if not mapping.complete:
         raise MappingRequired(table.name, mapping, columns)
     builder.p.mappings[table.name] = mapping
+    builder.p.columns[table.name] = [c.label for c in columns]
     for n, values in table.rows[header_idx + 1:]:
         if not any(v not in (None, "") for v in values):
             continue

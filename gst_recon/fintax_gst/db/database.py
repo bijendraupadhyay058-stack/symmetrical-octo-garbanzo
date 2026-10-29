@@ -37,10 +37,17 @@ def _migration_1(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V1_TABLES])
 
 
+def _migration_2(conn) -> None:
+    from .models import V2_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V2_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "initial schema: clients, imports, invoices, reconciliation runs, audit log", _migration_1),
+    (2, "manual match decisions, vendor follow-up register, evidence attachments", _migration_2),
 ]
 
 
@@ -49,7 +56,10 @@ class Database:
         self.path = Path(path) if path else default_db_path()
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.engine: Engine = create_engine(f"sqlite:///{self.path}", echo=echo, future=True)
+        # Sessions are never shared between threads, but the desktop app runs long
+        # operations on a worker thread, so pooled connections may change thread.
+        self.engine: Engine = create_engine(f"sqlite:///{self.path}", echo=echo, future=True,
+                                            connect_args={"check_same_thread": False, "timeout": 30})
         event.listen(self.engine, "connect", self._on_connect)
         self.Session = sessionmaker(self.engine, expire_on_commit=False, future=True)
 

@@ -95,3 +95,30 @@ def test_cli_end_to_end(tmp_path, sample_files, capsys, monkeypatch):
     assert main(["--db", db, "show", "--run", "1", "--category", "missing"]) == 0
     assert main(["--db", db, "backup", "--to", str(tmp_path / "bk.db")]) == 0
     assert (tmp_path / "bk.db").exists()
+
+
+def test_cli_phase2_commands(tmp_path, sample_files, capsys, monkeypatch):
+    monkeypatch.setenv("FINTAX_HOME", str(tmp_path / "home"))
+    db = str(tmp_path / "cli2.db")
+    main(["--db", db, "client", "add", "--gstin", CLIENT["gstin"], "--name", CLIENT["name"]])
+    for src, key in (("books", "books_april"), ("gstr2b", "gstr2b_april")):
+        assert main(["--db", db, "import", "--client", "1", "--source", src, "--file", str(sample_files[key])]) == 0
+    assert main(["--db", db, "reconcile", "--client", "1", "--from", "2025-04"]) == 0
+    from fintax_gst.db.database import open_database
+
+    d = open_database(db)
+    lines = ReconciliationService(d).load(1).result.lines
+    probable = next(ln for ln in lines if ln.books and ln.books.invoice_no == "DOS-1189")
+    missing = next(ln for ln in lines if ln.category == Category.MISSING_IN_2B)
+    d.dispose()
+    assert main(["--db", db, "match", "confirm", "--run", "1", "--line", str(probable.line_no),
+                 "--remarks", "typo"]) == 0
+    assert main(["--db", db, "match", "clarify", "--run", "1", "--line", str(missing.line_no)]) == 0
+    assert main(["--db", db, "vendor", "--client", "1", "--gstin", SUPPLIERS["MSL"][0], "--status", "Mail sent",
+                 "--next", "2025-05-10"]) == 0
+    ev = tmp_path / "e.txt"
+    ev.write_text("evidence")
+    assert main(["--db", db, "attach", "--run", "1", "--line", str(missing.line_no), "--file", str(ev)]) == 0
+    assert main(["--db", db, "open-items", "--client", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "confirmed as a manual match" in out and "open document(s)" in out

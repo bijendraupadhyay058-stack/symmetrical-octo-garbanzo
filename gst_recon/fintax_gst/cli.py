@@ -132,7 +132,7 @@ def cmd_import(db: Database, args) -> None:
               "\"invoice_no\": [\"Bill Ref\"], \"invoice_date\": [\"Bill Dt\"], \"taxable_value\": [\"Basic\"], "
               "\"cgst\": [\"CGST\"], \"sgst\": [\"SGST\"], \"igst\": [\"IGST\"]}}\n"
               "and run the import again with --mapping that.json (add --save-template NAME to reuse it).")
-        raise SystemExit(2)
+        raise SystemExit(2) from None
     print_preview(preview)
     if args.save_template:
         merged = {}
@@ -224,6 +224,59 @@ def cmd_update_line(db: Database, args) -> None:
     ReconciliationService(db).update_line(args.run, args.line, args.user, status=args.status, remarks=args.remarks,
                                           assigned_to=args.assign, action_date=action_date)
     print(f"Line {args.line} of run #{args.run} updated (audit trail recorded).")
+
+
+def cmd_match(db: Database, args) -> None:
+    rs = ReconciliationService(db)
+    if args.action == "confirm":
+        rs.confirm_match(args.run, args.line, args.user, args.remarks or "")
+        print(f"Line {args.line} confirmed as a manual match.")
+    elif args.action == "pair":
+        if args.with_line is None:
+            raise ServiceError("Give --with LINE for a manual pair")
+        kept = rs.manual_match(args.run, args.line, args.with_line, args.user, args.remarks or "")
+        print(f"Lines {args.line} and {args.with_line} matched as line {kept}.")
+    elif args.action == "unmatch":
+        new = rs.unmatch(args.run, args.line, args.user, args.remarks or "")
+        print(f"Line {args.line} split; the GSTR-2B document is now line {new}. The pair will not be re-matched.")
+    else:
+        rs.mark_pending_clarification(args.run, args.line, args.user, args.remarks or "")
+        print(f"Line {args.line} marked Pending Client or Supplier Clarification.")
+
+
+def cmd_vendor(db: Database, args) -> None:
+    from .services.followup import VendorService
+
+    client = ClientService(db).resolve(args.client)
+    vs = VendorService(db)
+    if args.gstin:
+        fields = {k: v for k, v in {"name": args.name, "contact_person": args.contact, "email": args.email,
+                                    "phone": args.phone, "followup_status": args.status,
+                                    "next_followup": args.next, "remarks": args.remarks}.items() if v is not None}
+        v = vs.upsert(client.id, args.gstin, args.user, **fields)
+        print(f"Vendor {v.gstin} saved ({v.followup_status or 'no status'}).")
+        return
+    for v in vs.all(client.id).values():
+        nxt = f"{v.next_followup:%d-%m-%Y}" if v.next_followup else "-"
+        print(f"{v.gstin}  {v.name:<34} {v.followup_status:<28} next {nxt:<10} {v.email} {v.remarks}")
+
+
+def cmd_attach(db: Database, args) -> None:
+    from .services.followup import AttachmentService
+
+    att = AttachmentService(db).add(args.run, args.line, args.file, args.user, args.description or "")
+    print(f"Attached {att.file_name} (sha256 {att.sha256[:12]}…) to line {args.line} of run #{args.run}.")
+
+
+def cmd_open_items(db: Database, args) -> None:
+    from .services.tracking import TrackingService
+
+    client = ClientService(db).resolve(args.client)
+    items = TrackingService(db).open_items(client.id)
+    for i in items:
+        print(f"{i.source:<7} {i.supplier_gstin} {i.invoice_no:<18} {i.invoice_date:%d-%m-%Y} {i.period} "
+              f"ITC {fmt_inr(i.itc):>12}  {i.last_category:<42} {i.status}")
+    print(f"{len(items)} open document(s)")
 
 
 def cmd_export(db: Database, args) -> None:
@@ -348,6 +401,38 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--assign")
     u.add_argument("--action-date", help="YYYY-MM-DD")
     u.set_defaults(func=cmd_update_line)
+
+    m = sub.add_parser("match", help="manual decisions: confirm | pair | unmatch | clarify (audited)")
+    m.add_argument("action", choices=["confirm", "pair", "unmatch", "clarify"])
+    m.add_argument("--run", type=int, required=True)
+    m.add_argument("--line", type=int, required=True)
+    m.add_argument("--with", dest="with_line", type=int, help="pair: the other line")
+    m.add_argument("--remarks")
+    m.set_defaults(func=cmd_match)
+
+    v = sub.add_parser("vendor", help="vendor follow-up register (list, or update with --gstin)")
+    v.add_argument("--client", required=True)
+    v.add_argument("--gstin")
+    v.add_argument("--name")
+    v.add_argument("--contact")
+    v.add_argument("--email")
+    v.add_argument("--phone")
+    v.add_argument("--status", help="Not contacted | Mail sent | Reminder sent | Supplier confirmed correction | "
+                                    "Supplier disputes | Closed")
+    v.add_argument("--next", help="next follow-up date YYYY-MM-DD")
+    v.add_argument("--remarks")
+    v.set_defaults(func=cmd_vendor)
+
+    at = sub.add_parser("attach", help="attach supporting evidence to a line")
+    at.add_argument("--run", type=int, required=True)
+    at.add_argument("--line", type=int, required=True)
+    at.add_argument("--file", required=True)
+    at.add_argument("--description")
+    at.set_defaults(func=cmd_attach)
+
+    oi = sub.add_parser("open-items", help="unresolved documents across all periods")
+    oi.add_argument("--client", required=True)
+    oi.set_defaults(func=cmd_open_items)
 
     e = sub.add_parser("export", help="export Excel (and PDF) report of a run")
     e.add_argument("--run", type=int, required=True)
