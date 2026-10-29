@@ -53,6 +53,13 @@ gst_recon/
 │   │   ├── validation.py      row → InvoiceRecord with errors/warnings
 │   │   ├── gstn_json.py       GSTR-2B / GSTR-2A portal JSON
 │   │   └── pipeline.py        layout detection, header detection, preview
+│   ├── itc/                   ITC module (pure logic, no database)
+│   │   ├── rules.py           effective-dated rules with statutory references
+│   │   ├── deadlines.py       Section 16(4) time limit
+│   │   ├── review.py          document flags, claim state, ITC buckets
+│   │   ├── table4.py          GSTR-3B Table 4 working, classified differences
+│   │   ├── annual.py          GSTR-9 Table 8 (8A–8D)
+│   │   └── ims.py             IMS vs books vs GSTR-2B
 │   ├── engine/
 │   │   ├── matcher.py         reconciliation passes and integrity checks
 │   │   └── summary.py         dashboard, category, supplier, month summaries
@@ -72,6 +79,10 @@ gst_recon/
 │   │                          history + open items, clients, imports, settings
 │   ├── services/
 │   │   ├── followup.py        vendor follow-up register, evidence attachments
+│   │   ├── itc.py             rules, reviews, claim register, IMS, Table 4, annual
+│   │   ├── gstr3b.py          GSTR-3B import (supersede, never overwrite)
+│   │   ├── auth.py            users, scrypt passwords, lockout, roles, permissions
+│   │   ├── security.py        encrypted backups, auto-backup/retention, purge, audit export
 │   │   ├── tracking.py        open items, document history, FY overview, period scope
 │   │   ├── clients.py         client master
 │   │   ├── imports.py         preview/commit, repeated-import protection, templates
@@ -103,6 +114,10 @@ gst_recon/
 | `match_decisions` (v2) | user MATCH / REJECT decisions applied to every later run |
 | `vendors` (v2) | supplier contacts and follow-up status per client |
 | `attachments` (v2) | evidence files, copied into `attachments/` and verified by SHA-256 |
+| `users`, `app_settings` (v3) | login accounts (scrypt hashes, lockout) and application settings |
+| `itc_rules`, `itc_reviews`, `itc_claims` (v3) | rule overrides, reviewer decisions, claim/reverse/reclaim register |
+| `gstr3b_entries`, `itc_other` (v3) | GSTR-3B Table 4 values (superseded, never overwritten); ISD credits and bills of entry |
+| `invoices.description`, `invoices.ims_action` (v3) | narration for rules; IMS action for IMS records |
 
 **Desktop threading.** Imports, reconciliation and export run on a `QThread` behind a
 progress dialog. Services check the `CancelToken` between batches and write inside one

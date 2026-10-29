@@ -6,16 +6,18 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1 and 2 are complete.** The release includes:
+**Status: Phases 1, 2 and 3 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
-* exception management with manual match and unmatch
-* the vendor follow-up register and cross-period tracking
-* Excel and PDF reports
-* a **PySide6 desktop application** and a command-line tool
+* exception management with manual match and unmatch, and the vendor follow-up register
+* cross-period tracking
+* the **ITC module**: effective-dated rule engine with statutory references, Section 16(4)
+  time limits, claim / reverse / reclaim register, GSTR-3B Table 4 working, GSTR-9
+  Table 8 and IMS comparison
+* **security**: login, roles, encrypted backups, retention, secure purge and audit export
+* Excel and PDF reports, a **PySide6 desktop application** and a command-line tool
 
-Phase 3 (GSTR-3B/IMS, the ITC rule engine, security) is next.
-See [docs/ROADMAP.md](docs/ROADMAP.md).
+See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -86,12 +88,20 @@ The navigation on the left opens these pages:
 | **Dashboard** | 12 cards: invoices, taxable value, ITC (books and GSTR-2B), fully and partially matched, missing on each side, ITC difference, ITC at risk, duplicates, pending. 4 charts: monthly ITC, matching %, top supplier differences, ITC at risk by category. A financial-year overview by month. |
 | **Reconcile** | The 10-step journey. Pick the client and the period (month, quarter, FY or custom range). Import the purchase register and GSTR-2B (plus earlier books or GSTR-2A, optional). Validate the imported files, set tolerances, start the reconciliation, review the summary, go to exceptions, export Excel and PDF. Long steps show a progress bar with **Cancel**; cancelling saves nothing. |
 | **Exceptions** | Colour-coded category filters with counts, search, and a status filter. Books and GSTR-2B side by side with every difference and reason. Set status, assignee, action date and remarks. **Confirm match**, **Manual match** (Ctrl+click two lines), **Unmatch**, **Pending clarification**. Attach evidence. Line history. |
+| **ITC review** | Flags for professional review with statutory references and guidance (17(5) indicators, 16(2)(aa), 16(4) time limit, RCM, ITC not available, IMS, credit notes). Confirm or dismiss each flag with a reason. ITC summary buckets. Claim register: claim eligible documents, reverse, reclaim – never twice. Rule configuration for all clients or one client. |
+| **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template). Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export. |
+| **IMS** | Import the IMS download and compare with books and GSTR-2B: rejected but booked, rejected but still in GSTR-2B (recompute), pending, accepted but not booked, value differences. Nothing is done on the portal. |
 | **Suppliers** | Supplier summary with all sort options and drill-down to invoices. Vendor follow-up register (contact, status, next follow-up date, remarks); due follow-ups are flagged. |
 | **Open items** | Every document without a confirmed counterpart, across all periods, listed once. Double-click for its history across runs. |
 | **History** | All runs with their summaries. Open a run, or re-run a period: review work and manual decisions carry forward. Lists the active manual decisions. |
 | **Imports** | Imported files with SHA-256, counts and the full import log (including rejected rows). Import a file here, or remove an import no run has used. |
 | **Clients** | Client master (GSTIN validated, PAN and state derived). |
+| **Security** | Users and roles, change password, encrypted backup and restore, automatic backup and retention, audit log viewer and CSV export, permanent client deletion. |
 | **Settings** | Default tolerances, backup now, restore, data folder. |
+
+On first start the app asks you to create the administrator. After that, every start
+needs a login, and each role sees only the actions it may perform (see
+[docs/SECURITY.md](docs/SECURITY.md)).
 
 Every import opens a **preview** first, with tabs for documents, issues and the column
 mapping. If headings aren't recognised, or you choose *Change column mapping…*, the
@@ -106,6 +116,10 @@ re-applies them (see [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md
 | ![Reconcile](docs/screenshots/workflow.png) | ![Exceptions](docs/screenshots/exceptions.png) |
 | **Suppliers** | **Import preview** |
 | ![Suppliers](docs/screenshots/suppliers.png) | ![Import preview](docs/screenshots/import_preview.png) |
+| **ITC review** | **GSTR-3B Table 4 working** |
+| ![ITC review](docs/screenshots/itc_review.png) | ![GSTR-3B](docs/screenshots/gstr3b_table4.png) |
+| **IMS review** | **Security** |
+| ![IMS](docs/screenshots/ims.png) | ![Security](docs/screenshots/security.png) |
 
 ## Everyday workflow from the command line
 
@@ -146,6 +160,27 @@ fintax-gst attach --run 1 --line 11 --file supplier_reply.pdf --description "Sup
 fintax-gst open-items --client 1
 ```
 
+ITC module, returns and security:
+
+```bash
+fintax-gst user add --username admin --role admin          # first user; afterwards add --login admin
+fintax-gst --login admin import --client 1 --source ims --file ims_042025.json
+fintax-gst --login admin gstr3b import --client 1 --file GSTR3B_042025.json
+fintax-gst --login admin itc review --run 1                 # flags + ITC summary
+fintax-gst --login admin itc decide --client 1 --invoice 42 --rule S17_5_B_I_FOOD \
+    --decision dismissed --remarks "Raw material supplier"
+fintax-gst --login admin itc claim --run 1 --period 2025-04 # eligible documents, never twice
+fintax-gst --login admin itc reverse --client 1 --invoice 42 --period 2025-10 \
+    --reason "Not paid within 180 days" --rule-ref RULE_37_180
+fintax-gst --login admin itc table4 --client 1 --from 2025-04 --to 2025-06
+fintax-gst --login admin itc rules --client 1 --add-gstin CLIENT_BLOCKED_GSTIN 27ABCDE1234F1Z5
+fintax-gst --login admin ims --client 1 --period 2025-04
+fintax-gst --login admin annual --client 1 --fy 2025-26 --out reports/
+fintax-gst --login admin secure-backup --to D:/backup/fintax.ftpbk   # password: prompt or FINTAX_BACKUP_PASSWORD
+fintax-gst --login admin audit-export --out audit.csv
+fintax-gst --login admin purge-client --client 1 --confirm 27AAPFU0939F1ZV
+```
+
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
 `backup [--to file]`, `restore file`, `sample-data --out dir`. Use `--db path` to work with
 a specific database file.
@@ -167,7 +202,7 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # engine, importers, services, reports, CLI and desktop UI (offscreen)
+python -m pytest              # 160 tests: engine, importers, ITC module, security, reports, CLI, desktop UI
 python scripts/benchmark.py 10000 50000
 ```
 
@@ -194,6 +229,8 @@ Timings on an office PC will differ. Run the script on the target machine.
 
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
+* [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/SECURITY.md](docs/SECURITY.md) – login, roles, encryption, backups, deletion
 * [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) – Windows executables (desktop and CLI)
 * [docs/ROADMAP.md](docs/ROADMAP.md) – Phase 2, Phase 3, Android/web
 

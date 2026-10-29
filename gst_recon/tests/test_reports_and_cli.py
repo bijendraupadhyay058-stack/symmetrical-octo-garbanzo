@@ -37,7 +37,7 @@ def test_excel_report_structure_and_totals(db, sample_files, tmp_path):
     assert xlsx.name == "FINTAXPRO_GSTRecon_27AAPFU0939F1ZV_FY2025-26_2025-04_to_2025-04_run1.xlsx"
     assert pdf.exists() and pdf.stat().st_size > 1000
     wb = load_workbook(xlsx)
-    assert wb.sheetnames == SHEET_NAMES and len(SHEET_NAMES) == 17
+    assert wb.sheetnames == SHEET_NAMES and len(SHEET_NAMES) == 18  # 17 specified sheets + ITC review
     ws = wb["Complete Reconciliation"]
     assert ws.freeze_panes == "C5"
     assert ws.tables, "detail sheets must be Excel tables"

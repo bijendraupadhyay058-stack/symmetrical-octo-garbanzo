@@ -44,6 +44,8 @@ class ClientsPage(LazyPage):
             b = primary(text) if prim else QPushButton(text)
             b.clicked.connect(fn)
             row.addWidget(b)
+            if fn != self.use_selected:
+                b.setEnabled(state.can("manage_clients"))
         row.addStretch()
         lay.addLayout(row)
         for sig in (state.dataChanged, state.clientChanged):
@@ -94,12 +96,14 @@ class ImportsPage(LazyPage):
                                              "Rejected rows are kept here with their original values."))
         row = QHBoxLayout()
         self.source_cb = QComboBox()
-        self.source_cb.addItems(["Purchase register (books)", "GSTR-2B", "GSTR-2A"])
+        self.source_cb.addItems(["Purchase register (books)", "GSTR-2B", "GSTR-2A", "IMS download"])
         imp = primary("Import file…")
+        imp.setEnabled(state.can("import"))
         imp.clicked.connect(self.import_file)
         self.remove_btn = QPushButton("Remove unused import")
         self.remove_btn.setObjectName("Danger")
         self.remove_btn.clicked.connect(self.remove)
+        self.remove_btn.setEnabled(state.can("delete_data"))
         row.addWidget(QLabel("Source"))
         row.addWidget(self.source_cb)
         row.addWidget(imp)
@@ -153,10 +157,19 @@ class ImportsPage(LazyPage):
         self.issues.fit(420)
 
     def import_file(self) -> None:
-        source = [Source.BOOKS, Source.GSTR2B, Source.GSTR2A][self.source_cb.currentIndex()]
+        source = [Source.BOOKS, Source.GSTR2B, Source.GSTR2A, Source.IMS][self.source_cb.currentIndex()]
         path, _ = QFileDialog.getOpenFileName(self, "Select file", "", FILE_FILTER)
-        if path:
-            import_interactive(self, self.state, path, source)
+        if not path:
+            return
+        period = None
+        if source != Source.BOOKS and not path.lower().endswith((".json", ".zip")):
+            from PySide6.QtWidgets import QInputDialog
+
+            period, ok = QInputDialog.getText(self, "Return period", "Return period of this file (YYYY-MM), "
+                                              "if it is not stated in the file:")
+            if not ok:
+                return
+        import_interactive(self, self.state, path, source, period or None)
 
     def remove(self) -> None:
         f = self._selected()
@@ -218,6 +231,7 @@ class SettingsPage(QWidget):
         fl.addLayout(form)
         save = primary("Save defaults")
         save.clicked.connect(self.save)
+        save.setEnabled(state.can("settings"))
         fl.addWidget(save)
         lay.addWidget(frame)
 
@@ -230,6 +244,8 @@ class SettingsPage(QWidget):
             b = QPushButton(text)
             b.clicked.connect(fn)
             row.addWidget(b)
+            b.setEnabled({"Back up now": state.can("settings"),
+                          "Restore from backup…": state.can("restore")}.get(text, True))
         row.addStretch()
         dl.addLayout(row)
         self.backup_lbl = QLabel("")

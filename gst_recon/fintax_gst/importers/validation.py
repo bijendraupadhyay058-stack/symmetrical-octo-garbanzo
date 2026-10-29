@@ -14,7 +14,8 @@ from ..core.invoice_no import clean_raw_invoice_no
 from ..core.models import DocType, InvoiceRecord, Source, period_of
 from ..core.money import ZERO, AmountParseError, parse_amount
 from .parsing import (
-    DateParseError, parse_bool, parse_date, parse_doc_type, parse_period, parse_text, tally_voucher_doc_type,
+    DateParseError, parse_bool, parse_date, parse_doc_type, parse_ims_action, parse_period, parse_text,
+    tally_voucher_doc_type,
 )
 
 
@@ -152,6 +153,13 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     if is_amendment and not original_no:
         warnings.append("Amendment row without original document number")
 
+    ims_action = ""
+    if ctx.source == Source.IMS:
+        ims_action = parse_ims_action(row.get("ims_action"))
+        if ims_action is None:
+            return RowOutcome(None, [f"IMS action '{row.get('ims_action')}' not recognised"], warnings)
+        if row.get("ims_action") is None or parse_text(row.get("ims_action")) == "":
+            warnings.append("No IMS action recorded – treated as 'No action' (deemed accepted)")
     itc = parse_text(row.get("itc_availability")).upper()[:1]
     rate = None
     try:
@@ -169,5 +177,6 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
         original_invoice_no=original_no, original_invoice_date=original_date,
         supplier_period=parse_period(row.get("supplier_period")) or parse_text(row.get("supplier_period")),
         source_file=ctx.file_name, source_rows=str(row.get("_row", "")),
+        description=parse_text(row.get("description"))[:500], ims_action=ims_action,
     )
     return RowOutcome(record, errors, warnings)

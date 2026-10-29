@@ -223,9 +223,16 @@ def test_migration_from_v1_database(tmp_path):
     finally:
         dbm.MIGRATIONS = saved
     assert old.current_version() == 1
+    with old.engine.begin() as conn:  # make it look exactly like a Phase 1 database
+        conn.exec_driver_sql("ALTER TABLE invoices DROP COLUMN description")
+        conn.exec_driver_sql("ALTER TABLE invoices DROP COLUMN ims_action")
     old.dispose()
     db = Database(path)
-    assert db.migrate() == [2]
-    assert db.current_version() == 2
+    assert db.migrate() == [m[0] for m in MIGRATIONS[1:]]
+    assert db.current_version() == MIGRATIONS[-1][0]
     assert list((tmp_path / "backups").glob("*pre-migration-v2.db"))
+    from sqlalchemy import inspect
+
+    cols = {c["name"] for c in inspect(db.engine).get_columns("invoices")}
+    assert {"description", "ims_action"} <= cols and inspect(db.engine).has_table("itc_claims")
     db.dispose()

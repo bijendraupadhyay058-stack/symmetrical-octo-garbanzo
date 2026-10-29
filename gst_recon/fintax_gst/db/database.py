@@ -43,11 +43,24 @@ def _migration_2(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V2_TABLES])
 
 
+def _migration_3(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    from .models import V3_TABLES, Base
+
+    existing = {c["name"] for c in sa_inspect(conn).get_columns("invoices")}
+    for column, ddl in (("description", "TEXT NOT NULL DEFAULT ''"), ("ims_action", "VARCHAR(2) NOT NULL DEFAULT ''")):
+        if column not in existing:  # fresh databases already have them from the current model
+            conn.exec_driver_sql(f"ALTER TABLE invoices ADD COLUMN {column} {ddl}")
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V3_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
     (1, "initial schema: clients, imports, invoices, reconciliation runs, audit log", _migration_1),
     (2, "manual match decisions, vendor follow-up register, evidence attachments", _migration_2),
+    (3, "users, settings, ITC rules/reviews/claims, GSTR-3B, ISD/imports, IMS columns", _migration_3),
 ]
 
 
@@ -69,6 +82,7 @@ class Database:
         cur.execute("PRAGMA foreign_keys=ON")
         cur.execute("PRAGMA journal_mode=WAL")
         cur.execute("PRAGMA synchronous=NORMAL")
+        cur.execute("PRAGMA secure_delete=ON")  # deleted client data is overwritten, not left in free pages
         cur.close()
 
     def current_version(self) -> int:

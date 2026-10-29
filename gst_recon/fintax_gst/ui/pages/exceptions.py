@@ -240,9 +240,10 @@ class ExceptionsPage(LazyPage):
     def _selected(self, *_):
         sel = self.selected_lines()
         self._show(sel[0] if sel else None)
-        self.match_btn.setEnabled(len(sel) == 2)
+        self.match_btn.setEnabled(len(sel) == 2 and self.state.can("review"))
 
     def _enable(self, on: bool) -> None:
+        on = on and self.state.can("review")
         for w in (self.confirm_btn, self.unmatch_btn, self.clarify_btn, self.save_btn, self.attach_btn,
                   self.status_edit, self.assigned, self.remarks, self.action_set, self.action_date):
             w.setEnabled(on)
@@ -285,8 +286,10 @@ class ExceptionsPage(LazyPage):
             extra += f"<p><b>Candidates:</b> {len(ln.candidates)} document(s) – see the related lines.</p>"
         self.reasons.setText(f"<b>Reasons</b><ul>{reasons}</ul>{extra}")
         paired = ln.books is not None and ln.gstr2b is not None
-        self.confirm_btn.setEnabled(paired and ln.category in (Category.PROBABLE, Category.PENDING_CLARIFICATION))
-        self.unmatch_btn.setEnabled(paired)
+        can = self.state.can("review")
+        self.confirm_btn.setEnabled(can and paired and ln.category in (Category.PROBABLE,
+                                                                       Category.PENDING_CLARIFICATION))
+        self.unmatch_btn.setEnabled(can and paired)
         self.status_edit.setCurrentText(ln.status.value)
         self.assigned.setText(ln.assigned_to)
         self.remarks.setPlainText(ln.remarks)

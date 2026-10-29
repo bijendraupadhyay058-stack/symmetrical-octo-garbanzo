@@ -8,7 +8,7 @@ a = Analysis(  # noqa: F821
     [str(root / "packaging" / "entry_gui.py")],
     pathex=[str(root)],
     hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer",
-                   "PySide6.QtCharts"],
+                   "PySide6.QtCharts", "cryptography.fernet"],
     excludes=["tkinter", "matplotlib", "IPython", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
               "PySide6.Qt3DCore", "PySide6.QtQuick", "PySide6.QtQml"],
 )

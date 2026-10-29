@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
+import os
 import logging
 import sys
 import time
@@ -20,6 +22,9 @@ from .engine.summary import DASHBOARD_LABELS, category_summary, dashboard
 from .importers.pipeline import ImportPreview, MappingRequired
 from .importers.readers import UnsupportedFileError
 from .services.clients import ClientService
+from .cli_phase3 import add_commands as add_phase3_commands
+from .cli_phase3 import permission_for
+from .services.auth import Session
 from .services.common import ServiceError, current_user
 from .services.imports import ImportService
 from .services.reconciliation import ReconciliationService, fy_periods
@@ -313,15 +318,23 @@ def cmd_demo(_db, args) -> None:
     client = ClientService(db).create(user="demo", **CLIENT)
     print(f"Client #{client.id}: {client.name} {client.gstin}")
     svc = ImportService(db)
-    for key, source in (("books_march", Source.BOOKS), ("books_april", Source.BOOKS), ("gstr2b_april", Source.GSTR2B)):
+    for key, source in (("books_march", Source.BOOKS), ("books_april", Source.BOOKS),
+                        ("gstr2b_april_json", Source.GSTR2B), ("ims_april_json", Source.IMS)):
         preview = svc.preview(client.id, files[key], source)
         print_preview(preview, limit=6)
         svc.commit(client.id, preview, "demo")
+    from .services.gstr3b import Gstr3bService
+
+    Gstr3bService(db).import_file(client.id, files["gstr3b_april_json"], user="demo")
+    print("GSTR-3B April 2025 imported")
     run_id = ReconciliationService(db).run(client.id, "2025-04", user="demo", progress=_bar)
     ctx = ReconciliationService(db).load(run_id)
     print_dashboard(ctx.result.lines)
-    for p in export_run(db, run_id, out / "reports", user="demo"):
+    for p in export_run(db, run_id, out / "reports", user="demo", as_of=date(2025, 5, 15)):
         print(f"Report: {p}")
+    from .reports.annual_report import export_annual
+
+    print(f"Report: {export_annual(db, client.id, '2025-26', out / 'reports', user='demo')}")
     db.dispose()
 
 
@@ -329,7 +342,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="fintax-gst", description=f"{PRODUCT_FULL_NAME}\n{TAGLINE}",
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--db", help="database file (default: %(default)s)", default=None)
-    p.add_argument("--user", default=current_user(), help="user name recorded in the audit trail")
+    p.add_argument("--login", default=os.environ.get("FINTAX_USER"),
+                   help="user name to log in with once users exist (password: FINTAX_PASSWORD or prompt)")
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
@@ -353,7 +367,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     i = sub.add_parser("import", help="preview and import a purchase register / GSTR-2B / GSTR-2A file")
     i.add_argument("--client", required=True, help="client id or GSTIN")
-    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a"])
+    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a", "ims"])
     i.add_argument("--file", required=True)
     i.add_argument("--period", help="YYYY-MM (GSTR-2B period if not detected; books booking month override)")
     i.add_argument("--template", help="saved mapping template name")
@@ -447,6 +461,8 @@ def build_parser() -> argparse.ArgumentParser:
     rs.add_argument("file")
     rs.set_defaults(func=cmd_restore)
 
+    add_phase3_commands(sub)
+
     sd = sub.add_parser("sample-data", help="write demo input files")
     sd.add_argument("--out", required=True)
     sd.set_defaults(func=cmd_sample_data, no_db=True)
@@ -456,11 +472,35 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def authenticate(db: Database, args) -> Session:
+    """Log in (when users exist) and check the command's permission."""
+    from .services.auth import SETUP_SESSION, AuthService, require
+
+    auth = AuthService(db)
+    needed = permission_for(args)
+    if not auth.has_users():
+        if not (args.command == "user" and args.action == "add"):
+            print("! No users configured – running in setup mode. Create an administrator with "
+                  "`fintax-gst user add --username admin --role admin`.", file=sys.stderr)
+        return SETUP_SESSION
+    if not args.login:
+        raise ServiceError("Log in with --login USER (or set FINTAX_USER); the password is read from "
+                           "FINTAX_PASSWORD or prompted")
+    password = os.environ.get("FINTAX_PASSWORD") or getpass.getpass(f"Password for {args.login}: ")
+    session = auth.login(args.login, password)
+    if needed:
+        require(session, needed)
+    return session
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     setup_logging(default_home(), args.verbose)
     try:
         db = None if getattr(args, "no_db", False) else open_database(args.db)
+        if db is not None:
+            args.session = authenticate(db, args)
+            args.user = args.session.username if args.session.username != "setup" else current_user()
         args.func(db, args)
         return 0
     except (ServiceError, UnsupportedFileError, ValueError, FileNotFoundError) as exc:

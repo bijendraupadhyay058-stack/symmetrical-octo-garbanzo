@@ -18,7 +18,7 @@ FIELD_ORDER = [
     "supplier_gstin", "supplier_name", "invoice_no", "invoice_date", "voucher_date", "voucher_type", "doc_type",
     "taxable_value", "igst", "cgst", "sgst", "cess", "invoice_value", "rate", "place_of_supply", "reverse_charge",
     "original_invoice_no", "original_invoice_date", "itc_availability", "itc_reason", "supply_type",
-    "supplier_period",
+    "supplier_period", "description", "ims_action",
 ]
 MIME = "application/x-qabstractitemmodeldatalist"
 

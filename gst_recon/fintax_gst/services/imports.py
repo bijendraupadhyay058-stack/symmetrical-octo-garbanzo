@@ -8,7 +8,8 @@ from sqlalchemy import delete, func, insert, select
 
 from ..core.models import Source
 from ..db.database import Database
-from ..db.models import ImportIssue, ImportTemplate, Invoice, ReconLineRow, SourceFile
+from ..db.models import Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
+from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
 from ..importers.pipeline import ImportPreview, preview_file
 from .common import ServiceError, audit, dumps
@@ -99,6 +100,7 @@ class ImportService:
                 "itc_reason": r.itc_reason, "is_amendment": r.is_amendment,
                 "original_invoice_no": r.original_invoice_no[:100], "original_invoice_date": r.original_invoice_date,
                 "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
+                "description": r.description, "ims_action": r.ims_action,
             } for r in new_records]
             for i in range(0, len(rows), BATCH):
                 if cancel:
@@ -112,9 +114,38 @@ class ImportService:
                         "raw_json": "{}"} for r in skipped]
             if issues:
                 s.execute(insert(ImportIssue), issues)
+            self._save_other_itc(s, client_id, sf.id, preview)
             audit(s, "IMPORT", "source_file", sf.id, preview.summary(), user, client_id)
         progress(100, "Import complete")
         return sf
+
+    @staticmethod
+    def _save_other_itc(s, client_id: int, file_id: int, preview: ImportPreview) -> None:
+        """Store GSTR-2B ISD credits and imports; the same record in a re-downloaded file is skipped."""
+        import hashlib
+
+        if not preview.other_itc:
+            return
+        existing = set(s.scalars(select(OtherItc.identity_hash).where(OtherItc.client_id == client_id)))
+        rows = []
+        for o in preview.other_itc:
+            try:
+                doc_date = parse_date(o.get("doc_date"))
+            except ValueError:
+                doc_date = None
+            key = "|".join(str(x) for x in (preview.period, o["section"], o["party"], o["doc_type"], o["doc_no"],
+                                           doc_date, o["igst"], o["cgst"], o["sgst"], o["cess"]))
+            h = hashlib.sha256(key.encode()).hexdigest()[:32]
+            if h in existing:
+                continue
+            existing.add(h)
+            rows.append({"client_id": client_id, "source_file_id": file_id, "period": preview.period,
+                         "section": o["section"], "party": str(o["party"])[:60], "doc_type": str(o["doc_type"])[:10],
+                         "doc_no": str(o["doc_no"])[:60], "doc_date": doc_date, "taxable": o["taxable"],
+                         "igst": o["igst"], "cgst": o["cgst"], "sgst": o["sgst"], "cess": o["cess"],
+                         "itc_availability": o.get("itc_availability", ""), "identity_hash": h})
+        if rows:
+            s.execute(insert(OtherItc), rows)
 
     def import_file(self, client_id: int, path, source, period=None, template=None, user=None) -> tuple[SourceFile, ImportPreview]:
         preview = self.preview(client_id, path, source, period, template)
@@ -147,6 +178,17 @@ class ImportService:
                                    "for audit traceability")
             count = s.scalar(select(func.count()).select_from(Invoice).where(Invoice.source_file_id == file_id))
             s.execute(delete(ImportIssue).where(ImportIssue.source_file_id == file_id))
+            s.execute(delete(OtherItc).where(OtherItc.source_file_id == file_id))
+            periods = set(s.scalars(select(Gstr3bEntry.period).where(Gstr3bEntry.source_file_id == file_id)))
+            s.execute(delete(Gstr3bEntry).where(Gstr3bEntry.source_file_id == file_id))
+            for p in periods:  # the previous import of that period becomes current again
+                latest = s.scalar(select(func.max(Gstr3bEntry.source_file_id)).where(
+                    Gstr3bEntry.client_id == client_id, Gstr3bEntry.period == p))
+                if latest:
+                    for e in s.scalars(select(Gstr3bEntry).where(Gstr3bEntry.client_id == client_id,
+                                                                 Gstr3bEntry.period == p,
+                                                                 Gstr3bEntry.source_file_id == latest)):
+                        e.active = True
             s.execute(delete(Invoice).where(Invoice.source_file_id == file_id))
             audit(s, "DELETE", "source_file", file_id, {"file": sf.file_name, "documents": count}, user, client_id)
             s.delete(sf)

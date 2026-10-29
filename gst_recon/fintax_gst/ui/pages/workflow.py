@@ -116,7 +116,7 @@ class WorkflowPage(LazyPage):
         self.s3 = StepCard(3, "Import purchase register",
                            "TallyPrime purchase register / GST purchase report or any Excel/CSV register. "
                            "Booking period is taken from the voucher date column when present.")
-        b3 = primary("Import purchase register…")
+        b3 = self.books_btn = primary("Import purchase register…")
         b3.clicked.connect(lambda: self.import_dialog(Source.BOOKS))
         self.books_lbl = QLabel()
         r3 = QHBoxLayout()
@@ -125,23 +125,29 @@ class WorkflowPage(LazyPage):
         self.s3.body.addLayout(r3)
         self.s4 = StepCard(4, "Import GSTR-2B", "GST portal Excel, JSON or ZIP download. The return period is read "
                                                 "from the file; otherwise the From month is used.")
-        b4 = primary("Import GSTR-2B…")
+        b4 = self.g2b_btn = primary("Import GSTR-2B…")
         b4.clicked.connect(lambda: self.import_dialog(Source.GSTR2B))
         self.g2b_lbl = QLabel()
         r4 = QHBoxLayout()
         r4.addWidget(b4)
         r4.addWidget(self.g2b_lbl, 1)
         self.s4.body.addLayout(r4)
-        self.s5 = StepCard(5, "Optional: prior-period books and GSTR-2A",
-                           "Earlier months' purchase registers let the engine recognise invoices booked earlier "
-                           "that appear in this GSTR-2B. GSTR-3B and IMS imports are part of the Phase 3 ITC module.")
+        self.s5 = StepCard(5, "Optional: GSTR-3B, IMS, prior-period books and GSTR-2A",
+                           "GSTR-3B (portal JSON or template) feeds the Table 4 working; the IMS download is compared "
+                           "with books and GSTR-2B; earlier months' purchase registers let the engine recognise "
+                           "invoices booked earlier that appear in this GSTR-2B.")
         r5 = QHBoxLayout()
+        b5c = QPushButton("Import GSTR-3B…")
+        b5c.clicked.connect(lambda: self.navigate.emit("returns"))
+        b5d = QPushButton("Import IMS…")
+        b5d.clicked.connect(lambda: self.navigate.emit("ims"))
         b5a = QPushButton("Import earlier purchase register…")
         b5a.clicked.connect(lambda: self.import_dialog(Source.BOOKS, prior=True))
         b5b = QPushButton("Import GSTR-2A…")
         b5b.clicked.connect(lambda: self.import_dialog(Source.GSTR2A))
-        r5.addWidget(b5a)
-        r5.addWidget(b5b)
+        self.optional_btns = (b5a, b5b, b5c, b5d)
+        for b in self.optional_btns:
+            r5.addWidget(b)
         r5.addStretch()
         self.s5.body.addLayout(r5)
 
@@ -341,7 +347,10 @@ class WorkflowPage(LazyPage):
             f"{len(rows)} file(s); {rejected} rejected row(s) kept with reasons in the import log."
             if rows else "No files imported for this period yet.")
         self.s6.set_done(bool(rows), f"{rejected} rejected rows" if rows else "")
-        self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0)
+        self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0 and st.can("reconcile"))
+        for b in (self.books_btn, self.g2b_btn, *self.optional_btns):
+            b.setEnabled(st.can("import"))
+        self.export_btn.setEnabled(st.can("export"))
         self._show_run()
 
     def _show_run(self) -> None:

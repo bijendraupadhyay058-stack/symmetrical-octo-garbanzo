@@ -149,7 +149,7 @@ class SuppliersPage(LazyPage):
         self.lines_proxy.gstin = gstin or "-"
         self.lines_proxy.refresh()
         self.lines_table.fit(200)
-        self.v_save.setEnabled(gstin is not None)
+        self.v_save.setEnabled(gstin is not None and self.state.can("review"))
         v = self.vendors.get(gstin) if gstin else None
         name = next((ln.supplier_name for ln in getattr(self, "lines", []) if ln.supplier_gstin == gstin), "")
         self.vendor_title.setText(f"<b>Vendor follow-up</b> – {gstin}" if gstin else

@@ -7,7 +7,7 @@ root = Path(SPECPATH).parent  # noqa: F821 - provided by PyInstaller
 a = Analysis(  # noqa: F821
     [str(root / "packaging" / "entry_cli.py")],
     pathex=[str(root)],
-    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer"],
+    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer", "cryptography.fernet"],
     excludes=["PySide6", "tkinter", "matplotlib", "IPython"],
 )
 pyz = PYZ(a.pure)  # noqa: F821

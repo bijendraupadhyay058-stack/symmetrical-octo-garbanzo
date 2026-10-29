@@ -31,9 +31,18 @@ Client: Shree Ganesh Traders (27AAPFU0939F1ZV), FY 2025-26, period April 2025.
 | 25 | Probable match (typo) | Probable Match Requiring Review | Digits transposed – review |
 | 26 | GSTIN mismatch | Probable Match Requiring Review | Booked under supplier's Karnataka GSTIN; supplier reported from Maharashtra registration |
 | 27 | ITC not available | Fully Matched | Matched, but GSTR-2B marks ITC unavailable – at risk |
-| 28 | Previous-period invoice | Previous-Period Invoice | Booked in March 2025, reflected in April GSTR-2B |
+| 28 | Blocked-credit indicator | Fully Matched | Matched; ITC review flags Section 17(5)(b)(i) food / gifts for the reviewer |
+| 29 | Reverse charge (GTA) | Fully Matched | Matched; ITC available only after RCM tax is paid (GSTR-3B 4(A)(3)) |
+| 30 | Previous-period invoice | Previous-Period Invoice | Booked in March 2025, reflected in April GSTR-2B |
 
 Rows that must be rejected at import (books):
 
 * LH-55: Unregistered supplier – no GSTIN
 * PPK/499: Invalid date 31-04-2025
+
+## ITC module (Phase 3)
+
+* `gstr2b_2025-04.json` also carries an ISD credit (₹1,800) and a bill of entry (IGST ₹1,800).
+* `gstr3b_2025-04.json`: 4(A)(5) is ₹2,000 more than GSTR-2B supports → possible statutory discrepancy; 4(B)(1) reverses ₹1,440 for ANC/77 (Section 17(5)).
+* `ims_2025-04.json`: GCH-2201 rejected but present in GSTR-2B (recompute GSTR-2B); KTX-2290 kept pending (explains why it is missing in GSTR-2B); OSL/377 accepted but not in books.
+* ITC review flags ANC/77 (Section 17(5)(b)(i) food and (h) gifts indicators), SRW-310 (reverse charge), KTX-2301 (GSTR-2B ITC not available) and all books documents not in GSTR-2B (Section 16(2)(aa)).

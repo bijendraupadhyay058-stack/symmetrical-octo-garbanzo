@@ -15,6 +15,7 @@ class Source(str, Enum):
     BOOKS = "BOOKS"
     GSTR2B = "GSTR2B"
     GSTR2A = "GSTR2A"
+    IMS = "IMS"  # Invoice Management System export (recipient's actions on supplier documents)
 
 
 class DocType(str, Enum):
@@ -148,6 +149,8 @@ class InvoiceRecord:
     original_invoice_no: str = ""
     original_invoice_date: date | None = None
     supplier_period: str = ""
+    description: str = ""  # narration / expense head / item description (used by ITC rules)
+    ims_action: str = ""  # IMS only: A accepted, R rejected, P pending, N no action (deemed accepted)
     source_file: str = ""
     source_rows: str = ""
     db_id: int | None = None
@@ -195,7 +198,7 @@ class InvoiceRecord:
         GSTR-2A/2B records include the return period: the same invoice reported
         in two periods is two separate portal records (and is then flagged as a
         duplicate during reconciliation), not a repeated import."""
-        parts = [self.period if self.source != Source.BOOKS else "",
+        parts = [self.period if self.source != Source.BOOKS else "", self.ims_action,
             self.source.value, self.supplier_gstin, self.doc_type.value, self.invoice_no_norm,
             self.invoice_date.isoformat(), *(str(getattr(self, f).normalize()) for f in AMOUNT_FIELDS),
             "A" if self.is_amendment else "O",

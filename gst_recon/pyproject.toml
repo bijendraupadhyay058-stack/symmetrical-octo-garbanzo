@@ -14,6 +14,7 @@ dependencies = [
     "SQLAlchemy>=2.0",
     "rapidfuzz>=3.6",
     "reportlab>=4.0",
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

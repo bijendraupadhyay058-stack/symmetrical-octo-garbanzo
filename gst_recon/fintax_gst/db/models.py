@@ -126,6 +126,8 @@ class Invoice(Base):
     original_invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     supplier_period: Mapped[str] = mapped_column(String(20), default="")
     identity_hash: Mapped[str] = mapped_column(String(32))
+    description: Mapped[str] = mapped_column(Text, default="")  # schema v3
+    ims_action: Mapped[str] = mapped_column(String(2), default="")  # schema v3
     source_file: Mapped[SourceFile] = relationship()
 
 
@@ -263,3 +265,118 @@ class Attachment(Base):
 
 
 V2_TABLES = [MatchDecision, Vendor, Attachment]
+
+
+# ------------------------------------------------------------------ schema v3
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(60), unique=True)
+    full_name: Mapped[str] = mapped_column(String(120), default="")
+    role: Mapped[str] = mapped_column(String(20))
+    password_hash: Mapped[str] = mapped_column(String(300))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcRuleRow(Base):
+    """Configurable ITC review rule. ``client_id`` NULL = applies to every client."""
+
+    __tablename__ = "itc_rules"
+    __table_args__ = (UniqueConstraint("code", "client_id", name="uq_rule_code_client"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(40))
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    definition_json: Mapped[str] = mapped_column(Text)
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcReview(Base):
+    """Reviewer's decision on a rule flag for one document."""
+
+    __tablename__ = "itc_reviews"
+    __table_args__ = (UniqueConstraint("invoice_id", "rule_code", name="uq_review_doc_rule"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    rule_code: Mapped[str] = mapped_column(String(40))
+    decision: Mapped[str] = mapped_column(String(12))  # CONFIRMED | DISMISSED
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcClaim(Base):
+    """ITC claim register: CLAIM, REVERSE and RECLAIM actions per books document and GSTR-3B period."""
+
+    __tablename__ = "itc_claims"
+    __table_args__ = (Index("ix_claim_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))  # GSTR-3B period of the action
+    action: Mapped[str] = mapped_column(String(10))  # CLAIM | REVERSE | RECLAIM
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    rule_ref: Mapped[str] = mapped_column(String(80), default="")
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Gstr3bEntry(Base):
+    """GSTR-3B Table 4 values per period, as imported. Re-imports supersede (never delete) older rows."""
+
+    __tablename__ = "gstr3b_entries"
+    __table_args__ = (Index("ix_3b_client_period", "client_id", "period", "active"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"))
+    period: Mapped[str] = mapped_column(String(7))
+    table_code: Mapped[str] = mapped_column(String(6))  # 4A1..4A5, 4B1, 4B2, 4C, 4D1, 4D2
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class OtherItc(Base):
+    """GSTR-2B ITC outside invoice reconciliation: ISD credits and imports (bills of entry)."""
+
+    __tablename__ = "itc_other"
+    __table_args__ = (Index("ix_other_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    section: Mapped[str] = mapped_column(String(10))  # ISD | ISDA | IMPG | IMPGSEZ
+    party: Mapped[str] = mapped_column(String(60), default="")  # ISD GSTIN, SEZ supplier GSTIN or port code
+    doc_type: Mapped[str] = mapped_column(String(10), default="")
+    doc_no: Mapped[str] = mapped_column(String(60))
+    doc_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    itc_availability: Mapped[str] = mapped_column(String(2), default="")
+    identity_hash: Mapped[str] = mapped_column(String(32))
+
+
+V3_TABLES = [User, AppSetting, ItcRuleRow, ItcReview, ItcClaim, Gstr3bEntry, OtherItc]

@@ -8,18 +8,24 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QStackedWidget,
+    QApplication, QComboBox, QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QStackedWidget,
     QVBoxLayout, QWidget,
 )
 
 from .. import PRODUCT_NAME, TAGLINE, __version__
 from ..cli import setup_logging
 from ..db.database import Database, default_home, open_database
+from ..services.auth import ROLES, SETUP_SESSION, AuthService, Session
 from ..services.common import current_user
+from ..services.security import SecurityService
+from .dialogs.login import LoginDialog
 from .pages.admin import ClientsPage, ImportsPage, SettingsPage
 from .pages.dashboard import DashboardPage
 from .pages.exceptions import ExceptionsPage
 from .pages.history import HistoryPage, OpenItemsPage
+from .pages.itc import ItcPage
+from .pages.returns import ImsPage, ReturnsPage
+from .pages.security import SecurityPage
 from .pages.suppliers import SuppliersPage
 from .pages.workflow import WorkflowPage
 from .state import AppState
@@ -29,8 +35,9 @@ log = logging.getLogger(__name__)
 
 NAV = [
     ("dashboard", "◧  Dashboard"), ("workflow", "▶  Reconcile"), ("exceptions", "⚑  Exceptions"),
+    ("itc", "✓  ITC review"), ("returns", "▤  GSTR-3B & annual"), ("ims", "⇄  IMS"),
     ("suppliers", "⌂  Suppliers"), ("open_items", "⏳  Open items"), ("history", "↺  History"),
-    ("imports", "⇪  Imports"), ("clients", "☰  Clients"), ("settings", "⚙  Settings"),
+    ("imports", "⇪  Imports"), ("clients", "☰  Clients"), ("security", "🔒  Security"), ("settings", "⚙  Settings"),
 ]
 
 
@@ -74,8 +81,10 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages: dict[str, QWidget] = {
             "dashboard": DashboardPage(state), "workflow": WorkflowPage(state), "exceptions": ExceptionsPage(state),
+            "itc": ItcPage(state), "returns": ReturnsPage(state), "ims": ImsPage(state),
             "suppliers": SuppliersPage(state), "open_items": OpenItemsPage(state), "history": HistoryPage(state),
-            "imports": ImportsPage(state), "clients": ClientsPage(state), "settings": SettingsPage(state),
+            "imports": ImportsPage(state), "clients": ClientsPage(state), "security": SecurityPage(state),
+            "settings": SettingsPage(state),
         }
         for key, label in NAV:
             item = QListWidgetItem(label)
@@ -89,7 +98,9 @@ class MainWindow(QMainWindow):
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
         self.setCentralWidget(central)
-        self.statusBar().showMessage(f"Database: {state.db.path} · user {state.user} · offline")
+        role = ROLES.get(state.session.role, state.session.role)
+        self.statusBar().showMessage(f"Database: {state.db.path} · {state.session.full_name or state.user} ({role}) "
+                                     "· offline – no data leaves this computer")
         state.clientChanged.connect(self._sync_header)
         state.dataChanged.connect(self._fill_clients)
         state.runChanged.connect(self._sync_header)
@@ -122,7 +133,9 @@ class MainWindow(QMainWindow):
         self.fy_cb.currentTextChanged.connect(lambda fy: fy and self.state.set_fy(fy))
         self.run_lbl = QLabel("")
         self.run_lbl.setObjectName("HeaderLabel")
-        for x in (lbl, self.client_cb, fy_lbl, self.fy_cb, self.run_lbl):
+        user_lbl = QLabel(f"👤 {self.state.session.username}")
+        user_lbl.setObjectName("HeaderLabel")
+        for x in (lbl, self.client_cb, fy_lbl, self.fy_cb, self.run_lbl, user_lbl):
             lay.addWidget(x)
         return w
 
@@ -177,7 +190,7 @@ def create_app(argv: list[str] | None = None) -> QApplication:
     return app
 
 
-def build_window(db: Database, user: str | None = None) -> MainWindow:
+def build_window(db: Database, user: str | Session | None = None) -> MainWindow:
     state = AppState(db, user or current_user())
     clients = state.clients.list()
     if len(clients) == 1:
@@ -194,7 +207,19 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(default_home(), False)
     app = create_app([sys.argv[0], *qt_args])
     db = open_database(args.db)
-    win = build_window(db)
+    if args.smoke_test:  # opens each page once and exits – never interactive, so no login needed
+        session = SETUP_SESSION
+    else:
+        login = LoginDialog(None, AuthService(db))
+        if login.exec() != QDialog.Accepted or login.session is None:
+            db.dispose()
+            return 1
+        session = login.session
+    try:
+        SecurityService(db).auto_backup()
+    except OSError as exc:  # never block start-up on a backup problem; it is logged
+        log.warning("automatic backup failed: %s", exc)
+    win = build_window(db, session)
     win.show()
     if args.smoke_test:
         for key, _label in NAV:

@@ -12,6 +12,10 @@ from ..services.clients import ClientService
 from ..services.followup import AttachmentService, VendorService
 from ..services.imports import ImportService
 from ..services.reconciliation import ReconciliationService
+from ..services.auth import SETUP_SESSION, AuthService, Session
+from ..services.gstr3b import Gstr3bService
+from ..services.itc import ItcService
+from ..services.security import SecurityService
 from ..services.tracking import TrackingService
 
 
@@ -20,10 +24,11 @@ class AppState(QObject):
     runChanged = Signal()
     dataChanged = Signal()  # imports, runs or lines changed
 
-    def __init__(self, db: Database, user: str, settings: QSettings | None = None):
+    def __init__(self, db: Database, user: str | Session, settings: QSettings | None = None):
         super().__init__()
         self.db = db
-        self.user = user
+        self.session: Session = user if isinstance(user, Session) else Session(user, SETUP_SESSION.role, user)
+        self.user = self.session.username
         self.qsettings = settings or QSettings("FinTaxPro", "GSTReconciliation")
         self.clients = ClientService(db)
         self.imports = ImportService(db)
@@ -31,6 +36,10 @@ class AppState(QObject):
         self.tracking = TrackingService(db)
         self.vendors = VendorService(db)
         self.attachments = AttachmentService(db)
+        self.auth = AuthService(db)
+        self.itc = ItcService(db)
+        self.gstr3b = Gstr3bService(db)
+        self.security = SecurityService(db)
         self.client: Client | None = None
         self.fy: str = fy_of(date.today())
         self.run_id: int | None = None
@@ -73,6 +82,10 @@ class AppState(QObject):
         if self._ctx_cache is None or self._ctx_cache[0] != self.run_id:
             self._ctx_cache = (self.run_id, self.recon.load(self.run_id))
         return self._ctx_cache[1]
+
+    # ---------------------------------------------------------- permissions
+    def can(self, permission: str) -> bool:
+        return self.session.can(permission)
 
     # ------------------------------------------------------- user settings
     def recon_settings(self) -> ReconSettings:

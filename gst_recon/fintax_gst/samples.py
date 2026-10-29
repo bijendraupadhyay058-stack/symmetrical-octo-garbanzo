@@ -48,6 +48,8 @@ SUPPLIERS = {
     "OSL": (gstin("27", "ABMPS2468P"), "Om Sai Logistics"),
     "DOS": (gstin("07", "AAGFD1357Q"), "Delhi Office Supplies"),
     "KTX": (gstin("33", "AAHCK9753R"), "Kovai Textiles Pvt Ltd"),
+    "ANC": (gstin("27", "AAJFA2468S"), "Annapurna Caterers"),
+    "SRW": (gstin("27", "ABKPS1357T"), "Shree Roadways (GTA)"),
 }
 
 
@@ -67,6 +69,8 @@ class Doc:
     reason: str = ""
     original_no: str = ""
     original_dt: date | None = None
+    narration: str = ""
+    rcm: bool = False
 
 
 def intra(sup, no, dt, taxable, rate=18, **kw):
@@ -145,6 +149,14 @@ scenario("ITC not available", [inter("KTX", "KTX-2301", A(24), "36000")],
          [inter("KTX", "KTX-2301", A(24), "36000", itc="No", reason="POS and supplier state are same but recipient state is different")],
          Category.FULLY_MATCHED, "Matched, but GSTR-2B marks ITC unavailable – at risk")
 
+scenario("Blocked-credit indicator", [intra("ANC", "ANC/77", A(18), "8000", narration="Staff lunch – Diwali function")],
+         [intra("ANC", "ANC/77", A(18), "8000")], Category.FULLY_MATCHED,
+         "Matched; ITC review flags Section 17(5)(b)(i) food / gifts for the reviewer")
+scenario("Reverse charge (GTA)", [Doc("SRW", "SRW-310", A(8), "20000", cgst="500", sgst="500", rate=5, rcm=True,
+                                      narration="Freight inward – GTA under RCM")],
+         [Doc("SRW", "SRW-310", A(8), "20000", cgst="500", sgst="500", rate=5, rcm=True)], Category.FULLY_MATCHED,
+         "Matched; ITC available only after RCM tax is paid (GSTR-3B 4(A)(3))")
+
 PRIOR_BOOKS = [inter("DOS", "DOS-1001", date(2025, 3, 28), "9500")]
 PRIOR_IN_2B = [inter("DOS", "DOS-1001", date(2025, 3, 28), "9500")]
 scenario("Previous-period invoice", [], PRIOR_IN_2B, Category.PREVIOUS_PERIOD,
@@ -171,7 +183,7 @@ def g2b_docs() -> list[Doc]:
 TALLY_HEADERS = [
     "Date", "Particulars", "Voucher Type", "Voucher No.", "Supplier Invoice No.", "Supplier Invoice Date",
     "GSTIN/UIN", "Gross Total", "Purchase @18%", "Purchase @12%", "Input CGST 9%", "Input SGST 9%",
-    "Input CGST 6%", "Input SGST 6%", "Input IGST 18%", "Input IGST 12%",
+    "Input CGST 6%", "Input SGST 6%", "Input IGST 18%", "Input IGST 12%", "Narration",
 ]
 
 
@@ -187,7 +199,7 @@ def _tally_row(n: int, d: Doc, booking: date) -> list:
         tx if r18 else None, None if r18 else tx,
         cg if r18 and cg else None, sg if r18 and sg else None,
         cg if not r18 and cg else None, sg if not r18 and sg else None,
-        ig if r18 and ig else None, ig if not r18 and ig else None,
+        ig if r18 and ig else None, ig if not r18 and ig else None, d.narration or None,
     ]
 
 
@@ -296,7 +308,7 @@ def write_gstr2b_excel(path: Path, docs: list[Doc]) -> None:
     cdnr = sheet("B2B-CDNR", CDNR_TOP, CDNR_SUB, "Debit/Credit notes (Original)")
     for d in docs:
         gst, name = SUPPLIERS[d.sup]
-        common_tail = [_pos(d), "No", float(D(d.taxable))]
+        common_tail = [_pos(d), "Yes" if d.rcm else "No", float(D(d.taxable))]
         taxes = [float(D(x)) for x in (d.igst, d.cgst, d.sgst, d.cess)]
         filing = ["Apr'25" if d.dt.month == 4 else "Mar'25", "11-05-2025", d.itc, d.reason]
         if d.doc in ("CRN", "DBN"):
@@ -318,7 +330,7 @@ def write_gstr2b_json(path: Path, docs: list[Doc]) -> None:
         gst, name = SUPPLIERS[d.sup]
         amounts = {"txval": float(D(d.taxable)), "igst": float(D(d.igst)), "cgst": float(D(d.cgst)),
                    "sgst": float(D(d.sgst)), "cess": float(D(d.cess))}
-        base = {"dt": d.dt.strftime("%d-%m-%Y"), "val": float(_value(d)), "pos": "27", "rev": "N",
+        base = {"dt": d.dt.strftime("%d-%m-%Y"), "val": float(_value(d)), "pos": "27", "rev": "Y" if d.rcm else "N",
                 "itcavl": "Y" if d.itc == "Yes" else "N", "rsn": "P" if d.reason else "", "diffprcnt": 1,
                 **amounts}
         if d.doc in ("CRN", "DBN"):
@@ -334,11 +346,91 @@ def write_gstr2b_json(path: Path, docs: list[Doc]) -> None:
         entry = sections[sec].setdefault(gst, {"ctin": gst, "trdnm": name, "supfildt": "11-05-2025",
                                                 "supprd": "042025", key: []})
         entry[key].append(doc)
+    docdata = {sec: list(v.values()) for sec, v in sections.items()}
+    docdata["isd"] = [{"ctin": ISD_GSTIN, "trdnm": "Shree Ganesh Traders – HO (ISD)", "doclist": [
+        {"doctyp": "ISDI", "docnum": "ISD/25/041", "docdt": "15-04-2025", "oinvnum": "", "oinvdt": "",
+         "igst": 0, "cgst": 900, "sgst": 900, "cess": 0, "itcelg": "Y"}]}]
+    docdata["impg"] = [{"refdt": "20-04-2025", "portcode": "INNSA1", "boenum": "7012345", "boedt": "18-04-2025",
+                        "isamd": "N", "txval": 10000, "igst": 1800, "cess": 0}]
     payload = {"chksum": "demo", "data": {
         "gstin": CLIENT["gstin"], "rtnprd": "042025", "version": "1.0", "gendt": "14-05-2025",
-        "docdata": {sec: list(v.values()) for sec, v in sections.items()},
+        "docdata": docdata,
     }}
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+ISD_GSTIN = gstin("27", "AAPFU0939F", "2")  # the client's own Input Service Distributor registration
+
+
+def _components(docs: list[Doc]) -> dict[str, D]:
+    tot = {k: D(0) for k in ("igst", "cgst", "sgst", "cess")}
+    for d in docs:
+        sign = -1 if d.doc == "CRN" else 1
+        for k in tot:
+            tot[k] += D(getattr(d, k)) * sign
+    return tot
+
+
+def write_gstr3b_json(path: Path) -> None:
+    """April 2025 GSTR-3B as filed: 4(A)(5) includes ₹2,000 more than GSTR-2B supports, so the
+    Table 4 working shows a possible statutory discrepancy."""
+    docs = g2b_docs()
+    oth = _components([d for d in docs if d.itc == "Yes" and not d.rcm])
+    oth["cgst"] += D(1000)
+    oth["sgst"] += D(1000)
+    rcm = _components([d for d in docs if d.rcm])
+    na = _components([d for d in docs if d.itc != "Yes"])
+
+    def row(ty, v):
+        return {"ty": ty, "iamt": float(v.get("igst", 0)), "camt": float(v.get("cgst", 0)),
+                "samt": float(v.get("sgst", 0)), "csamt": float(v.get("cess", 0))}
+
+    impg = {"igst": D(1800)}
+    isd = {"cgst": D(900), "sgst": D(900)}
+    rev = {"cgst": D(720), "sgst": D(720)}  # 17(5) food reversal (ANC/77)
+    net = {k: oth.get(k, 0) + rcm.get(k, 0) + impg.get(k, 0) + isd.get(k, 0) - rev.get(k, 0)
+           for k in ("igst", "cgst", "sgst", "cess")}
+    payload = {"gstin": CLIENT["gstin"], "ret_period": "042025", "itc_elg": {
+        "itc_avl": [row("IMPG", impg), row("IMPS", {}), row("ISRC", rcm), row("ISD", isd), row("OTH", oth)],
+        "itc_rev": [row("RUL", rev), row("OTH", {})],
+        "itc_net": {k: v for k, v in row("", net).items() if k != "ty"},
+        "itc_inelg": [row("RUL", {}), row("OTH", na)],
+    }}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def write_gstr3b_template(path: Path) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Period", "Table", "Description", "IGST", "CGST", "SGST", "Cess"])
+        w.writerow(["2025-03", "4A5", "All other ITC", "1710.00", "1530.00", "1530.00", "0"])
+        w.writerow(["2025-03", "4B2", "Others", "0", "0", "0", "0"])
+
+
+IMS_ACTIONS_DEMO = {"GCH-2201": "R", "DOS-1198": "N"}
+
+
+def write_ims_json(path: Path) -> None:
+    """IMS actions for April 2025: one rejection (still in GSTR-2B), one pending (explains a
+    document missing from GSTR-2B) and the rest accepted / no action."""
+    sections: dict[str, list] = {"b2b": [], "cn": []}
+
+    def entry(d: Doc, action: str) -> dict:
+        gst, name = SUPPLIERS[d.sup]
+        key = "ntnum" if d.doc == "CRN" else "inum"
+        return {"stin": gst, "trdnm": name, key: d.no, "idt" if d.doc != "CRN" else "ntdt": d.dt.strftime("%d-%m-%Y"),
+                "val": float(_value(d)), "txval": float(D(d.taxable)), "iamt": float(D(d.igst)),
+                "camt": float(D(d.cgst)), "samt": float(D(d.sgst)), "csamt": float(D(d.cess)), "pos": "27",
+                "action": action, "rtnprd": "042025"}
+
+    for d in g2b_docs():
+        if d.original_no or d.dt.month != 4:
+            continue  # amendments and the late March invoice are not part of this IMS extract
+        sections["cn" if d.doc == "CRN" else "b2b"].append(entry(d, IMS_ACTIONS_DEMO.get(d.no, "A")))
+    pending = next(d for d in books_docs() if d.no == "KTX-2290")
+    sections["b2b"].append(entry(pending, "P"))
+    path.write_text(json.dumps({"data": {"gstin": CLIENT["gstin"], "rtnprd": "042025", "invdata": sections}},
+                               indent=2), encoding="utf-8")
 
 
 def write_all(out_dir: str | Path) -> dict[str, Path]:
@@ -350,6 +442,9 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "books_april_csv": out / "custom_purchase_register_2025-04.csv",
         "gstr2b_april": out / "gstr2b_2025-04.xlsx",
         "gstr2b_april_json": out / "gstr2b_2025-04.json",
+        "gstr3b_april_json": out / "gstr3b_2025-04.json",
+        "gstr3b_template_csv": out / "gstr3b_template_2025-03.csv",
+        "ims_april_json": out / "ims_2025-04.json",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -357,6 +452,9 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_custom_csv(files["books_april_csv"], books_docs())
     write_gstr2b_excel(files["gstr2b_april"], g2b_docs())
     write_gstr2b_json(files["gstr2b_april_json"], g2b_docs())
+    write_gstr3b_json(files["gstr3b_april_json"])
+    write_gstr3b_template(files["gstr3b_template_csv"])
+    write_ims_json(files["ims_april_json"])
     lines = ["# Demo dataset – expected reconciliation outcome", "",
              f"Client: {CLIENT['name']} ({CLIENT['gstin']}), FY 2025-26, period April 2025.", "",
              "| # | Scenario | Expected category | Note |", "|---|---|---|---|"]
@@ -364,5 +462,14 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         lines.append(f"| {i} | {name} | {cat.value} | {note} |")
     lines += ["", "Rows that must be rejected at import (books):", ""]
     lines += [f"* {r['no']}: {r['why']}" for r in REJECTED_BOOK_ROWS]
+    lines += ["", "## ITC module (Phase 3)", "",
+              "* `gstr2b_2025-04.json` also carries an ISD credit (₹1,800) and a bill of entry (IGST ₹1,800).",
+              "* `gstr3b_2025-04.json`: 4(A)(5) is ₹2,000 more than GSTR-2B supports → possible statutory "
+              "discrepancy; 4(B)(1) reverses ₹1,440 for ANC/77 (Section 17(5)).",
+              "* `ims_2025-04.json`: GCH-2201 rejected but present in GSTR-2B (recompute GSTR-2B); KTX-2290 kept "
+              "pending (explains why it is missing in GSTR-2B); OSL/377 accepted but not in books.",
+              "* ITC review flags ANC/77 (Section 17(5)(b)(i) food and (h) gifts indicators), SRW-310 (reverse "
+              "charge), KTX-2301 (GSTR-2B ITC not available) and all books documents not in GSTR-2B "
+              "(Section 16(2)(aa))."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

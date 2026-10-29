@@ -91,7 +91,10 @@ def test_client_dialog_validation(window, messages):
 
 def test_full_workflow_through_the_ui(window, sample_files, monkeypatch, tmp_path, qtbot, messages):
     wf = _setup_demo(window, sample_files, monkeypatch)
-    assert wf.s3.state_lbl.text() == "26 documents" and wf.s4.state_lbl.text() == "26 documents"
+    from fintax_gst.samples import books_docs, g2b_docs
+
+    assert wf.s3.state_lbl.text() == f"{len(books_docs())} documents"
+    assert wf.s4.state_lbl.text() == f"{len(g2b_docs())} documents"
     assert wf.files_model.rowCount() == 2
     wf.date_tol.setValue(7)
     wf.start()

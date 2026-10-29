@@ -75,6 +75,9 @@ SYNONYMS: dict[str, list[str]] = {
     ],
     "itc_availability": ["itc availability", "itc available", "itcavl", "eligibility for itc"],
     "itc_reason": ["reason", "rsn", "itc unavailability reason"],
+    "description": ["narration", "description", "item description", "goods description", "expense head",
+                    "purchase ledger", "nature of expense", "description of goods services", "item name"],
+    "ims_action": ["ims action", "action", "action taken", "ims status", "recipient action", "action status"],
 }
 
 #: Pattern used to sum ledger-wise tax columns (TallyPrime) when no exact column exists.
@@ -96,7 +99,8 @@ FIELD_LABELS = {
     "rate": "Tax rate", "place_of_supply": "Place of supply", "reverse_charge": "Reverse charge",
     "supplier_period": "Supplier filing period", "itc_availability": "ITC availability",
     "itc_reason": "ITC reason", "original_invoice_no": "Original invoice number",
-    "original_invoice_date": "Original invoice date",
+    "original_invoice_date": "Original invoice date", "description": "Narration / description",
+    "ims_action": "IMS action",
 }
 
 

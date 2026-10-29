@@ -114,6 +114,25 @@ def tally_voucher_doc_type(value) -> DocType | None:
     return None
 
 
+IMS_ACTIONS = {"A": "Accepted", "R": "Rejected", "P": "Pending", "N": "No action (deemed accepted)"}
+
+
+def parse_ims_action(value) -> str | None:
+    """A / R / P / N. Blank means no action was taken (deemed accepted when GSTR-2B is generated)."""
+    if is_blank(value):
+        return "N"
+    text = re.sub(r"[^a-z]", "", str(value).lower())
+    if text in ("a", "accept", "accepted"):
+        return "A"
+    if text in ("r", "reject", "rejected"):
+        return "R"
+    if text in ("p", "pending", "keptpending"):
+        return "P"
+    if text in ("n", "noaction", "noactiontaken", "deemedaccepted", "none"):
+        return "N"
+    return None
+
+
 def parse_bool(value) -> bool:
     if is_blank(value):
         return False

@@ -17,7 +17,7 @@ from ..core.money import ZERO
 from .column_mapping import (
     Column, MappingResult, apply_template, auto_map, build_columns, header_score, normalize_header,
 )
-from .gstn_json import detect_json_kind, flatten_gstr2a, flatten_gstr2b
+from .gstn_json import detect_json_kind, flatten_gstr2a, flatten_gstr2b, flatten_ims
 from .parsing import parse_period
 from .readers import SUPPORTED_EXTENSIONS, RawTable, UnsupportedFileError, read_csv, read_excel, read_json, zip_members
 from .validation import RowContext, build_record
@@ -27,6 +27,7 @@ LAYOUT_LABELS = {
     "gstr2b_json": "GSTR-2B (GST portal JSON)",
     "gstr2a_excel": "GSTR-2A (GST portal Excel)",
     "gstr2a_json": "GSTR-2A (GST portal JSON)",
+    "ims_json": "IMS download (GST portal JSON)",
     "tally": "TallyPrime purchase register",
     "generic": "Custom purchase register",
 }
@@ -69,6 +70,7 @@ class ImportPreview:
     mappings: dict[str, MappingResult] = field(default_factory=dict)
     file_warnings: list[str] = field(default_factory=list)
     columns: dict[str, list[str]] = field(default_factory=dict)  # sheet -> column labels (for re-mapping)
+    other_itc: list[dict] = field(default_factory=list)  # GSTR-2B ISD credits and imports (bills of entry)
     total_rows: int = 0
     existing_record_hashes: set[str] = field(default_factory=set)
     already_imported_file_id: int | None = None
@@ -102,6 +104,7 @@ class ImportPreview:
             "ignored_rows": self.count("ignored"), "rows_with_warnings": self.count("warning"),
             "taxable_total": sum((r.signed("taxable") for r in self.records), ZERO),
             "itc_total": sum((r.signed("itc") for r in self.records), ZERO),
+            "isd_import_records": len(self.other_itc),
         }
 
 
@@ -280,6 +283,8 @@ def _expected_source(layout: str) -> Source | None:
         return Source.GSTR2B
     if layout.startswith("gstr2a"):
         return Source.GSTR2A
+    if layout.startswith("ims"):
+        return Source.IMS
     return Source.BOOKS
 
 
@@ -306,14 +311,23 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
             js = read_json(data)
             kind = detect_json_kind(js)
             if kind is None:
-                raise UnsupportedFileError(f"{name}: JSON is not a recognised GSTR-2B/GSTR-2A layout")
-            rows, json_period, warnings = (flatten_gstr2b if kind == "GSTR2B" else flatten_gstr2a)(js)
-            preview.layout = "gstr2b_json" if kind == "GSTR2B" else "gstr2a_json"
+                raise UnsupportedFileError(f"{name}: JSON is not a recognised GSTR-2B/GSTR-2A/IMS layout")
+            if kind == "GSTR2B":
+                rows, json_period, warnings, other = flatten_gstr2b(js)
+                preview.other_itc.extend(other)
+            elif kind == "IMS":
+                rows, json_period, warnings = flatten_ims(js)
+            else:
+                rows, json_period, warnings = flatten_gstr2a(js)
+            preview.layout = {"GSTR2B": "gstr2b_json", "IMS": "ims_json"}.get(kind, "gstr2a_json")
             _check_source(preview)
             preview.period = preview.period or json_period
             preview.file_warnings += warnings
             _require_period(preview)
             builder = _Builder(preview, "gstn")
+            if preview.other_itc:
+                preview.issues.append(RowIssue("", "", "info", f"{len(preview.other_itc)} ISD / import (bill of "
+                                               "entry) record(s) read for the GSTR-3B Table 4 working"))
             for row in rows:
                 if row.get("doc_type") is None and row["_sheet"] in ("cdnr", "cdnra", "cdn", "cdna"):
                     row["_note_sheet"] = True

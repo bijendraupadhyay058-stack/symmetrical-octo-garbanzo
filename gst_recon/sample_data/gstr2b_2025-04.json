@@ -430,6 +430,54 @@
               "cess": 0.0
             }
           ]
+        },
+        {
+          "ctin": "27AAJFA2468S1ZQ",
+          "trdnm": "Annapurna Caterers",
+          "supfildt": "11-05-2025",
+          "supprd": "042025",
+          "inv": [
+            {
+              "inum": "ANC/77",
+              "typ": "R",
+              "dt": "18-04-2025",
+              "val": 9440.0,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "txval": 8000.0,
+              "igst": 0.0,
+              "cgst": 720.0,
+              "sgst": 720.0,
+              "cess": 0.0
+            }
+          ]
+        },
+        {
+          "ctin": "27ABKPS1357T1ZO",
+          "trdnm": "Shree Roadways (GTA)",
+          "supfildt": "11-05-2025",
+          "supprd": "042025",
+          "inv": [
+            {
+              "inum": "SRW-310",
+              "typ": "R",
+              "dt": "08-04-2025",
+              "val": 21000.0,
+              "pos": "27",
+              "rev": "Y",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "txval": 20000.0,
+              "igst": 0.0,
+              "cgst": 500.0,
+              "sgst": 500.0,
+              "cess": 0.0
+            }
+          ]
         }
       ],
       "b2ba": [
@@ -510,6 +558,38 @@
               "cess": 0.0
             }
           ]
+        }
+      ],
+      "isd": [
+        {
+          "ctin": "27AAPFU0939F2ZU",
+          "trdnm": "Shree Ganesh Traders \u2013 HO (ISD)",
+          "doclist": [
+            {
+              "doctyp": "ISDI",
+              "docnum": "ISD/25/041",
+              "docdt": "15-04-2025",
+              "oinvnum": "",
+              "oinvdt": "",
+              "igst": 0,
+              "cgst": 900,
+              "sgst": 900,
+              "cess": 0,
+              "itcelg": "Y"
+            }
+          ]
+        }
+      ],
+      "impg": [
+        {
+          "refdt": "20-04-2025",
+          "portcode": "INNSA1",
+          "boenum": "7012345",
+          "boedt": "18-04-2025",
+          "isamd": "N",
+          "txval": 10000,
+          "igst": 1800,
+          "cess": 0
         }
       ]
     }

@@ -17,7 +17,10 @@ The script
    and are flagged by antivirus less often than `--onefile`):
    * `dist\FinTaxPro\FinTaxPro.exe` – the desktop application (windowed)
    * `dist\FinTaxPro-GST\FinTaxPro-GST.exe` – the command-line tool
-5. runs the CLI demo with the built executable as a smoke test.
+5. runs `FinTaxPro.exe --smoke-test` and the CLI demo,
+6. builds `dist\installer\FinTaxPro-Setup-1.0.0.exe` if Inno Setup 6 is installed
+   (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
+   uninstalling never deletes the data folder).
 
 Check the desktop build with `dist\FinTaxPro\FinTaxPro.exe --smoke-test`. It opens every
 page once and exits with code 0.
