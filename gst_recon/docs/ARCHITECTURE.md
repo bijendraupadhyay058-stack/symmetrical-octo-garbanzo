@@ -46,6 +46,7 @@ gst_recon/
 │   ├── compliance/summary.py  month status (RAG), client compliance (pure)
 │   ├── compliance/calendar.py due dates: monthly, QRMP, annual, recorded extensions (pure)
 │   ├── gstr9/working.py       GSTR-9 Tables 4–7 and 9 from GSTR-1, GSTR-3B and books (pure)
+│   ├── gstr9/reconciliation_9c.py  GSTR-9C Tables 5, 7, 9, 12 (pure)
 │   ├── letters/               supplier letter content (pure) and Word/PDF/e-mail rendering
 │   ├── web/                   read-only FastAPI app and templates
 │   ├── core/
@@ -103,6 +104,7 @@ gst_recon/
 │   │   ├── sync.py            client authorisation, encrypted sync packages
 │   │   ├── calendar.py        due-date extensions, upcoming returns across clients
 │   │   ├── gstr9.py           GSTR-9 working for a client and year
+│   │   ├── gstr9c.py          GSTR-9C inputs (audited figures, reasons) and statement
 │   │   └── common.py          audit log, conversions
 │   └── reports/
 │       ├── excel_report.py    17-sheet workbook
@@ -140,6 +142,7 @@ gst_recon/
 | `letters`, `working_papers` (v4) | letter register; working-paper packages with SHA-256 and sign-off |
 | `sync_authorizations`, `sync_state` (v4) | client consent for sync; last export/import sequence and origin |
 | `due_date_overrides` (v5) | due-date extensions recorded from CBIC notifications |
+| `gstr9c_inputs` (v6) | GSTR-9C figures per audited accounts and reasons, per client and year |
 
 **Database engines.** `Database` opens a SQLite file (default) or a server URL such as
 `postgresql+psycopg://user@host/db` (`--db`, `FINTAX_DB_URL`). Attachments, uploads and

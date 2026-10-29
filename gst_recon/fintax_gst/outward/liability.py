@@ -24,7 +24,8 @@ from ..importers.gstr3b import TABLE31, Gstr3bValues
 from ..itc.rules import Rule, intimation_threshold
 from ..itc.table4 import Finding, doc_values
 
-AMENDMENT_SECTIONS = {"B2BA", "CDNRA", "B2CLA", "B2CSA", "EXPA", "CDNURA"}
+AMENDMENT_SECTIONS = {"B2BA", "CDNRA", "B2CLA", "B2CSA", "EXPA", "CDNURA", "ATA", "TXPDA"}
+ADVANCE_SECTIONS = {"AT", "TXPD"}  # tax on advances received (+) and adjusted (−), part of 3.1(a)
 EXPORT_TEXT = re.compile(r"exp|sez|zero|wpay|wopay|lut", re.IGNORECASE)
 COMPARED = ("31A", "31B", "31C", "31E")
 
@@ -36,7 +37,7 @@ def summary_code(section: str, supply: str) -> str | None:
         return None
     if section in ("B2B", "CDNR"):
         return {"REG": "31A", "SEZ": "31B"}.get(supply)  # RCM: tax payable by the recipient
-    if section in ("B2CL", "B2CS"):
+    if section in ("B2CL", "B2CS") or section in ADVANCE_SECTIONS:
         return "31A"
     if section == "CDNUR":
         return "31B" if supply.startswith("EXP") else "31A"
@@ -128,6 +129,8 @@ def _gstr1_segment(section: str, supply: str) -> str | None:
         return "Exports / SEZ" if supply.upper().startswith("EXP") else "B2C (unregistered)"
     if section == "EXP":
         return "Exports / SEZ"
+    if section in ADVANCE_SECTIONS:
+        return None  # advances have no sales register counterpart
     return "Nil / exempt / non-GST"
 
 

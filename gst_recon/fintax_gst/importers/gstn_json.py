@@ -296,6 +296,16 @@ def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dic
                 ntty = str(d.get("ntty", "C")).upper()
                 add(section.upper(), str(d.get("typ", "")).upper(), _items_total(d), d.get("pos"),
                     sign=-1 if ntty == "C" else 1)
+        elif section in ("at", "ata", "txpd", "txpda"):
+            # Table 11A advances received / 11B advances adjusted (TXPD carries a negative sign)
+            sign = -1 if section.startswith("txpd") else 1
+            for d in payload:
+                vals = {"taxable": ZERO, "igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO}
+                for it in d.get("itms", []) or [d]:
+                    for k, key in (("taxable", "ad_amt"), ("igst", "iamt"), ("cgst", "camt"), ("sgst", "samt"),
+                                   ("cess", "csamt")):
+                        vals[k] += parse_amount(it.get(key)) or ZERO
+                add(section.upper(), str(d.get("sply_ty", "")).upper(), vals, d.get("pos"), sign=sign)
         elif section == "nil":
             for d in (payload.get("inv", []) if isinstance(payload, dict) else payload):
                 for key, sec in (("nil_amt", "NIL"), ("expt_amt", "EXEMPT"), ("ngsup_amt", "NONGST")):

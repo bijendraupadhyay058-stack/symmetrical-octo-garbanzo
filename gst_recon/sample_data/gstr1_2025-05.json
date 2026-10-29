@@ -1,0 +1,102 @@
+{
+  "gstin": "27AAPFU0939F1ZV",
+  "fp": "052025",
+  "b2b": [
+    {
+      "ctin": "27AABCR1122A1Z7",
+      "inv": [
+        {
+          "inum": "SGT/25-26/0021",
+          "idt": "06-05-2025",
+          "val": 35400.0,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 30000.0,
+                "iamt": 0.0,
+                "camt": 2700.0,
+                "samt": 2700.0,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2ba": [
+    {
+      "ctin": "29AACCV5566C1Z6",
+      "inv": [
+        {
+          "oinum": "SGT/25-26/0013",
+          "oidt": "15-04-2025",
+          "inum": "SGT/25-26/0013",
+          "idt": "15-04-2025",
+          "val": 70800.0,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 60000.0,
+                "iamt": 10800.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2csa": [
+    {
+      "omon": "042025",
+      "sply_ty": "INTRA",
+      "pos": "27",
+      "typ": "OE",
+      "itms": [
+        {
+          "rt": 18,
+          "txval": 41000.0,
+          "iamt": 0,
+          "camt": 3690.0,
+          "samt": 3690.0,
+          "csamt": 0
+        }
+      ]
+    }
+  ],
+  "at": [
+    {
+      "pos": "27",
+      "sply_ty": "INTRA",
+      "itms": [
+        {
+          "rt": 18,
+          "ad_amt": 50000.0,
+          "iamt": 0,
+          "camt": 4500.0,
+          "samt": 4500.0,
+          "csamt": 0
+        }
+      ]
+    }
+  ],
+  "hsn": {
+    "data": []
+  },
+  "doc_issue": {
+    "doc_det": []
+  }
+}

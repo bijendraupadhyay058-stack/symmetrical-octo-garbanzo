@@ -6,7 +6,7 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1–6 are complete.** The release includes:
+**Status: Phases 1–7 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
 * exception management with manual match and unmatch, and the vendor follow-up register
@@ -27,6 +27,9 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 * **Phase 6**: GSTR-9 working for Tables 4–7 and 9 next to Table 8, column mapping in the
   web view with automatic reuse of saved templates, and CI that builds and smoke-tests
   the Windows executables and installer ([docs/PHASE6.md](docs/PHASE6.md))
+* **Phase 7**: GSTR-1 advances (11A/11B) and GSTR-3B Table 6.1 payments, which feed
+  GSTR-9 4F and Table 9, and the GSTR-9C reconciliation statement (Tables 5, 7, 9 and 12)
+  with audited figures entered and audited ([docs/PHASE7.md](docs/PHASE7.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -114,7 +117,7 @@ The navigation on the left opens these pages:
 | **Reconcile** | The 10-step journey. Pick the client and the period (month, quarter, FY or custom range). Import the purchase register and GSTR-2B (plus earlier books or GSTR-2A, optional). Validate the imported files, set tolerances, start the reconciliation, review the summary, go to exceptions, export Excel and PDF. Long steps show a progress bar with **Cancel**; cancelling saves nothing. |
 | **Exceptions** | Colour-coded category filters with counts, search, and a status filter. Books and GSTR-2B side by side with every difference and reason. Set status, assignee, action date and remarks. **Confirm match**, **Manual match** (Ctrl+click two lines), **Unmatch**, **Pending clarification**. Attach evidence. Line history. |
 | **ITC review** | Flags for professional review with statutory references and guidance (17(5) indicators, 16(2)(aa), 16(4) time limit, RCM, ITC not available, IMS, credit notes). Confirm or dismiss each flag with a reason. ITC summary buckets. Claim register: claim eligible documents, reverse, reclaim – never twice. Rule configuration for all clients or one client. |
-| **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template). Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export; import the portal's Table 8A document details and reconcile the year's books with them. |
+| **GSTR-3B & annual** | Import GSTR-3B (portal JSON or template, incl. Table 6.1 payments). GSTR-9 working (Tables 4–9) and GSTR-9C reconciliation with audited figures. Table 4 working: GSTR-2B auto vs books / claim register vs filed, with differences classified as statutory, timing or accounting. GSTR-9 Table 8 (8A–8D) with month-wise ITC and annual workbook export; import the portal's Table 8A document details and reconcile the year's books with them. |
 | **IMS** | Import the IMS download and compare with books and GSTR-2B: rejected but booked, rejected but still in GSTR-2B (recompute), pending, accepted but not booked, value differences. Nothing is done on the portal. |
 | **Sales & GSTR-1** | Import the sales register and GSTR-1, reconcile them, and see the GSTR-1 / sales register vs GSTR-3B Table 3.1 working with segments and classified differences. |
 | **Compliance** | Every client's status for the financial year, month by month, with issues; export the dashboard (Excel) or a client compliance PDF. *Returns calendar* tab: returns due and overdue across clients (monthly / QRMP), and due-date extensions recorded from CBIC notifications. |
@@ -155,8 +158,8 @@ re-applies them (see [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md
 | ![Letters & papers](docs/screenshots/letters.png) | ![Sync & web](docs/screenshots/sync.png) |
 | **GSTR-9 Table 8 with portal 8A** | **Returns calendar** |
 | ![Table 8A](docs/screenshots/table8a.png) | ![Returns calendar](docs/screenshots/calendar.png) |
-| **GSTR-9 Tables 4–7, 9** | |
-| ![GSTR-9 working](docs/screenshots/gstr9.png) | |
+| **GSTR-9 Tables 4–7, 9** | **GSTR-9C** |
+| ![GSTR-9 working](docs/screenshots/gstr9.png) | ![GSTR-9C](docs/screenshots/gstr9c.png) |
 
 ## Everyday workflow from the command line
 
@@ -250,6 +253,8 @@ fintax-gst --login admin setting set web_uploads true
 fintax-gst --login admin db-copy --to "postgresql+psycopg://fintax@dbserver/fintax"
 fintax-gst --db "postgresql+psycopg://fintax@dbserver/fintax" --login admin runs --client 1
 fintax-gst --login admin gstr9 --client 1 --fy 2025-26 --out reports/     # GSTR-9 Tables 4–9 + Table 8
+fintax-gst --login admin gstr9c set --client 1 --fy 2025-26 --item 5A --amount 785000 --note "AFS note 21"
+fintax-gst --login admin gstr9c --client 1 --fy 2025-26                  # GSTR-9C Tables 5, 7, 9, 12
 ```
 
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
@@ -273,8 +278,8 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # 191 tests: engine, importers, ITC, outward, compliance, letters, working
-                              # papers, sync, web, Table 8A, calendar, GSTR-9, security, reports, CLI, desktop UI
+python -m pytest              # 199 tests: engine, importers, ITC, outward, compliance, letters, working papers,
+                              # sync, web, Table 8A, calendar, GSTR-9/9C, security, reports, CLI, desktop UI
 FINTAX_TEST_DB_URL=postgresql+psycopg://user@localhost/fintax_test python -m pytest   # same suite on PostgreSQL
 python scripts/benchmark.py 10000 50000
 ```
@@ -303,6 +308,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/PHASE7.md](docs/PHASE7.md) – advances, Table 6.1 payments, GSTR-9C
 * [docs/PHASE6.md](docs/PHASE6.md) – GSTR-9 working, web column mapping, Windows CI build
 * [docs/PHASE5.md](docs/PHASE5.md) – Table 8A, returns calendar, PostgreSQL, web uploads, signing
 * [docs/PHASE4.md](docs/PHASE4.md) – sales vs GSTR-1, GSTR-3B liability, compliance, letters, working papers, sync, web

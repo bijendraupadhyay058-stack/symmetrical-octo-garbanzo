@@ -16,7 +16,7 @@ def _vals(v: Gstr3bValues) -> list:
     return [v.igst, v.cgst, v.sgst, v.cess, v.total]
 
 
-def build_annual(client, t: Table8, claims, rules, gstr9=None) -> Workbook:
+def build_annual(client, t: Table8, claims, rules, gstr9=None, gstr9c=None) -> Workbook:
     wb = Workbook(write_only=True)
     _register_styles(wb)
     sh = _Sheet(wb, "Table 8 Summary", [64, 15, 15, 15, 13, 16])
@@ -89,6 +89,10 @@ def build_annual(client, t: Table8, claims, rules, gstr9=None) -> Workbook:
         from .gstr9_sheets import gstr9_sheets
 
         gstr9_sheets(wb, gstr9)
+    if gstr9c is not None:
+        from .gstr9_sheets import gstr9c_sheet
+
+        gstr9c_sheet(wb, gstr9c)
     return wb
 
 
@@ -105,7 +109,10 @@ def export_annual(db, client_id: int, fy: str, out_dir: str | Path, cutoff: str 
     claims = itc.claim_register(client_id, months_between(f"{fy[:4]}-04", t.cutoff))
     from ..services.gstr9 import Gstr9Service
 
-    wb = build_annual(client, t, claims, itc.rules(client_id), Gstr9Service(db).working(client_id, fy))
+    from ..services.gstr9c import Gstr9cService
+
+    wb = build_annual(client, t, claims, itc.rules(client_id), Gstr9Service(db).working(client_id, fy),
+                      Gstr9cService(db).statement(client_id, fy))
     out = Path(out_dir) / f"FINTAXPRO_GSTR9_Working_{client.gstin}_FY{fy}.xlsx"
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp.xlsx")

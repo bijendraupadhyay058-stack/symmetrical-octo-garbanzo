@@ -202,6 +202,7 @@ def gstr3b_31() -> dict[str, dict]:
 #: against 60,000 in the books) amended down through B2BA, and a B2CSA revising April's B2C total.
 MAY_INVOICE = Sale("RAJ", "SGT/25-26/0021", date(2025, 5, 6), "30000")
 AMENDED_0013 = Sale("VEN", "SGT/25-26/0013", A(15), "60000", inter=True)
+ADVANCE_MAY = D("50000")  # advance received in May 2025 against a June supply (GSTR-1 Table 11A)
 
 
 def write_gstr1_may_json(path: Path) -> None:
@@ -219,7 +220,10 @@ def write_gstr1_may_json(path: Path) -> None:
                                      "rchrg": "N", "inv_typ": "R", "itms": [_itm(amended)]}]}]
     b2csa = [{"omon": "042025", "sply_ty": "INTRA", "pos": "27", "typ": "OE",
               "itms": [{"rt": 18, "txval": 41000.0, "iamt": 0, "camt": 3690.0, "samt": 3690.0, "csamt": 0}]}]
-    payload = {"gstin": CLIENT["gstin"], "fp": "052025", "b2b": b2b, "b2ba": b2ba, "b2csa": b2csa,
+    at = [{"pos": "27", "sply_ty": "INTRA", "itms": [{"rt": 18, "ad_amt": float(ADVANCE_MAY), "iamt": 0,
+                                                     "camt": float(ADVANCE_MAY * D("0.09")),
+                                                     "samt": float(ADVANCE_MAY * D("0.09")), "csamt": 0}]}]
+    payload = {"gstin": CLIENT["gstin"], "fp": "052025", "b2b": b2b, "b2ba": b2ba, "b2csa": b2csa, "at": at,
                "hsn": {"data": []}, "doc_issue": {"doc_det": []}}
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 

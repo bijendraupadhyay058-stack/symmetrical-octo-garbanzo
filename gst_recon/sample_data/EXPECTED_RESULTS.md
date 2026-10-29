@@ -56,3 +56,9 @@ Rows that must be rejected at import (books):
 
 * `gstr9_table8a_2025-26.json` holds the April GSTR-2B documents (excluding reverse charge), KTX-2290 (missing in April GSTR-2B, filed late by the supplier) and OSL/412 dated May 2025, which is not in the books.
 * Books vs Table 8A for FY 2025-26: KTX-2290 matches; OSL/412 and OSL/377 are in 8A but not in the books; KTX-2301 (ITC not available) stays out of the 8A total.
+
+## GSTR-9 and GSTR-9C (Phases 6–7)
+
+* `gstr1_2025-05.json`: a new B2B invoice (SGT/25-26/0021), a B2BA reducing SGT/25-26/0013 from 66,000 to 60,000 (GSTR-9 4L), a B2CSA revising April's B2C total (listed for manual entry) and an advance of 50,000 received (Table 11A → GSTR-9 4F, GSTR-3B 3.1(a)).
+* `gstr3b_2025-04.json` Table 6.1: the whole April liability set off from ITC, and 120 of interest paid in cash (GSTR-9 Table 9).
+* GSTR-9C: 5A defaults to the sales-register turnover (761,000) until the audited figure is entered; 5Q is GSTR-9 5N.

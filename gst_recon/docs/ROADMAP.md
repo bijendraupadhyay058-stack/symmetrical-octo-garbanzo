@@ -82,11 +82,16 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 * CI: Ubuntu and Windows tests, the PostgreSQL suite, and a Windows job that builds,
   smoke-tests and packages the executables and installer.
 
+## Phase 7 ✅
+* GSTR-1 advances (11A/11B) into the GSTR-1 vs GSTR-3B liability and GSTR-9 4F.
+* GSTR-3B Table 6.1 payments (cash, ITC, interest, late fee) into GSTR-9 Table 9.
+* GSTR-9C reconciliation statement: Tables 5, 7, 9 and 12 with audited figures entered
+  per client and year (schema v6), defaults clearly marked, reasons recorded.
+
 ## Next
-* Import GSTR-1 advance tables (11A/11B) for GSTR-9 4F, and GSTR-3B Table 6.1 payments
-  for Table 9 "paid".
-* GSTR-9C reconciliation statement (books turnover and tax vs GSTR-9).
 * Sign the Windows build with the firm's code-signing certificate.
+* GSTR-9C Table 14 (ITC on expenses), from an expense-ledger import.
+* GSTR-9 Tables 10–14 (amendments and ITC of the year declared in the next year).
 
 ## Android / web expansion
 1. ✅ Read-only, responsive web view (`fintax_gst/web/`, FastAPI) on the existing

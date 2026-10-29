@@ -62,7 +62,8 @@ def test_amendments_and_subtotals():
     assert statuses["INV-9"] == "included" and "manually" in statuses["INV-7"] and "manually" in statuses[
         "B2CSA total"]
     assert w.row("6A").gstr1.total == D(900) and w.row("7J").gstr1.total == D(800)
-    assert [h for h, _p, _d in w.table9] == ["IGST", "CGST", "SGST", "CESS"]
+    assert [x.head for x in w.table9] == ["IGST", "CGST", "SGST", "CESS"]
+    assert all(x.paid is None for x in w.table9)  # no Table 6.1 imported
 
 
 def test_gstr9_on_demo_data(db, sample_files, tmp_path):

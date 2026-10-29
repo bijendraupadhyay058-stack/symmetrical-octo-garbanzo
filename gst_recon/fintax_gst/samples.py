@@ -371,6 +371,9 @@ def _components(docs: list[Doc]) -> dict[str, D]:
     return tot
 
 
+SAMPLE_INTEREST = 120  # interest paid in cash in April's GSTR-3B Table 6.1
+
+
 def write_gstr3b_json(path: Path) -> None:
     """April 2025 GSTR-3B as filed: 4(A)(5) includes ₹2,000 more than GSTR-2B supports, so the
     Table 4 working shows a possible statutory discrepancy."""
@@ -392,7 +395,14 @@ def write_gstr3b_json(path: Path) -> None:
            for k in ("igst", "cgst", "sgst", "cess")}
     from .samples_outward import gstr3b_31
 
-    payload = {"gstin": CLIENT["gstin"], "ret_period": "042025", "sup_details": gstr3b_31(), "itc_elg": {
+    sup = gstr3b_31()
+    due = {k: sum(D(str(sup[t].get(k, 0))) for t in ("osup_det", "osup_zero")) for k in ("iamt", "camt", "samt")}
+    # Table 6.1: IGST and CGST/SGST liability set off from ITC (same head), ₹120 interest paid in cash
+    tx_pmt = {"pditc": {"i_pdi": float(due["iamt"]), "c_pdc": float(due["camt"]), "s_pds": float(due["samt"]),
+                        "i_pdc": 0, "i_pds": 0, "c_pdi": 0, "s_pdi": 0, "cs_pdcs": 0},
+              "pdcash": [{"ipd": 0, "cpd": 0, "spd": 0, "cspd": 0, "c_intrpd": SAMPLE_INTEREST / 2,
+                          "s_intrpd": SAMPLE_INTEREST / 2}]}
+    payload = {"gstin": CLIENT["gstin"], "ret_period": "042025", "sup_details": sup, "tx_pmt": tx_pmt, "itc_elg": {
         "itc_avl": [row("IMPG", impg), row("IMPS", {}), row("ISRC", rcm), row("ISD", isd), row("OTH", oth)],
         "itc_rev": [row("RUL", rev), row("OTH", {})],
         "itc_net": {k: v for k, v in row("", net).items() if k != "ty"},
@@ -528,5 +538,13 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               f"{TABLE8A_NOT_BOOKED.no} dated May 2025, which is not in the books.",
               "* Books vs Table 8A for FY 2025-26: KTX-2290 matches; OSL/412 and OSL/377 are in 8A but not in the "
               "books; KTX-2301 (ITC not available) stays out of the 8A total."]
+    lines += ["", "## GSTR-9 and GSTR-9C (Phases 6–7)", "",
+              "* `gstr1_2025-05.json`: a new B2B invoice (SGT/25-26/0021), a B2BA reducing SGT/25-26/0013 from "
+              "66,000 to 60,000 (GSTR-9 4L), a B2CSA revising April's B2C total (listed for manual entry) and an "
+              "advance of 50,000 received (Table 11A → GSTR-9 4F, GSTR-3B 3.1(a)).",
+              "* `gstr3b_2025-04.json` Table 6.1: the whole April liability set off from ITC, and 120 of interest paid "
+              "in cash (GSTR-9 Table 9).",
+              "* GSTR-9C: 5A defaults to the sales-register turnover (761,000) until the audited figure is entered; 5Q "
+              "is GSTR-9 5N."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

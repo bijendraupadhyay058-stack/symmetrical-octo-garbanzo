@@ -40,7 +40,13 @@ TABLE31 = {
     "31D": "3.1(d) Inward supplies (liable to reverse charge)",
     "31E": "3.1(e) Non-GST outward supplies",
 }
-ALL_TABLES = {**TABLE31, **TABLE4}
+TABLE61 = {
+    "61CASH": "6.1 Tax paid in cash",
+    "61ITC": "6.1 Tax paid through ITC",
+    "61INT": "6.1 Interest paid in cash",
+    "61FEE": "6.1 Late fee paid in cash",
+}
+ALL_TABLES = {**TABLE31, **TABLE4, **TABLE61}
 _JSON_31 = {"osup_det": "31A", "osup_zero": "31B", "osup_nil_exmp": "31C", "isup_rev": "31D", "osup_nongst": "31E"}
 _JSON_AVL = {"IMPG": "4A1", "IMPS": "4A2", "ISRC": "4A3", "ISD": "4A4", "OTH": "4A5"}
 _JSON_REV = {"RUL": "4B1", "OTH": "4B2"}
@@ -106,8 +112,10 @@ def _from_json(js: dict, period: str | None, preview: Gstr3bPreview) -> None:
         raise ValueError("GSTR-3B JSON has no ret_period – specify the period (YYYY-MM)")
     elg = data.get("itc_elg")
     sup = data.get("sup_details")
-    if not isinstance(elg, dict) and not isinstance(sup, dict):
-        raise UnsupportedFileError("JSON has neither 'sup_details' (Table 3.1) nor 'itc_elg' (Table 4)")
+    pmt = data.get("tx_pmt")
+    if not isinstance(elg, dict) and not isinstance(sup, dict) and not isinstance(pmt, dict):
+        raise UnsupportedFileError("JSON has neither 'sup_details' (Table 3.1), 'itc_elg' (Table 4) nor 'tx_pmt' "
+                                   "(Table 6.1)")
     elg = elg if isinstance(elg, dict) else {}
     table: dict[str, Gstr3bValues] = {}
 
@@ -129,7 +137,34 @@ def _from_json(js: dict, period: str | None, preview: Gstr3bPreview) -> None:
             table[code] = table.get(code, Gstr3bValues()) + vals(item, f"{key}/{item.get('ty')}")
     if isinstance(elg.get("itc_net"), dict):
         table["4C"] = vals(elg["itc_net"], "itc_net")
+    if isinstance(pmt, dict):
+        _payments_from_json(pmt, table, preview)
     preview.entries[p] = table
+
+
+def _payments_from_json(pmt: dict, table: dict, preview: "Gstr3bPreview") -> None:
+    """Table 6.1 from the ``tx_pmt`` block: tax paid in cash (``pdcash``) and through ITC (``pditc``,
+    where ``x_pdy`` is credit of tax x used for liability y), interest and late fee paid in cash."""
+    def a(d, key):
+        return _amount(d.get(key), f"tx_pmt/{key}")
+
+    def rows(x):
+        return x if isinstance(x, list) else [x] if isinstance(x, dict) else []
+
+    cash, interest, fee, itc = Gstr3bValues(), Gstr3bValues(), Gstr3bValues(), Gstr3bValues()
+    for d in rows(pmt.get("pdcash")):
+        cash = cash + Gstr3bValues(a(d, "ipd"), a(d, "cpd"), a(d, "spd"), a(d, "cspd"))
+        interest = interest + Gstr3bValues(a(d, "i_intrpd"), a(d, "c_intrpd"), a(d, "s_intrpd"), a(d, "cs_intrpd"))
+        fee = fee + Gstr3bValues(ZERO, a(d, "c_lfeepd"), a(d, "s_lfeepd"), ZERO)
+    for d in rows(pmt.get("pditc")):
+        itc = itc + Gstr3bValues(a(d, "i_pdi") + a(d, "c_pdi") + a(d, "s_pdi"), a(d, "i_pdc") + a(d, "c_pdc"),
+                                 a(d, "i_pds") + a(d, "s_pds"), a(d, "cs_pdcs"))
+    for code, v in (("61CASH", cash), ("61ITC", itc), ("61INT", interest), ("61FEE", fee)):
+        if v.total:
+            table[code] = v
+    if any(c in table for c in TABLE61):
+        preview.warnings.append("Table 6.1 (payment of tax) read from 'tx_pmt' – check the totals against the "
+                                "return as filed")
 
 
 def _from_table(rows: list[tuple[int, list]], period: str | None, preview: Gstr3bPreview) -> None:
@@ -152,7 +187,7 @@ def _from_table(rows: list[tuple[int, list]], period: str | None, preview: Gstr3
 
         code = normalize_table_code(cell("table"))
         if code is None:
-            preview.warnings.append(f"Row {n}: table '{cell('table')}' is not a GSTR-3B Table 4 code – skipped")
+            preview.warnings.append(f"Row {n}: table '{cell('table')}' is not a GSTR-3B table code (3.1, 4 or 6.1) – skipped")
             continue
         p = parse_period(cell("period")) if cell("period") not in (None, "") else period
         if not p:

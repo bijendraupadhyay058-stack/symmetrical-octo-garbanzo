@@ -30,6 +30,28 @@
       "txval": 0
     }
   },
+  "tx_pmt": {
+    "pditc": {
+      "i_pdi": 50580.0,
+      "c_pdc": 17370.0,
+      "s_pds": 17370.0,
+      "i_pdc": 0,
+      "i_pds": 0,
+      "c_pdi": 0,
+      "s_pdi": 0,
+      "cs_pdcs": 0
+    },
+    "pdcash": [
+      {
+        "ipd": 0,
+        "cpd": 0,
+        "spd": 0,
+        "cspd": 0,
+        "c_intrpd": 60.0,
+        "s_intrpd": 60.0
+      }
+    ]
+  },
   "itc_elg": {
     "itc_avl": [
       {

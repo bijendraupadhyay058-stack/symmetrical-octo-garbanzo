@@ -52,6 +52,7 @@ class ReturnsPage(LazyPage):
         tabs.addTab(self._table4_tab(), "GSTR-3B Table 4 working")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
+        tabs.addTab(self._gstr9c_tab(), "GSTR-9C")
         lay.addWidget(tabs, 1)
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
@@ -123,8 +124,9 @@ class ReturnsPage(LazyPage):
         bl = QVBoxLayout(box)
         bl.setContentsMargins(0, 0, 0, 0)
         bl.addWidget(section("Table 9 – tax payable (Table 4N) and declared in GSTR-3B; amendments"))
-        self.g9_tax_model = RowsModel(["Tax", "Payable", "Declared in GSTR-3B", "Declared − Payable"],
-                                      kinds=["text", "money", "money", "money"])
+        self.g9_tax_model = RowsModel(["Tax", "Payable (4N)", "Declared in 3B", "Paid cash", "Paid ITC",
+                                       "Payable − Paid"],
+                                      kinds=["text", "money", "money", "money", "money", "money"])
         self.g9_t9 = Table()
         self.g9_t9.setModel(self.g9_tax_model)
         self.g9_t9.setSortingEnabled(False)
@@ -144,6 +146,107 @@ class ReturnsPage(LazyPage):
         split.setSizes([420, 330])
         lay.addWidget(split, 1)
         return w
+
+    def _gstr9c_tab(self) -> QWidget:
+        from ...gstr9.reconciliation_9c import INPUT_ITEMS, LABELS, REASON_ITEMS
+
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        form = QHBoxLayout()
+        self.c9_item = QComboBox()
+        for code in INPUT_ITEMS:
+            label = LABELS.get(code) or {"9INT": "Interest", "9FEE": "Late fee", "9PEN": "Penalty",
+                                         "9OTH": "Others (Table 9)"}.get(code, code)
+            self.c9_item.addItem(f"{code} – {label}"[:90], code)
+        for code, label in REASON_ITEMS.items():
+            self.c9_item.addItem(f"{code} – {label}", code)
+        self.c9_item.setMinimumWidth(300)
+        self.c9_item.setMaximumWidth(360)
+        self.c9_amount = QLineEdit()
+        self.c9_amount.setPlaceholderText("Amount per audited accounts")
+        self.c9_amount.setMinimumWidth(170)
+        self.c9_note = QLineEdit()
+        self.c9_note.setPlaceholderText("Source / reason")
+        self.c9_save = primary("Record")
+        self.c9_save.clicked.connect(self.save_9c_input)
+        self.c9_clear = QPushButton("Clear (use default)")
+        self.c9_clear.clicked.connect(lambda: self.save_9c_input(clear=True))
+        self.c9_btn = primary("Prepare GSTR-9C")
+        self.c9_btn.clicked.connect(self.show_9c)
+        for x in (self.c9_btn, self.c9_item, self.c9_amount, self.c9_note, self.c9_save, self.c9_clear):
+            form.addWidget(x)
+        lay.addLayout(form)
+        split = QSplitter(Qt.Vertical)
+        self.c9_model = RowsModel(["Table", "Description", "Amount", "Source"],
+                                  kinds=["text", "text", "money", "text"], colors=self._c9_color)
+        t = Table()
+        t.setModel(self.c9_model)
+        t.setSortingEnabled(False)
+        self.c9_table = t
+        split.addWidget(t)
+        box = QWidget()
+        bl = QVBoxLayout(box)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.addWidget(section("Table 9 – rate-wise tax per books vs paid per GSTR-9"))
+        self.c9_rate_model = RowsModel(["Rate / item", "Taxable", "CGST", "SGST", "IGST", "Cess"],
+                                       kinds=["text", "money", "money", "money", "money", "money"])
+        self.c9_rt = Table()
+        self.c9_rt.setModel(self.c9_rate_model)
+        self.c9_rt.setSortingEnabled(False)
+        bl.addWidget(self.c9_rt)
+        self.c9_note_lbl = QLabel()
+        self.c9_note_lbl.setObjectName("Muted")
+        self.c9_note_lbl.setWordWrap(True)
+        bl.addWidget(self.c9_note_lbl)
+        split.addWidget(box)
+        split.setSizes([430, 300])
+        lay.addWidget(split, 1)
+        return w
+
+    def _c9_color(self, row, _col):
+        r = self.c9_model.rows[row]
+        if str(r[3]).startswith("default"):
+            return QColor("#FFF3C4")
+        return QColor("#E0F2F1") if r[0] in ("5P", "5R", "7E", "7G", "12D", "12F") else None
+
+    def show_9c(self) -> None:
+        from ...services.gstr9c import Gstr9cService
+
+        st_ = self.state
+        if st_.client is None:
+            return
+        st = Gstr9cService(st_.db).statement(st_.client.id, st_.fy)
+        self.c9_model.set_rows([[x.code, x.label, x.amount, x.source] for x in st.table5 + st.table7 + st.table12])
+        self.c9_table.fit(520)
+        tot, paid, un = st.table9_total, st.table9_paid, st.table9_unreconciled
+        rows = [[r.rate, r.taxable, r.cgst, r.sgst, r.igst, r.cess] for r in st.table9]
+        rows.append(["9P Total per books", None, tot["cgst"], tot["sgst"], tot["igst"], tot["cess"]])
+        rows.append(["9Q Paid per GSTR-9", None, paid.get("cgst"), paid.get("sgst"), paid.get("igst"),
+                     paid.get("cess")])
+        rows.append(["9R Un-reconciled", None, un.get("cgst"), un.get("sgst"), un.get("igst"), un.get("cess")])
+        self.c9_rate_model.set_rows(rows)
+        self.c9_rt.fit(260)
+        reasons = [f"{k}: {v}" for k, v in st.reasons.items() if v]
+        self.c9_note_lbl.setText(" ".join(reasons + st.notes))
+
+    def save_9c_input(self, clear: bool = False) -> None:
+        from ...services.gstr9c import Gstr9cService
+
+        st = self.state
+        if st.client is None:
+            return
+        code = self.c9_item.currentData()
+        amount = None if clear or code.startswith("R") or not self.c9_amount.text().strip() \
+            else self.c9_amount.text()
+        note = "" if clear else self.c9_note.text()
+        try:
+            Gstr9cService(st.db).set_input(st.client.id, st.fy, code, amount, note, st.session)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "GSTR-9C", str(exc))
+            return
+        self.c9_amount.clear()
+        self.c9_note.clear()
+        self.show_9c()
 
     SUBTOTALS = {"4H", "4M", "4N", "5G", "5L", "5M", "5N", "6I", "6J", "7I", "7J"}
 
@@ -165,8 +268,8 @@ class ReturnsPage(LazyPage):
                          r.books.total if r.books else None, d.total if d else None, r.note])
         self.g9_model.set_rows(rows)
         self.g9_table.fit(520)
-        self.g9_tax_model.set_rows([[h, p.total, d.total if d is not None else None,
-                                     (d.total - p.total) if d is not None else None] for h, p, d in w.table9])
+        self.g9_tax_model.set_rows([[x.head, x.payable, x.declared, x.paid_cash, x.paid_itc, x.unpaid]
+                                    for x in w.table9])
         self.g9_t9.fit(260)
         self.g9_am_model.set_rows([[a["period"], a["section"], a["document"], a["original"],
                                     a["delta"].taxable if a["delta"] else None,
@@ -225,6 +328,8 @@ class ReturnsPage(LazyPage):
         self.import_btn.setEnabled(st.can("import") and st.client is not None)
         self.import_8a_btn.setEnabled(st.can("import") and st.client is not None)
         self.recon_8a_btn.setEnabled(st.can("reconcile") and st.client is not None)
+        for b in (self.c9_save, self.c9_clear):
+            b.setEnabled(st.can("review") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):
             cur = cb.currentText()

@@ -475,4 +475,23 @@ class DueDateOverride(Base):
 
 
 V5_TABLES = [DueDateOverride]
+
+
+class Gstr9cInput(Base):
+    """A figure or explanation for the GSTR-9C reconciliation that comes from the audited financial
+    statements or the preparer (e.g. 5A turnover per AFS, unbilled revenue, reasons for differences)."""
+
+    __tablename__ = "gstr9c_inputs"
+    __table_args__ = (UniqueConstraint("client_id", "financial_year", "item", name="uq_9c_input"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    financial_year: Mapped[str] = mapped_column(String(7))
+    item: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V6_TABLES = [Gstr9cInput]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

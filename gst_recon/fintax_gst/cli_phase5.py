@@ -64,9 +64,10 @@ def cmd_gstr9(db, args) -> None:
         taxable = fmt_inr(g.taxable) if g is not None and (r in w.table4 or r in w.table5) else ""
         print(f"  {r.code:<7}{taxable:>17}{fmt_inr(g.total) if g else '':>15}"
               f"{fmt_inr(b.taxable) if b else '':>17}{fmt_inr(b.total) if b else '':>15}")
-    for head, payable, declared in w.table9:
-        print(f"  Table 9 {head:<5} payable {fmt_inr(payable.total):>14}  declared in 3B "
-              f"{fmt_inr(declared.total) if declared is not None else '-':>14}")
+    for x in w.table9:
+        f = lambda v: fmt_inr(v) if v is not None else "-"  # noqa: E731
+        print(f"  Table 9 {x.head:<5} payable {f(x.payable):>14}  declared in 3B {f(x.declared):>14}  "
+              f"paid {f(x.paid):>14}")
     for a in w.amendments:
         change = fmt_inr(a["delta"].taxable) if a["delta"] else "-"
         print(f"  Amendment {a['period']} {a['section']:<6} {a['document']:<22} change {change:>12}  {a['status']}")
@@ -78,7 +79,49 @@ def cmd_gstr9(db, args) -> None:
         print(f"Workbook: {export_annual(db, client.id, args.fy, args.out, user=args.user)}")
 
 
+def cmd_gstr9c(db, args) -> None:
+    from .core.money import fmt_inr
+    from .services.clients import ClientService
+    from .services.gstr9c import Gstr9cService
+
+    client = ClientService(db).resolve(args.client)
+    svc = Gstr9cService(db)
+    if args.action == "set":
+        if not args.item:
+            raise ValueError("Give --item (e.g. 5A) with --amount and/or --note")
+        svc.set_input(client.id, args.fy, args.item, args.amount, args.note or "", args.session)
+        print(f"{args.item.upper()} recorded for FY {args.fy}")
+    st = svc.statement(client.id, args.fy)
+    print(f"GSTR-9C reconciliation – {client.name} ({client.gstin}) FY {args.fy}")
+    for x in st.table5 + st.table7 + st.table12:
+        print(f"  {x.code:<4} {fmt_inr(x.amount):>16}  {x.label[:60]:<60} {x.source}")
+    tot, paid, un = st.table9_total, st.table9_paid, st.table9_unreconciled
+    for h in ("igst", "cgst", "sgst", "cess"):
+        f = lambda v: fmt_inr(v) if v is not None else "-"  # noqa: E731
+        print(f"  9 {h.upper():<5} books {f(tot[h]):>14}  paid per GSTR-9 {f(paid.get(h)):>14}  "
+              f"un-reconciled {f(un.get(h)):>14}")
+    for k, reason in st.reasons.items():
+        if reason:
+            print(f"  {k}: {reason}")
+    for n in st.notes:
+        print(f"  ! {n}")
+    if args.out:
+        from .reports.annual_report import export_annual
+
+        print(f"Workbook: {export_annual(db, client.id, args.fy, args.out, user=args.user)}")
+
+
 def add_commands(sub) -> None:
+    c9 = sub.add_parser("gstr9c", help="GSTR-9C reconciliation statement (show, or set an audited figure/reason)")
+    c9.add_argument("action", nargs="?", default="show", choices=["show", "set"])
+    c9.add_argument("--client", required=True)
+    c9.add_argument("--fy", required=True)
+    c9.add_argument("--item", help="set: 5A–5O, 7B–7D, 12A–12C, 9INT, 9FEE, 9PEN, 9OTH, or reasons R6, R8, R10, R13")
+    c9.add_argument("--amount", help="set: amount (omit to clear and use the default)")
+    c9.add_argument("--note", help="set: note or reason")
+    c9.add_argument("--out", help="folder for the annual workbook (GSTR-9, GSTR-9C)")
+    c9.set_defaults(func=cmd_gstr9c)
+
     g9 = sub.add_parser("gstr9", help="GSTR-9 working (Tables 4–9) from GSTR-1, GSTR-3B and the sales register")
     g9.add_argument("--client", required=True)
     g9.add_argument("--fy", required=True)
@@ -105,6 +148,8 @@ def add_commands(sub) -> None:
 
 
 def permission_for(args) -> str | None:
+    if args.command == "gstr9c":
+        return "review" if args.action == "set" else "view"
     if args.command == "setting":
         return "settings" if args.action == "set" else "view"
     if args.command == "calendar":

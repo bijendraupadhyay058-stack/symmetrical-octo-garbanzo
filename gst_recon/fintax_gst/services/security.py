@@ -22,7 +22,7 @@ from sqlalchemy import delete, select
 
 from ..db.database import Database
 from ..db.models import (
-    AppSetting, Attachment, AuditLog, Client, Gstr1Summary, Gstr3bEntry, LetterRecord, SyncAuthorization,
+    AppSetting, Attachment, AuditLog, Client, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization,
     WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, Vendor,
 )
@@ -150,6 +150,7 @@ class SecurityService:
                 (SyncAuthorization, SyncAuthorization.client_id == client_id),
                 (LetterRecord, LetterRecord.client_id == client_id),
                 (WorkingPaper, WorkingPaper.client_id == client_id),
+                (Gstr9cInput, Gstr9cInput.client_id == client_id),
                 (ImportIssue, ImportIssue.source_file_id.in_(file_ids)), (Invoice, Invoice.client_id == client_id),
                 (SourceFile, SourceFile.client_id == client_id),
             ):
