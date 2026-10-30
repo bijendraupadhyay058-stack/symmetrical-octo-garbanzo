@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIN TAX PRO – User Guide</title>
+<style>
+  :root { --navy: #14284b; --teal: #00897b; --amber: #fff3c4; --line: #d9dee7; --text: #1d2433; --muted: #5b6475; }
+  body { margin: 0; background: #f5f7fa; color: var(--text); font: 16px/1.6 "Segoe UI", Calibri, Arial, sans-serif; }
+  header { background: var(--navy); color: #fff; padding: 28px 16px; }
+  header h1 { margin: 0 auto; max-width: 860px; font-size: 28px; }
+  header p { margin: 6px auto 0; max-width: 860px; opacity: .85; }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+  h2 { color: var(--navy); margin-top: 36px; border-bottom: 2px solid var(--teal); padding-bottom: 4px; }
+  h3 { margin-bottom: 4px; }
+  ol li, ul li { margin: 6px 0; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
+  .note { background: var(--amber); border-color: #ecd98a; }
+  .btn { display: inline-block; background: #e8f5f3; border: 1px solid #9fd3cc; border-radius: 4px; padding: 0 6px;
+         font-weight: 600; white-space: nowrap; }
+  code { background: #eef1f6; padding: 1px 5px; border-radius: 3px; }
+  nav a { color: var(--teal); }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  td, th { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef1f6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FIN TAX PRO – User Guide</h1>
+  <p>Smart GST reconciliation on your own computer. No coding needed. Your data never leaves this PC.</p>
+</header>
+<main>
+
+<nav class="box">
+  <b>Contents:</b>
+  <a href="#install">1. Install</a> ·
+  <a href="#start">2. First start</a> ·
+  <a href="#try">3. Try it with sample files</a> ·
+  <a href="#client">4. Add a client</a> ·
+  <a href="#monthly">5. Monthly purchase reconciliation</a> ·
+  <a href="#review">6. Review the differences</a> ·
+  <a href="#sales">7. Sales and GSTR-1</a> ·
+  <a href="#more">8. Other features</a> ·
+  <a href="#backup">9. Backups</a> ·
+  <a href="#help">10. If something goes wrong</a>
+</nav>
+
+<h2 id="install">1. Install</h2>
+<ol>
+  <li>Download <b>FinTaxPro-Setup-1.0.0.exe</b> from the download page you were given.</li>
+  <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
+      signed with a code-signing certificate. Click <span class="btn">More info</span>, then
+      <span class="btn">Run anyway</span>.</li>
+  <li>Click <span class="btn">Next</span> through the installer. Tick <i>Create a desktop shortcut</i> if you want one.
+      No administrator rights are needed.</li>
+  <li>At the end, leave <i>Start FIN TAX PRO</i> ticked and click <span class="btn">Finish</span>.</li>
+</ol>
+<p>Later, open it from the desktop shortcut or from the Start menu → <b>FIN TAX PRO</b>.</p>
+
+<h2 id="start">2. First start – create your login</h2>
+<ol>
+  <li>The first time, the program asks you to <b>create the administrator</b>: choose a user name and a password
+      of at least 8 characters.</li>
+  <li><b>Write the password down and keep it safe.</b> It protects your clients’ data.</li>
+  <li>Later you can add staff logins on the <b>Security</b> page, with their own roles (accountant, manager,
+      read-only).</li>
+</ol>
+
+<h2 id="try">3. Try it with the sample files (5 minutes)</h2>
+<div class="box">
+  <p>The installer includes demo files for a made-up client. Open them from the Start menu →
+     <b>FIN TAX PRO sample files</b>.</p>
+  <ol>
+    <li>Go to <b>Clients</b> → <span class="btn">New client…</span>. Enter GSTIN <code>27AAPFU0939F1ZV</code>,
+        name <code>Shree Ganesh Traders</code>, and click <span class="btn">Save</span>.</li>
+    <li>Go to <b>Reconcile</b>. Choose financial year <b>2025-26</b> and month <b>2025-04</b>.</li>
+    <li><span class="btn">Import purchase register…</span> → pick <code>tally_purchase_register_2025-04.xlsx</code>
+        → check the preview → <b>Import</b>.</li>
+    <li><span class="btn">Import GSTR-2B…</span> → pick <code>gstr2b_2025-04.json</code> → <b>Import</b>.</li>
+    <li>Click <span class="btn">▶ Start Reconciliation</span>, then <span class="btn">Open exceptions</span>.</li>
+  </ol>
+  <p><code>EXPECTED_RESULTS.md</code> in the same folder lists what each sample case should show.</p>
+</div>
+
+<h2 id="client">4. Add your client</h2>
+<ol>
+  <li><b>Clients</b> → <span class="btn">New client…</span>.</li>
+  <li>Enter the <b>GSTIN</b>. The state and PAN are filled in from it. Then enter the legal name, and choose
+      <i>Monthly</i> or <i>Quarterly (QRMP)</i> filing.</li>
+  <li>Choose the client at the top of the window (<b>Client</b> box) before working on it.</li>
+</ol>
+
+<h2 id="monthly">5. Monthly purchase reconciliation (books vs GSTR-2B)</h2>
+<p>You need two files for the month:</p>
+<table>
+  <tr><th>File</th><th>Where to get it</th></tr>
+  <tr><td><b>Purchase register</b></td>
+      <td>TallyPrime: <i>Display More Reports → Account Books → Purchase Register</i> → export to Excel. Any other
+          Excel/CSV register also works.<br>
+          Or skip the export: click <span class="btn">Import from Tally…</span> while Tally is open with
+          <i>F1 Help → Settings → Connectivity → TallyPrime acts as: Server</i>.</td></tr>
+  <tr><td><b>GSTR-2B</b></td>
+      <td>GST portal: <i>Returns Dashboard → GSTR-2B → Download</i> (JSON or Excel).</td></tr>
+</table>
+<ol>
+  <li>On <b>Reconcile</b>, choose the client, financial year and month.</li>
+  <li><span class="btn">Import purchase register…</span>. A preview shows every row. Rows with problems are shown in
+      colour with the reason; nothing is changed silently. Click <b>Import</b>.</li>
+  <li>If the program cannot recognise the columns of your file, it asks you to match them once (for example,
+      “Bill No” = invoice number). Save the matching as a template, and next month the same file layout is read
+      automatically.</li>
+  <li><span class="btn">Import GSTR-2B…</span> the same way.</li>
+  <li>Click <span class="btn">▶ Start Reconciliation</span>. It takes seconds, even for thousands of invoices.</li>
+</ol>
+
+<h2 id="review">6. Review the differences</h2>
+<ul>
+  <li><b>Dashboard</b> shows the totals: matched, differences, ITC at risk.</li>
+  <li><b>Exceptions</b> lists every invoice that needs attention, for example “Available in Books but Missing in
+      GSTR-2B” or “Matched with Taxable Value Difference”. Click a line to see why, set a status and remarks, and
+      click <span class="btn">Save review</span>.</li>
+  <li>Use <span class="btn">Confirm match</span> or <span class="btn">Manual match</span> when you know two documents
+      are the same invoice. The program remembers this for next month.</li>
+  <li><b>Suppliers</b> shows the position supplier by supplier. <b>Letters &amp; papers</b> writes a letter (Word, PDF
+      or e-mail draft) to each supplier who has not reported invoices.</li>
+  <li><span class="btn">Export reports</span> saves the Excel and PDF reports for the client’s file.</li>
+</ul>
+
+<h2 id="sales">7. Sales register vs GSTR-1, e-invoices and e-way bills</h2>
+<p>On <b>Sales &amp; GSTR-1</b>, import the sales register (or <span class="btn">Sales from Tally…</span>) and the
+   GSTR-1 JSON from the portal. Choose what to compare it with (GSTR-1, e-Invoice or e-Way bill) and click
+   <b>Reconcile</b>. The same page compares GSTR-1 with the tax paid in GSTR-3B.</p>
+
+<h2 id="more">8. Other features</h2>
+<table>
+  <tr><th>Page</th><th>What it does</th></tr>
+  <tr><td>ITC review</td><td>Flags blocked credit (section 17(5)), the time limit of section 16(4), reverse charge and
+      ITC not available, and keeps the claim register.</td></tr>
+  <tr><td>GSTR-3B &amp; annual</td><td>GSTR-3B Table 4 working, GSTR-9 and GSTR-9C working papers, TDS/TCS credits,
+      interest and late fee calculator, draft GSTR-9 file for the offline tool.</td></tr>
+  <tr><td>IMS</td><td>Compares the IMS actions (accept / reject / pending) with the books and GSTR-2B.</td></tr>
+  <tr><td>Compliance</td><td>Status of all clients month by month, and returns falling due.</td></tr>
+  <tr><td>GST notices</td><td>Register of DRC-01B, DRC-01C and ASMT-10 notices, with draft replies in Word. Yellow text
+      in a draft must be completed or deleted before sending.</td></tr>
+  <tr><td>Open items / History</td><td>Invoices still unresolved from earlier months, and every past reconciliation.</td></tr>
+</table>
+<div class="box note">All figures are working papers for a professional to check. The program never logs in to the GST
+  portal, never files a return and never sends client data anywhere. Download files from the portal yourself, and
+  file returns yourself.</div>
+
+<h2 id="backup">9. Backups – please set this up</h2>
+<ol>
+  <li>On <b>Security</b> → <b>Backups</b>, automatic backups are on by default (every 24 hours, kept on this PC).</li>
+  <li>At least once a month, click <span class="btn">Create encrypted backup…</span> and save the file to a pen drive
+      or another PC. Choose a password and keep it safe: without it the backup cannot be opened.</li>
+  <li>Your data is kept in <code>%LOCALAPPDATA%\FinTaxPro</code>. Uninstalling the program does not delete it.</li>
+</ol>
+
+<h2 id="help">10. If something goes wrong</h2>
+<table>
+  <tr><th>Message or problem</th><th>What to do</th></tr>
+  <tr><td>“Windows protected your PC”</td><td><b>More info → Run anyway</b> (see step 1).</td></tr>
+  <tr><td>“Column mapping needed”</td><td>Match the columns once on the screen shown and save a template (step 5.3).</td></tr>
+  <tr><td>“Already imported”</td><td>That exact file is already in. To replace it, remove the old import on the
+      <b>Imports</b> page first.</td></tr>
+  <tr><td>Rows rejected in the preview</td><td>The reason is shown on each row, for example an invalid GSTIN or a missing
+      invoice number. Correct the register and import it again.</td></tr>
+  <tr><td>“Tally did not answer”</td><td>In Tally: <i>F1 Help → Settings → Connectivity → TallyPrime acts as: Server</i>,
+      port 9000, and keep the company open.</td></tr>
+  <tr><td>Forgot the password</td><td>Another administrator can reset it on <b>Security</b>. If you were the only
+      administrator, restore a backup made while you knew the password.</td></tr>
+</table>
+<p style="color: var(--muted)">FIN TAX PRO 1.0 · The detailed technical documents are in the <code>docs</code> folder
+   of the installation.</p>
+</main>
+</body>
+</html>

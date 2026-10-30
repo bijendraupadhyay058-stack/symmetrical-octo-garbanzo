@@ -27,9 +27,13 @@ Source: "..\dist\FinTaxPro\*"; DestDir: "{app}"; Flags: ignoreversion recursesub
 Source: "..\dist\FinTaxPro-GST\*"; DestDir: "{app}\cli"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\README.md"; DestDir: "{app}\docs"
 Source: "..\docs\*.md"; DestDir: "{app}\docs"
+Source: "..\docs\USER_GUIDE.html"; DestDir: "{app}\docs"
+Source: "..\sample_data\*"; DestDir: "{app}\Sample files"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\FinTaxPro.exe"
+Name: "{group}\{#AppName} user guide"; Filename: "{app}\docs\USER_GUIDE.html"
+Name: "{group}\{#AppName} sample files"; Filename: "{app}\Sample files"
 Name: "{group}\{#AppName} command line"; Filename: "{cmd}"; Parameters: "/k cd /d ""{app}\cli"" && FinTaxPro-GST.exe --help"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\FinTaxPro.exe"; Tasks: desktopicon
 
@@ -37,4 +41,5 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\FinTaxPro.exe"; Tasks: deskto
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"
 
 [Run]
+Filename: "{app}\docs\USER_GUIDE.html"; Description: "Open the user guide"; Flags: postinstall shellexec skipifsilent nowait
 Filename: "{app}\FinTaxPro.exe"; Description: "Start {#AppName}"; Flags: nowait postinstall skipifsilent
