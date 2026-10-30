@@ -231,7 +231,7 @@ def cmd_show(db: Database, args) -> None:
         b, g = ln.books, ln.gstr2b
         print(f"{ln.line_no:>5} {ln.category.value:<42} {ln.supplier_gstin} "
               f"{(b.invoice_no if b else '-'):<16} {(g.invoice_no if g else '-'):<16} "
-              f"ITC diff {fmt_inr(ln.diff('itc')):>12}  [{ln.status.value}]")
+              f"ITC diff {fmt_inr(ln.diff('itc')):>12}  [{ln.status.value}] v{ln.version}")
         if args.reasons:
             for r in ln.reasons:
                 print(f"        - {r}")
@@ -239,9 +239,10 @@ def cmd_show(db: Database, args) -> None:
 
 def cmd_update_line(db: Database, args) -> None:
     action_date = date.fromisoformat(args.action_date) if args.action_date else None
-    ReconciliationService(db).update_line(args.run, args.line, args.user, status=args.status, remarks=args.remarks,
-                                          assigned_to=args.assign, action_date=action_date)
-    print(f"Line {args.line} of run #{args.run} updated (audit trail recorded).")
+    version = ReconciliationService(db).update_line(args.run, args.line, args.user, status=args.status,
+                                                    remarks=args.remarks, assigned_to=args.assign,
+                                                    action_date=action_date, expected_version=args.expect_version)
+    print(f"Line {args.line} of run #{args.run} updated to version {version} (audit trail recorded).")
 
 
 def cmd_match(db: Database, args) -> None:
@@ -475,6 +476,8 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--remarks")
     u.add_argument("--assign")
     u.add_argument("--action-date", help="YYYY-MM-DD")
+    u.add_argument("--expect-version", type=int, help="refuse if the line is no longer at this version (shown by "
+                                                        "'show'), i.e. someone else changed it")
     u.set_defaults(func=cmd_update_line)
 
     m = sub.add_parser("match", help="manual decisions: confirm | pair | unmatch | clarify (audited)")

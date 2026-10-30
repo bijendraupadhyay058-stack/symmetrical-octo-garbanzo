@@ -46,8 +46,36 @@ def add_commands(sub) -> None:
     t.add_argument("--preview", action="store_true", help="import: show what would be saved; save nothing")
     t.set_defaults(func=cmd_tds_tcs)
 
+    a = sub.add_parser("activity", help="per-user activity from the audit log (partners and administrators)")
+    a.add_argument("--days", type=int, default=30)
+    a.add_argument("--user", dest="user_filter", help="one user: also list their latest actions")
+    a.add_argument("--recent", type=int, default=20, help="with --user: how many latest actions to list")
+    a.set_defaults(func=cmd_activity)
+
 
 def permission_for(args) -> str | None:
     if args.command == "tds-tcs":
         return "import" if args.action == "import" else "view"
+    if args.command == "activity":
+        return "settings"
     return None
+
+
+def cmd_activity(db, args) -> None:
+    from datetime import timedelta
+
+    from .db.models import utcnow
+    from .services.security import SecurityService
+
+    since = utcnow() - timedelta(days=args.days)
+    rows = SecurityService(db).activity(args.session, since, args.user_filter)
+    print(f"Activity since {since:%d-%m-%Y} (UTC), from the audit log")
+    for u in rows:
+        top = ", ".join(f"{a} {n}" for a, n in u.actions.most_common(6))
+        print(f"  {u.user:<16} {u.total:>6} action(s)  review edits {u.edits:>5}  clients {len(u.clients):>3}  "
+              f"last {u.last:%d-%m-%Y %H:%M}  ({top})")
+        if args.user_filter:
+            for a in u.recent[:args.recent]:
+                print(f"      {a.at:%d-%m-%Y %H:%M}  {a.action:<20} {a.entity:<14} {a.entity_id}")
+    if not rows:
+        print("  no activity")

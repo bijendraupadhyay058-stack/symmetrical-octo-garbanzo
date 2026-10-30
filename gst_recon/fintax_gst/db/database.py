@@ -138,6 +138,16 @@ def _migration_10(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V10_TABLES])
 
 
+def _migration_11(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    have = {c["name"] for c in sa_inspect(conn).get_columns("recon_lines")}
+    if "version" not in have:
+        conn.exec_driver_sql("ALTER TABLE recon_lines ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+    if "updated_by" not in have:
+        conn.exec_driver_sql("ALTER TABLE recon_lines ADD COLUMN updated_by VARCHAR(80) NOT NULL DEFAULT ''")
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -152,6 +162,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (8, "HSN lines of imported documents (GSTR-9 Table 18)", _migration_8),
     (9, "e-invoice IRN and e-way bill numbers and status of imported documents", _migration_9),
     (10, "TDS (GSTR-7) and TCS (GSTR-8) credits received", _migration_10),
+    (11, "version and last editor of review lines (concurrent edits detected)", _migration_11),
 ]
 
 

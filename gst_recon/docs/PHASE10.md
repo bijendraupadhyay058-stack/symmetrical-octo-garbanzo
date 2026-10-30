@@ -1,4 +1,4 @@
-# Phase 10 – e-invoice and e-way bill reconciliation, TDS/TCS credits, GSTR-9 draft JSON
+# Phase 10 – e-invoice and e-way bill, TDS/TCS credits, GSTR-9 draft JSON, multi-user hardening
 
 ## 1. Sales register vs e-invoices (IRP) and e-way bills
 
@@ -201,6 +201,80 @@ of the mapping with the status *check*.
   generating the file to upload.
 * If the tool rejects a section, enter that section by hand.
 * Nothing is filed or uploaded by this software. Each export is audited.
+
+## 4. Several people on one database
+
+### Concurrent edits are refused, not lost
+
+Each review line now has a **version** and the name of the last person who changed it.
+
+* When you save a line, the save states the version you opened. If someone else saved the
+  line in between, nothing is saved. You see who changed it and when, and the run reloads
+  so you can see their change and save again if still needed.
+* The database checks the version in the update itself (`UPDATE … WHERE version = …`).
+  Two saves that race each other therefore cannot both succeed, even across computers.
+* Manual decisions (confirm, pair, unmatch, clarify) also change the version. If a line
+  changes while one of them is being saved, nothing is saved.
+* Each successful save is audited with its new version.
+
+On the command line, `show` prints each line's version (`v3`) and `update-line
+--expect-version 3` refuses the change if the line has moved on:
+
+```bash
+fintax-gst show --run 12
+fintax-gst update-line --run 12 --line 4 --status "Resolved" --expect-version 3
+```
+
+### Per-user activity
+
+*Security → User activity* (partners and administrators) summarises the audit log by
+user. For each user it shows:
+
+* the number of actions and of review edits;
+* the clients they worked on;
+* their first and last activity;
+* their most frequent actions.
+
+Select a user to see their latest actions. The same is available on the command line:
+
+```bash
+fintax-gst activity --days 30
+fintax-gst activity --user asha --recent 50
+```
+
+![User activity](screenshots/user_activity.png)
+
+### Load test
+
+`scripts/concurrency_load.py` runs several workers that edit the same few lines of a demo
+run at once, the way colleagues working through the same exceptions would. Point it at
+an **empty** database. It checks that:
+
+* every successful save is audited exactly once;
+* each line's version equals 1 + its successful saves;
+* each line keeps the text of its last successful save.
+
+```bash
+python scripts/concurrency_load.py --db postgresql+psycopg://user@host/empty_db --workers 8 --edits 50
+```
+
+Measured on the development container (PostgreSQL 16, local socket; 8 workers sharing
+3 lines):
+
+| Saves | Time | Conflicts refused | Lost or duplicated edits | Save latency (median / 95th percentile) |
+|---:|---:|---:|---:|---:|
+| 399 | 7.7 s | 781 | 0 | 31 ms / 46 ms |
+
+One edit gave up after 20 tries; the script reports this, as designed. CI runs the test
+on PostgreSQL (8 workers × 25 edits) after the test suite. The test suite also runs a
+threaded race on SQLite and PostgreSQL.
+
+### Schema v11
+
+| Change | Purpose |
+|---|---|
+| `recon_lines.version` | optimistic concurrency (SQLAlchemy `version_id_col`) |
+| `recon_lines.updated_by` | who last changed the line, named in a conflict |
 
 ### Schema v9
 

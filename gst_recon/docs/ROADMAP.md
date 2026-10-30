@@ -107,7 +107,8 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
   statutory rates, pending acceptance, annual workbook sheet.
 * ✅ GSTR-9 draft JSON for the offline tool, with a mapping that marks what is included, what
   the tool computes and what must be entered there (never guessed).
-* Multi-user hardening: concurrent edits, per-user activity, load test on PostgreSQL.
+* ✅ Multi-user hardening (schema v11): versioned review lines – concurrent saves refused with
+  who/when, never lost; per-user activity; concurrency load test on PostgreSQL in CI.
 
 ## Next
 * Sign the Windows build with the firm's code-signing certificate.

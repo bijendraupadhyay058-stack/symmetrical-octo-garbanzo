@@ -33,6 +33,7 @@ class SecurityPage(LazyPage):
         tabs.addTab(self._users_tab(), "Users && roles")
         tabs.addTab(self._backup_tab(), "Backups")
         tabs.addTab(self._audit_tab(), "Audit log")
+        tabs.addTab(self._activity_tab(), "User activity")
         tabs.addTab(self._data_tab(), "Data deletion")
         lay.addWidget(tabs, 1)
         for sig in (state.dataChanged, state.clientChanged):
@@ -142,6 +143,59 @@ class SecurityPage(LazyPage):
         self.audit_table = t
         return w
 
+    def _activity_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        row = QHBoxLayout()
+        self.act_days = QSpinBox()
+        self.act_days.setRange(1, 3650)
+        self.act_days.setValue(30)
+        self.act_days.setSuffix(" days")
+        self.act_days.valueChanged.connect(lambda _v: self._fill_activity())
+        row.addWidget(QLabel("Activity in the last"))
+        row.addWidget(self.act_days)
+        self.act_lbl = QLabel()
+        self.act_lbl.setObjectName("Muted")
+        row.addWidget(self.act_lbl, 1)
+        lay.addLayout(row)
+        self.act_model = RowsModel(["User", "Actions", "Review edits", "Clients", "First (UTC)", "Last (UTC)",
+                                    "Most frequent"], kinds=["text", "int", "int", "int", "text", "text", "text"])
+        self.act_table = Table()
+        self.act_table.setModel(self.act_model)
+        self.act_table.clicked.connect(lambda idx: self._fill_recent(idx.row()))
+        lay.addWidget(self.act_table, 1)
+        lay.addWidget(section("Latest actions of the selected user"))
+        self.recent_model = RowsModel(["When (UTC)", "Action", "Entity", "ID", "Client"])
+        self.recent_table = Table()
+        self.recent_table.setModel(self.recent_model)
+        lay.addWidget(self.recent_table, 1)
+        self.activity = []
+        return w
+
+    def _fill_activity(self) -> None:
+        from datetime import timedelta
+
+        from ...db.models import utcnow
+
+        st = self.state
+        if not st.can("settings"):
+            self.act_lbl.setText("Partners and administrators can see the activity of all users.")
+            self.act_model.set_rows([])
+            return
+        self.activity = st.security.activity(st.session, utcnow() - timedelta(days=self.act_days.value()))
+        self.act_model.set_rows([[u.user, u.total, u.edits, len(u.clients), f"{u.first:%d-%m-%Y %H:%M}",
+                                  f"{u.last:%d-%m-%Y %H:%M}",
+                                  ", ".join(f"{a} {n}" for a, n in u.actions.most_common(4))] for u in self.activity])
+        self.act_table.fit(300)
+        self.act_lbl.setText("From the audit log. Select a user to see their latest actions.")
+        self._fill_recent(0 if self.activity else -1)
+
+    def _fill_recent(self, row: int) -> None:
+        u = self.activity[row] if 0 <= row < len(self.activity) else None
+        self.recent_model.set_rows([[f"{a.at:%d-%m-%Y %H:%M:%S}", a.action, a.entity, a.entity_id, a.client_id or ""]
+                                    for a in (u.recent if u else [])])
+        self.recent_table.fit(300)
+
     def _data_tab(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
@@ -189,6 +243,7 @@ class SecurityPage(LazyPage):
         backups = sorted(sec.backup_dir.glob("*.db")) if sec.backup_dir.exists() else []
         self.backup_lbl.setText(f"{len(backups)} backup file(s) in {sec.backup_dir}")
         self._fill_audit()
+        self._fill_activity()
 
     def _fill_audit(self) -> None:
         st = self.state

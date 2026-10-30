@@ -295,6 +295,7 @@ class ReconLine:
     assigned_to: str = ""
     action_date: date | None = None
     db_id: int | None = None
+    version: int = 0  # stored line version when loaded (0 = not loaded from the database)
 
     @property
     def is_paired(self) -> bool:

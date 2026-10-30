@@ -191,6 +191,12 @@ class ReconLineRow(Base):
     assigned_to: Mapped[str] = mapped_column(String(80), default="")
     action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    #: schema v11: optimistic concurrency – every ORM update checks and increments it, so two
+    #: people saving the same line cannot overwrite each other unnoticed
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by: Mapped[str] = mapped_column(String(80), default="")  # schema v11
+
+    __mapper_args__ = {"version_id_col": version}
 
 
 class AuditLog(Base):

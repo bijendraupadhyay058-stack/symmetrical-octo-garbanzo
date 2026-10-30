@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 
 from ...core.models import Category, ExceptionStatus, ReconLine
 from ...engine.summary import itc_at_risk
-from ...services.common import ServiceError
+from ...services.common import ConflictError, ServiceError
 from ..state import AppState
 from ..theme import CATEGORY_COLORS, money
 from ..widgets import CategoryChips, LazyPage, LinesFilter, LinesModel, OBJECT_ROLE, RowsModel, Table, page_header, primary
@@ -335,9 +335,15 @@ class ExceptionsPage(LazyPage):
         d = self.action_date.date()
         action = date(d.year(), d.month(), d.day()) if self.action_set.isChecked() else None
         try:
-            self.state.recon.update_line(
+            ln.version = self.state.recon.update_line(
                 self.state.run_id, ln.line_no, self.state.user, status=self.status_edit.currentText(),
-                remarks=self.remarks.toPlainText(), assigned_to=self.assigned.text(), action_date=action)
+                remarks=self.remarks.toPlainText(), assigned_to=self.assigned.text(), action_date=action,
+                expected_version=ln.version)
+        except ConflictError as exc:  # someone else saved this line since it was loaded
+            QMessageBox.warning(self, "Changed by another user", str(exc))
+            self.state.notify()
+            self.reload(ln.line_no)
+            return
         except ServiceError as exc:
             QMessageBox.warning(self, "Exceptions", str(exc))
             return

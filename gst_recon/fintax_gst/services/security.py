@@ -14,6 +14,8 @@ import json
 import os
 import sqlite3
 import tempfile
+from collections import Counter
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -21,6 +23,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import delete, select
 
 from ..db.database import Database
+from ..db.models import utcnow
 from ..db.models import (
     AppSetting, Attachment, AuditLog, Client, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization, TdsTcsCredit,
     WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
@@ -32,6 +35,26 @@ from .common import ServiceError, audit
 MAGIC = b"FTPBK1"
 DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
             "web_uploads": False, "ewb_threshold": 50000}
+
+
+@dataclass
+class UserActivity:
+    user: str
+    actions: Counter[str]
+    clients: set[int]
+    first: datetime
+    last: datetime
+    recent: list = field(default_factory=list)  # latest audit entries (newest first)
+
+    @property
+    def total(self) -> int:
+        return sum(self.actions.values())
+
+    @property
+    def edits(self) -> int:
+        """Review work: line updates and manual decisions."""
+        return sum(n for a, n in self.actions.items() if a in ("UPDATE", "MANUAL_MATCH", "CONFIRM_MATCH", "UNMATCH",
+                                                               "PENDING_CLARIFICATION"))
 
 
 def _key(password: str, salt: bytes) -> bytes:
@@ -184,6 +207,29 @@ class SecurityService:
             if since is not None:
                 q = q.where(AuditLog.at >= since)
             return list(s.scalars(q))
+
+    def activity(self, by: Session | None, since: datetime | None = None, user: str | None = None,
+                 limit: int = 200_000) -> list["UserActivity"]:
+        """Who did what since a date, per user, from the audit log (partners and administrators)."""
+        require(by, "settings")
+        since = since or utcnow() - timedelta(days=30)
+        with self.db.session() as s:
+            q = select(AuditLog).where(AuditLog.at >= since).order_by(AuditLog.id.desc()).limit(limit)
+            if user:
+                q = q.where(AuditLog.user == user)
+            rows = list(s.scalars(q))
+        out: dict[str, UserActivity] = {}
+        for a in rows:
+            u = out.get(a.user or "(system)")
+            if u is None:
+                u = out[a.user or "(system)"] = UserActivity(a.user or "(system)", Counter(), set(), a.at, a.at)
+            u.actions[a.action] += 1
+            if a.client_id:
+                u.clients.add(a.client_id)
+            u.first, u.last = min(u.first, a.at), max(u.last, a.at)
+            if len(u.recent) < 50:
+                u.recent.append(a)
+        return sorted(out.values(), key=lambda u: u.last, reverse=True)
 
     def export_audit(self, target: str | Path, client_id: int | None = None, by: Session | None = None) -> Path:
         require(by, "export")

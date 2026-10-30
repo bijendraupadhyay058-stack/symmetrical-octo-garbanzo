@@ -89,6 +89,11 @@ Permissions are enforced where the user acts:
 * Backups of a server database are SQLite snapshots, so the same encrypted backup and
   restore applies.
 * PostgreSQL has no secure-delete setting. Encrypt the server's disk.
+* Several people can review the same run at once. Each review line has a version, and a
+  save made on an out-of-date line is refused with the name of the person who changed it
+  (schema v11, see [PHASE10.md](PHASE10.md)).
+* Partners and administrators see per-user activity from the audit log: *Security → User
+  activity* or `fintax-gst activity`.
 
 ## Privacy
 

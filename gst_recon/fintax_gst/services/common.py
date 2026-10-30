@@ -15,6 +15,10 @@ class ServiceError(ValueError):
     """A user-facing error (bad input, blocked action)."""
 
 
+class ConflictError(ServiceError):
+    """The record was changed by someone else after it was read; nothing was saved."""
+
+
 def current_user() -> str:
     try:
         return getpass.getuser()

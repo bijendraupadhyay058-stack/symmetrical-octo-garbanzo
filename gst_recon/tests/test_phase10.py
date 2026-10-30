@@ -277,3 +277,123 @@ def test_gstr9_json_cli(tmp_path, sample_files, capsys):
     assert main(["--db", dbp, "gstr9", "json", "--client", "1", "--fy", "2025-26", "--out", str(tmp_path / "j")]) == 0
     out = capsys.readouterr().out
     assert "DRAFT for review" in out and (tmp_path / "j" / f"FINTAXPRO_GSTR9_DRAFT_{CLIENT['gstin']}_FY2025-26.json").exists()
+
+
+# ------------------------------------------------------------------ multi-user
+def _inward_run(db, sample_files):
+    c = ClientService(db).create(**CLIENT)
+    svc = ImportService(db)
+    svc.import_file(c.id, sample_files["books_april"], Source.BOOKS)
+    svc.import_file(c.id, sample_files["gstr2b_april_json"], Source.GSTR2B)
+    return c, ReconciliationService(db).run(c.id, "2025-04", user="preparer")
+
+
+def test_concurrent_edit_is_refused_not_lost(db, sample_files):
+    from fintax_gst.services.common import ConflictError
+
+    _c, run_id = _inward_run(db, sample_files)
+    svc = ReconciliationService(db)
+    a_view = svc.load(run_id).result.lines[0]  # two people open the same line
+    b_view = svc.load(run_id).result.lines[0]
+    assert a_view.version == b_view.version == 1
+    v = svc.update_line(run_id, a_view.line_no, "asha", remarks="Asha: called supplier", expected_version=a_view.version)
+    assert v == 2
+    with pytest.raises(ConflictError, match="changed by asha"):
+        svc.update_line(run_id, b_view.line_no, "ravi", remarks="Ravi: overwrite", expected_version=b_view.version)
+    line = svc.load(run_id).result.lines[0]
+    assert line.remarks == "Asha: called supplier" and line.version == 2
+    # after reloading, Ravi can save on top of Asha's change
+    assert svc.update_line(run_id, line.line_no, "ravi", remarks="Ravi: noted", expected_version=line.version) == 3
+    # manual decisions bump the version too, so a stale save after them is refused
+    stale = svc.load(run_id).result.lines[0]
+    svc.mark_pending_clarification(run_id, stale.line_no, "asha", "ask client")
+    with pytest.raises(ConflictError):
+        svc.update_line(run_id, stale.line_no, "ravi", remarks="late", expected_version=stale.version)
+
+
+def test_racing_saves_keep_every_edit(db, sample_files):
+    """Threads saving the same lines: each save either wins (audited, version +1) or is refused."""
+    import threading
+
+    from fintax_gst.db.models import AuditLog, ReconLineRow
+    from fintax_gst.services.common import ConflictError
+    from sqlalchemy import func, select
+
+    _c, run_id = _inward_run(db, sample_files)
+    svc = ReconciliationService(db)
+    lines = [ln.line_no for ln in svc.load(run_id).result.lines[:2]]
+    wins, refused, errors = Counter(), Counter(), []
+
+    def worker(n):
+        for i in range(8):
+            line = lines[(n + i) % 2]
+            with db.session() as s:
+                version = s.scalar(select(ReconLineRow.version).where(ReconLineRow.run_id == run_id,
+                                                                      ReconLineRow.line_no == line))
+            try:
+                svc.update_line(run_id, line, f"u{n}", remarks=f"u{n}-{i}", expected_version=version)
+                wins[line] += 1
+            except ConflictError:
+                refused[line] += 1
+            except Exception as exc:  # pragma: no cover - reported below
+                errors.append(repr(exc))
+
+    threads = [threading.Thread(target=worker, args=(n,)) for n in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors
+    with db.session() as s:
+        versions = dict(s.execute(select(ReconLineRow.line_no, ReconLineRow.version).where(
+            ReconLineRow.run_id == run_id, ReconLineRow.line_no.in_(lines))).all())
+        audited = s.scalar(select(func.count()).select_from(AuditLog).where(AuditLog.action == "UPDATE",
+                                                                            AuditLog.entity == "recon_line"))
+    assert all(versions[ln] == 1 + wins[ln] for ln in lines)
+    assert audited == sum(wins.values()) and sum(wins.values()) + sum(refused.values()) == 32
+
+
+def test_user_activity(db, sample_files):
+    from fintax_gst.services.auth import PermissionDenied, Session
+
+    _c, run_id = _inward_run(db, sample_files)
+    svc = ReconciliationService(db)
+    for i, ln in enumerate(svc.load(run_id).result.lines[:3]):
+        svc.update_line(run_id, ln.line_no, "asha" if i < 2 else "ravi", remarks="checked")
+    sec = SecurityService(db)
+    with pytest.raises(PermissionDenied):
+        sec.activity(Session("ravi", "accountant", "Ravi"))
+    rows = {u.user: u for u in sec.activity(Session("partner", "manager", "Partner"))}
+    assert rows["asha"].edits == 2 and rows["ravi"].edits == 1 and rows["preparer"].actions["RECONCILE"] == 1
+    assert [u.user for u in sec.activity(Session("p", "manager", "P"), user="ravi")] == ["ravi"]
+
+
+def test_cli_activity_and_expect_version(tmp_path, sample_files, capsys):
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    for src, key in (("books", "books_april"), ("gstr2b", "gstr2b_april_json")):
+        assert main(["--db", dbp, "import", "--client", "1", "--source", src, "--file", str(sample_files[key])]) == 0
+    assert main(["--db", dbp, "reconcile", "--client", "1", "--from", "2025-04"]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "show", "--run", "1"]) == 0
+    assert "] v1" in capsys.readouterr().out
+    assert main(["--db", dbp, "update-line", "--run", "1", "--line", "1", "--remarks", "a", "--expect-version",
+                 "1"]) == 0
+    assert "version 2" in capsys.readouterr().out
+    assert main(["--db", dbp, "update-line", "--run", "1", "--line", "1", "--remarks", "b", "--expect-version",
+                 "1"]) != 0
+    assert "changed by" in capsys.readouterr().err
+    assert main(["--db", dbp, "activity", "--days", "7"]) == 0
+    assert "review edits" in capsys.readouterr().out
+
+
+def test_load_script_sqlite(tmp_path, capsys):
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("concurrency_load",
+                                                  Path(__file__).resolve().parents[1] / "scripts" / "concurrency_load.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.main(["--db", str(tmp_path / "load.db"), "--workers", "3", "--edits", "5"]) == 0
+    assert "no lost or duplicated edits" in capsys.readouterr().out

@@ -21,7 +21,7 @@ from ..engine.matcher import CancelToken, ReconResult, manual_pair_line, reconci
 from ..engine.summary import dashboard
 from ..importers.parsing import parse_period
 from ..outward.liability import sales_code
-from .common import ServiceError, audit, dumps, invoice_to_record
+from .common import ConflictError, ServiceError, audit, dumps, invoice_to_record
 
 BATCH = 2000
 
@@ -129,6 +129,22 @@ def reference_remarks(lines: list[ReconLine], cancelled: list[InvoiceRecord], so
         elif ln.category == Category.MISSING_IN_BOOKS and ln.gstr2b is not None:
             _note(ln, f"{what} generated but the document is not in the sales register – record the sale, or "
                       f"confirm that the {what} was cancelled on the portal")
+
+
+def _stale_as_conflict(fn):
+    """A versioned line changed by someone else during a manual decision: report it, save nothing."""
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        from sqlalchemy.orm.exc import StaleDataError
+
+        try:
+            return fn(*args, **kwargs)
+        except StaleDataError:
+            raise ConflictError("A line was changed by another user while this decision was being saved. Nothing "
+                                "was saved – reload the run and try again.") from None
+    return wrapper
 
 
 @dataclass
@@ -341,7 +357,7 @@ class ReconciliationService:
                     match_level=r.match_level, confidence=r.confidence, flags=json.loads(r.flags_json),
                     reasons=json.loads(r.reasons_json), candidates=json.loads(r.candidates_json),
                     date_diff_days=r.date_diff_days, status=ExceptionStatus(r.status), remarks=r.remarks,
-                    assigned_to=r.assigned_to, action_date=r.action_date, db_id=r.id,
+                    assigned_to=r.assigned_to, action_date=r.action_date, db_id=r.id, version=r.version,
                 ))
         settings = ReconSettings.from_dict(json.loads(run.settings_json))
         books = [ln.books for ln in lines if ln.books is not None and not ln.books.is_prior_period]
@@ -359,39 +375,71 @@ class ReconciliationService:
     # ---------------------------------------------------- exception updates
     def update_line(self, run_id: int, line_no: int, user: str | None = None, *, status: str | None = None,
                     remarks: str | None = None, assigned_to: str | None = None,
-                    action_date: date | None = None) -> None:
-        with self.db.session() as s:
-            row = s.scalar(select(ReconLineRow).where(and_(ReconLineRow.run_id == run_id,
-                                                           ReconLineRow.line_no == line_no)))
-            if row is None:
-                raise ServiceError(f"Line {line_no} not found in run {run_id}")
-            changes = {}
-            if status is not None:
-                try:
-                    status_value = ExceptionStatus(status).value
-                except ValueError:
-                    raise ServiceError(f"Unknown status '{status}'. Use one of: "
-                                       + ", ".join(e.value for e in ExceptionStatus)) from None
-                changes["status"] = status_value
-            if remarks is not None:
-                changes["remarks"] = remarks
-            if assigned_to is not None:
-                changes["assigned_to"] = assigned_to
-            if action_date is not None:
-                changes["action_date"] = action_date
-            before = {k: getattr(row, k) for k in changes}
-            for k, v in changes.items():
-                setattr(row, k, v)
-            run = s.get(ReconRun, run_id)
-            if "status" in changes:  # keep the stored summary's pending count current without a full reload
-                s.flush()
-                summary = json.loads(run.summary_json or "{}")
-                summary["pending_cases"] = s.scalar(select(func.count()).select_from(ReconLineRow).where(
-                    ReconLineRow.run_id == run_id,
-                    ReconLineRow.status.not_in([c.value for c in CLOSED_STATUSES])))
-                run.summary_json = dumps(summary)
-            audit(s, "UPDATE", "recon_line", f"{run_id}:{line_no}", {"before": before, "after": changes}, user,
-                  run.client_id)
+                    action_date: date | None = None, expected_version: int | None = None) -> int:
+        """Save a reviewer's change; returns the line's new version.
+
+        ``expected_version`` is the version the user started from (``ReconLine.version``).
+        If someone else saved the line since, :class:`ConflictError` names who and when,
+        and nothing is saved. The update itself is also guarded in the database
+        (``UPDATE … WHERE version = …``), so two saves racing each other cannot both win.
+        """
+        from sqlalchemy.orm.exc import StaleDataError
+
+        try:
+            with self.db.session() as s:
+                return self._update_line(s, run_id, line_no, user, status, remarks, assigned_to, action_date,
+                                         expected_version)
+        except StaleDataError:
+            with self.db.session() as s:
+                row = s.scalar(select(ReconLineRow).where(ReconLineRow.run_id == run_id,
+                                                          ReconLineRow.line_no == line_no))
+                raise ConflictError(self._conflict_text(row, line_no)) from None
+
+    @staticmethod
+    def _conflict_text(row: ReconLineRow, line_no: int) -> str:
+        who = row.updated_by or "another user"
+        when = f" at {row.updated_at:%d-%m-%Y %H:%M} UTC" if row.updated_at else ""
+        return (f"Line {line_no} was changed by {who}{when} after you opened it. Your change was not saved – "
+                "reload to see their change, then save again if still needed.")
+
+    def _update_line(self, s, run_id, line_no, user, status, remarks, assigned_to, action_date,
+                     expected_version) -> int:
+        row = s.scalar(select(ReconLineRow).where(and_(ReconLineRow.run_id == run_id,
+                                                       ReconLineRow.line_no == line_no)))
+        if row is None:
+            raise ServiceError(f"Line {line_no} not found in run {run_id}")
+        if expected_version and row.version != expected_version:
+            raise ConflictError(self._conflict_text(row, line_no))
+        changes = {}
+        if status is not None:
+            try:
+                status_value = ExceptionStatus(status).value
+            except ValueError:
+                raise ServiceError(f"Unknown status '{status}'. Use one of: "
+                                   + ", ".join(e.value for e in ExceptionStatus)) from None
+            changes["status"] = status_value
+        if remarks is not None:
+            changes["remarks"] = remarks
+        if assigned_to is not None:
+            changes["assigned_to"] = assigned_to
+        if action_date is not None:
+            changes["action_date"] = action_date
+        before = {k: getattr(row, k) for k in changes}
+        for k, v in changes.items():
+            setattr(row, k, v)
+        row.updated_by = (user or "")[:80]
+        s.flush()  # the versioned UPDATE: raises StaleDataError if another save got in first
+        run = s.get(ReconRun, run_id)
+        if "status" in changes:  # keep the stored summary's pending count current without a full reload
+            s.flush()
+            summary = json.loads(run.summary_json or "{}")
+            summary["pending_cases"] = s.scalar(select(func.count()).select_from(ReconLineRow).where(
+                ReconLineRow.run_id == run_id,
+                ReconLineRow.status.not_in([c.value for c in CLOSED_STATUSES])))
+            run.summary_json = dumps(summary)
+        audit(s, "UPDATE", "recon_line", f"{run_id}:{line_no}", {"before": before, "after": changes,
+                                                                  "version": row.version}, user, run.client_id)
+        return row.version
 
     # -------------------------------------------------- manual decisions
     def _row(self, s, run_id: int, line_no: int) -> ReconLineRow:
@@ -449,10 +497,12 @@ class ReconciliationService:
         settings = ReconSettings.from_dict(json.loads(run.settings_json))
         ln = manual_pair_line(b, g, settings, self._note(user, remarks, "Manually matched"))
         self._apply(keep, ln)
+        keep.updated_by = (user or "")[:80]
         if remarks:
             keep.remarks = f"{keep.remarks}\n{remarks}".strip()
         self._decide(s, run.client_id, run.id, b.db_id, g.db_id, "MATCH", remarks, user)
 
+    @_stale_as_conflict
     def confirm_match(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "") -> None:
         """Confirm the suggested pair on a line (probable match, GSTIN mismatch, far-apart dates)."""
         with self.db.session() as s:
@@ -469,6 +519,7 @@ class ReconciliationService:
                   {"before": before, "after": self._snapshot(row)}, user, run.client_id)
         self.refresh_summary(run_id)
 
+    @_stale_as_conflict
     def manual_match(self, run_id: int, line_a: int, line_b: int, user: str | None = None,
                      remarks: str = "") -> int:
         """Pair a books-only line with a GSTR-2B-only line. Returns the surviving line number."""
@@ -497,6 +548,7 @@ class ReconciliationService:
         self.refresh_summary(run_id)
         return kept
 
+    @_stale_as_conflict
     def unmatch(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "") -> int:
         """Split a paired (or suggested) line; the pair is never matched again automatically.
         Returns the line number given to the GSTR-2B document."""
@@ -521,12 +573,14 @@ class ReconciliationService:
                 s.delete(row)
             else:
                 self._apply(row, single_sided_line(b, settings, start, note))
+                row.updated_by = (user or "")[:80]
             s.execute(insert(ReconLineRow), [self._line_row(run_id, g_line)])
             audit(s, "UNMATCH", "recon_line", f"{run_id}:{line_no}",
                   {"before": before, "gstr2b_line": new_no, "remarks": remarks}, user, run.client_id)
         self.refresh_summary(run_id)
         return new_no
 
+    @_stale_as_conflict
     def mark_pending_clarification(self, run_id: int, line_no: int, user: str | None = None, remarks: str = "",
                                    status: str = ExceptionStatus.CLIENT_CLARIFICATION.value) -> None:
         with self.db.session() as s:
@@ -539,6 +593,7 @@ class ReconciliationService:
                 row.reasons_json = json.dumps(reasons, ensure_ascii=False)
             row.category = Category.PENDING_CLARIFICATION.value
             row.status = ExceptionStatus(status).value
+            row.updated_by = (user or "")[:80]
             if remarks:
                 row.remarks = f"{row.remarks}\n{remarks}".strip()
             audit(s, "PENDING_CLARIFICATION", "recon_line", f"{run_id}:{line_no}",
