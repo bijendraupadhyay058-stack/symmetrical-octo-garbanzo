@@ -532,11 +532,13 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "gstr8a_json": out / "gstr9_table8a_2025-26.json",
         "expense_ledger": out / "expense_ledger_2025-26.csv",
         "books_itemwise_csv": out / "purchase_register_itemwise_2025-04.csv",
+        "books_tally_xml": out / "tally_purchase_vouchers_2025-04.xml",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
                          (2025, 3), False)
     write_custom_csv(files["books_april_csv"], books_docs())
+    write_tally_xml(files["books_tally_xml"], books_docs())
     write_gstr2b_excel(files["gstr2b_april"], g2b_docs())
     write_gstr2b_json(files["gstr2b_april_json"], g2b_docs())
     write_gstr3b_json(files["gstr3b_april_json"])
@@ -616,3 +618,59 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "until paid; ITC in GSTR-3B above GSTR-2B is listed with interest as an upper limit."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files
+
+
+# ------------------------------------------------------------ Tally XML (Phase 12)
+def write_tally_xml(path: Path, docs: list[Doc], booking_month: tuple[int, int] = (2025, 4)) -> None:
+    """The April purchase register as TallyPrime XML: ledger masters with GST duty heads, vouchers in
+    accounting and item-invoice mode, plus a cancelled purchase and a payment (both to be ignored)."""
+    from xml.sax.saxutils import escape
+
+    def amt(x: D) -> str:
+        return f"{x:.2f}"
+
+    ledgers = [("Input CGST 9%", "Central Tax"), ("Input SGST 9%", "State Tax"), ("Input IGST 18%", "Integrated Tax"),
+               ("Input CGST 6%", "Central Tax"), ("Input SGST 6%", "State Tax"), ("Input IGST 12%", "Integrated Tax")]
+    out = ['<?xml version="1.0" encoding="utf-8"?>', "<ENVELOPE><HEADER><TALLYREQUEST>Export</TALLYREQUEST></HEADER>",
+           f"<BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{escape(CLIENT['name'])}</SVCURRENTCOMPANY>"
+           "</STATICVARIABLES></DESC><DATA><TALLYMESSAGE>"]
+    for name, head in ledgers:
+        out.append(f'<LEDGER NAME="{escape(name)}"><TAXTYPE>GST</TAXTYPE><GSTDUTYHEAD>{head}</GSTDUTYHEAD></LEDGER>')
+    for n, d in enumerate(docs, start=1):
+        vtype = {"INV": "Purchase", "CRN": "Debit Note", "DBN": "Credit Note"}[d.doc]
+        booking = date(*booking_month, min(max(d.dt.day, 1), 28)) if (d.dt.year, d.dt.month) != booking_month else d.dt
+        gst, name = SUPPLIERS[d.sup]
+        tx, ig, cg, sg = (D(x) for x in (d.taxable, d.igst, d.cgst, d.sgst))
+        rate = d.rate
+        sign = -1 if d.doc != "CRN" else 1  # purchases debit the purchase and tax ledgers (negative in Tally XML)
+        entries = [(name, -sign * (tx + ig + cg + sg), True)]
+        for led, v in ((f"Input CGST {rate // 2}%", cg), (f"Input SGST {rate // 2}%", sg), (f"Input IGST {rate}%", ig)):
+            if v:
+                entries.append((led, sign * v, False))
+        inventory = n % 2 == 0  # every other voucher in item-invoice mode
+        if not inventory:
+            entries.append((f"Purchase @{rate}%", sign * tx, False))
+        out.append(f'<VOUCHER VCHTYPE="{vtype}" ACTION="Create"><DATE>{booking:%Y%m%d}</DATE>'
+                   f"<VOUCHERTYPENAME>{vtype}</VOUCHERTYPENAME><VOUCHERNUMBER>{n}</VOUCHERNUMBER>"
+                   f"<REFERENCE>{escape(d.no)}</REFERENCE><REFERENCEDATE>{d.dt:%Y%m%d}</REFERENCEDATE>"
+                   f"<PARTYLEDGERNAME>{escape(name)}</PARTYLEDGERNAME><PARTYGSTIN>{gst}</PARTYGSTIN>"
+                   f"<NARRATION>{escape(d.narration or '')}</NARRATION><ISCANCELLED>No</ISCANCELLED>"
+                   "<ISOPTIONAL>No</ISOPTIONAL>")
+        for led, v, party in entries:
+            out.append(f"<ALLLEDGERENTRIES.LIST><LEDGERNAME>{escape(led)}</LEDGERNAME>"
+                       f"<ISPARTYLEDGER>{'Yes' if party else 'No'}</ISPARTYLEDGER><AMOUNT>{amt(v)}</AMOUNT>"
+                       "</ALLLEDGERENTRIES.LIST>")
+        if inventory:
+            out.append(f"<ALLINVENTORYENTRIES.LIST><STOCKITEMNAME>Item {n}</STOCKITEMNAME><AMOUNT>{amt(sign * tx)}"
+                       "</AMOUNT><ACTUALQTY> 10 Nos</ACTUALQTY><ACCOUNTINGALLOCATIONS.LIST>"
+                       f"<LEDGERNAME>Purchase @{rate}%</LEDGERNAME><AMOUNT>{amt(sign * tx)}</AMOUNT>"
+                       "</ACCOUNTINGALLOCATIONS.LIST></ALLINVENTORYENTRIES.LIST>")
+        out.append("</VOUCHER>")
+    out.append('<VOUCHER VCHTYPE="Purchase"><DATE>20250430</DATE><VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME>'
+               "<VOUCHERNUMBER>99</VOUCHERNUMBER><REFERENCE>CANCELLED-1</REFERENCE><ISCANCELLED>Yes</ISCANCELLED>"
+               "</VOUCHER>")
+    out.append('<VOUCHER VCHTYPE="Payment"><DATE>20250430</DATE><VOUCHERTYPENAME>Payment</VOUCHERTYPENAME>'
+               "<VOUCHERNUMBER>7</VOUCHERNUMBER><ALLLEDGERENTRIES.LIST><LEDGERNAME>State Bank of India</LEDGERNAME>"
+               "<AMOUNT>50000.00</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER>")
+    out.append("</TALLYMESSAGE></DATA></BODY></ENVELOPE>")
+    path.write_text("\n".join(out), encoding="utf-8")

@@ -130,7 +130,7 @@ class ImportService:
                 if cancel:
                     cancel.check()  # raises -> whole transaction rolled back
                 s.execute(insert(Invoice), rows[i:i + BATCH])
-                progress(int(90 * (i + BATCH) / max(len(rows), 1)), "Saving documents")
+                progress(int(90 * min(i + BATCH, len(rows)) / max(len(rows), 1)), "Saving documents")
             issues = [{"source_file_id": sf.id, "sheet": i.sheet, "row_ref": i.row[:200], "severity": i.severity,
                        "message": i.message, "raw_json": dumps(i.raw)} for i in preview.issues]
             issues += [{"source_file_id": sf.id, "sheet": "", "row_ref": r.source_rows[:200], "severity": "existing",

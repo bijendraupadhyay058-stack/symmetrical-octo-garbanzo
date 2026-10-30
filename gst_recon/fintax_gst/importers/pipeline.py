@@ -33,6 +33,7 @@ LAYOUT_LABELS = {
     "gstr8a_json": "GSTR-9 Table 8A document details (GST portal JSON)",
     "einvoice_report": "e-Invoice report (IRP / e-invoice portal)",
     "ewb_report": "e-Way bill report (e-way bill portal)",
+    "tally_xml": "TallyPrime / Tally.ERP 9 vouchers (XML)",
     "tally": "TallyPrime purchase register",
     "generic": "Custom purchase register",
 }
@@ -329,7 +330,7 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
         raise FileNotFoundError(path)
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
-        raise UnsupportedFileError(f"Unsupported file type '{suffix}'. Use Excel (.xlsx), CSV, JSON or ZIP.")
+        raise UnsupportedFileError(f"Unsupported file type '{suffix}'. Use Excel (.xlsx), CSV, JSON, Tally XML or ZIP.")
     norm_period = parse_period(period) if period else None
     if period and not norm_period:
         raise ValueError(f"Invalid period '{period}' (use YYYY-MM)")
@@ -340,6 +341,9 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
 
     for name, data in members:
         msuffix = Path(name).suffix.lower()
+        if msuffix == ".xml":
+            _tally_xml(preview, name, data)
+            continue
         if msuffix == ".json":
             js = read_json(data)
             kind = detect_json_kind(js, source.value)
@@ -431,6 +435,28 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
                 raise UnsupportedFileError(f"{name}: no sheet with recognisable purchase-register headings")
     _aggregate_and_flag(preview)
     return preview
+
+
+def _tally_xml(preview: ImportPreview, name: str, data) -> None:
+    from .tally_xml import flatten_vouchers, parse_xml
+
+    raw = data if isinstance(data, (bytes, bytearray)) else Path(data).read_bytes()
+    register = {Source.BOOKS: "purchase", Source.SALES: "sales"}.get(preview.source)
+    if register is None:
+        raise UnsupportedFileError(f"{name}: Tally XML is a purchase or sales register – import it as books or sales")
+    found = flatten_vouchers(parse_xml(raw), register)
+    preview.layout = "tally_xml"
+    if found.company:
+        preview.file_warnings.append(f"Tally company: {found.company}")
+    builder = _Builder(preview, "tally")
+    for ref, reason in found.ignored:
+        preview.issues.append(RowIssue("", ref, "ignored", reason))
+    for row in found.rows:
+        if row.get("_warning"):
+            preview.issues.append(RowIssue("", row["_row"], "warning", row.pop("_warning")))
+        builder.add("", row["_row"], row, {k: str(v) for k, v in row.items() if not k.startswith("_") and v})
+    if not found.rows and not found.ignored:
+        raise UnsupportedFileError(f"{name}: no vouchers found in the Tally XML")
 
 
 def _has_data_rows(t: RawTable) -> bool:

@@ -85,7 +85,10 @@ class OutwardPage(LazyPage):
         self.ewb_btn = QPushButton("Import e-way bill report…")
         self.ewb_btn.setToolTip("Report of e-way bills generated, downloaded from the e-way bill portal")
         self.ewb_btn.clicked.connect(lambda: self.import_dialog(Source.EWB))
-        for w in (self.sales_btn, self.g1_btn, self.einv_btn, self.ewb_btn, b3):
+        self.tally_btn = QPushButton("Sales from Tally…")
+        self.tally_btn.setToolTip("Fetch the sales vouchers straight from TallyPrime (XML interface, port 9000)")
+        self.tally_btn.clicked.connect(self.tally_dialog)
+        for w in (self.sales_btn, self.tally_btn, self.g1_btn, self.einv_btn, self.ewb_btn, b3):
             top.addWidget(w)
         top.addStretch()
         lay.addLayout(top)
@@ -165,7 +168,7 @@ class OutwardPage(LazyPage):
                 cb.addItems(months)
                 cb.blockSignals(False)
         enabled = st.client is not None
-        for b in (self.sales_btn, self.g1_btn, self.einv_btn, self.ewb_btn):
+        for b in (self.sales_btn, self.tally_btn, self.g1_btn, self.einv_btn, self.ewb_btn):
             b.setEnabled(enabled and st.can("import"))
         self.run_btn.setEnabled(enabled and st.can("reconcile"))
         if st.client is None:
@@ -231,6 +234,13 @@ class OutwardPage(LazyPage):
             period = None if Path(path).suffix.lower() in (".json", ".zip") \
                 or source in (Source.SALES, Source.EINV, Source.EWB) else self.from_cb.currentText()
             import_interactive(self, self.state, path, source, period)
+            self.reload()
+
+    def tally_dialog(self) -> None:
+        from ..tally_import import tally_import
+
+        periods = self.periods()
+        if periods and tally_import(self, self.state, Source.SALES, periods[0], periods[-1]):
             self.reload()
 
     def reconcile(self) -> None:

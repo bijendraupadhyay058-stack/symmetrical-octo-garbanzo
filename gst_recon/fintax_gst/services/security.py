@@ -34,7 +34,8 @@ from .common import ServiceError, audit
 
 MAGIC = b"FTPBK1"
 DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
-            "web_uploads": False, "ewb_threshold": 50000}
+            "web_uploads": False, "ewb_threshold": 50000,
+            "tally_url": "http://localhost:9000"}
 
 
 @dataclass

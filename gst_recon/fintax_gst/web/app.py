@@ -77,7 +77,7 @@ UPLOAD_SOURCES = [("BOOKS", "Purchase register"), ("GSTR2B", "GSTR-2B"), ("GSTR2
                   ("SALES", "Sales register"), ("GSTR1", "GSTR-1"), ("IMS", "IMS download"),
                   ("GSTR3B", "GSTR-3B"), ("GSTR8A", "GSTR-9 Table 8A document details"),
                   ("EINV", "e-Invoice report (IRP)"), ("EWB", "e-Way bill report")]
-UPLOAD_SUFFIXES = {".xlsx", ".xlsm", ".xls", ".csv", ".json", ".zip"}
+UPLOAD_SUFFIXES = {".xlsx", ".xlsm", ".xls", ".csv", ".json", ".zip", ".xml"}
 
 
 def _safe_name(name: str) -> str:

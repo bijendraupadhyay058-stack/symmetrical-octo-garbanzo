@@ -154,7 +154,7 @@ If the headings are not recognised you can map the columns on the next screen.</
 <label>Period (YYYY-MM, only if the file does not state it)<br><input name="period" placeholder="2025-04"
 pattern="\\d{4}-\\d{2}"></label>
 <label>File (Excel, CSV, JSON or ZIP, up to {{ max_mb }} MB)<br><input type="file" name="file" required
-accept=".xlsx,.xlsm,.xls,.csv,.json,.zip"></label>
+accept=".xlsx,.xlsm,.xls,.csv,.json,.zip,.xml"></label>
 <button class="btn" type="submit">Check file</button></form>{% endblock %}"""
 
 UPLOAD_PREVIEW = """{% extends "base" %}{% block title %}Preview · FIN TAX PRO{% endblock %}{% block body %}

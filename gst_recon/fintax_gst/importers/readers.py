@@ -11,7 +11,7 @@ import pandas as pd
 from openpyxl import load_workbook
 
 MAX_ZIP_MEMBER_BYTES = 200 * 1024 * 1024
-SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".csv", ".json", ".zip"}
+SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".csv", ".json", ".zip", ".xml"}
 
 
 class UnsupportedFileError(ValueError):
