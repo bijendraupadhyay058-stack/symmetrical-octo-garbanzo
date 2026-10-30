@@ -1,4 +1,4 @@
-"""Phase 11 commands: interest and late fees."""
+"""Phase 11 commands: interest and late fees, supplier compliance scores."""
 from __future__ import annotations
 
 from datetime import date
@@ -82,8 +82,36 @@ def add_commands(sub) -> None:
     i.add_argument("--preview", action="store_true")
     i.set_defaults(func=cmd_interest)
 
+    s = sub.add_parser("supplier-scores", help="supplier compliance scores for a year (risk list for follow-up)")
+    s.add_argument("--client", required=True)
+    s.add_argument("--fy", required=True)
+    s.add_argument("--top", type=int, help="show only the first N (highest risk first)")
+    s.add_argument("--why", action="store_true", help="explain each score")
+    s.add_argument("--out", help="folder for the Excel list")
+    s.set_defaults(func=cmd_supplier_scores)
+
 
 def permission_for(args) -> str | None:
     if args.command == "interest":
         return "review" if args.action in ("filed", "import-filings", "settle") else "view"
     return None
+
+
+def cmd_supplier_scores(db, args) -> None:
+    from .core.money import fmt_inr
+    from .services.clients import ClientService
+    from .services.supplier_score import SupplierScoreService
+
+    client = ClientService(db).resolve(args.client)
+    svc = SupplierScoreService(db)
+    rows, notes = svc.scores(client.id, args.fy)
+    print(f"Supplier compliance scores – {client.name} ({client.gstin}) FY {args.fy}")
+    for x in rows[:args.top] if args.top else rows:
+        print(f"  {x.score:>3} {x.band:<15} {x.gstin} {x.name[:30]:<30} ITC at risk {fmt_inr(x.itc_at_risk):>12}")
+        if args.why:
+            for r in x.reasons:
+                print(f"        {r}")
+    for n in notes:
+        print(f"  ! {n}")
+    if args.out:
+        print(f"Workbook: {svc.export(client.id, args.fy, args.out, args.user)}")

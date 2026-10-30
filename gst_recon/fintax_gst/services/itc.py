@@ -295,7 +295,7 @@ class ItcService:
     def _latest_month_runs(self, s, client_id: int, months: list[str]) -> dict[str, int]:
         runs = s.scalars(select(ReconRun).where(ReconRun.client_id == client_id,
                                                 ReconRun.period_from == ReconRun.period_to,
-                                                ReconRun.comparison.like("BOOKS%"),
+                                                ReconRun.comparison == "BOOKS_VS_GSTR2B",  # not 2A / 8A runs
                                                 ReconRun.period_from.in_(months)).order_by(ReconRun.id)).all()
         return {r.period_from: r.id for r in runs}
 

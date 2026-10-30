@@ -6,7 +6,7 @@ from datetime import date
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDateEdit, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPlainTextEdit,
-    QSplitter, QVBoxLayout, QWidget,
+    QPushButton, QSplitter, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from ...engine.summary import supplier_summary
@@ -68,10 +68,86 @@ class SuppliersPage(LazyPage):
         bottom.setStretchFactor(0, 3)
         bottom.setStretchFactor(1, 2)
         vsplit.addWidget(bottom)
-        lay.addWidget(vsplit, 1)
+        tabs = QTabWidget()
+        tabs.addTab(vsplit, "Reconciliation of the run")
+        tabs.addTab(self._scores_tab(), "Compliance scores (year)")
+        lay.addWidget(tabs, 1)
         for sig in (state.runChanged, state.dataChanged, state.clientChanged):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()  # loads when first shown
+
+    def _scores_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        row = QHBoxLayout()
+        compute = primary("Compute scores")
+        compute.clicked.connect(self.show_scores)
+        export = QPushButton("Export list…")
+        export.clicked.connect(self.export_scores)
+        self.score_lbl = QLabel("Scores use the year's purchase register, GSTR-2B and the monthly reconciliations.")
+        self.score_lbl.setObjectName("Muted")
+        self.score_lbl.setWordWrap(True)
+        row.addWidget(compute)
+        row.addWidget(export)
+        row.addWidget(self.score_lbl, 1)
+        lay.addLayout(row)
+        self.score_model = RowsModel(["GSTIN", "Supplier", "Score", "Risk", "ITC at risk", "Books docs", "2B docs",
+                                      "Missing in 2B", "Late", "Mismatched", "ITC N/A", "Amended", "Follow-up"],
+                                     kinds=["text", "text", "int", "text", "money", "int", "int", "int", "int", "int",
+                                            "int", "int", "text"], colors=self._score_color)
+        self.score_proxy = sortable(self.score_model)
+        self.score_table = Table()
+        self.score_table.setModel(self.score_proxy)
+        self.score_table.clicked.connect(self._score_selected)
+        lay.addWidget(self.score_table, 1)
+        self.score_why = QLabel()
+        self.score_why.setWordWrap(True)
+        lay.addWidget(self.score_why)
+        self.scores = []
+        return w
+
+    def _score_color(self, row, col):
+        if col != 3:
+            return None
+        from PySide6.QtGui import QColor
+
+        return QColor({"High": "#FFCDD2", "Medium": "#FFF3C4", "Low": "#C8E6C9"}.get(self.score_model.rows[row][3],
+                                                                                       "#ECEFF1"))
+
+    def show_scores(self) -> None:
+        from ...services.supplier_score import SupplierScoreService
+
+        st = self.state
+        if st.client is None:
+            return
+        self.scores, notes = SupplierScoreService(st.db).scores(st.client.id, st.fy)
+        self.score_model.set_rows([[x.gstin, x.name, x.score, x.band, x.itc_at_risk, x.books_docs, x.gstr2b_docs,
+                                    x.missing_docs, x.late_docs, x.mismatched, x.unavailable, x.amended, x.followup]
+                                   for x in self.scores], [x.gstin for x in self.scores])
+        self.score_table.fit(280)
+        high = sum(1 for x in self.scores if x.band == "High")
+        self.score_lbl.setText(f"FY {st.fy}: {len(self.scores)} supplier(s), {high} at high risk. Highest risk and "
+                               "ITC at risk first. " + " ".join(notes))
+        self.score_why.setText("Select a supplier to see why it scored as it did.")
+
+    def _score_selected(self, idx) -> None:
+        gstin = self.score_proxy.index(idx.row(), 0).data(OBJECT_ROLE)
+        x = next((s for s in self.scores if s.gstin == gstin), None)
+        if x is not None:
+            self.score_why.setText(f"<b>{x.name or x.gstin}</b> – score {x.score} ({x.band}): " + "; ".join(x.reasons))
+
+    def export_scores(self) -> None:
+        from PySide6.QtWidgets import QFileDialog
+
+        from ...services.supplier_score import SupplierScoreService
+
+        st = self.state
+        if st.client is None:
+            return
+        out = QFileDialog.getExistingDirectory(self, "Folder for the supplier score list")
+        if out:
+            path = SupplierScoreService(st.db).export(st.client.id, st.fy, out, st.user)
+            QMessageBox.information(self, "Supplier scores", f"Saved {path}")
 
     def _vendor_form(self) -> QWidget:
         frame, lay = card()
@@ -106,6 +182,7 @@ class SuppliersPage(LazyPage):
 
     def reload(self) -> None:
         st = self.state
+        self.score_model.set_rows([])  # recomputed on request (reads the whole year)
         self.vendors = st.vendors.all(st.client.id) if st.client else {}
         due = st.vendors.due(st.client.id) if st.client else []
         self.due_lbl.setText(f"{len(due)} vendor follow-up(s) due" if due else "")

@@ -113,3 +113,80 @@ def test_cli_interest(tmp_path, sample_files, capsys):
 
     wb = load_workbook(next(tmp_path.glob("FINTAXPRO_Interest_LateFee_*.xlsx")), read_only=True)
     assert wb.sheetnames == ["Interest & Late Fee"]
+
+
+# ------------------------------------------------------------------ supplier scores
+def _rec(gstin, no, d, period, source=Source.BOOKS, itc="1800", **kw):
+    from fintax_gst.core.models import DocType, InvoiceRecord
+
+    return InvoiceRecord(uid=no, source=source, supplier_gstin=gstin, doc_type=DocType.INVOICE, invoice_no=no,
+                         invoice_date=d, taxable=Decimal("10000"), igst=Decimal(itc), period=period,
+                         supplier_name=f"Supplier {gstin[:4]}", **kw)
+
+
+def test_scoring_rules():
+    from fintax_gst.core.models import Category, ReconLine
+    from fintax_gst.itc.supplier_score import score_suppliers
+
+    g_bad, g_ok = "27AAAAA0000A1Z5", "27BBBBB0000B1Z5"
+    books = [_rec(g_bad, f"B{i}", date(2025, 4, i + 1), "2025-04", db_id=i) for i in range(4)]
+    books += [_rec(g_ok, f"K{i}", date(2025, 4, i + 1), "2025-04", db_id=10 + i) for i in range(4)]
+    g2b = [_rec(g_bad, "B0", date(2025, 4, 1), "2025-06", Source.GSTR2B),  # two months late
+           _rec(g_bad, "B1", date(2025, 4, 2), "2025-04", Source.GSTR2B, itc_availability="N")]
+    g2b += [_rec(g_ok, f"K{i}", date(2025, 4, i + 1), "2025-04", Source.GSTR2B) for i in range(4)]
+    april = [ReconLine(1, Category.MISSING_IN_2B, books=books[0]), ReconLine(2, Category.MISSING_IN_2B, books=books[1]),
+             ReconLine(3, Category.MISSING_IN_2B, books=books[2]), ReconLine(4, Category.TAXABLE_DIFFERENCE,
+                                                                              books=books[3])]
+    april += [ReconLine(10 + i, Category.FULLY_MATCHED, books=books[4 + i]) for i in range(4)]
+    june = [ReconLine(1, Category.PREVIOUS_PERIOD, books=books[0])]  # B0 found in June: no longer missing
+    s = {x.gstin: x for x in score_suppliers(books, g2b, [april, june], {g_bad: "Letter sent"})}
+    bad = s[g_bad]
+    assert (bad.missing_docs, bad.itc_at_risk, bad.late_docs, bad.max_lag) == (2, 3600, 1, 2)
+    assert (bad.mismatched, bad.unavailable) == (1, 1)
+    # 40×2/4 + 25×1/2 + 20×1/4 + 10×1/2 = 20 + 12 (12.5 rounded half to even) + 5 + 5
+    assert bad.score == 100 - 20 - 12 - 5 - 5 and bad.band == "High" and bad.followup == "Letter sent"
+    assert len(bad.reasons) == 4 and "ITC ₹3,600.00 at risk" in bad.reasons[0]
+    assert (s[g_ok].score, s[g_ok].band, s[g_ok].reasons) == (100, "Low", ["No issues found in the data imported"])
+    assert list(s)[0] == g_bad  # highest risk first
+
+
+def test_supplier_scores_service_and_cli(db, sample_files, tmp_path, capsys):
+    from fintax_gst.services.reconciliation import ReconciliationService
+    from fintax_gst.services.supplier_score import SupplierScoreService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = ImportService(db)
+    for key, src in (("books_april", Source.BOOKS), ("gstr2b_april_json", Source.GSTR2B)):
+        svc.import_file(c.id, sample_files[key], src)
+    rows, notes = SupplierScoreService(db).scores(c.id, "2025-26")
+    assert any("No books vs GSTR-2B reconciliation for 2025-04" in n for n in notes)
+    assert all(x.missing_docs == 0 for x in rows)
+    recon = ReconciliationService(db)
+    recon.run(c.id, "2025-04")
+    rows, notes = SupplierScoreService(db).scores(c.id, "2025-26")
+    by = {x.name: x for x in rows}
+    assert not notes and by["Kovai Textiles Pvt Ltd"].missing_docs == 1
+    assert by["Delhi Office Supplies"].late_docs == 1
+    path = SupplierScoreService(db).export(c.id, "2025-26", tmp_path)
+    from openpyxl import load_workbook
+
+    assert load_workbook(path, read_only=True).sheetnames == ["Supplier Scores"]
+
+
+def test_table4_uses_the_gstr2b_run(db, sample_files):
+    """A later books vs GSTR-2A run of the same month must not replace the GSTR-2B run."""
+    from fintax_gst.db.models import ReconRun
+    from fintax_gst.services.itc import ItcService
+    from fintax_gst.services.reconciliation import ReconciliationService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = ImportService(db)
+    for key, src in (("books_april", Source.BOOKS), ("gstr2b_april_json", Source.GSTR2B)):
+        svc.import_file(c.id, sample_files[key], src)
+    r2b = ReconciliationService(db).run(c.id, "2025-04")
+    with db.session() as s:
+        s.add(ReconRun(client_id=c.id, financial_year="2025-26", period_from="2025-04", period_to="2025-04",
+                       comparison="BOOKS_VS_GSTR2A", settings_json="{}", fingerprint="x", engine_version="x",
+                       summary_json="{}", source_file_ids="[]", status="COMPLETED"))
+    with db.session() as s:
+        assert ItcService(db)._latest_month_runs(s, c.id, ["2025-04"]) == {"2025-04": r2b}

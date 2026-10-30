@@ -113,7 +113,8 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 ## Phase 11
 * ✅ Interest (section 50) and late fees (section 47): filing register, settlements, DRC-03
   summary (schema v12).
-* Supplier compliance scoring.
+* ✅ Supplier compliance scores: missing, late, mismatched, unavailable and amended documents;
+  risk bands, reasons, ITC at risk.
 * Notice response helper (DRC-01B, DRC-01C, ASMT-10).
 
 ## Next

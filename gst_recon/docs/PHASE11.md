@@ -1,4 +1,4 @@
-# Phase 11 – interest and late fees
+# Phase 11 – interest and late fees, supplier compliance scores
 
 ## 1. Interest (section 50) and late fees (section 47)
 
@@ -77,6 +77,60 @@ Sample: `sample_data/returns_filed_2025-26.csv`. On the demo data:
 
 * the April GSTR-1 is 4 days late and GSTR-3B 8 days late: late fees of ₹200 and ₹400;
 * the ₹3,600 short payment carries ₹145.58 of interest per head up to 31-10-2025.
+
+## 2. Supplier compliance scores
+
+*Suppliers → Compliance scores (year)*, or `fintax-gst supplier-scores`, rates each
+supplier on how reliably it reported the client's purchases during the year. It uses:
+
+* the purchase register;
+* GSTR-2B;
+* the latest books vs GSTR-2B reconciliation of each month.
+
+The score starts at 100. Points are deducted in proportion to each signal:
+
+| Signal | Up to |
+|---|---:|
+| Books documents still missing in GSTR-2B (ITC at risk) | 40 |
+| Documents reported in a later month's GSTR-2B than their date | 25 |
+| Matched documents with value / tax differences | 20 |
+| Documents marked *ITC not available* in GSTR-2B | 10 |
+| Amended documents | 5 |
+
+How the inputs are read:
+
+* **Missing documents.** A document missing in April but found in a later month (*previous
+  period* match) no longer counts as missing. Only a document's latest line counts.
+* **Late reporting.** Measured as the gap in months between the document's date and the
+  GSTR-2B period it appeared in.
+
+**Risk bands:**
+
+* *Low* – 80 or more;
+* *Medium* – 60 to 79;
+* *High* – below 60;
+* *Too little data* – fewer than three documents.
+
+Suppliers are listed highest risk first, then by ITC at risk. Each score lists its
+deductions in words, for example *−13: 1 of 3 books document(s) still missing in GSTR-2B
+(ITC ₹9,060.00 at risk)*. The vendor follow-up status is shown next to it.
+
+**Months without a reconciliation.** They are named in the notes, because missing
+documents and differences cannot be counted for them.
+
+```bash
+fintax-gst supplier-scores --client 1 --fy 2025-26 --why --top 20
+fintax-gst supplier-scores --client 1 --fy 2025-26 --out reports/
+```
+
+The score is a working aid built from the client's own data. It is not a statement about
+the supplier's legal compliance.
+
+![Supplier scores](screenshots/supplier_scores.png)
+
+**A correction.** The GSTR-3B Table 4 working takes each month's books vs GSTR-2B
+reconciliation. Before, it took the latest books run of the month, so a later books vs
+GSTR-2A run could replace the GSTR-2B one. Now only GSTR-2B runs are used.
 
 ### Schema v12
 
