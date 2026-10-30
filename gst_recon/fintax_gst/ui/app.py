@@ -70,7 +70,7 @@ class MainWindow(QMainWindow):
     def __init__(self, state: AppState):
         super().__init__()
         self.state = state
-        self.setWindowTitle(f"{PRODUCT_NAME} – Smart GST Reconciliation & ITC Management")
+        self.setWindowTitle(f"{PRODUCT_NAME} {__version__} – Smart GST Reconciliation & ITC Management")
         self.setWindowIcon(app_icon())
         self.resize(1440, 900)
         central = QWidget()

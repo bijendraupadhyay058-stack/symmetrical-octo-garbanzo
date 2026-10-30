@@ -15,5 +15,5 @@ the database, the desktop UI or any web framework:
 PRODUCT_NAME = "FIN TAX PRO"
 PRODUCT_FULL_NAME = "FIN TAX PRO – Smart GST Reconciliation & ITC Management System"
 TAGLINE = "Smart GST Reconciliation. Faster Compliance. Better Accuracy."
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 ENGINE_VERSION = "1.0.0"

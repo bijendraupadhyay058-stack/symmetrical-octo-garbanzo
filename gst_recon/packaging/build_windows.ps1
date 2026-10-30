@@ -46,8 +46,9 @@ $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
 if (Test-Path $iscc) {
     & $iscc packaging\fintaxpro.iss
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-    Sign-Files @(".\dist\installer\FinTaxPro-Setup-1.0.0.exe")
-    Write-Host "Installer: dist\installer\FinTaxPro-Setup-1.0.0.exe"
+    $setup = (Get-ChildItem .\dist\installer\FinTaxPro-Setup-*.exe | Sort-Object LastWriteTime | Select-Object -Last 1).FullName
+    Sign-Files @($setup)
+    Write-Host "Installer: $setup"
 } else {
     Write-Host "Inno Setup 6 not found – skipping the installer (https://jrsoftware.org/isinfo.php)"
 }

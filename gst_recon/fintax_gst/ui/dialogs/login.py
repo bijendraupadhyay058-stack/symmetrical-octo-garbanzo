@@ -4,7 +4,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QVBoxLayout
 
-from ... import PRODUCT_NAME, TAGLINE
+from ... import PRODUCT_NAME, TAGLINE, __version__
 from ...services.auth import AuthService, Session
 from ...services.common import ServiceError
 
@@ -17,7 +17,7 @@ class LoginDialog(QDialog):
         self.auth = auth
         self.setup = not auth.has_users()
         self.session: Session | None = None
-        self.setWindowTitle(f"{PRODUCT_NAME} – " + ("create administrator" if self.setup else "log in"))
+        self.setWindowTitle(f"{PRODUCT_NAME} {__version__} – " + ("create administrator" if self.setup else "log in"))
         self.setMinimumWidth(420)
         lay = QVBoxLayout(self)
         head = QLabel(f"<span style='font-size:16pt;font-weight:700;color:#1F3864'>{PRODUCT_NAME}</span><br>"
