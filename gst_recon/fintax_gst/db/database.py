@@ -154,6 +154,12 @@ def _migration_12(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V12_TABLES])
 
 
+def _migration_13(conn) -> None:
+    from .models import V13_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V13_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -171,6 +177,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (11, "version and last editor of review lines (concurrent edits detected)", _migration_11),
     (12, "return filing dates and settlements of short payments / excess ITC (interest, late fees)",
      _migration_12),
+    (13, "register of GST notices (DRC-01B, DRC-01C, ASMT-10) and their replies", _migration_13),
 ]
 
 

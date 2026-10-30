@@ -190,3 +190,89 @@ def test_table4_uses_the_gstr2b_run(db, sample_files):
                        summary_json="{}", source_file_ids="[]", status="COMPLETED"))
     with db.session() as s:
         assert ItcService(db)._latest_month_runs(s, c.id, ["2025-04"]) == {"2025-04": r2b}
+
+
+# ------------------------------------------------------------------ GST notices
+def test_notice_register_and_drc01b_reply(db, sample_files, tmp_path):
+    from docx import Document
+    from docx.enum.text import WD_COLOR_INDEX
+
+    from fintax_gst.services.notices import NoticeService
+
+    c = _client(db, sample_files)
+    svc = NoticeService(db)
+    with pytest.raises(PermissionDenied):
+        svc.add(c.id, Session("v", "viewer", "V"), form="DRC-01B", notice_date=date(2025, 9, 15),
+                period_from="2025-04")
+    with pytest.raises(ServiceError):
+        svc.add(c.id, SETUP_SESSION, form="DRC-99", notice_date=date(2025, 9, 15), period_from="2025-04")
+    nid = svc.add(c.id, SETUP_SESSION, form="DRC-01B", reference="ZD2709250001", notice_date=date(2025, 9, 15),
+                  period_from="2025-04", amount="3600", reply_due=date(2025, 10, 15))
+    assert [n.id for n in svc.due(c.id, on=date(2025, 10, 10))] == [nid]
+
+    draft, _n, _c = svc.build(nid, AS_OF)
+    assert draft.difference == 3600
+    text = "\n".join(p for s in draft.sections for p in s.paragraphs)
+    assert "the figures agree" in text
+    # internal findings and the unpaid interest are only working notes, never reply text
+    paragraphs = [p for s in draft.sections for p in s.paragraphs]
+    notes = [p for p in paragraphs if p.startswith("[[Working note")]
+    assert not any("possible short payment" in p or "sales register" in p for p in paragraphs if p not in notes)
+    assert any("possible short payment" in p for p in notes) and any("interest under section 50" in p for p in notes)
+
+    # once the payment is recorded, the reply states it with the DRC-03 reference
+    from fintax_gst.services.interest import InterestService
+
+    InterestService(db).set_settlement(c.id, "SHORT_PAYMENT", "2025-04", "SETTLED", SETUP_SESSION, date(2025, 6, 19),
+                                       "DRC-03 AD2706250001")
+    path, draft = svc.draft(nid, tmp_path, AS_OF, signatory="R. Kulkarni")
+    text = "\n".join(p for s in draft.sections for p in s.paragraphs)
+    assert "was paid on 19-06-2025 vide DRC-03 AD2706250001" in text
+    doc = Document(path)
+    body = "\n".join(p.text for p in doc.paragraphs)
+    assert "Form GST DRC-01B ZD2709250001" in body and "R. Kulkarni" in body and "[[" not in body
+    highlighted = [r.text for p in doc.paragraphs for r in p.runs if r.font.highlight_color == WD_COLOR_INDEX.YELLOW]
+    assert any(t.startswith("Working note") for t in highlighted)
+    assert doc.tables[0].rows[1].cells[3].text == "3,600.00"
+
+    svc.update(nid, SETUP_SESSION, status="REPLIED")
+    n = svc.get(nid)
+    assert n.status == "REPLIED" and n.replied_on is not None and not svc.due(c.id, on=date(2025, 10, 10))
+
+
+def test_drc01c_and_asmt10_replies(db, sample_files, tmp_path):
+    from fintax_gst.services.notices import NoticeService
+    from fintax_gst.services.reconciliation import ReconciliationService
+
+    c = _client(db, sample_files)
+    ReconciliationService(db).run(c.id, "2025-04")
+    svc = NoticeService(db)
+    n1 = svc.add(c.id, SETUP_SESSION, form="DRC-01C", notice_date=date(2025, 9, 15), period_from="2025-04",
+                 amount="1")
+    d1, _n, _c = svc.build(n1, AS_OF)
+    headings = [s.heading for s in d1.sections]
+    assert "Input tax credit: GSTR-3B compared with GSTR-2B" in headings
+    assert "Output tax: GSTR-1 / IFF compared with GSTR-3B" not in headings
+    assert any("[[explain the variation]]" in p for s in d1.sections for p in s.paragraphs)  # amount differs
+    assert "[[notice reference / DIN]]" in d1.subject
+    n2 = svc.add(c.id, SETUP_SESSION, form="ASMT-10", notice_date=date(2025, 9, 15), period_from="2025-04")
+    d2, _n, _c = svc.build(n2, AS_OF)
+    headings = [s.heading for s in d2.sections]
+    assert {"Output tax: GSTR-1 / IFF compared with GSTR-3B", "Input tax credit: GSTR-3B compared with GSTR-2B",
+            "Other discrepancies in the notice"} <= set(headings)
+    # a period without returns imported is not invented
+    n3 = svc.add(c.id, SETUP_SESSION, form="DRC-01B", notice_date=date(2025, 9, 15), period_from="2025-08")
+    d3, _n, _c = svc.build(n3, AS_OF)
+    assert any("not imported" in p for s in d3.sections for p in s.paragraphs)
+
+
+def test_cli_notice(tmp_path, sample_files, capsys):
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "notice", "add", "--client", "1", "--form", "DRC-01B", "--reference", "ZD1",
+                 "--date", "2025-09-15", "--from", "2025-04", "--amount", "3600", "--reply-due", "2025-10-15"]) == 0
+    assert main(["--db", dbp, "notice", "draft", "--client", "1", "--id", "1", "--out", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "Draft reply:" in out and "highlighted item(s)" in out
+    assert main(["--db", dbp, "notice", "--client", "1"]) == 0
+    assert "DRC-01B" in capsys.readouterr().out

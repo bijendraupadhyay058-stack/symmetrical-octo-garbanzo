@@ -42,7 +42,8 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
   a draft GSTR-9 JSON for the offline tool; concurrent review edits detected (never lost)
   and per-user activity ([docs/PHASE10.md](docs/PHASE10.md))
 * **Phase 11**: interest under section 50 and late fees under section 47, from recorded filing
-  dates and the reconciliations, with a DRC-03 summary; supplier compliance scores
+  dates and the reconciliations, with a DRC-03 summary; supplier compliance scores; a GST
+  notices register with Word reply drafts for DRC-01B, DRC-01C and ASMT-10
   ([docs/PHASE11.md](docs/PHASE11.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
@@ -324,7 +325,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
-* [docs/PHASE11.md](docs/PHASE11.md) – interest and late fees, supplier scores
+* [docs/PHASE11.md](docs/PHASE11.md) – interest and late fees, supplier scores, GST notices
 * [docs/PHASE10.md](docs/PHASE10.md) – e-invoice and e-way bill, TDS/TCS credits, GSTR-9 draft JSON, multi-user
 * [docs/PHASE9.md](docs/PHASE9.md) – GSTR-9 Tables 15, 16 and 18; HSN lines in purchase registers
 * [docs/PHASE8.md](docs/PHASE8.md) – GSTR-9 Tables 10–14 and 17, GSTR-9C Table 14

@@ -25,7 +25,7 @@ from sqlalchemy import delete, select
 from ..db.database import Database
 from ..db.models import utcnow
 from ..db.models import (
-    AppSetting, Attachment, AuditLog, Client, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization, TdsTcsCredit, ReturnFiling, InterestSettlement,
+    AppSetting, Attachment, AuditLog, Client, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice,
     WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, Vendor,
 )
@@ -174,6 +174,7 @@ class SecurityService:
                 (TdsTcsCredit, TdsTcsCredit.client_id == client_id),
                 (ReturnFiling, ReturnFiling.client_id == client_id),
                 (InterestSettlement, InterestSettlement.client_id == client_id),
+                (GstNotice, GstNotice.client_id == client_id),
                 (SyncAuthorization, SyncAuthorization.client_id == client_id),
                 (LetterRecord, LetterRecord.client_id == client_id),
                 (WorkingPaper, WorkingPaper.client_id == client_id),

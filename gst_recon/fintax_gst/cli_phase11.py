@@ -1,4 +1,4 @@
-"""Phase 11 commands: interest and late fees, supplier compliance scores."""
+"""Phase 11 commands: interest and late fees, supplier compliance scores, GST notices."""
 from __future__ import annotations
 
 from datetime import date
@@ -90,10 +90,31 @@ def add_commands(sub) -> None:
     s.add_argument("--out", help="folder for the Excel list")
     s.set_defaults(func=cmd_supplier_scores)
 
+    n = sub.add_parser("notice", help="GST notices register and draft replies (DRC-01B, DRC-01C, ASMT-10)")
+    n.add_argument("action", nargs="?", default="list", choices=["list", "add", "update", "delete", "draft"])
+    n.add_argument("--client", required=True)
+    n.add_argument("--id", type=int, help="update / delete / draft: notice number")
+    n.add_argument("--form", help="DRC-01B, DRC-01C, ASMT-10 or OTHER")
+    n.add_argument("--reference", help="notice / DIN / reference number")
+    n.add_argument("--date", dest="notice_date", help="date of the notice (YYYY-MM-DD)")
+    n.add_argument("--from", dest="period_from", help="first tax period (YYYY-MM)")
+    n.add_argument("--to", dest="period_to", help="last tax period (YYYY-MM)")
+    n.add_argument("--amount", help="difference stated in the notice")
+    n.add_argument("--reply-due", dest="reply_due", help="YYYY-MM-DD")
+    n.add_argument("--status", help="OPEN, REPLIED or CLOSED")
+    n.add_argument("--officer", help="designation / jurisdiction of the officer")
+    n.add_argument("--remarks")
+    n.add_argument("--out", help="draft: folder for the Word reply")
+    n.add_argument("--as-of", help="draft: date for interest on unpaid amounts (YYYY-MM-DD, default today)")
+    n.add_argument("--signatory", help="draft: name of the authorised signatory")
+    n.set_defaults(func=cmd_notice)
+
 
 def permission_for(args) -> str | None:
     if args.command == "interest":
         return "review" if args.action in ("filed", "import-filings", "settle") else "view"
+    if args.command == "notice":
+        return {"list": "view", "draft": "export"}.get(args.action, "review")
     return None
 
 
@@ -115,3 +136,42 @@ def cmd_supplier_scores(db, args) -> None:
         print(f"  ! {n}")
     if args.out:
         print(f"Workbook: {svc.export(client.id, args.fy, args.out, args.user)}")
+
+
+def cmd_notice(db, args) -> None:
+    from .core.money import fmt_inr
+    from .services.clients import ClientService
+    from .services.notices import NoticeService
+
+    client = ClientService(db).resolve(args.client)
+    svc = NoticeService(db)
+    fields = {k: getattr(args, k) for k in ("form", "reference", "notice_date", "period_from", "period_to", "amount",
+                                             "reply_due", "status", "officer", "remarks")
+              if getattr(args, k) is not None}
+    if args.action == "add":
+        nid = svc.add(client.id, args.session, **fields)
+        print(f"Notice #{nid} recorded")
+    elif args.action == "update":
+        if not args.id:
+            raise ValueError("Give --id of the notice")
+        svc.update(args.id, args.session, **fields)
+        print(f"Notice #{args.id} updated")
+    elif args.action == "delete":
+        svc.delete(args.id, args.session)
+        print(f"Notice #{args.id} deleted")
+    elif args.action == "draft":
+        if not (args.id and args.out):
+            raise ValueError("Give --id of the notice and --out for the Word draft")
+        path, draft = svc.draft(args.id, args.out, date.fromisoformat(args.as_of) if args.as_of else None,
+                                args.signatory or "", args.user)
+        print(f"Draft reply: {path}")
+        print(f"{draft.placeholders} highlighted item(s) to complete or delete before sending (working notes and "
+              "placeholders). A DRAFT for review – nothing is filed.")
+        return
+    for n in svc.list(client.id):
+        amount = fmt_inr(n.amount) if n.amount is not None else "-"
+        due = f"reply by {n.reply_due:%d-%m-%Y}" if n.reply_due else ""
+        print(f"  #{n.id:<4} {n.form:<8} {n.reference[:24]:<24} {n.notice_date:%d-%m-%Y} {n.period_from}..{n.period_to}"
+              f"  ₹{amount:>12}  {n.status:<8} {due}")
+
+

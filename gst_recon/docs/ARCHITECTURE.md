@@ -151,6 +151,7 @@ gst_recon/
 | `tds_tcs_credits` (v10) | TDS (GSTR-7) / TCS (GSTR-8) credits received, with the action taken on the portal |
 | `recon_lines.version`, `updated_by` (v11) | optimistic concurrency for review edits; last editor |
 | `return_filings`, `interest_settlements` (v12) | filing dates of returns; settlement of short payments / excess ITC |
+| `gst_notices` (v13) | GST notices received (DRC-01B, DRC-01C, ASMT-10) and their replies |
 
 **Database engines.** `Database` opens a SQLite file (default) or a server URL such as
 `postgresql+psycopg://user@host/db` (`--db`, `FINTAX_DB_URL`). Attachments, uploads and

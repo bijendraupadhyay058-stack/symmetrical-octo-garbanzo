@@ -591,4 +591,28 @@ class InterestSettlement(Base):
 
 
 V12_TABLES = [ReturnFiling, InterestSettlement]
+
+
+class GstNotice(Base):
+    """A notice received by a client (DRC-01B, DRC-01C, ASMT-10, …) and the state of its reply."""
+
+    __tablename__ = "gst_notices"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    form: Mapped[str] = mapped_column(String(12))  # DRC-01B, DRC-01C, ASMT-10, OTHER
+    reference: Mapped[str] = mapped_column(String(80), default="")  # notice / DIN / reference number
+    notice_date: Mapped[date] = mapped_column(Date)
+    period_from: Mapped[str] = mapped_column(String(7))
+    period_to: Mapped[str] = mapped_column(String(7))
+    amount: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # difference stated in the notice
+    reply_due: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="OPEN")  # OPEN, REPLIED, CLOSED
+    replied_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    officer: Mapped[str] = mapped_column(String(200), default="")  # designation / jurisdiction of the officer
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V13_TABLES = [GstNotice]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -37,7 +37,7 @@ from sqlalchemy import Date, DateTime, delete, insert, select
 from .. import __version__
 from ..db.database import Database
 from ..db.models import (
-    AppSetting, Attachment, AuditLog, Client, DecimalText, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, Invoice, ItcClaim,
+    AppSetting, Attachment, AuditLog, Client, DecimalText, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice, Invoice, ItcClaim,
     ItcReview, ItcRuleRow, MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SyncAuthorization, SyncState,
     Vendor,
 )
@@ -69,6 +69,7 @@ TABLES = [
     (Gstr9cInput, {}),
     (ReturnFiling, {}),
     (InterestSettlement, {}),
+    (GstNotice, {}),
 ]
 SYNC_ACTIONS = {"SYNC_EXPORT", "SYNC_IMPORT", "SYNC_AUTHORISE", "SYNC_REVOKE", "EXPORT", "EXPORT_AUDIT", "LOGIN",
                 "LOGIN_FAILED"}

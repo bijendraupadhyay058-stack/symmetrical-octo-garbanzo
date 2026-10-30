@@ -1,4 +1,4 @@
-# Phase 11 – interest and late fees, supplier compliance scores
+# Phase 11 – interest and late fees, supplier compliance scores, GST notices
 
 ## 1. Interest (section 50) and late fees (section 47)
 
@@ -131,6 +131,59 @@ the supplier's legal compliance.
 **A correction.** The GSTR-3B Table 4 working takes each month's books vs GSTR-2B
 reconciliation. Before, it took the latest books run of the month, so a later books vs
 GSTR-2A run could replace the GSTR-2B one. Now only GSTR-2B runs are used.
+
+## 3. GST notices and reply drafts
+
+*GST notices* (new page) keeps a register of notices per client:
+
+* form, reference / DIN, date, tax periods, amount stated, reply-by date, officer;
+* status: *open*, *replied* or *closed*.
+
+Open notices past their reply date are highlighted. Every change is audited, and the
+register travels in sync packages.
+
+**Draft reply** writes an editable Word file built from the data already in the
+application:
+
+| Form | The draft contains |
+|---|---|
+| **DRC-01B** (rule 88C) – GSTR-1 liability above GSTR-3B | month-wise GSTR-1 vs GSTR-3B 3.1(a)+(b) tax; whether the difference agrees with the notice; payment position from the interest working (DRC-03 reference and date, interest) |
+| **DRC-01C** (rule 88D) – ITC above GSTR-2B | month-wise ITC in GSTR-3B 4(C) vs GSTR-2B; reversal position from the interest working |
+| **ASMT-10** (section 61) | both comparisons, plus a section for the officer's other observations, point by point |
+| Other | both comparisons |
+
+**Nothing is invented.** The draft states only what the imported returns, the
+reconciliations and the recorded settlements establish. Everything else is highlighted
+in yellow for the preparer:
+
+* **Placeholders** – the explanation of a difference, the officer's details, references
+  not recorded, the documents enclosed, the signatory.
+* **Working notes – delete before sending** – the working's findings and any unpaid
+  amount with its interest. Examples: *GSTR-1 exceeds GSTR-3B … possible short payment*,
+  or a difference between the sales register and GSTR-1. They help the preparer write the
+  explanation, but are internal and must not go to the officer as they stand.
+* **Periods without data** – a period whose returns are not imported gets a placeholder
+  instead of a table.
+
+The number of highlighted items is reported when the draft is saved.
+
+```bash
+fintax-gst notice add --client 1 --form DRC-01B --reference ZD2709250001 --date 2025-09-15 --from 2025-04 --amount 3600 --reply-due 2025-10-15
+fintax-gst notice draft --client 1 --id 1 --out replies/ --signatory "R. Kulkarni"
+fintax-gst notice update --client 1 --id 1 --status REPLIED
+fintax-gst notice --client 1
+```
+
+![GST notices](screenshots/notices.png)
+
+The drafts are for the professional to review, complete and file. Nothing is filed by
+this software.
+
+### Schema v13
+
+| Change | Purpose |
+|---|---|
+| `gst_notices` | notices received and the state of the reply |
 
 ### Schema v12
 

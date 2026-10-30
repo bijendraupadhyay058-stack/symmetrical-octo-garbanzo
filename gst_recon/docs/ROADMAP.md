@@ -115,7 +115,8 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
   summary (schema v12).
 * ✅ Supplier compliance scores: missing, late, mismatched, unavailable and amended documents;
   risk bands, reasons, ITC at risk.
-* Notice response helper (DRC-01B, DRC-01C, ASMT-10).
+* ✅ GST notices register and Word reply drafts for DRC-01B, DRC-01C and ASMT-10 (schema v13):
+  facts from the reconciliations, everything else highlighted for the preparer.
 
 ## Next
 * Sign the Windows build with the firm's code-signing certificate.

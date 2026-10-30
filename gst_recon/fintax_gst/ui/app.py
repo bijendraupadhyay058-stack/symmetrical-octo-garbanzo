@@ -24,6 +24,7 @@ from .pages.dashboard import DashboardPage
 from .pages.exceptions import ExceptionsPage
 from .pages.history import HistoryPage, OpenItemsPage
 from .pages.itc import ItcPage
+from .pages.notices import NoticesPage
 from .pages.phase4 import CompliancePage, LettersPage, OutwardPage, SyncPage
 from .pages.returns import ImsPage, ReturnsPage
 from .pages.security import SecurityPage
@@ -38,6 +39,7 @@ NAV = [
     ("dashboard", "◧  Dashboard"), ("workflow", "▶  Reconcile"), ("exceptions", "⚑  Exceptions"),
     ("itc", "✓  ITC review"), ("returns", "▤  GSTR-3B & annual"), ("ims", "⇄  IMS"),
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("letters", "✉  Letters & papers"),
+    ("notices", "⚖  GST notices"),
     ("suppliers", "⌂  Suppliers"), ("open_items", "⏳  Open items"), ("history", "↺  History"),
     ("imports", "⇪  Imports"), ("clients", "☰  Clients"), ("security", "🔒  Security"), ("sync", "☁  Sync & web"),
     ("settings", "⚙  Settings"),
@@ -86,6 +88,7 @@ class MainWindow(QMainWindow):
             "dashboard": DashboardPage(state), "workflow": WorkflowPage(state), "exceptions": ExceptionsPage(state),
             "itc": ItcPage(state), "returns": ReturnsPage(state), "ims": ImsPage(state),
             "outward": OutwardPage(state), "compliance": CompliancePage(state), "letters": LettersPage(state),
+            "notices": NoticesPage(state),
             "sync": SyncPage(state),
             "suppliers": SuppliersPage(state), "open_items": OpenItemsPage(state), "history": HistoryPage(state),
             "imports": ImportsPage(state), "clients": ClientsPage(state), "security": SecurityPage(state),
