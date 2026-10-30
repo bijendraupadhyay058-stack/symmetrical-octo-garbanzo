@@ -171,3 +171,17 @@ def test_csv_reader_without_pandas(tmp_path):
     one = tmp_path / "one.csv"
     one.write_text("Only\nvalue\n", encoding="utf-8")
     assert read_csv(one, one.name).rows == [(1, ["Only"]), (2, ["value"])]
+
+
+# ------------------------------------------------------------------ register templates for users
+@pytest.mark.parametrize("name, source, count", [("EXAMPLE_purchase_register", Source.BOOKS, 4),
+                                                 ("EXAMPLE_sales_register", Source.SALES, 5),
+                                                 ("TEMPLATE_purchase_register", Source.BOOKS, 0),
+                                                 ("TEMPLATE_sales_register", Source.SALES, 0)])
+def test_register_templates_import_without_mapping(name, source, count):
+    p = preview_file(ROOT / "sample_data" / f"{name}.xlsx", source)
+    assert p.layout == "tally" and len(p.records) == count
+    assert not [i for i in p.issues if i.severity in ("error", "rejected")]
+    if name == "EXAMPLE_purchase_register":
+        rcm = [r for r in p.records if r.invoice_no == "SR/77"]
+        assert rcm[0].reverse_charge and any(r.doc_type == DocType.CREDIT_NOTE for r in p.records)
