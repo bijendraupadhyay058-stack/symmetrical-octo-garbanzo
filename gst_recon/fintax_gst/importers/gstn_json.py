@@ -232,6 +232,7 @@ def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dic
     data = js.get("data", js)
     period = parse_period(data.get("fp") or data.get("ret_period"))
     rows, warnings = [], []
+    hsn_rows: list[dict] = []
     summary: dict[tuple, dict] = {}
 
     def add(section, supply, vals, pos="", rate="", sign=1, docs=1):
@@ -249,7 +250,10 @@ def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dic
         return "SEZ" if str(doc.get("inv_typ", "R")).upper() in ("SEWP", "SEWOP") else "REG"
 
     for section, payload in data.items():
-        if section in ("gstin", "fp", "ret_period", "gt", "cur_gt", "hsn", "doc_issue", "fil_dt", "rtnprd"):
+        if section == "hsn":
+            hsn_rows = _hsn_rows(payload)
+            continue
+        if section in ("gstin", "fp", "ret_period", "gt", "cur_gt", "doc_issue", "fil_dt", "rtnprd"):
             continue
         if section in ("b2b", "b2ba"):
             for si, sup in enumerate(payload):
@@ -315,7 +319,25 @@ def flatten_gstr1(js: dict) -> tuple[list[dict], str | None, list[str], list[dic
                             {"taxable": amt, "igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO})
         elif isinstance(payload, list):
             warnings.append(f"GSTR-1 section '{section}' ({len(payload)} entries) is not compared in this version")
-    return rows, period, warnings, list(summary.values())
+    return rows, period, warnings, list(summary.values()), hsn_rows
+
+
+def _hsn_rows(payload) -> list[dict]:
+    """GSTR-1 Table 12: ``{"data": [...]}`` or, from 2025, ``{"hsn_b2b": [...], "hsn_b2c": [...]}``."""
+    if not isinstance(payload, dict):
+        return []
+    groups = [("", payload.get("data"))] + [(seg, payload.get(f"hsn_{seg.lower()}")) for seg in ("B2B", "B2C")]
+    out = []
+    for segment, items in groups:
+        for d in items or []:
+            out.append({"hsn": str(d.get("hsn_sc") or "").strip()[:10], "description": str(d.get("desc") or "")[:200],
+                        "uqc": str(d.get("uqc") or "").upper()[:10], "rate": str(d.get("rt") if d.get("rt") is not None
+                                                                              else "")[:8],
+                        "segment": segment, "qty": parse_amount(d.get("qty")) or ZERO,
+                        "taxable": parse_amount(d.get("txval")) or ZERO, "igst": parse_amount(d.get("iamt")) or ZERO,
+                        "cgst": parse_amount(d.get("camt")) or ZERO, "sgst": parse_amount(d.get("samt")) or ZERO,
+                        "cess": parse_amount(d.get("csamt")) or ZERO})
+    return out
 
 
 def flatten_gstr8a(js: dict) -> tuple[list[dict], None, list[str]]:

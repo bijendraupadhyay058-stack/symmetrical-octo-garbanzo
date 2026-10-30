@@ -483,6 +483,22 @@ def write_gstr8a_json(path: Path, docs: list[Doc]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+EXPENSE_LEDGER = [  # (ledger head, value, total ITC, eligible ITC) – FY 2025-26
+    ("Purchase Accounts", "760000", "136800", "136800"), ("Freight Inward", "20000", "3600", "3600"),
+    ("Electricity Charges", "48000", "0", "0"), ("Office Rent", "240000", "43200", "43200"),
+    ("Staff Salaries", "900000", "0", "0"), ("Staff Welfare – Food", "15000", "750", "0"),
+    ("Bank Charges", "4000", "720", "720"), ("Printing & Stationery", "12000", "2160", "2160"),
+    ("Repairs to Machinery", "30000", "5400", "5400"), ("Computer (Fixed Asset)", "60000", "10800", "10800"),
+    ("Audit Fees", "50000", "9000", "9000"),
+]
+
+
+def write_expense_ledger(path: Path) -> None:
+    lines = ["Ledger,Amount,ITC,Eligible ITC"] + [f'"{h}",{v},{t},{e}' for h, v, t, e in EXPENSE_LEDGER]
+    lines.append(f"Grand Total,{sum(D(v) for _h, v, _t, _e in EXPENSE_LEDGER)},,")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def write_all(out_dir: str | Path) -> dict[str, Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -496,6 +512,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "gstr3b_template_csv": out / "gstr3b_template_2025-03.csv",
         "ims_april_json": out / "ims_2025-04.json",
         "gstr8a_json": out / "gstr9_table8a_2025-26.json",
+        "expense_ledger": out / "expense_ledger_2025-26.csv",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -507,6 +524,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_gstr3b_template(files["gstr3b_template_csv"])
     write_ims_json(files["ims_april_json"])
     write_gstr8a_json(files["gstr8a_json"], table8a_docs())
+    write_expense_ledger(files["expense_ledger"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -546,5 +564,12 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "in cash (GSTR-9 Table 9).",
               "* GSTR-9C: 5A defaults to the sales-register turnover (761,000) until the audited figure is entered; 5Q "
               "is GSTR-9 5N."]
+    lines += ["", "## GSTR-9 Tables 10–17 and GSTR-9C Table 14 (Phase 8)", "",
+              "* `gstr1_2026-04.json` (next year): B2BA raising SGT/25-26/0005 from 65,000 to 70,000 and SGT/25-26/0099 "
+              "of 30-03-2026 reported late → GSTR-9 2025-26 Table 10 = 13,000; SGT/26-27/0001 belongs to 2026-27.",
+              "* GSTR-1 HSN summaries (Table 12): April includes the 1,000 B2C sale left out of B2CS, so Table 17 "
+              "exceeds the GSTR-1 sections by 1,000.",
+              "* `expense_ledger_2025-26.csv`: ledger heads placed in GSTR-9C Table 14 rows by keyword (salaries and "
+              "staff welfare in 14H, repairs to machinery in 14M, the computer in 14O, audit fees in 14N)."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

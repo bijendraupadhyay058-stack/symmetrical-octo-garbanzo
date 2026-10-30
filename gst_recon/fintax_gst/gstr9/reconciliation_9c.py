@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from ..core.models import DocType, InvoiceRecord
 from ..core.money import ZERO
+from .expenses import TABLE14, TABLE14_INPUTS
 from .working import Gstr9Working, classify_sale
 
 #: Table 5 adjustments: (code, label, sign). 5A is the starting figure.
@@ -48,11 +49,13 @@ LABELS = {c: lab for c, lab, _s in TABLE5} | {
     "12E": "ITC claimed in the annual return (GSTR-9)", "12F": "Un-reconciled ITC (E − D)",
 }
 #: Items the preparer enters (amounts); the reason codes hold explanations of differences.
-INPUT_ITEMS = [c for c, _l, _s in TABLE5] + ["7B", "7C", "7D", "12A", "12B", "12C", "9INT", "9FEE", "9PEN", "9OTH"]
+INPUT_ITEMS = [c for c, _l, _s in TABLE5] + ["7B", "7C", "7D", "12A", "12B", "12C", "9INT", "9FEE", "9PEN",
+                                              "9OTH"] + TABLE14_INPUTS
 REASON_ITEMS = {"R6": "Reasons for un-reconciled turnover (Table 6)",
                 "R8": "Reasons for un-reconciled taxable turnover (Table 8)",
                 "R10": "Reasons for un-reconciled tax payable (Table 10)",
-                "R13": "Reasons for un-reconciled ITC (Table 13)"}
+                "R13": "Reasons for un-reconciled ITC (Table 13)",
+                "R15": "Reasons for un-reconciled ITC on expenses (Table 15)"}
 SLABS = [Decimal(x) for x in ("5", "12", "18", "28", "3", "0.25", "0.1", "40")]
 
 
@@ -82,6 +85,15 @@ class RateRow:
 
 
 @dataclass
+class ExpenseRow:
+    code: str
+    label: str
+    value: Decimal = ZERO
+    itc_total: Decimal = ZERO
+    itc_eligible: Decimal = ZERO
+
+
+@dataclass
 class Gstr9cStatement:
     fy: str
     table5: list[Line] = field(default_factory=list)
@@ -90,11 +102,23 @@ class Gstr9cStatement:
     table9_other: dict[str, Decimal] = field(default_factory=dict)  # interest, late fee, penalty, others
     table9_paid: dict[str, Decimal | None] = field(default_factory=dict)  # per head, per GSTR-9
     table12: list[Line] = field(default_factory=list)
+    table14: list["ExpenseRow"] = field(default_factory=list)
+    table14_claimed: Decimal = ZERO  # 14S – ITC claimed in GSTR-9
     reasons: dict[str, str] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     def line(self, code: str) -> Line:
         return next(x for x in self.table5 + self.table7 + self.table12 if x.code == code)
+
+    @property
+    def table14_total(self) -> Decimal:
+        """14R – total eligible ITC availed on expenses."""
+        return sum((x.itc_eligible for x in self.table14), ZERO)
+
+    @property
+    def table14_unreconciled(self) -> Decimal:
+        """14T = 14S − 14R."""
+        return self.table14_claimed - self.table14_total
 
     @property
     def table9_total(self) -> dict[str, Decimal]:
@@ -195,11 +219,22 @@ def build_9c(fy: str, g9: Gstr9Working, sales: list[InvoiceRecord], books_itc: D
                   Line("12C", c, "entered" if given("12C") is not None else ""), Line("12D", d, "computed"),
                   Line("12E", e12, "GSTR-9 7J"), Line("12F", e12 - d, "computed")]
 
+    # Table 14: ITC availed on expenses (entered or imported from the expense ledger)
+    for code, label in TABLE14:
+        st.table14.append(ExpenseRow(code, label, given(f"{code}-V") or ZERO, given(f"{code}-T") or ZERO,
+                                     given(f"{code}-E") or ZERO))
+    st.table14_claimed = e12
+    if not any(x.value or x.itc_eligible for x in st.table14):
+        st.notes.append("Table 14 (ITC on expenses) is empty – import the expense ledger or enter the heads.")
+
     st.reasons = {k: inputs.get(k, (None, ""))[1] for k in REASON_ITEMS}
     defaults_used = [x.code for x in st.table5 + st.table7 + st.table12 if x.source.startswith("default")]
     if defaults_used:
         st.notes.append("Defaults used for " + ", ".join(defaults_used) + " – replace them with the figures from "
                         "the audited financial statements before certifying.")
+    if any(x.itc_eligible for x in st.table14) and abs(st.table14_unreconciled) >= Decimal("1") \
+            and not st.reasons.get("R15"):
+        st.notes.append("14T shows an un-reconciled difference – record the reasons (Table 15).")
     for code, reason_key in (("5R", "R6"), ("7G", "R8"), ("12F", "R13")):
         if abs(st.line(code).amount) >= Decimal("1") and not st.reasons.get(reason_key):
             st.notes.append(f"{code} shows an un-reconciled difference – record the reasons ({REASON_ITEMS[reason_key]}).")

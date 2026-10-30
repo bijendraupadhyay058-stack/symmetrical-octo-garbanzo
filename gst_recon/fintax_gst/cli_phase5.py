@@ -59,15 +59,18 @@ def cmd_gstr9(db, args) -> None:
     w = Gstr9Service(db).working(client.id, args.fy)
     print(f"GSTR-9 working – {client.name} ({client.gstin}) FY {args.fy}")
     print(f"  {'Table':<7}{'Returns taxable':>17}{'Returns tax':>15}{'Books taxable':>17}{'Books tax':>15}")
-    for r in w.table4 + w.table5 + w.table6 + w.table7:
+    for r in w.table4 + w.table5 + w.table6 + w.table7 + w.table10_14:
         g, b = r.gstr1, r.books
-        taxable = fmt_inr(g.taxable) if g is not None and (r in w.table4 or r in w.table5) else ""
+        taxable = fmt_inr(g.taxable) if g is not None and (r in w.table4 or r in w.table5 or r in w.table10_14) \
+            else ""
         print(f"  {r.code:<7}{taxable:>17}{fmt_inr(g.total) if g else '':>15}"
               f"{fmt_inr(b.taxable) if b else '':>17}{fmt_inr(b.total) if b else '':>15}")
     for x in w.table9:
         f = lambda v: fmt_inr(v) if v is not None else "-"  # noqa: E731
         print(f"  Table 9 {x.head:<5} payable {f(x.payable):>14}  declared in 3B {f(x.declared):>14}  "
               f"paid {f(x.paid):>14}")
+    for g in w.table17:
+        print(f"  Table 17 HSN {g['hsn']:<8} {g['uqc']:<5} rate {g['rate']:>5}  taxable {fmt_inr(g['taxable']):>16}")
     for a in w.amendments:
         change = fmt_inr(a["delta"].taxable) if a["delta"] else "-"
         print(f"  Amendment {a['period']} {a['section']:<6} {a['document']:<22} change {change:>12}  {a['status']}")
@@ -86,7 +89,17 @@ def cmd_gstr9c(db, args) -> None:
 
     client = ClientService(db).resolve(args.client)
     svc = Gstr9cService(db)
-    if args.action == "set":
+    if args.action == "import-expenses":
+        if not args.file:
+            raise ValueError("Give --file with the expense ledger (Excel/CSV)")
+        lines = svc.import_expenses(client.id, args.fy, args.file, args.session, apply=not args.preview)
+        for x in lines:
+            print(f"  {x.table_row:<4} {x.head[:44]:<44} value {fmt_inr(x.value):>14}  eligible ITC "
+                  f"{fmt_inr(x.itc_eligible):>12}")
+        print(f"{len(lines)} ledger head(s) {'previewed – nothing saved' if args.preview else 'saved to Table 14'}")
+        if args.preview:
+            return
+    elif args.action == "set":
         if not args.item:
             raise ValueError("Give --item (e.g. 5A) with --amount and/or --note")
         svc.set_input(client.id, args.fy, args.item, args.amount, args.note or "", args.session)
@@ -100,6 +113,11 @@ def cmd_gstr9c(db, args) -> None:
         f = lambda v: fmt_inr(v) if v is not None else "-"  # noqa: E731
         print(f"  9 {h.upper():<5} books {f(tot[h]):>14}  paid per GSTR-9 {f(paid.get(h)):>14}  "
               f"un-reconciled {f(un.get(h)):>14}")
+    for x in st.table14:
+        if x.value or x.itc_eligible:
+            print(f"  {x.code:<4} {fmt_inr(x.itc_eligible):>16}  {x.label[:60]}")
+    print(f"  14R {fmt_inr(st.table14_total):>16}  eligible ITC on expenses; 14S {fmt_inr(st.table14_claimed)}; "
+          f"14T {fmt_inr(st.table14_unreconciled)}")
     for k, reason in st.reasons.items():
         if reason:
             print(f"  {k}: {reason}")
@@ -113,7 +131,9 @@ def cmd_gstr9c(db, args) -> None:
 
 def add_commands(sub) -> None:
     c9 = sub.add_parser("gstr9c", help="GSTR-9C reconciliation statement (show, or set an audited figure/reason)")
-    c9.add_argument("action", nargs="?", default="show", choices=["show", "set"])
+    c9.add_argument("action", nargs="?", default="show", choices=["show", "set", "import-expenses"])
+    c9.add_argument("--file", help="import-expenses: expense ledger (Excel/CSV) for Table 14")
+    c9.add_argument("--preview", action="store_true", help="import-expenses: show the mapping only")
     c9.add_argument("--client", required=True)
     c9.add_argument("--fy", required=True)
     c9.add_argument("--item", help="set: 5A–5O, 7B–7D, 12A–12C, 9INT, 9FEE, 9PEN, 9OTH, or reasons R6, R8, R10, R13")
@@ -149,7 +169,7 @@ def add_commands(sub) -> None:
 
 def permission_for(args) -> str | None:
     if args.command == "gstr9c":
-        return "review" if args.action == "set" else "view"
+        return "review" if args.action in ("set", "import-expenses") else "view"
     if args.command == "setting":
         return "settings" if args.action == "set" else "view"
     if args.command == "calendar":

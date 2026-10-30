@@ -88,10 +88,16 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 * GSTR-9C reconciliation statement: Tables 5, 7, 9 and 12 with audited figures entered
   per client and year (schema v6), defaults clearly marked, reasons recorded.
 
+## Phase 8 ✅
+* GSTR-9 Tables 10–14 from the next year's GSTR-1 and claim register; earlier-year amendments
+  excluded from 4K/4L.
+* GSTR-9 Table 17 from the GSTR-1 HSN summary (both layouts), checked against the sections.
+* GSTR-9C Table 14 with an expense-ledger import (keyword mapping, preview, audited).
+
 ## Next
 * Sign the Windows build with the firm's code-signing certificate.
-* GSTR-9C Table 14 (ITC on expenses), from an expense-ledger import.
-* GSTR-9 Tables 10–14 (amendments and ITC of the year declared in the next year).
+* GSTR-9 Table 18 (inward HSN) when purchase registers carry HSN codes.
+* GSTR-9 Tables 15 and 16 (demands, refunds, composition supplies), entered by the preparer.
 
 ## Android / web expansion
 1. ✅ Read-only, responsive web view (`fintax_gst/web/`, FastAPI) on the existing

@@ -62,3 +62,9 @@ Rows that must be rejected at import (books):
 * `gstr1_2025-05.json`: a new B2B invoice (SGT/25-26/0021), a B2BA reducing SGT/25-26/0013 from 66,000 to 60,000 (GSTR-9 4L), a B2CSA revising April's B2C total (listed for manual entry) and an advance of 50,000 received (Table 11A → GSTR-9 4F, GSTR-3B 3.1(a)).
 * `gstr3b_2025-04.json` Table 6.1: the whole April liability set off from ITC, and 120 of interest paid in cash (GSTR-9 Table 9).
 * GSTR-9C: 5A defaults to the sales-register turnover (761,000) until the audited figure is entered; 5Q is GSTR-9 5N.
+
+## GSTR-9 Tables 10–17 and GSTR-9C Table 14 (Phase 8)
+
+* `gstr1_2026-04.json` (next year): B2BA raising SGT/25-26/0005 from 65,000 to 70,000 and SGT/25-26/0099 of 30-03-2026 reported late → GSTR-9 2025-26 Table 10 = 13,000; SGT/26-27/0001 belongs to 2026-27.
+* GSTR-1 HSN summaries (Table 12): April includes the 1,000 B2C sale left out of B2CS, so Table 17 exceeds the GSTR-1 sections by 1,000.
+* `expense_ledger_2025-26.csv`: ledger heads placed in GSTR-9C Table 14 rows by keyword (salaries and staff welfare in 14H, repairs to machinery in 14M, the computer in 14O, audit fees in 14N).

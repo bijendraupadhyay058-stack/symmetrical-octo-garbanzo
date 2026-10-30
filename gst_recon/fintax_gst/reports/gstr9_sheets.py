@@ -69,6 +69,32 @@ def gstr9_sheets(wb, w: Gstr9Working) -> None:
                       "Paid through ITC (6.1)", "Total paid", "Payable − Paid"], t9,
                  ["text", "money", "money", "money", "money", "money", "money"], name="Gstr9Table9", totals=False)
 
+    nx = _Sheet(wb, "GSTR-9 Tables 10-17", [9, 70, 16, 14, 14, 14, 12, 50])
+    nx.banner(f"GSTR-9 – Tables 10 to 14 and 17 – FY {w.fy}", "Tables 10–13: this year's supplies and ITC declared in "
+              "the next year's returns up to the cut-off. Table 17: HSN summary of outward supplies (GSTR-1).", 8)
+    nx.append([section_label(nx, "TABLES 10 TO 14")])
+    _write_table(nx, ["Table", "Description", "Taxable", "IGST", "CGST", "SGST", "Cess", "Note"],
+                 [[x.code, x.label, x.gstr1.taxable, x.gstr1.igst, x.gstr1.cgst, x.gstr1.sgst, x.gstr1.cess, x.note]
+                  for x in w.table10_14],
+                 ["text", "wrap", "money", "money", "money", "money", "money", "wrap"], name="Gstr9Table10to14",
+                 totals=False)
+    nx.append([])
+    nx.append([section_label(nx, "DOCUMENTS BEHIND TABLES 10 TO 13")])
+    _write_table(nx, ["Table", "Document", "Period", "Party", "Change taxable", "Change tax", "", "Status"],
+                 [[i["table"], i["document"], i["period"], i["party"], i["change"].taxable if i["change"] else None,
+                   i["change"].total if i["change"] else None, None, i["status"]] for i in w.next_year_items],
+                 ["text", "text", "text", "text", "money", "money", "money", "wrap"], name="Gstr9NextYearDocs",
+                 totals=False)
+    nx.append([])
+    nx.append([section_label(nx, "TABLE 17 – HSN-WISE SUMMARY OF OUTWARD SUPPLIES")])
+    _write_table(nx, ["HSN", "Description", "UQC", "Quantity", "Rate", "Taxable", "IGST", "CGST + SGST + Cess"],
+                 [[g["hsn"], g["description"], g["uqc"], g["qty"], g["rate"], g["taxable"], g["igst"],
+                   g["cgst"] + g["sgst"] + g["cess"]] for g in w.table17],
+                 ["text", "wrap", "text", "money", "text", "money", "money", "money"], name="Gstr9Table17")
+    if w.hsn_check:
+        nx.append([nx.cell(f"Check: HSN summary taxable ₹{w.hsn_check[0]:,.2f}; GSTR-1 supplies (sections) "
+                           f"₹{w.hsn_check[1]:,.2f}; difference ₹{w.hsn_check[0] - w.hsn_check[1]:,.2f}.", "ftp_note")])
+
     am = _Sheet(wb, "GSTR-9 Amendments", [9, 9, 18, 22, 22, 15, 15, 15, 9, 46])
     am.banner("GSTR-1 amendments of the year", "Change from the original where the original was imported; other "
                                                 "amendments need the change entered manually", 10)
@@ -105,6 +131,17 @@ def gstr9c_sheet(wb, st) -> None:
     lines("TABLE 5 – RECONCILIATION OF GROSS TURNOVER", st.table5, "Gstr9cTable5")
     lines("TABLE 7 – RECONCILIATION OF TAXABLE TURNOVER", st.table7, "Gstr9cTable7")
     lines("TABLE 12 – RECONCILIATION OF NET INPUT TAX CREDIT", st.table12, "Gstr9cTable12")
+    sh.append([section_label(sh, "TABLE 14 – ITC AVAILED ON EXPENSES")])
+    rows14 = [[x.code, x.label, x.itc_eligible, f"value ₹{x.value:,.2f}; total ITC ₹{x.itc_total:,.2f}"]
+              for x in st.table14]
+    rows14 += [["14R", "Total amount of eligible ITC availed", st.table14_total, "computed"],
+               ["14S", "ITC claimed in the annual return (GSTR-9)", st.table14_claimed, "GSTR-9 7J"],
+               ["14T", "Un-reconciled ITC (S − R)", st.table14_unreconciled, "computed"]]
+    n14 = len(rows14)
+    _write_table(sh, ["Table", "Description", "Eligible ITC availed", "Value and total ITC"], rows14,
+                 ["text", "wrap", "money", "wrap"], name="Gstr9cTable14", totals=False,
+                 cell_styles=_subtotal_style({n14 - 3, n14 - 1}))
+    sh.append([])
 
     t9 = _Sheet(wb, "GSTR-9C Table 9", [24, 16, 15, 15, 15, 13])
     t9.banner(f"GSTR-9C Table 9 – rate-wise tax – FY {st.fy}", "Books: sales register by rate. Paid: GSTR-9 Table 9 "

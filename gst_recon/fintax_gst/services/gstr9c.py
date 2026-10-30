@@ -58,6 +58,30 @@ class Gstr9cService:
                                                                  "after": {"amount": amount, "note": note}},
                   by.username, client_id)
 
+    def import_expenses(self, client_id: int, fy: str, path, by: Session | None = None, apply: bool = True):
+        """Read an expense ledger into Table 14. With ``apply`` the row totals replace the Table 14 figures
+        (each change audited); without it the lines are only returned for preview."""
+        from pathlib import Path
+
+        from ..gstr9.expenses import TABLE14, read_expense_ledger, totals_by_row
+
+        require(by, "review")
+        lines = read_expense_ledger(path)
+        if not lines:
+            raise ServiceError("The expense ledger has no lines")
+        if apply:
+            totals = totals_by_row(lines)
+            note = f"Expense ledger {Path(path).name}"
+            current = self.inputs(client_id, fy)
+            for code, _label in TABLE14:
+                v, t, e = totals.get(code, (None, None, None))
+                for part, amount in (("V", v), ("T", t), ("E", e)):
+                    item = f"{code}-{part}"
+                    if amount is None and item not in current:
+                        continue
+                    self.set_input(client_id, fy, item, amount, note if amount is not None else "", by)
+        return lines
+
     def books_itc(self, client_id: int, fy: str) -> Decimal:
         it = Invoice.__table__
         with self.db.session() as s:

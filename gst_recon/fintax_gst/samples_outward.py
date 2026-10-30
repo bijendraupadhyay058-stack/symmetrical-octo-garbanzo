@@ -167,8 +167,35 @@ def write_gstr1_json(path: Path) -> None:
     payload = {"gstin": CLIENT["gstin"], "fp": "042025", "b2b": list(b2b.values()), "cdnr": list(cdnr.values()),
                "b2cs": b2cs_rows, "exp": [{"exp_typ": "WOPAY", "inv": exp}],
                "nil": {"inv": [{"sply_ty": "INTRAB2B", "expt_amt": float(sum(nil)), "nil_amt": 0, "ngsup_amt": 0}]},
-               "hsn": {"data": []}, "doc_issue": {"doc_det": []}}
+               "hsn": hsn_summary(gstr1_docs()), "doc_issue": {"doc_det": []}}
     path.write_text(json.dumps(payload, indent=2, default=float), encoding="utf-8")
+
+
+HSN_OF = {"Exempt": ("0713", "Dried pulses", "KGS"), "Export (LUT)": ("7326", "Articles of iron or steel", "NOS")}
+DEFAULT_HSN = ("7318", "Screws, bolts and nuts of iron or steel", "KGS")
+
+
+def hsn_summary(docs: list[Sale]) -> dict[str, list[dict]]:
+    """GSTR-1 Table 12 (HSN-wise, split B2B / B2C as from 2025) built from the documents themselves – so it
+    includes the B2C sale left out of the B2CS total."""
+    groups: dict[tuple, dict] = {}
+    for s in docs:
+        code, desc, uqc = HSN_OF.get(s.supply, DEFAULT_HSN)
+        seg = "hsn_b2b" if CUSTOMERS[s.cust][0] else "hsn_b2c"
+        sign = -1 if s.doc == "CRN" else 1
+        rate = 0 if s.supply in ("Export (LUT)", "Exempt") else s.rate
+        g = groups.setdefault((seg, code, rate), {"hsn_sc": code, "desc": desc, "uqc": uqc, "rt": rate, "qty": D(0),
+                                                  "txval": D(0), "iamt": D(0), "camt": D(0), "samt": D(0),
+                                                  "csamt": 0})
+        t = tax(s)
+        g["qty"] += D(s.taxable) / 100 * sign
+        g["txval"] += D(s.taxable) * sign
+        for k, key in (("igst", "iamt"), ("cgst", "camt"), ("sgst", "samt")):
+            g[key] += t[k] * sign
+    out: dict[str, list[dict]] = {"hsn_b2b": [], "hsn_b2c": []}
+    for (seg, _c, _r), g in sorted(groups.items()):
+        out[seg].append({k: (float(v) if isinstance(v, D) else v) for k, v in g.items()})
+    return out
 
 
 def gstr3b_31() -> dict[str, dict]:
@@ -224,14 +251,38 @@ def write_gstr1_may_json(path: Path) -> None:
                                                      "camt": float(ADVANCE_MAY * D("0.09")),
                                                      "samt": float(ADVANCE_MAY * D("0.09")), "csamt": 0}]}]
     payload = {"gstin": CLIENT["gstin"], "fp": "052025", "b2b": b2b, "b2ba": b2ba, "b2csa": b2csa, "at": at,
-               "hsn": {"data": []}, "doc_issue": {"doc_det": []}}
+               "hsn": {"data": hsn_summary([MAY_INVOICE])["hsn_b2b"]}, "doc_issue": {"doc_det": []}}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+#: April 2026 GSTR-1 (next year): amends SGT/25-26/0005 up from 65,000 to 70,000 (GSTR-9 2025-26 Table 10)
+#: and reports SGT/25-26/0099 of 30 March 2026 late (Table 10). Its own April 2026 invoice is next year's.
+NEXT_AMEND_0005 = Sale("MPL", "SGT/25-26/0005", A(6), "70000", inter=True)
+LATE_INVOICE = Sale("RAJ", "SGT/25-26/0099", date(2026, 3, 30), "8000")
+NEXT_OWN = Sale("SHV", "SGT/26-27/0001", date(2026, 4, 3), "12000")
+
+
+def write_gstr1_next_year_json(path: Path) -> None:
+    import json
+
+    def inv(s: Sale, **extra):
+        return {"inum": s.no, "idt": s.dt.strftime("%d-%m-%Y"), "val": float(D(s.taxable) + sum(tax(s).values())),
+                "pos": CUSTOMERS[s.cust][0][:2], "rchrg": "N", "inv_typ": "R", "itms": [_itm(s)], **extra}
+
+    b2b = [{"ctin": CUSTOMERS["RAJ"][0], "inv": [inv(LATE_INVOICE)]},
+           {"ctin": CUSTOMERS["SHV"][0], "inv": [inv(NEXT_OWN)]}]
+    a = NEXT_AMEND_0005
+    b2ba = [{"ctin": CUSTOMERS["MPL"][0], "inv": [inv(a, oinum=a.no, oidt=a.dt.strftime("%d-%m-%Y"))]}]
+    payload = {"gstin": CLIENT["gstin"], "fp": "042026", "b2b": b2b, "b2ba": b2ba,
+               "hsn": {"data": hsn_summary([NEXT_OWN, LATE_INVOICE])["hsn_b2b"]}, "doc_issue": {"doc_det": []}}
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def write_outward(out: Path) -> dict[str, Path]:
     files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
-             "gstr1_may_json": out / "gstr1_2025-05.json"}
+             "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json"}
     write_sales_register(files["sales_april"])
     write_gstr1_json(files["gstr1_april_json"])
     write_gstr1_may_json(files["gstr1_may_json"])
+    write_gstr1_next_year_json(files["gstr1_next_json"])
     return files

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from ..core.invoice_no import normalize_invoice_no
-from ..core.models import DocType, InvoiceRecord
+from ..core.models import DocType, InvoiceRecord, fy_of
 from ..importers.gstr3b import Gstr3bValues
 
 V = Gstr3bValues
@@ -83,6 +83,11 @@ TABLE7_ROWS = [
 ]
 LABELS = dict(TABLE4_ROWS + TABLE5_ROWS + [(c, lab) for c, lab, _ in TABLE6_ROWS + TABLE7_ROWS] + [
     ("6I", "Sub-total (B to H above)"), ("6J", "Difference (I − A above)"),
+    ("10", "Supplies / tax declared through amendments (+) (net of debit notes)"),
+    ("11", "Supplies / tax reduced through amendments (−) (net of credit notes)"),
+    ("12", "Reversal of ITC availed during the previous financial year"),
+    ("13", "ITC availed for the previous financial year"),
+    ("14", "Differential tax paid on account of declaration in 10 and 11 above (payable)"),
     ("7I", "Total ITC reversed (sum of A to H above)"), ("7J", "Net ITC available for utilisation (6O − 7I)")])
 _EXPORT = re.compile(r"exp|wpay|wopay|lut|bond", re.IGNORECASE)
 
@@ -145,6 +150,11 @@ class Gstr9Working:
     table6: list[Row] = field(default_factory=list)
     table7: list[Row] = field(default_factory=list)
     table9: list["Tax9"] = field(default_factory=list)
+    table10_14: list[Row] = field(default_factory=list)
+    next_year_items: list[dict] = field(default_factory=list)  # documents behind Tables 10–13
+    next_year_periods: list[str] = field(default_factory=list)
+    table17: list[dict] = field(default_factory=list)  # HSN-wise outward supplies
+    hsn_check: tuple[Decimal, Decimal] | None = None  # (HSN summary taxable, GSTR-1 supplies taxable)
     interest_paid: Decimal | None = None  # GSTR-3B 6.1 interest paid in cash (None = not imported)
     late_fee_paid: Decimal | None = None
     advances_imported: bool = False
@@ -221,7 +231,8 @@ DOC_SECTIONS = {"B2B", "B2BA", "CDNR", "CDNRA"}  # invoice-level records exist f
 
 # ------------------------------------------------------------------ builder
 def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: list[InvoiceRecord],
-                sales: list[InvoiceRecord], filed: dict[str, dict[str, V]]) -> Gstr9Working:
+                sales: list[InvoiceRecord], filed: dict[str, dict[str, V]], hsn: list[dict] = (),
+                next_docs: list[InvoiceRecord] = (), next_actions: list = (), cutoff: str = "") -> Gstr9Working:
     w = Gstr9Working(fy)
     g1: dict[str, V] = {}
     bk: dict[str, V] = {}
@@ -243,6 +254,13 @@ def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: l
         orig = originals.get((r.supplier_gstin, r.doc_type, orig_no))
         code_up, code_down = ("5J", "5K") if r.total_tax == 0 or classify_gstr1_doc(r).startswith("5") else \
             ("4K", "4L")
+        if orig is None and r.original_invoice_date and fy_of(r.original_invoice_date) < fy:
+            earlier = fy_of(r.original_invoice_date)
+            w.amendments.append({"period": r.period, "section": "B2BA" if r.doc_type == DocType.INVOICE else
+                                 "CDNRA", "party": r.supplier_gstin, "document": r.invoice_no,
+                                 "original": r.original_invoice_no, "revised": _vals(r), "delta": None,
+                                 "row": "–", "status": f"relates to FY {earlier} – its GSTR-9 Tables 10/11"})
+            continue
         if orig is None:
             w.amendments.append({"period": r.period, "section": "B2BA" if r.doc_type == DocType.INVOICE else
                                  "CDNRA", "party": r.supplier_gstin, "document": r.invoice_no,
@@ -364,7 +382,7 @@ def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: l
     if missing_3b:
         w.notes.append(f"GSTR-3B not imported for {len(missing_3b)} month(s): {', '.join(missing_3b)} – Tables 4G, "
                        "6, 7 and 9 are incomplete.")
-    unresolved = [a for a in w.amendments if a["delta"] is None]
+    unresolved = [a for a in w.amendments if a["delta"] is None and not a["status"].startswith("relates to FY")]
     if unresolved:
         w.notes.append(f"{len(unresolved)} amendment(s) need the change from the original entered manually.")
     w.notes.append("Amendments made in the next financial year's returns (up to November) are not included.")
@@ -377,4 +395,96 @@ def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: l
                        "Table 9 is incomplete.")
     if not w.advances_imported:
         w.notes.append("No GSTR-1 advance tables (11A/11B) imported – 4F is shown as nil.")
+    _next_year(w, fy, originals, next_docs, next_actions, cutoff)
+    _table17(w, hsn, r)
     return w
+
+
+def _next_year(w: Gstr9Working, fy: str, originals: dict, next_docs, next_actions, cutoff: str) -> None:
+    """Tables 10–14: this year's supplies and ITC declared in the next year's returns (up to ``cutoff``)."""
+    up, down, reversed_, availed = V(), V(), V(), V()
+    w.next_year_periods = sorted({r.period for r in next_docs})
+    for r in next_docs:
+        if r.is_amendment:
+            orig = originals.get((r.supplier_gstin, r.doc_type,
+                                  normalize_invoice_no(r.original_invoice_no or r.invoice_no)))
+            if orig is None and not (r.original_invoice_date and fy_of(r.original_invoice_date) == fy):
+                continue  # amends a document of another year
+            if orig is None:
+                w.next_year_items.append({"table": "10/11", "period": r.period, "document": r.invoice_no,
+                                          "party": r.supplier_gstin, "values": _vals(r), "change": None,
+                                          "status": "original not imported – enter the change manually"})
+                continue
+            sign = -1 if r.doc_type == DocType.CREDIT_NOTE else 1
+            delta = _scale(_vals(r) - _vals(orig), sign)
+            increase = delta.taxable > 0 or (delta.taxable == 0 and delta.total > 0)
+            if increase:
+                up = up + delta
+            else:
+                down = down + _abs(delta)
+            w.next_year_items.append({"table": "10" if increase else "11", "period": r.period,
+                                      "document": r.invoice_no, "party": r.supplier_gstin, "values": _vals(r),
+                                      "change": delta, "status": "amendment of this year's document"})
+        elif fy_of(r.invoice_date) == fy:  # this year's document reported late, in the next year's GSTR-1
+            credit = r.doc_type == DocType.CREDIT_NOTE
+            if credit:
+                down = down + _vals(r)
+            else:
+                up = up + _vals(r)
+            w.next_year_items.append({"table": "11" if credit else "10", "period": r.period,
+                                      "document": r.invoice_no, "party": r.supplier_gstin, "values": _vals(r),
+                                      "change": _vals(r) if not credit else _scale(_vals(r), -1),
+                                      "status": "this year's document reported in the next year"})
+    for period, ca in next_actions:
+        if fy_of(ca.invoice.invoice_date) != fy or (cutoff and period > cutoff):
+            continue
+        sign = -1 if ca.invoice.doc_type == DocType.CREDIT_NOTE else 1
+        v = _scale(V(ca.values.igst, ca.values.cgst, ca.values.sgst, ca.values.cess), sign)
+        if ca.action == "REVERSE":
+            reversed_ = reversed_ + v
+            table = "12"
+        elif ca.action in ("CLAIM", "RECLAIM"):
+            availed = availed + v
+            table = "13"
+        else:
+            continue
+        w.next_year_items.append({"table": table, "period": period, "document": ca.invoice.invoice_no,
+                                  "party": ca.invoice.supplier_gstin, "values": v, "change": v,
+                                  "status": f"{ca.action.lower()} in the claim register"})
+    diff = up - down
+    w.table10_14 = [Row("10", up), Row("11", down), Row("12", reversed_), Row("13", availed),
+                    Row("14", V(diff.igst, diff.cgst, diff.sgst, diff.cess),
+                        note="Payable on the net of 10 and 11 – the payment is made through the next year's "
+                             "GSTR-3B / DRC-03 and is not split out there")]
+    w.table10_14[3].note = "Same documents as Table 8C"
+    if not next_docs and not next_actions:
+        w.notes.append("No GSTR-1 of the next financial year (April to the cut-off) and no next-year claim "
+                       "register entries – Tables 10 to 14 are nil.")
+
+
+def _table17(w: Gstr9Working, hsn: list[dict], rows: dict) -> None:
+    """Table 17: HSN-wise summary of outward supplies, and a consistency check with the GSTR-1 sections."""
+    groups: dict[tuple, dict] = {}
+    for h in hsn:
+        key = (h["hsn"], h.get("uqc", ""), str(h.get("rate", "")))
+        g = groups.setdefault(key, {"hsn": h["hsn"], "description": h.get("description", ""),
+                                    "uqc": h.get("uqc", ""), "rate": str(h.get("rate", "")), "qty": Decimal(0),
+                                    "taxable": Decimal(0), "igst": Decimal(0), "cgst": Decimal(0),
+                                    "sgst": Decimal(0), "cess": Decimal(0)})
+        g["description"] = g["description"] or h.get("description", "")
+        for k in ("qty", "taxable", "igst", "cgst", "sgst", "cess"):
+            g[k] += Decimal(str(h.get(k) or 0))
+    w.table17 = sorted(groups.values(), key=lambda g: (g["hsn"], g["uqc"], g["rate"]))
+    if not w.table17:
+        w.notes.append("No GSTR-1 HSN summary (Table 12) imported – GSTR-9 Table 17 is empty.")
+        return
+    hsn_total = sum((g["taxable"] for g in w.table17), Decimal(0))
+    supplies = Decimal(0)
+    for code in ("4A", "4B", "4C", "4D", "4E", "5A", "5B", "5C", "5D", "5E", "5F", "4J", "5I"):
+        supplies += rows[code].gstr1.taxable
+    for code in ("4I", "5H"):
+        supplies -= rows[code].gstr1.taxable
+    w.hsn_check = (hsn_total, supplies)
+    if abs(hsn_total - supplies) >= Decimal("1"):
+        w.notes.append(f"GSTR-1 HSN summary taxable value ₹{hsn_total:,.2f} differs from the GSTR-1 supplies "
+                       f"(sections, before amendments) ₹{supplies:,.2f} by ₹{hsn_total - supplies:,.2f}.")

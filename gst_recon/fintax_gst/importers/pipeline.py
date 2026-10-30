@@ -75,6 +75,7 @@ class ImportPreview:
     columns: dict[str, list[str]] = field(default_factory=dict)  # sheet -> column labels (for re-mapping)
     other_itc: list[dict] = field(default_factory=list)  # GSTR-2B ISD credits and imports (bills of entry)
     outward_summary: list[dict] = field(default_factory=list)  # GSTR-1 section totals
+    hsn_summary: list[dict] = field(default_factory=list)  # GSTR-1 Table 12 (HSN-wise)
     total_rows: int = 0
     existing_record_hashes: set[str] = field(default_factory=set)
     already_imported_file_id: int | None = None
@@ -337,7 +338,7 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
             elif kind == "IMS":
                 rows, json_period, warnings = flatten_ims(js)
             elif kind == "GSTR1":
-                rows, json_period, warnings, preview.outward_summary = flatten_gstr1(js)
+                rows, json_period, warnings, preview.outward_summary, preview.hsn_summary = flatten_gstr1(js)
             elif kind == "GSTR8A":
                 rows, json_period, warnings = flatten_gstr8a(js)
             elif kind == "GSTR3B":
@@ -351,6 +352,9 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
             preview.file_warnings += warnings
             _require_period(preview)
             builder = _Builder(preview, "gstn")
+            if preview.hsn_summary:
+                preview.issues.append(RowIssue("", "", "info", f"{len(preview.hsn_summary)} HSN summary line(s) read "
+                                               "(GSTR-1 Table 12, for GSTR-9 Table 17)"))
             if preview.outward_summary:
                 preview.issues.append(RowIssue("", "", "info", f"{len(preview.outward_summary)} GSTR-1 section "
                                                "total(s) read for the GSTR-1 vs GSTR-3B comparison"))

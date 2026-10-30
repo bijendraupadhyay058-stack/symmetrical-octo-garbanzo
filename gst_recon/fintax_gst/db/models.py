@@ -494,4 +494,29 @@ class Gstr9cInput(Base):
 
 
 V6_TABLES = [Gstr9cInput]
+
+
+class Gstr1Hsn(Base):
+    """HSN-wise summary of outward supplies as reported in GSTR-1 (Table 12) – feeds GSTR-9 Table 17."""
+
+    __tablename__ = "gstr1_hsn"
+    __table_args__ = (Index("ix_g1hsn_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    hsn: Mapped[str] = mapped_column(String(10))
+    description: Mapped[str] = mapped_column(String(200), default="")
+    uqc: Mapped[str] = mapped_column(String(10), default="")
+    rate: Mapped[str] = mapped_column(String(8), default="")
+    segment: Mapped[str] = mapped_column(String(4), default="")  # B2B / B2C (from 2025) or blank
+    qty: Mapped[Decimal] = mapped_column(DecimalText)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+
+
+V7_TABLES = [Gstr1Hsn]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -73,3 +73,13 @@ def test_gstr9_and_9c_tabs(qtbot, db, tmp_path, sample_files, messages):  # noqa
     rp.c9_item.setCurrentIndex(rp.c9_item.findData("5A"))
     rp.save_9c_input(clear=True)
     assert next(r for r in rp.c9_model.rows if r[0] == "5A")[3].startswith("default")
+
+
+def test_9c_expense_ledger_import(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.state.set_client(win.state.clients.create(**__import__("fintax_gst.samples", fromlist=["CLIENT"]).CLIENT))
+    win.go("returns")
+    rp = win.pages["returns"]
+    assert rp.import_expense_path(sample_files["expense_ledger"])
+    codes = {r[0]: r for r in rp.c9_model.rows}
+    assert "14A" in codes and codes["14R"][2] > 0

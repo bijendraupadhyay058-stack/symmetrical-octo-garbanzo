@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, insert, select
 
 from ..core.models import Source
 from ..db.database import Database
-from ..db.models import Gstr1Summary, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
+from ..db.models import Gstr1Hsn, Gstr1Summary, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
 from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
 from ..importers.pipeline import ImportPreview, preview_file
@@ -140,6 +140,9 @@ class ImportService:
             if preview.outward_summary:
                 s.execute(insert(Gstr1Summary), [{"client_id": client_id, "source_file_id": sf.id,
                                                   "period": preview.period, **row} for row in preview.outward_summary])
+            if preview.hsn_summary:
+                s.execute(insert(Gstr1Hsn), [{"client_id": client_id, "source_file_id": sf.id,
+                                              "period": preview.period, **row} for row in preview.hsn_summary])
             audit(s, "IMPORT", "source_file", sf.id, preview.summary(), user, client_id)
         progress(100, "Import complete")
         return sf
@@ -205,6 +208,7 @@ class ImportService:
             s.execute(delete(ImportIssue).where(ImportIssue.source_file_id == file_id))
             s.execute(delete(OtherItc).where(OtherItc.source_file_id == file_id))
             s.execute(delete(Gstr1Summary).where(Gstr1Summary.source_file_id == file_id))
+            s.execute(delete(Gstr1Hsn).where(Gstr1Hsn.source_file_id == file_id))
             keys = set(s.execute(select(Gstr3bEntry.period, Gstr3bEntry.table_code)
                                  .where(Gstr3bEntry.source_file_id == file_id)).all())
             s.execute(delete(Gstr3bEntry).where(Gstr3bEntry.source_file_id == file_id))

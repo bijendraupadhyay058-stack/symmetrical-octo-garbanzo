@@ -362,7 +362,7 @@ def cmd_demo(_db, args) -> None:
 
     # Phase 4: outward supplies, compliance dashboard, supplier letters, working papers
     for key, source in (("sales_april", Source.SALES), ("gstr1_april_json", Source.GSTR1),
-                        ("gstr1_may_json", Source.GSTR1)):
+                        ("gstr1_may_json", Source.GSTR1), ("gstr1_next_json", Source.GSTR1)):
         svc.commit(client.id, svc.preview(client.id, files[key], source), "demo")
     out_run = ReconciliationService(db).run(client.id, "2025-04", compare_with=Source.GSTR1, user="demo")
     print("\nSales register vs GSTR-1:")
@@ -382,6 +382,10 @@ def cmd_demo(_db, args) -> None:
     print(f"Supplier letters: {len(letters)} written to {out / 'reports'}")
     wp = WorkingPaperService(db).prepare(run_id, out / "working_papers", SETUP_SESSION)
     print(f"Working papers: {wp.package_path}")
+    from .services.gstr9c import Gstr9cService
+
+    Gstr9cService(db).import_expenses(client.id, "2025-26", files["expense_ledger"], SETUP_SESSION)
+    print("Expense ledger imported into GSTR-9C Table 14")
     print(f"Report: {export_annual(db, client.id, '2025-26', out / 'reports', user='demo')}")
     db.dispose()
 

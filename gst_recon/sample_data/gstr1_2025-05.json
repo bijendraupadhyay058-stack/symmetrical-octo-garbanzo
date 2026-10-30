@@ -94,7 +94,20 @@
     }
   ],
   "hsn": {
-    "data": []
+    "data": [
+      {
+        "hsn_sc": "7318",
+        "desc": "Screws, bolts and nuts of iron or steel",
+        "uqc": "KGS",
+        "rt": 18,
+        "qty": 300.0,
+        "txval": 30000.0,
+        "iamt": 0.0,
+        "camt": 2700.0,
+        "samt": 2700.0,
+        "csamt": 0
+      }
+    ]
   },
   "doc_issue": {
     "doc_det": []

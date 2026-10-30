@@ -173,6 +173,10 @@ class ReturnsPage(LazyPage):
         self.c9_clear.clicked.connect(lambda: self.save_9c_input(clear=True))
         self.c9_btn = primary("Prepare GSTR-9C")
         self.c9_btn.clicked.connect(self.show_9c)
+        self.c9_exp_btn = QPushButton("Import expense ledger…")
+        self.c9_exp_btn.setToolTip("Table 14: ledger heads with amount and ITC (Excel/CSV)")
+        self.c9_exp_btn.clicked.connect(self.import_expense_dialog)
+        form.addWidget(self.c9_exp_btn)
         for x in (self.c9_btn, self.c9_item, self.c9_amount, self.c9_note, self.c9_save, self.c9_clear):
             form.addWidget(x)
         lay.addLayout(form)
@@ -216,7 +220,13 @@ class ReturnsPage(LazyPage):
         if st_.client is None:
             return
         st = Gstr9cService(st_.db).statement(st_.client.id, st_.fy)
-        self.c9_model.set_rows([[x.code, x.label, x.amount, x.source] for x in st.table5 + st.table7 + st.table12])
+        rows = [[x.code, x.label, x.amount, x.source] for x in st.table5 + st.table7 + st.table12]
+        rows += [[x.code, x.label, x.itc_eligible, f"value {money(x.value)}; total ITC {money(x.itc_total)}"]
+                 for x in st.table14 if x.value or x.itc_total or x.itc_eligible]
+        rows += [["14R", "Total eligible ITC availed on expenses", st.table14_total, "computed"],
+                 ["14S", "ITC claimed in GSTR-9", st.table14_claimed, "GSTR-9 7J"],
+                 ["14T", "Un-reconciled ITC on expenses (S − R)", st.table14_unreconciled, "computed"]]
+        self.c9_model.set_rows(rows)
         self.c9_table.fit(520)
         tot, paid, un = st.table9_total, st.table9_paid, st.table9_unreconciled
         rows = [[r.rate, r.taxable, r.cgst, r.sgst, r.igst, r.cess] for r in st.table9]
@@ -228,6 +238,31 @@ class ReturnsPage(LazyPage):
         self.c9_rt.fit(260)
         reasons = [f"{k}: {v}" for k, v in st.reasons.items() if v]
         self.c9_note_lbl.setText(" ".join(reasons + st.notes))
+
+    def import_expense_dialog(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Expense ledger (Table 14)", "", "Excel/CSV (*.xlsx *.csv)")
+        if path:
+            self.import_expense_path(path)
+
+    def import_expense_path(self, path) -> bool:
+        from ...services.gstr9c import Gstr9cService
+
+        st = self.state
+        if st.client is None:
+            return False
+        svc = Gstr9cService(st.db)
+        try:
+            lines = svc.import_expenses(st.client.id, st.fy, path, st.session, apply=False)
+        except (ServiceError, ValueError) as exc:
+            QMessageBox.warning(self, "Expense ledger", str(exc))
+            return False
+        summary = "\n".join(f"{x.table_row}  {x.head[:40]:<40} ITC {money(x.itc_eligible)}" for x in lines[:40])
+        if QMessageBox.question(self, "Expense ledger", f"{len(lines)} ledger head(s) will replace the Table 14 "
+                                f"figures:\n\n{summary}\n\nSave?") != QMessageBox.Yes:
+            return False
+        svc.import_expenses(st.client.id, st.fy, path, st.session)
+        self.show_9c()
+        return True
 
     def save_9c_input(self, clear: bool = False) -> None:
         from ...services.gstr9c import Gstr9cService
@@ -261,9 +296,10 @@ class ReturnsPage(LazyPage):
             return
         w = Gstr9Service(st.db).working(st.client.id, st.fy)
         rows = []
-        for r in w.table4 + w.table5 + w.table6 + w.table7:
+        for r in w.table4 + w.table5 + w.table6 + w.table7 + w.table10_14:
             d = r.diff
-            rows.append([r.code, r.label, r.gstr1.taxable if r.gstr1 and r in w.table4 + w.table5 else None,
+            rows.append([r.code, r.label,
+                         r.gstr1.taxable if r.gstr1 and r in w.table4 + w.table5 + w.table10_14 else None,
                          r.gstr1.total if r.gstr1 else None, r.books.taxable if r.books else None,
                          r.books.total if r.books else None, d.total if d else None, r.note])
         self.g9_model.set_rows(rows)
@@ -328,7 +364,7 @@ class ReturnsPage(LazyPage):
         self.import_btn.setEnabled(st.can("import") and st.client is not None)
         self.import_8a_btn.setEnabled(st.can("import") and st.client is not None)
         self.recon_8a_btn.setEnabled(st.can("reconcile") and st.client is not None)
-        for b in (self.c9_save, self.c9_clear):
+        for b in (self.c9_save, self.c9_clear, self.c9_exp_btn):
             b.setEnabled(st.can("review") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):

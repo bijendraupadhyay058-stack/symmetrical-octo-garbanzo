@@ -293,7 +293,58 @@
     ]
   },
   "hsn": {
-    "data": []
+    "hsn_b2b": [
+      {
+        "hsn_sc": "0713",
+        "desc": "Dried pulses",
+        "uqc": "KGS",
+        "rt": 0,
+        "qty": 120.0,
+        "txval": 12000.0,
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "hsn_sc": "7318",
+        "desc": "Screws, bolts and nuts of iron or steel",
+        "uqc": "KGS",
+        "rt": 18,
+        "qty": 4540.0,
+        "txval": 454000.0,
+        "iamt": 50580.0,
+        "camt": 15570.0,
+        "samt": 15570.0,
+        "csamt": 0
+      }
+    ],
+    "hsn_b2c": [
+      {
+        "hsn_sc": "7318",
+        "desc": "Screws, bolts and nuts of iron or steel",
+        "uqc": "KGS",
+        "rt": 18,
+        "qty": 410.0,
+        "txval": 41000.0,
+        "iamt": 0.0,
+        "camt": 3690.0,
+        "samt": 3690.0,
+        "csamt": 0
+      },
+      {
+        "hsn_sc": "7326",
+        "desc": "Articles of iron or steel",
+        "uqc": "NOS",
+        "rt": 0,
+        "qty": 2500.0,
+        "txval": 250000.0,
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      }
+    ]
   },
   "doc_issue": {
     "doc_det": []

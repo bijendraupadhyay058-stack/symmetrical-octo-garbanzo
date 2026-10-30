@@ -110,6 +110,12 @@ def _migration_6(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V6_TABLES])
 
 
+def _migration_7(conn) -> None:
+    from .models import V7_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V7_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -120,6 +126,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
      _migration_4),
     (5, "GST due-date extensions recorded by the user", _migration_5),
     (6, "GSTR-9C figures from the audited financial statements and reasons", _migration_6),
+    (7, "GSTR-1 HSN-wise summary of outward supplies", _migration_7),
 ]
 
 
