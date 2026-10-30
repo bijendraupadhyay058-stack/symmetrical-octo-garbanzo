@@ -22,6 +22,12 @@ The script
    (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
    uninstalling never deletes the data folder).
 
+**Pinned library versions.** The build installs `requirements.txt` with
+`packaging\build-constraints.txt`, which pins numpy 1.26.4 and pandas 2.2.3. Newer numpy builds failed to load on
+an older office PC ("DLL load failed while importing _multiarray_umath"). Change the pins only after testing the
+installer on an older PC. If the desktop program cannot start, it shows a message and writes
+`%LOCALAPPDATA%\FinTaxPro\startup-error.txt`, with the Windows version, the processor and its features, and the error.
+
 **Code signing (optional).** Unsigned programs trigger SmartScreen warnings. To sign, set
 `FINTAX_SIGN_CERT` to your code-signing certificate (`.pfx`) and `FINTAX_SIGN_PASSWORD`
 to its password before running the script. Install the Windows SDK, which provides

@@ -1,0 +1,6 @@
+# Versions bundled into the Windows desktop build. Pinned so that a new library release can never silently
+# break the installer, and chosen for the widest range of PCs: numpy 1.26 runs on processors that numpy 2.x
+# builds no longer support (an installed copy failed with "DLL load failed while importing _multiarray_umath").
+# Update deliberately, and only after testing the installer on an older PC.
+numpy==1.26.4
+pandas==2.2.3

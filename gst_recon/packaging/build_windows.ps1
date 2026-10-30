@@ -6,7 +6,9 @@ $ErrorActionPreference = "Stop"
 if ($env:FINTAX_BUILD_PYTHON) { & $env:FINTAX_BUILD_PYTHON -m venv .venv-build } else { py -3.12 -m venv .venv-build }
 if ($LASTEXITCODE -ne 0) { throw "Could not create the build environment" }
 .\.venv-build\Scripts\python -m pip install --upgrade pip
-.\.venv-build\Scripts\python -m pip install -r requirements.txt
+# Library versions bundled into the installer are pinned (packaging\build-constraints.txt) for the widest PC support.
+.\.venv-build\Scripts\python -m pip install -r requirements.txt -c packaging\build-constraints.txt
+if ($LASTEXITCODE -ne 0) { throw "Installing the build requirements failed" }
 
 # Run the test suite first – never ship a build that fails its tests.
 .\.venv-build\Scripts\python -m pytest
