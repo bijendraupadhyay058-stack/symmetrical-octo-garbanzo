@@ -1,4 +1,4 @@
-# Phase 10 – e-invoice and e-way bill reconciliation, TDS/TCS credits
+# Phase 10 – e-invoice and e-way bill reconciliation, TDS/TCS credits, GSTR-9 draft JSON
 
 ## 1. Sales register vs e-invoices (IRP) and e-way bills
 
@@ -153,6 +153,54 @@ When credits are imported for the year, the annual workbook (`gstr9 --out`) gets
 Sample: `sample_data/tds_tcs_credit_2025-26.xlsx`.
 
 ![TDS / TCS credits](screenshots/tds_tcs.png)
+
+## 3. Draft GSTR-9 JSON for the offline tool
+
+The GSTR-9 working and the Table 8 working can be exported as a **draft** JSON in the
+offline tool's layout, together with a mapping of every figure:
+
+```bash
+fintax-gst gstr9 json --client 1 --fy 2025-26 --out reports/
+```
+
+On the desktop: *GSTR-3B & annual → GSTR-9 Tables 4–7, 9 → Draft JSON for offline tool…*.
+
+Two files are written:
+
+| File | Content |
+|---|---|
+| `FINTAXPRO_GSTR9_DRAFT_<GSTIN>_FY<year>.json` | the draft |
+| `…_mapping.csv` | for each table: description, JSON path, value, status and note |
+
+Each figure in the mapping has one of three statuses:
+
+* **included** – the figure is in the JSON and comes from the working (Tables 4 and 5,
+  6A, 6F–6H, 7H, 8A–8C, Table 9 payable and paid in cash, interest and late fee paid,
+  Tables 10–13, the entered Tables 15–16, and the HSN summaries of Tables 17 and 18);
+* **computed by the offline tool** – sub-totals and differences (4H, 4M, 4N, 5G, 5L–5N,
+  6I, 6J, 7I, 7J, 8D);
+* **enter in the offline tool** – figures the imported data cannot split the way the
+  return asks. **They are left out rather than guessed:**
+  * 6B, 6C/6D and 6E, by inputs / capital goods / input services and by registered /
+    unregistered supplier;
+  * 7A–7G, by rule;
+  * 6K–6M, transition credit and other ITC;
+  * 8E–8K;
+  * Table 9 tax paid through ITC, by the credit used;
+  * Table 14.
+
+The working's notes, such as months without GSTR-1 or GSTR-3B, are repeated at the end
+of the mapping with the status *check*.
+
+**This is a draft for review.**
+
+* The key names follow GSTN's published GSTR-9 JSON as understood when this was written,
+  and the portal format can change.
+* Import the file into the GST offline tool, which validates it. Enter the items marked
+  *enter in the offline tool* there, and check every table against the working before
+  generating the file to upload.
+* If the tool rejects a section, enter that section by hand.
+* Nothing is filed or uploaded by this software. Each export is audited.
 
 ### Schema v9
 

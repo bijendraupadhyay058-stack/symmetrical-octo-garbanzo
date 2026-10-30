@@ -105,7 +105,8 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
   work carried forward within the same comparison only.
 * ✅ TDS/TCS credits received (schema v10): import, statement against the sales register and the
   statutory rates, pending acceptance, annual workbook sheet.
-* GSTR-9 draft JSON for the offline tool.
+* ✅ GSTR-9 draft JSON for the offline tool, with a mapping that marks what is included, what
+  the tool computes and what must be entered there (never guessed).
 * Multi-user hardening: concurrent edits, per-user activity, load test on PostgreSQL.
 
 ## Next

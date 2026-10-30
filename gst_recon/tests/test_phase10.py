@@ -229,3 +229,51 @@ def test_tds_tcs_in_annual_workbook_and_cli(tmp_path, sample_files, capsys):
     assert main(["--db", dbp, "gstr9", "--client", "1", "--fy", "2025-26", "--out", str(tmp_path)]) == 0
     wb = load_workbook(next(tmp_path.glob("FINTAXPRO_GSTR9_Working_*.xlsx")), read_only=True)
     assert wb.sheetnames[-1] == "TDS-TCS Credits"
+
+
+# ------------------------------------------------------------------ GSTR-9 draft JSON
+def test_gstr9_draft_json(db, sample_files, tmp_path):
+    import json
+
+    from fintax_gst.gstr9.offline_json import STATUS_COMPUTED, STATUS_MANUAL
+    from fintax_gst.services.gstr3b import Gstr3bService
+    from fintax_gst.services.gstr9 import Gstr9Service
+    from fintax_gst.services.gstr9c import Gstr9cService
+
+    c = _client(db, sample_files, Source.GSTR1)
+    svc = ImportService(db)
+    for key, src in (("books_april", Source.BOOKS), ("gstr2b_april_json", Source.GSTR2B),
+                     ("gstr1_may_json", Source.GSTR1)):
+        svc.import_file(c.id, sample_files[key], src)
+    Gstr3bService(db).import_file(c.id, sample_files["gstr3b_april_json"])
+    Gstr9cService(db).set_input(c.id, "2025-26", "15E-I", "25000", "DRC-07", SETUP_SESSION)
+    gsvc = Gstr9Service(db)
+    w = gsvc.working(c.id, "2025-26")
+    js, mp = gsvc.draft_json(c.id, "2025-26", tmp_path)
+    data = json.loads(js.read_text(encoding="utf-8"))
+    assert data["gstin"] == CLIENT["gstin"] and data["fp"] == "032026"
+    rows = {r.code: r for r in w.table4}
+    assert data["table4"]["b2b"]["txval"] == float(rows["4B"].gstr1.taxable)
+    assert data["table4"]["at"]["txval"] == 50000  # GSTR-1 May advance (4F)
+    assert data["table5"]["zero_rtd"]["txval"] == 250000
+    assert data["table15"] == {"tax_dmnd": {"camt": 0.0, "samt": 0.0, "iamt": 25000.0, "csamt": 0.0, "intr": 0.0,
+                                            "pen": 0.0, "fee": 0.0}}
+    assert data["table17"]["items"] and "table18" not in data
+    # nothing is guessed: split rows and sub-totals are not in the JSON, the mapping says why
+    assert "supp_non_rchrg" not in data["table6"] and "rule42" not in data["table7"]
+    text = mp.read_text(encoding="utf-8-sig")
+    assert text.startswith('"DRAFT for review')
+    status = {r[0]: r[4] for r in csv.reader(text.splitlines()[2:])}
+    assert status["6B"] == status["7A–7G"] == STATUS_MANUAL and status["4N"] == STATUS_COMPUTED
+    assert status["4B"] == status["15E"] == "included"
+
+
+def test_gstr9_json_cli(tmp_path, sample_files, capsys):
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "import", "--client", "1", "--source", "gstr1", "--file",
+                 str(sample_files["gstr1_april_json"])]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "gstr9", "json", "--client", "1", "--fy", "2025-26", "--out", str(tmp_path / "j")]) == 0
+    out = capsys.readouterr().out
+    assert "DRAFT for review" in out and (tmp_path / "j" / f"FINTAXPRO_GSTR9_DRAFT_{CLIENT['gstin']}_FY2025-26.json").exists()

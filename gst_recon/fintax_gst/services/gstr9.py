@@ -1,6 +1,8 @@
 """GSTR-9 annual return working for a client and financial year."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from sqlalchemy import select
 
 from ..core.models import Source
@@ -52,3 +54,36 @@ class Gstr9Service:
 
         w.table15, w.table16 = entered_tables(Gstr9cService(self.db).inputs(client_id, fy))
         return w
+
+    def draft_json(self, client_id: int, fy: str, out_dir, cutoff: str | None = None,
+                   user: str | None = None) -> tuple[Path, Path]:
+        """Write the draft GSTR-9 JSON for the offline tool and its mapping (CSV). Audited."""
+        import csv
+        import json
+
+        from ..gstr9.offline_json import build_draft
+        from .clients import ClientService
+        from .common import audit
+        from .itc import ItcService
+
+        client = ClientService(self.db).get(client_id)
+        w = self.working(client_id, fy, cutoff)
+        t8 = ItcService(self.db).annual(client_id, fy, cutoff)
+        payload, rows = build_draft(w, t8, client.gstin, fy)
+        out_dir = Path(out_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        stem = f"FINTAXPRO_GSTR9_DRAFT_{client.gstin}_FY{fy}"
+        js, mp = out_dir / f"{stem}.json", out_dir / f"{stem}_mapping.csv"
+        js.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+        with mp.open("w", newline="", encoding="utf-8-sig") as fh:
+            wr = csv.writer(fh)
+            wr.writerow(["DRAFT for review – import into the GST offline tool, which validates it; check every "
+                         "table there before filing. Nothing is filed by FIN TAX PRO."])
+            wr.writerow(["Table", "Description", "JSON path", "Value", "Status", "Note"])
+            for r in rows:
+                wr.writerow([r.table, r.description, r.json_path, r.value, r.status, r.note])
+        with self.db.session() as s:
+            audit(s, "EXPORT", "gstr9_draft_json", f"{client_id}:{fy}", {
+                "files": [str(js), str(mp)], "included": sum(1 for r in rows if r.status == "included"),
+                "manual": sum(1 for r in rows if r.status.startswith("enter"))}, user, client_id)
+        return js, mp

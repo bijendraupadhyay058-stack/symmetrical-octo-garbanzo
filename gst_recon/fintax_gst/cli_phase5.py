@@ -56,6 +56,14 @@ def cmd_gstr9(db, args) -> None:
     from .services.gstr9 import Gstr9Service
 
     client = ClientService(db).resolve(args.client)
+    if args.action == "json":
+        if not args.out:
+            raise ValueError("Give --out with the folder for the draft JSON and its mapping")
+        js, mp = Gstr9Service(db).draft_json(client.id, args.fy, args.out, user=args.user)
+        print(f"Draft GSTR-9 JSON: {js}\nMapping (what is included, what to enter in the offline tool): {mp}")
+        print("DRAFT for review – import it into the GST offline tool, which validates it, and check every table "
+              "there before filing.")
+        return
     if args.action == "set":
         from .services.gstr9c import Gstr9cService
 
@@ -156,7 +164,8 @@ def add_commands(sub) -> None:
     c9.set_defaults(func=cmd_gstr9c)
 
     g9 = sub.add_parser("gstr9", help="GSTR-9 working (Tables 4–18) from GSTR-1, GSTR-3B and the registers")
-    g9.add_argument("action", nargs="?", default="show", choices=["show", "set"])
+    g9.add_argument("action", nargs="?", default="show", choices=["show", "set", "json"],
+                    help="json: draft GSTR-9 JSON for the offline tool (with --out)")
     g9.add_argument("--item", help="set: Table 15/16 item, e.g. 15E-I (demand, IGST) or 16A-T")
     g9.add_argument("--amount", help="set: amount (omit to clear)")
     g9.add_argument("--note", help="set: note")
@@ -186,7 +195,7 @@ def add_commands(sub) -> None:
 
 def permission_for(args) -> str | None:
     if args.command == "gstr9":
-        return "review" if args.action == "set" else "view"
+        return {"set": "review", "json": "export"}.get(args.action, "view")
     if args.command == "gstr9c":
         return "review" if args.action in ("set", "import-expenses") else "view"
     if args.command == "setting":

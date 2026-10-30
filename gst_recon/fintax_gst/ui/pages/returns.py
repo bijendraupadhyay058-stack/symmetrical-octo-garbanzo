@@ -105,8 +105,13 @@ class ReturnsPage(LazyPage):
         self.g9_btn.clicked.connect(self.show_gstr9)
         self.g9_export_btn = QPushButton("Export annual workbook…")
         self.g9_export_btn.clicked.connect(self.export_annual)
+        self.g9_json_btn = QPushButton("Draft JSON for offline tool…")
+        self.g9_json_btn.setToolTip("Draft GSTR-9 JSON with a mapping of what is included and what to enter in "
+                                    "the offline tool – validate it there before filing")
+        self.g9_json_btn.clicked.connect(self.export_gstr9_json)
         row.addWidget(self.g9_btn)
         row.addWidget(self.g9_export_btn)
+        row.addWidget(self.g9_json_btn)
         hint = QLabel("Returns = GSTR-1 (Tables 4–5) and GSTR-3B (4G, 6, 7); Books = sales register. "
                       "A working paper for review, not the return as filed.")
         hint.setObjectName("Muted")
@@ -458,6 +463,7 @@ class ReturnsPage(LazyPage):
         for b in (self.c9_save, self.c9_clear, self.c9_exp_btn):
             b.setEnabled(st.can("review") and st.client is not None)
         self.tds_import_btn.setEnabled(st.can("import") and st.client is not None)
+        self.g9_json_btn.setEnabled(st.can("export") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):
             cur = cb.currentText()
@@ -590,6 +596,26 @@ class ReturnsPage(LazyPage):
             return None
         QMessageBox.information(self, "Annual", f"Saved {path}")
         return path
+
+    def export_gstr9_json(self, out_dir: str | None = None) -> Path | None:
+        from ...services.gstr9 import Gstr9Service
+
+        st = self.state
+        if st.client is None:
+            return None
+        out_dir = out_dir or QFileDialog.getExistingDirectory(self, "Folder for the draft GSTR-9 JSON")
+        if not out_dir:
+            return None
+        try:
+            js, mp = Gstr9Service(st.db).draft_json(st.client.id, st.fy, out_dir, self.cutoff_cb.currentText(),
+                                                    st.user)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "GSTR-9 JSON", str(exc))
+            return None
+        QMessageBox.information(self, "GSTR-9 JSON", f"Draft saved:\n{js}\n\nMapping:\n{mp}\n\nThis is a DRAFT for "
+                                "review. Import it into the GST offline tool, which validates it, complete the items "
+                                "the mapping marks 'enter in the offline tool', and check every table before filing.")
+        return js
 
 
 class ImsPage(LazyPage):
