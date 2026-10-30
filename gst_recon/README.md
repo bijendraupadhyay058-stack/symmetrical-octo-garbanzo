@@ -6,6 +6,15 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
+## Download and install (Windows)
+
+1. Download **FinTaxPro-Setup-1.0.0.exe** from the
+   [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
+2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
+   (the installer is not code-signed yet).
+3. Follow the installer, then read the **user guide** that opens at the end
+   ([docs/USER_GUIDE.html](docs/USER_GUIDE.html)). No coding is needed.
+
 **Status: Phases 1–9 are complete.** The release includes:
 
 * the reconciliation engine, database and imports

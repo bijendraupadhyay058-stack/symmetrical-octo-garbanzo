@@ -88,3 +88,26 @@ jobs:
             gst_recon/dist/FinTaxPro-GST/
           if-no-files-found: error
           retention-days: 14
+
+  # Permanent download page for the desktop installer (requested by the repository owner): after every
+  # successful Windows build of the development branch, the release "fintaxpro-latest" is replaced.
+  release:
+    needs: windows-build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/ccr-34d246f0-51v3iq' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FinTaxPro-windows
+          path: build
+      - name: Publish the installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          setup=$(ls build/installer/FinTaxPro-Setup-*.exe)
+          gh release delete fintaxpro-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create fintaxpro-latest "$setup" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "FIN TAX PRO – Windows installer (latest build)" \
+            --notes "Download FinTaxPro-Setup-1.0.0.exe below and double-click it. If Windows says 'Windows protected your PC' (the installer is not code-signed yet), click More info, then Run anyway. The user guide opens after installation. Built from commit $GITHUB_SHA after all tests passed."
