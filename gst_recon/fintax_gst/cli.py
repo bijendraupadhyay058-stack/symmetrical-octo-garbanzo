@@ -421,8 +421,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     i = sub.add_parser("import", help="preview and import a purchase/sales register, GSTR-2B/2A, GSTR-1 or IMS file")
     i.add_argument("--client", required=True, help="client id or GSTIN")
-    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a", "ims", "sales", "gstr1", "gstr8a"],
-                   help="gstr8a = GSTR-9 Table 8A document details (annual)")
+    i.add_argument("--source", required=True, choices=["books", "gstr2b", "gstr2a", "ims", "sales", "gstr1", "gstr8a",
+                                                         "einv", "ewb"],
+                   help="gstr8a = GSTR-9 Table 8A document details (annual); einv = e-invoice (IRP) report; "
+                        "ewb = e-way bill report")
     i.add_argument("--file", required=True)
     i.add_argument("--period", help="YYYY-MM (GSTR-2B period if not detected; books booking month override)")
     i.add_argument("--template", help="saved mapping template name")
@@ -442,8 +444,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--from", dest="period_from")
     r.add_argument("--to", dest="period_to")
     r.add_argument("--fy", help="whole financial year, e.g. 2025-26")
-    r.add_argument("--compare", default="gstr2b", choices=["gstr2b", "gstr2a", "gstr1", "gstr8a"],
-                   help="gstr1 = sales register vs GSTR-1 (outward); gstr8a = books vs Table 8A (use --fy)")
+    r.add_argument("--compare", default="gstr2b", choices=["gstr2b", "gstr2a", "gstr1", "gstr8a", "einv", "ewb"],
+                   help="gstr1 = sales register vs GSTR-1 (outward); gstr8a = books vs Table 8A (use --fy); "
+                        "einv / ewb = sales register vs e-invoices / e-way bills")
     r.add_argument("--amount-tolerance", help="rupees per tax component (default 1.00)")
     r.add_argument("--date-tolerance", type=int, help="days (default 7)")
     r.add_argument("--fuzzy-threshold", type=int, help="0-100 (default 85)")

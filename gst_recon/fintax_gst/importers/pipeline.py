@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..core.models import AMOUNT_FIELDS, LEFT_SOURCES, InvoiceRecord, Source
+from ..core.models import AMOUNT_FIELDS, LEFT_SOURCES, REFERENCE_SOURCES, InvoiceRecord, Source
 from ..core.money import ZERO
 from .column_mapping import (
     Column, MappingResult, apply_template, auto_map, build_columns, header_score, normalize_header,
@@ -31,6 +31,8 @@ LAYOUT_LABELS = {
     "gstr1_json": "GSTR-1 (GST portal JSON)",
     "gstr8a_excel": "GSTR-9 Table 8A document details (GST portal Excel)",
     "gstr8a_json": "GSTR-9 Table 8A document details (GST portal JSON)",
+    "einvoice_report": "e-Invoice report (IRP / e-invoice portal)",
+    "ewb_report": "e-Way bill report (e-way bill portal)",
     "tally": "TallyPrime purchase register",
     "generic": "Custom purchase register",
 }
@@ -195,6 +197,9 @@ class _Builder:
         self.p.total_rows += 1
         row.setdefault("_row", f"{sheet}!{row_ref}" if sheet else row_ref)
         outcome = build_record(row, self.ctx, uid=f"{self.p.file_name}:{row['_row']}")
+        if outcome.ignored:
+            self.p.issues.append(RowIssue(sheet, row_ref, "ignored", outcome.ignored, raw))
+            return
         if outcome.record is None:
             self.p.issues.append(RowIssue(sheet, row_ref, "error", "; ".join(outcome.errors), raw))
             return
@@ -238,7 +243,9 @@ def _aggregate_and_flag(preview: ImportPreview) -> None:
     """Merge tax-rate lines of one document; flag genuine repeats as duplicates."""
     groups: dict[tuple, list[InvoiceRecord]] = defaultdict(list)
     for r in preview.records:
-        groups[(r.supplier_gstin, r.doc_type, r.invoice_no_norm, r.invoice_date, r.is_amendment)].append(r)
+        # e-invoice / e-way bill reports have one row per IRN or e-way bill: never merged
+        ref = (r.irn, r.ref_no, r.ref_status) if r.source in REFERENCE_SOURCES else ()
+        groups[(r.supplier_gstin, r.doc_type, r.invoice_no_norm, r.invoice_date, r.is_amendment, *ref)].append(r)
     merged: list[InvoiceRecord] = []
     for members in groups.values():
         if len(members) == 1:
@@ -246,7 +253,7 @@ def _aggregate_and_flag(preview: ImportPreview) -> None:
             continue
         # lines of one document differ by tax rate and/or HSN; anything else is a genuine repeat
         keys = [(m.rate, tuple(h["hsn"] for h in m.hsn_lines)) for m in members]
-        if all(m.rate is not None or m.hsn_lines for m in members) and len(set(keys)) == len(keys):
+        if members[0].source not in REFERENCE_SOURCES and all(m.rate is not None or m.hsn_lines for m in members) and len(set(keys)) == len(keys):
             head = members[0]
             for m in members[1:]:
                 for f in AMOUNT_FIELDS:
@@ -307,6 +314,10 @@ def _expected_source(layout: str) -> Source | None:
         return Source.GSTR1
     if layout.startswith("gstr8a"):
         return Source.GSTR8A
+    if layout == "einvoice_report":
+        return Source.EINV
+    if layout == "ewb_report":
+        return Source.EWB
     return Source.BOOKS
 
 
@@ -377,6 +388,8 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
         preview.layout = _layout_for_tables(tables)
         if preview.source == Source.GSTR8A and preview.layout in ("gstr2b_excel", "gstr2a_excel"):
             preview.layout = "gstr8a_excel"  # the Table 8A download uses the same B2B / CDNR sheets
+        if preview.source in REFERENCE_SOURCES and preview.layout in ("generic", "tally"):
+            preview.layout = "einvoice_report" if preview.source == Source.EINV else "ewb_report"
         _check_source(preview)
         if preview.layout in ("gstr2b_excel", "gstr2a_excel", "gstr8a_excel"):
             preview.period = preview.period or detect_excel_period(tables)
@@ -393,8 +406,8 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
                 elif _has_data_rows(t):
                     preview.file_warnings.append(f"Sheet '{t.name}' is not reconciled in this version (not imported)")
         else:
-            if preview.source not in LEFT_SOURCES:
-                _require_period(preview)
+            if preview.source not in LEFT_SOURCES and preview.source not in REFERENCE_SOURCES:
+                _require_period(preview)  # portal e-invoice / e-way bill reports: month of each document
             builder = _Builder(preview, preview.layout)
             imported_any = False
             unrecognised = []

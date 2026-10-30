@@ -36,6 +36,9 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 * **Phase 9**: HSN lines in purchase registers and GSTR-9 Table 18, and Tables 15 and 16
   entered by the preparer – the GSTR-9 working now covers Tables 4 to 18
   ([docs/PHASE9.md](docs/PHASE9.md))
+* **Phase 10**: sales register vs e-invoices reported to the IRP and vs e-way bills
+  generated, with cancellations, the e-way bill threshold and notes explained line by line
+  ([docs/PHASE10.md](docs/PHASE10.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -316,6 +319,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/PHASE10.md](docs/PHASE10.md) – e-invoice and e-way bill reconciliation
 * [docs/PHASE9.md](docs/PHASE9.md) – GSTR-9 Tables 15, 16 and 18; HSN lines in purchase registers
 * [docs/PHASE8.md](docs/PHASE8.md) – GSTR-9 Tables 10–14 and 17, GSTR-9C Table 14
 * [docs/PHASE7.md](docs/PHASE7.md) – advances, Table 6.1 payments, GSTR-9C

@@ -19,13 +19,19 @@ class Source(str, Enum):
     SALES = "SALES"  # own sales register (outward supplies)
     GSTR1 = "GSTR1"  # GSTR-1 as filed / downloaded (outward supplies)
     GSTR8A = "GSTR8A"  # GSTR-9 Table 8A document details downloaded from the portal (annual)
+    EINV = "EINV"  # e-invoices reported to the IRP (IRN report of the e-invoice portal)
+    EWB = "EWB"  # e-way bills generated (report of the e-way bill portal)
 
 
 #: Sources that represent the taxpayer's own books (left side of a reconciliation).
 LEFT_SOURCES = frozenset({Source.BOOKS, Source.SALES})
 #: Comparison partner of each books source.
 PARTNER = {Source.GSTR2B: Source.BOOKS, Source.GSTR2A: Source.BOOKS, Source.GSTR1: Source.SALES,
-           Source.GSTR8A: Source.BOOKS}
+           Source.GSTR8A: Source.BOOKS, Source.EINV: Source.SALES, Source.EWB: Source.SALES}
+#: Outward reference documents generated on a government portal for the sales register's documents.
+REFERENCE_SOURCES = frozenset({Source.EINV, Source.EWB})
+#: Sources whose party GSTIN is the customer's (the field is still called supplier_gstin).
+OUTWARD_SOURCES = frozenset({Source.SALES, Source.GSTR1, Source.EINV, Source.EWB})
 
 
 def side_labels(comparison: str) -> tuple[str, str]:
@@ -33,7 +39,7 @@ def side_labels(comparison: str) -> tuple[str, str]:
     right = comparison.split("_VS_")[-1] if comparison else "GSTR2B"
     left = comparison.split("_VS_")[0] if comparison and "_VS_" in comparison else "BOOKS"
     names = {"BOOKS": "Books", "SALES": "Sales register", "GSTR2B": "GSTR-2B", "GSTR2A": "GSTR-2A",
-             "GSTR1": "GSTR-1", "GSTR8A": "Table 8A"}
+             "GSTR1": "GSTR-1", "GSTR8A": "Table 8A", "EINV": "e-Invoice (IRP)", "EWB": "e-Way bill"}
     return names.get(left, left), names.get(right, right)
 
 
@@ -186,6 +192,9 @@ class InvoiceRecord:
     ims_action: str = ""  # IMS only: A accepted, R rejected, P pending, N no action (deemed accepted)
     #: HSN lines of the document (hsn, uqc, qty, taxable, igst, cgst, sgst, cess), kept through rate/HSN merges
     hsn_lines: list[dict] = field(default_factory=list)
+    irn: str = ""  # e-invoice only: Invoice Reference Number
+    ref_no: str = ""  # e-invoice acknowledgement number / e-way bill number
+    ref_status: str = ""  # e-invoice / e-way bill: ACTIVE or CANCELLED
     source_file: str = ""
     source_rows: str = ""
     db_id: int | None = None
@@ -238,6 +247,8 @@ class InvoiceRecord:
             self.invoice_date.isoformat(), *(str(getattr(self, f).normalize()) for f in AMOUNT_FIELDS),
             "A" if self.is_amendment else "O",
         ]
+        if self.source in REFERENCE_SOURCES:  # a cancellation re-imported later is a new record
+            parts += [self.irn, self.ref_no, self.ref_status]
         return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
 
 

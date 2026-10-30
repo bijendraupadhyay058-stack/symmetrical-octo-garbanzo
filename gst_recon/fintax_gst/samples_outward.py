@@ -280,9 +280,88 @@ def write_gstr1_next_year_json(path: Path) -> None:
 
 def write_outward(out: Path) -> dict[str, Path]:
     files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
-             "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json"}
+             "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json",
+             "einv_april": out / "einvoice_report_2025-04.csv", "ewb_april": out / "ewaybill_report_2025-04.csv"}
     write_sales_register(files["sales_april"])
     write_gstr1_json(files["gstr1_april_json"])
     write_gstr1_may_json(files["gstr1_may_json"])
     write_gstr1_next_year_json(files["gstr1_next_json"])
+    write_einvoice_report(files["einv_april"])
+    write_ewb_report(files["ewb_april"])
     return files
+
+
+# ---------------------------------------------------------------- e-invoice and e-way bill reports (Phase 10)
+def _irn(no: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(f"{CLIENT['gstin']}|{no}".encode()).hexdigest()
+
+
+def _report_row(s: Sale) -> dict:
+    g, name = CUSTOMERS[s.cust]
+    t = tax(s)
+    return {"no": s.no, "dt": s.dt.strftime("%d/%m/%Y"), "gstin": g or "URP", "name": name,
+            "taxable": D(s.taxable), **t, "total": D(s.taxable) + sum(t.values())}
+
+
+def _by_no(no: str) -> Sale:
+    return next(s for s in [*sales_docs(), *gstr1_docs()] if s.no == no)
+
+
+#: e-invoices of April: 0011 cancelled (still in the sales register), 0014 never reported,
+#: 0012 reported but not in the sales register; B2C and exempt sales are not e-invoiced.
+EINV_MATCHED = ["SGT/25-26/0001", "SGT/25-26/0002", "SGT/25-26/0003", "SGT/25-26/0004", "SGT/25-26/0005",
+                "SGT/25-26/0013", "SGT-CN/25-26/001", "SGT/25-26/0015", "EXP/25-26/001"]
+EINV_CANCELLED = "SGT/25-26/0011"
+EINV_NOT_REPORTED = "SGT/25-26/0014"
+EINV_NOT_IN_BOOKS = "SGT/25-26/0012"
+
+
+def write_einvoice_report(path: Path) -> None:
+    import csv
+
+    heads = ["Ack No", "Ack Date", "Doc No", "Doc Date", "Doc Type", "Supply Type", "Buyer GSTIN", "Buyer Name",
+             "Total Assessable Value", "IGST", "CGST", "SGST", "Total Invoice Value", "IRN", "Status"]
+    supply = {"Regular": "B2B", "SEZ with payment": "SEZWP", "Export (LUT)": "EXPWOP"}
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(heads)
+        for i, no in enumerate([*EINV_MATCHED, EINV_CANCELLED, EINV_NOT_IN_BOOKS], start=1):
+            s = _by_no(no)
+            r = _report_row(s)
+            w.writerow([f"1125100{i:08d}", f"{r['dt']} 11:{i:02d}:00", r["no"], r["dt"], s.doc,
+                        supply.get(s.supply, "B2B"), r["gstin"], r["name"], r["taxable"], r["igst"], r["cgst"],
+                        r["sgst"], r["total"], _irn(no), "CNL" if no == EINV_CANCELLED else "ACT"])
+
+
+#: e-way bills of April: 0005 (above ₹50,000) has none; 0002 was cancelled and generated
+#: again; SGT/25-26/0018 is not in the sales register; a delivery challan and an inward
+#: e-way bill are not compared. Documents below ₹50,000 have none.
+EWB_MATCHED = ["SGT/25-26/0001", "SGT/25-26/0002", "SGT/25-26/0003", "SGT/25-26/0004", "SGT/25-26/0013",
+               "SGT/25-26/0015", "EXP/25-26/001"]
+EWB_MISSING = "SGT/25-26/0005"
+EWB_NOT_IN_BOOKS = Sale("MPL", "SGT/25-26/0018", A(30), "80000", inter=True)
+
+
+def write_ewb_report(path: Path) -> None:
+    import csv
+
+    heads = ["EWB No", "EWB Date", "Supply Type", "Doc No", "Doc Date", "Doc Type", "Other Party GSTIN",
+             "Other Party Name", "Assessable Value", "CGST Value", "SGST Value", "IGST Value", "Total Invoice Value",
+             "Status"]
+    rows = []
+    for no in EWB_MATCHED:
+        rows.append((_by_no(no), "Outward", "Tax Invoice", "ACT"))
+        if no == "SGT/25-26/0002":
+            rows.insert(len(rows) - 1, (_by_no(no), "Outward", "Tax Invoice", "CNL"))
+    rows += [(EWB_NOT_IN_BOOKS, "Outward", "Tax Invoice", "ACT"),
+             (Sale("SHV", "DC/25-26/004", A(12), "60000"), "Outward", "Delivery Challan", "ACT"),
+             (Sale("RAJ", "RJ/INV/778", A(18), "70000"), "Inward", "Tax Invoice", "ACT")]
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(heads)
+        for i, (s, direction, doc, status) in enumerate(rows, start=1):
+            r = _report_row(s)
+            w.writerow([f"3410{i:08d}", f"{r['dt']} 09:{i:02d}", direction, r["no"], r["dt"], doc, r["gstin"],
+                        r["name"], r["taxable"], r["cgst"], r["sgst"], r["igst"], r["total"], status])

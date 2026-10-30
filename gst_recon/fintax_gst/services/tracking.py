@@ -146,4 +146,4 @@ class TrackingService:
                     if per_file.get(f.id) or (f.period and p_from <= f.period <= p_to)]
         return {"books": counts.get("BOOKS", 0), "gstr2b": counts.get("GSTR2B", 0),
                 "gstr2a": counts.get("GSTR2A", 0), "sales": counts.get("SALES", 0), "gstr1": counts.get("GSTR1", 0),
-                "files": in_scope}
+                "einv": counts.get("EINV", 0), "ewb": counts.get("EWB", 0), "files": in_scope}

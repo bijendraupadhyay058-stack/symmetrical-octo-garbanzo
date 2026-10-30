@@ -75,7 +75,8 @@ MAX_UPLOAD_MB = 25
 PENDING_MINUTES = 15
 UPLOAD_SOURCES = [("BOOKS", "Purchase register"), ("GSTR2B", "GSTR-2B"), ("GSTR2A", "GSTR-2A"),
                   ("SALES", "Sales register"), ("GSTR1", "GSTR-1"), ("IMS", "IMS download"),
-                  ("GSTR3B", "GSTR-3B"), ("GSTR8A", "GSTR-9 Table 8A document details")]
+                  ("GSTR3B", "GSTR-3B"), ("GSTR8A", "GSTR-9 Table 8A document details"),
+                  ("EINV", "e-Invoice report (IRP)"), ("EWB", "e-Way bill report")]
 UPLOAD_SUFFIXES = {".xlsx", ".xlsm", ".xls", ".csv", ".json", ".zip"}
 
 
@@ -219,7 +220,7 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
         cats = [(lab(r.category.value), r.lines, r.books.itc, r.gstr2b.itc) for r in category_summary(lines) if r.lines]
         pend = [ln for ln in lines if is_pending(ln) and ln.category.name != "FULLY_MATCHED"]
         liability = None
-        if comparison.startswith("SALES"):
+        if comparison == "SALES_VS_GSTR1":
             from ..services.outward import OutwardService
             liability = OutwardService(db).liability(ctx.client.id, months_between(ctx.run.period_from,
                                                                                    ctx.run.period_to))

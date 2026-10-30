@@ -124,6 +124,7 @@ class ImportService:
                 "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
                 "description": r.description, "ims_action": r.ims_action, "supply_type": r.supply_type[:40],
                 "hsn_json": json.dumps(r.hsn_lines) if r.hsn_lines else "",
+                "irn": r.irn, "ref_no": r.ref_no, "ref_status": r.ref_status,
             } for r in new_records]
             for i in range(0, len(rows), BATCH):
                 if cancel:

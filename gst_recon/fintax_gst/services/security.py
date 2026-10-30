@@ -31,7 +31,7 @@ from .common import ServiceError, audit
 
 MAGIC = b"FTPBK1"
 DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
-            "web_uploads": False}
+            "web_uploads": False, "ewb_threshold": 50000}
 
 
 def _key(password: str, salt: bytes) -> bytes:

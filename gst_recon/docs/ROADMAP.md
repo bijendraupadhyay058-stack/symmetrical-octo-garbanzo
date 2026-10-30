@@ -99,6 +99,14 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
   different-HSN lines are no longer reported as duplicates); GSTR-9 Table 18.
 * GSTR-9 Tables 15 and 16 entered, audited, in the workbook, desktop and CLI.
 
+## Phase 10
+* ✅ Sales register vs e-invoices (IRP) and vs e-way bills (schema v9): cancelled IRNs and
+  e-way bills kept and explained, latest import wins, e-way bill threshold setting, review
+  work carried forward within the same comparison only.
+* TDS/TCS credits (GSTR-7/8 credit received).
+* GSTR-9 draft JSON for the offline tool.
+* Multi-user hardening: concurrent edits, per-user activity, load test on PostgreSQL.
+
 ## Next
 * Sign the Windows build with the firm's code-signing certificate.
 

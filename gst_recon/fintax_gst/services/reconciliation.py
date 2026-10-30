@@ -5,13 +5,16 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 from sqlalchemy import and_, func, insert, select
 
 from ..core.models import (
-    CLOSED_STATUSES, LEFT_SOURCES, PAIRED_CATEGORIES, PARTNER, Category, ExceptionStatus, ReconLine, ReconSettings, Source, fy_of,
+    CLOSED_STATUSES, LEFT_SOURCES, PAIRED_CATEGORIES, PARTNER, REFERENCE_SOURCES, Category, DocType,
+    ExceptionStatus, InvoiceRecord, ReconLine, ReconSettings, Source, fy_of,
 )
+from ..core.money import fmt_inr
 from ..db.database import Database
 from ..db.models import Client, Invoice, MatchDecision, ReconLineRow, ReconRun, SourceFile, utcnow
 from ..engine.matcher import CancelToken, ReconResult, manual_pair_line, reconcile, single_sided_line
@@ -37,6 +40,95 @@ def months_between(p_from: str, p_to: str) -> list[str]:
 def fy_periods(fy: str) -> tuple[str, str]:
     start = int(fy[:4])
     return f"{start}-04", f"{start + 1}-03"
+
+
+def reference_scope(books: list[InvoiceRecord], portal: list[InvoiceRecord], source: Source):
+    """Documents compared with the e-invoice (IRP) or e-way bill report.
+
+    * e-invoices: supplies to registered persons and exports (B2C, nil/exempt and
+      non-GST supplies are not e-invoiced);
+    * e-way bills: every sales document (the threshold and services are handled
+      after matching, see :func:`reference_remarks`).
+
+    When the same IRN / e-way bill number was imported more than once (e.g. a later
+    report showing it cancelled), the latest import is used. Cancelled ones are not
+    compared; they are returned to explain the documents they leave unreported.
+    """
+    if source == Source.EINV:
+        books = [r for r in books if (r.supplier_gstin or sales_code(r) == "31B")
+                 and sales_code(r) not in ("31C", "31E")]
+    latest: dict[str, InvoiceRecord] = {}
+    loose = []
+    for r in sorted(portal, key=lambda r: r.db_id or 0):
+        key = r.irn or r.ref_no
+        if key:
+            latest[key] = r
+        else:
+            loose.append(r)
+    current = sorted([*latest.values(), *loose], key=lambda r: r.db_id or 0)
+    return books, [r for r in current if r.ref_status != "CANCELLED"], \
+        [r for r in current if r.ref_status == "CANCELLED"]
+
+
+AUTO_STATUS = "status set automatically: "
+
+
+def _note(ln: ReconLine, text: str, status: ExceptionStatus | None = None) -> None:
+    """Explain a line in its reasons (system text; remarks are the reviewer's)."""
+    if status is not None:
+        ln.status = status
+        text += f" ({AUTO_STATUS}{status.value})"
+    ln.reasons.append(text)
+
+
+def auto_status(reasons: list[str]) -> str | None:
+    """The status a rule set on a line, if any (a re-run re-applies the rule unless a user changed it)."""
+    for r in reasons:
+        if AUTO_STATUS in r:
+            return r.rsplit(AUTO_STATUS, 1)[1].rstrip(")")
+    return None
+
+
+def reference_remarks(lines: list[ReconLine], cancelled: list[InvoiceRecord], source: Source,
+                      threshold: Decimal) -> None:
+    """Explain one-sided lines of a sales register vs e-invoice / e-way bill run.
+
+    Nothing is hidden: lines keep their category. Only an e-way bill not needed by
+    rule (value below the threshold, or a supply of services only) is marked
+    *No Action Required*, with the reason in the remarks.
+    """
+    what = "IRN" if source == Source.EINV else "e-way bill"
+    by_doc = {}
+    for c in cancelled:
+        by_doc.setdefault(c.invoice_no_norm, c)
+    for ln in lines:
+        if ln.category == Category.MISSING_IN_2B and ln.books is not None:
+            b = ln.books
+            c = by_doc.get(b.invoice_no_norm)
+            if c is not None:
+                _note(ln, f"{what} {c.ref_no or c.irn} for this document was cancelled – the sale is still in the "
+                          "sales register: confirm whether it was made", ExceptionStatus.CLIENT_CLARIFICATION)
+            elif source == Source.EWB:
+                value = b.invoice_value if b.invoice_value is not None else b.taxable + b.total_tax
+                services = bool(b.hsn_lines) and all(str(h.get("hsn", "")).startswith("99") for h in b.hsn_lines)
+                if b.doc_type != DocType.INVOICE:
+                    _note(ln, "Credit / debit note – no e-way bill for the note itself (goods returned move under "
+                              "the e-way bill of the person sending them)", ExceptionStatus.NO_ACTION)
+                elif services:
+                    _note(ln, "Services only (SAC 99…) – no e-way bill needed", ExceptionStatus.NO_ACTION)
+                elif value < threshold:
+                    _note(ln, f"Below the ₹{fmt_inr(threshold)} e-way bill threshold (document value "
+                              f"₹{fmt_inr(value)}) – check that no e-way bill was needed for the consignment",
+                          ExceptionStatus.NO_ACTION)
+                else:
+                    _note(ln, "No e-way bill found – needed if goods worth more than the threshold moved "
+                              "(check job work, services, or an e-way bill under another document number)")
+            else:
+                _note(ln, "No e-invoice found – a B2B / export invoice without an IRN is not a valid tax invoice "
+                          "for a taxpayer required to e-invoice")
+        elif ln.category == Category.MISSING_IN_BOOKS and ln.gstr2b is not None:
+            _note(ln, f"{what} generated but the document is not in the sales register – record the sale, or "
+                      f"confirm that the {what} was cancelled on the portal")
 
 
 @dataclass
@@ -83,7 +175,10 @@ class ReconciliationService:
             comparison = f"{left.value}_VS_{compare_with.value}"
             books = load(left)
             g2b = load(compare_with)
-            if left == Source.SALES:
+            cancelled: list[InvoiceRecord] = []
+            if compare_with in REFERENCE_SOURCES:
+                books, g2b, cancelled = reference_scope(books, g2b, compare_with)
+            elif left == Source.SALES:
                 # Unregistered recipients (B2C), exports and nil/exempt/non-GST supplies are reported in
                 # GSTR-1 as section totals, so they are compared at summary level, not per invoice.
                 books = [r for r in books if r.supplier_gstin and sales_code(r) not in ("31C", "31E")]
@@ -108,6 +203,12 @@ class ReconciliationService:
                                rejected_pairs=rejected)
             if cancel:
                 cancel.check()
+            if compare_with in REFERENCE_SOURCES:
+                from .security import SecurityService
+
+                threshold = SecurityService(self.db).setting("ewb_threshold")
+                reference_remarks(result.lines, cancelled, compare_with,
+                                  Decimal(str(threshold if threshold is not None else 50000)))
             progress(87, "Saving results")
             file_ids = sorted({file_of[r.db_id] for ln in result.lines for r in (ln.books, ln.gstr2b)
                                if r is not None})
@@ -120,7 +221,7 @@ class ReconciliationService:
             )
             s.add(run)
             s.flush()
-            self._carry_forward(s, client_id, p_from, p_to, result.lines, exclude_run=run.id)
+            self._carry_forward(s, client_id, p_from, p_to, result.lines, exclude_run=run.id, comparison=comparison)
             rows = [self._line_row(run.id, ln) for ln in result.lines]
             for i in range(0, len(rows), BATCH):
                 if cancel:
@@ -162,7 +263,8 @@ class ReconciliationService:
         return manual, rejected
 
     @staticmethod
-    def _carry_forward(s, client_id: int, p_from: str, p_to: str, lines: list[ReconLine], exclude_run: int) -> None:
+    def _carry_forward(s, client_id: int, p_from: str, p_to: str, lines: list[ReconLine], exclude_run: int,
+                       comparison: str = "BOOKS_VS_GSTR2B") -> None:
         """Carry review work into a new run without duplicating documents.
 
         * Same period re-run: status, remarks, assignee and action date of lines that
@@ -171,10 +273,13 @@ class ReconciliationService:
         * Any other earlier run: remarks, assignee and action date of the latest earlier
           line containing either document are carried so follow-up history continues
           across months; the status is re-evaluated.
+
+        Only runs of the same comparison are used: a sales document's review against
+        GSTR-1 says nothing about its e-invoice or e-way bill, and vice versa.
         """
         prev = s.scalar(select(ReconRun).where(
             ReconRun.client_id == client_id, ReconRun.period_from == p_from, ReconRun.period_to == p_to,
-            ReconRun.id != exclude_run)
+            ReconRun.id != exclude_run, ReconRun.comparison == comparison)
             .order_by(ReconRun.id.desc()).limit(1))
         old = {}
         if prev is not None:
@@ -185,7 +290,7 @@ class ReconciliationService:
         if ids:
             q = (select(ReconLineRow).join(ReconRun, ReconRun.id == ReconLineRow.run_id)
                  .where(ReconRun.client_id == client_id, ReconRun.id != exclude_run,
-                        (ReconLineRow.remarks != "") | (ReconLineRow.assigned_to != ""))
+                        ReconRun.comparison == comparison, (ReconLineRow.remarks != "") | (ReconLineRow.assigned_to != ""))
                  .order_by(ReconLineRow.run_id))
             for r in s.scalars(q):
                 for doc in (r.books_invoice_id, r.gstr2b_invoice_id):
@@ -199,7 +304,8 @@ class ReconciliationService:
                 ln.reasons.append(f"Marked pending clarification earlier (engine category: {ln.category.value})")
                 ln.category = Category.PENDING_CLARIFICATION
             if o is not None and o.category == ln.category.value:
-                ln.status = ExceptionStatus(o.status)
+                if o.status != auto_status(json.loads(o.reasons_json or "[]")):  # a rule's status is re-applied
+                    ln.status = ExceptionStatus(o.status)
                 ln.remarks, ln.assigned_to, ln.action_date = o.remarks, o.assigned_to, o.action_date
                 continue
             src = next((latest[k] for k in key if k in latest), None)

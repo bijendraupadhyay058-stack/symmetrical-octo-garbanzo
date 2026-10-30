@@ -28,6 +28,7 @@ from .workflow import FILE_FILTER
 RAG_COLORS = {"red": "#FFCDD2", "amber": "#FFF3C4", "green": "#C8E6C9", "grey": "#ECEFF1"}
 SEV_COLORS = {"high": "#FFCDD2", "medium": "#FFF3C4", "info": "#E3F2FD"}
 LABEL_RAG = {v: k for k, v in RAG_LABEL.items()}
+COMPARE = {"GSTR-1": Source.GSTR1, "e-Invoice (IRP)": Source.EINV, "e-Way bill": Source.EWB}
 
 
 def _selected(table: Table):
@@ -59,8 +60,9 @@ class OutwardPage(LazyPage):
     def __init__(self, state: AppState):
         super().__init__()
         self.state = state
-        lay = _page(self, "Sales & GSTR-1", "Sales register vs GSTR-1 (same matching engine), and GSTR-1 / sales "
-                                            "register vs GSTR-3B Table 3.1 output tax liability.")
+        lay = _page(self, "Sales & GSTR-1", "Sales register vs GSTR-1, e-invoices (IRP) or e-way bills (same "
+                                            "matching engine), and GSTR-1 / sales register vs GSTR-3B Table 3.1 "
+                                            "output tax liability.")
         top = QHBoxLayout()
         self.sales_btn = primary("Import sales register…")
         self.sales_btn.clicked.connect(lambda: self.import_dialog(Source.SALES))
@@ -69,15 +71,30 @@ class OutwardPage(LazyPage):
         b3 = QPushButton("Import GSTR-3B…")
         b3.clicked.connect(lambda: self.navigate.emit("returns"))
         self.from_cb, self.to_cb = QComboBox(), QComboBox()
-        self.run_btn = primary("Reconcile sales vs GSTR-1")
+        self.compare_cb = QComboBox()
+        self.compare_cb.addItems(list(COMPARE))
+        self.compare_cb.setToolTip("Compare the sales register with GSTR-1, the e-invoices reported to the IRP or "
+                                   "the e-way bills generated")
+        self.run_btn = primary("Reconcile")
         self.run_btn.clicked.connect(self.reconcile)
         self.open_btn = QPushButton("Open exceptions")
         self.open_btn.clicked.connect(self.open_exceptions)
-        for w in (self.sales_btn, self.g1_btn, b3, QLabel("From"), self.from_cb, QLabel("To"), self.to_cb,
-                  self.run_btn, self.open_btn):
+        self.einv_btn = QPushButton("Import e-invoice report…")
+        self.einv_btn.setToolTip("IRN-wise report downloaded from the e-invoice portal (Excel or CSV)")
+        self.einv_btn.clicked.connect(lambda: self.import_dialog(Source.EINV))
+        self.ewb_btn = QPushButton("Import e-way bill report…")
+        self.ewb_btn.setToolTip("Report of e-way bills generated, downloaded from the e-way bill portal")
+        self.ewb_btn.clicked.connect(lambda: self.import_dialog(Source.EWB))
+        for w in (self.sales_btn, self.g1_btn, self.einv_btn, self.ewb_btn, b3):
             top.addWidget(w)
         top.addStretch()
         lay.addLayout(top)
+        run_row = QHBoxLayout()
+        for w in (QLabel("From"), self.from_cb, QLabel("To"), self.to_cb, QLabel("Sales register vs"),
+                  self.compare_cb, self.run_btn, self.open_btn):
+            run_row.addWidget(w)
+        run_row.addStretch()
+        lay.addLayout(run_row)
         self.status_lbl = QLabel()
         self.status_lbl.setObjectName("Muted")
         self.status_lbl.setWordWrap(True)
@@ -120,6 +137,7 @@ class OutwardPage(LazyPage):
         split.addWidget(box2)
         lay.addWidget(split, 1)
         self.from_cb.currentIndexChanged.connect(self._from_changed)
+        self.compare_cb.currentIndexChanged.connect(lambda _i: self.reload())
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()
@@ -147,7 +165,7 @@ class OutwardPage(LazyPage):
                 cb.addItems(months)
                 cb.blockSignals(False)
         enabled = st.client is not None
-        for b in (self.sales_btn, self.g1_btn):
+        for b in (self.sales_btn, self.g1_btn, self.einv_btn, self.ewb_btn):
             b.setEnabled(enabled and st.can("import"))
         self.run_btn.setEnabled(enabled and st.can("reconcile"))
         if st.client is None:
@@ -157,15 +175,23 @@ class OutwardPage(LazyPage):
             return
         periods = self.periods()
         scope = st.tracking.scope(st.client.id, periods[0], periods[-1]) if periods else {}
-        runs = [r for r in st.recon.list_runs(st.client.id) if r.comparison.startswith("SALES")
+        comparison = f"SALES_VS_{COMPARE[self.compare_cb.currentText()].value}"
+        runs = [r for r in st.recon.list_runs(st.client.id) if r.comparison == comparison
                 and r.period_from == periods[0] and r.period_to == periods[-1]] if periods else []
         self.latest_run = runs[0].id if runs else None
         self.open_btn.setEnabled(self.latest_run is not None)
         self.status_lbl.setText(
-            f"{scope.get('sales', 0)} sales register document(s) and {scope.get('gstr1', 0)} GSTR-1 B2B/CDNR "
-            f"document(s) in {periods[0]}..{periods[-1]}. "
-            + (f"Latest sales reconciliation: run #{self.latest_run}." if self.latest_run else
-               "Not yet reconciled.") + " B2C, exports and nil/exempt supplies are compared as section totals."
+            f"{scope.get('sales', 0)} sales register document(s), {scope.get('gstr1', 0)} GSTR-1 B2B/CDNR "
+            f"document(s), {scope.get('einv', 0)} e-invoice(s) and {scope.get('ewb', 0)} e-way bill(s) in "
+            f"{periods[0]}..{periods[-1]}. "
+            + (f"Latest sales vs {self.compare_cb.currentText()} reconciliation: run #{self.latest_run}."
+               if self.latest_run else
+               "Not yet reconciled.") + {
+                "SALES_VS_GSTR1": " B2C, exports and nil/exempt supplies are compared as section totals.",
+                "SALES_VS_EINV": " B2C, nil/exempt and non-GST supplies are not e-invoiced and are left out.",
+                "SALES_VS_EWB": " Documents below the e-way bill threshold (setting ewb_threshold), credit notes "
+                                "and services need no e-way bill: marked No Action with the reason.",
+            }[comparison]
             if periods else "")
         from ...services.outward import OutwardService
 
@@ -202,8 +228,8 @@ class OutwardPage(LazyPage):
     def import_dialog(self, source: Source) -> None:
         path, _ = QFileDialog.getOpenFileName(self, f"Select {source.value} file", "", FILE_FILTER)
         if path:
-            period = None if Path(path).suffix.lower() in (".json", ".zip") or source == Source.SALES \
-                else self.from_cb.currentText()
+            period = None if Path(path).suffix.lower() in (".json", ".zip") \
+                or source in (Source.SALES, Source.EINV, Source.EWB) else self.from_cb.currentText()
             import_interactive(self, self.state, path, source, period)
             self.reload()
 
@@ -212,8 +238,9 @@ class OutwardPage(LazyPage):
         periods = self.periods()
         if st.client is None or not periods:
             return
-        task = run_task(self, "Reconciling sales register vs GSTR-1", st.recon.run, st.client.id, periods[0],
-                        periods[-1], st.recon_settings(), compare_with=Source.GSTR1, user=st.user)
+        label = self.compare_cb.currentText()
+        task = run_task(self, f"Reconciling sales register vs {label}", st.recon.run, st.client.id, periods[0],
+                        periods[-1], st.recon_settings(), compare_with=COMPARE[label], user=st.user)
         if not task.ok:
             QMessageBox.information(self, "Reconciliation", task.message)
             return

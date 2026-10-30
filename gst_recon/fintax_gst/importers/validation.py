@@ -6,12 +6,13 @@ altered silently – derived or reinterpreted values always carry a warning.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
 from ..core.gstin import normalize_gstin, validate_gstin
 from ..core.invoice_no import clean_raw_invoice_no
-from ..core.models import LEFT_SOURCES, DocType, InvoiceRecord, Source, period_of
+from ..core.models import LEFT_SOURCES, OUTWARD_SOURCES, REFERENCE_SOURCES, DocType, InvoiceRecord, Source, period_of
 from ..core.money import ZERO, AmountParseError, parse_amount
 from .parsing import (
     DateParseError, parse_bool, parse_date, parse_doc_type, parse_ims_action, parse_period, parse_text,
@@ -32,6 +33,36 @@ class RowOutcome:
     record: InvoiceRecord | None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    ignored: str = ""  # reason the row is deliberately not imported (kept in the import log)
+
+
+#: e-way bill document types that are not a supply by the client to the other party.
+EWB_NOT_SUPPLY = ("challan", "billofentry", "others", "other")
+
+
+def _ref_status(value) -> str:
+    text = parse_text(value).upper()
+    if not text:
+        return "ACTIVE"
+    if "CANCEL" in text or text in ("CNL", "CAN", "C"):
+        return "CANCELLED"
+    if text in ("ACT", "ACTIVE", "GENERATED", "GEN", "A", "VALID"):
+        return "ACTIVE"
+    return text[:20]
+
+
+def _reference_skip(row: dict, source: Source) -> str:
+    """Why an e-way bill row is not one of the client's own outward supplies ('' if it is)."""
+    if source != Source.EWB:
+        return ""
+    direction = parse_text(row.get("supply_type")).lower()
+    if direction.startswith("inward"):
+        return "Inward e-way bill (goods received) – not compared with the sales register"
+    doc = re.sub(r"[^a-z]", "", parse_text(row.get("doc_type")).lower())
+    if any(doc.startswith(x) or x in doc for x in EWB_NOT_SUPPLY):
+        return (f"e-way bill for a '{parse_text(row.get('doc_type'))}' – not a supply invoice, not compared "
+                "with the sales register")
+    return ""
 
 
 def _amount(row: dict, name: str, errors: list) -> Decimal | None:
@@ -54,7 +85,10 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     errors: list[str] = []
     warnings: list[str] = []
 
-    outward = ctx.source in (Source.SALES, Source.GSTR1)
+    outward = ctx.source in OUTWARD_SOURCES
+    skip = _reference_skip(row, ctx.source)
+    if skip:
+        return RowOutcome(None, ignored=skip)
     gstin = normalize_gstin(parse_text(row.get("supplier_gstin")))
     if outward and gstin in ("URP", "UNREGISTERED", "B2C", "NA", "NIL", "CONSUMER", "CASH"):
         gstin = ""
@@ -97,6 +131,8 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
             warnings.append(f"Voucher type '{row.get('voucher_type')}' not recognised – treated as invoice")
     if doc_type is None and row.get("doc_type") is not None:
         doc_type = parse_doc_type(row.get("doc_type"))
+        if doc_type is None and ctx.source in REFERENCE_SOURCES and "supply" in str(row.get("doc_type")).lower():
+            doc_type = DocType.INVOICE  # bill of supply
         if doc_type is None:
             errors.append(f"Document type '{row.get('doc_type')}' not recognised")
     if doc_type is None and row.get("_note_sheet"):
@@ -145,8 +181,8 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
             period = ctx.period
         else:
             period = period_of(invoice_date)
-    elif ctx.source == Source.GSTR8A:
-        period = period_of(invoice_date)  # an annual statement: each document belongs to its own month
+    elif ctx.source == Source.GSTR8A or ctx.source in REFERENCE_SOURCES:
+        period = period_of(invoice_date)  # annual statement / portal report: each document in its own month
     else:
         period = ctx.period or ""
 
@@ -186,6 +222,24 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
         hsn_lines = [{"hsn": hsn, "uqc": parse_text(row.get("uqc")).upper()[:10], "qty": str(qty),
                       "taxable": str(taxable), **{k: str(v) for k, v in t.items()}}]
 
+    irn = ref_no = ref_status = ""
+    if ctx.source in REFERENCE_SOURCES:
+        irn = parse_text(row.get("irn")).replace(" ", "")[:64]
+        ref_no = parse_text(row.get("ref_no")).replace(" ", "")
+        if ref_no.endswith(".0") and ref_no[:-2].isdigit():
+            ref_no = ref_no[:-2]  # a number read from Excel as a float
+        ref_no = ref_no[:30]
+        ref_status = _ref_status(row.get("ref_status"))
+        what = "IRN" if ctx.source == Source.EINV else "e-way bill"
+        if ctx.source == Source.EINV and not irn and not ref_no:
+            warnings.append("No IRN or acknowledgement number – verify the e-invoice report")
+        if ctx.source == Source.EWB and not ref_no:
+            warnings.append("No e-way bill number")
+        if ref_status == "CANCELLED":
+            warnings.append(f"{what} cancelled – imported, but not counted as reported for this document")
+        elif ref_status != "ACTIVE":
+            warnings.append(f"{what} status '{ref_status}' not recognised – treated as active")
+
     record = InvoiceRecord(
         uid=uid, source=ctx.source, supplier_gstin=gstin, doc_type=doc_type, invoice_no=invoice_no,
         invoice_date=invoice_date, taxable=taxable, igst=t["igst"], cgst=t["cgst"], sgst=t["sgst"],
@@ -198,5 +252,6 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
         source_file=ctx.file_name, source_rows=str(row.get("_row", "")),
         description=parse_text(row.get("description"))[:500], ims_action=ims_action,
         supply_type=parse_text(row.get("supply_type"))[:40], hsn_lines=hsn_lines,
+        irn=irn, ref_no=ref_no, ref_status=ref_status,
     )
     return RowOutcome(record, errors, warnings)

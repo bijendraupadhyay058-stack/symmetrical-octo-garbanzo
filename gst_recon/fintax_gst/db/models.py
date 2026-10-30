@@ -130,6 +130,9 @@ class Invoice(Base):
     ims_action: Mapped[str] = mapped_column(String(2), default="")  # schema v3
     supply_type: Mapped[str] = mapped_column(String(40), default="")  # schema v4
     hsn_json: Mapped[str] = mapped_column(Text, default="")  # schema v8: HSN lines of the document (JSON)
+    irn: Mapped[str] = mapped_column(String(64), default="")  # schema v9: e-invoice IRN
+    ref_no: Mapped[str] = mapped_column(String(30), default="")  # schema v9: e-invoice ack. / e-way bill number
+    ref_status: Mapped[str] = mapped_column(String(20), default="")  # schema v9: ACTIVE / CANCELLED
     source_file: Mapped[SourceFile] = relationship()
 
 

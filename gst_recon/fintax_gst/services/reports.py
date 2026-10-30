@@ -45,8 +45,10 @@ def export_run(db: Database, run_id: int, out_dir: str | Path, pdf: bool = True,
     out_dir = Path(out_dir)
     vendors = VendorService(db).all(ctx.client.id)
     evidence = AttachmentService(db).counts(run_id)
-    if ctx.run.comparison.startswith("SALES"):
+    if ctx.run.comparison == "SALES_VS_GSTR1":
         itc, outward = None, outward_report_data(db, run_id)
+    elif ctx.run.comparison.startswith("SALES"):
+        itc, outward = None, None  # e-invoice / e-way bill: the GSTR-1 liability working does not apply
     else:
         itc, outward = itc_report_data(db, run_id, as_of), None
     paths = [export_excel(ctx, out_dir / default_report_name(ctx.client, ctx.run, "xlsx"), issues, vendors, evidence,

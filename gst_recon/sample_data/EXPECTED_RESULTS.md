@@ -73,3 +73,8 @@ Rows that must be rejected at import (books):
 
 * `purchase_register_itemwise_2025-04.csv`: the first five April invoices, each in two lines at the same rate with different HSN (7208, 7318) – merged into one document each; GSTR-9 Table 18 shows both HSN.
 * Tables 15 and 16 are entered (items such as 15E-I, 16A-T).
+
+## e-Invoice and e-way bill (Phase 10)
+
+* `einvoice_report_2025-04.csv` vs the sales register: 9 documents match (B2B, credit note, SEZ, export); the IRN of SGT/25-26/0011 is cancelled although the sale is still in the register (client clarification); SGT/25-26/0014 has no IRN; SGT/25-26/0012 has an IRN but is not in the register. B2C and exempt sales are not e-invoiced and are left out.
+* `ewaybill_report_2025-04.csv`: 7 documents match (SGT/25-26/0002 through its regenerated e-way bill); SGT/25-26/0005 (₹76,700) has none; 12 documents below ₹50,000 or credit notes need none (no action); SGT/25-26/0018 has an e-way bill but is not in the register; a delivery challan and an inward e-way bill are not compared.

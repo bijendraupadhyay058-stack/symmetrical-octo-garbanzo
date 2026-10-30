@@ -123,6 +123,15 @@ def _migration_8(conn) -> None:
         conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN hsn_json TEXT NOT NULL DEFAULT ''")
 
 
+def _migration_9(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    have = {c["name"] for c in sa_inspect(conn).get_columns("invoices")}
+    for column, size in (("irn", 64), ("ref_no", 30), ("ref_status", 20)):
+        if column not in have:
+            conn.exec_driver_sql(f"ALTER TABLE invoices ADD COLUMN {column} VARCHAR({size}) NOT NULL DEFAULT ''")
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -135,6 +144,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (6, "GSTR-9C figures from the audited financial statements and reasons", _migration_6),
     (7, "GSTR-1 HSN-wise summary of outward supplies", _migration_7),
     (8, "HSN lines of imported documents (GSTR-9 Table 18)", _migration_8),
+    (9, "e-invoice IRN and e-way bill numbers and status of imported documents", _migration_9),
 ]
 
 

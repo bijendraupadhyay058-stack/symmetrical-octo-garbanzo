@@ -21,11 +21,14 @@ SYNONYMS: dict[str, list[str]] = {
     "supplier_gstin": [
         "gstin of supplier", "supplier gstin", "gstin of the supplier", "gstin uin of supplier", "party gstin",
         "vendor gstin", "supplier gstin uin", "gstin uin", "gstin", "gst number", "gst no", "gstin no",
-        "supplier gst no", "ctin", "revised details gstin of supplier",
+        "supplier gst no", "ctin", "revised details gstin of supplier", "buyer gstin", "recipient gstin",
+        "gstin of recipient", "gstin uin of recipient", "customer gstin", "receiver gstin", "to gstin",
+        "bill to gstin", "buyer gstin uin", "other party gstin",
     ],
     "supplier_name": [
         "trade legal name", "trade legal name of the supplier", "supplier name", "name of supplier", "party name",
         "vendor name", "legal name", "trade name", "particulars", "party", "ledger name", "supplier", "trdnm",
+        "buyer name", "buyer legal name", "recipient name", "customer name", "receiver name", "other party name",
     ],
     "original_invoice_no": [
         "original details invoice number", "original invoice number", "original invoice no",
@@ -54,19 +57,21 @@ SYNONYMS: dict[str, list[str]] = {
                     "nature of supply", "export type"],
     "invoice_value": [
         "invoice value", "total invoice value", "note value", "gross total", "bill amount", "invoice amount",
-        "total amount", "document value", "val", "value",
+        "total amount", "document value", "val", "value", "total inv value", "total invoice amount",
+        "invoice amt",
     ],
     "taxable_value": [
         "taxable value", "taxable amount", "taxable", "assessable value", "taxable value of supply", "txval",
-        "net amount", "purchase value", "amount before tax",
+        "net amount", "purchase value", "amount before tax", "total assessable value", "total taxable value",
+        "taxable amt", "assessable amount",
     ],
-    "igst": ["integrated tax", "igst", "igst amount", "integrated tax amount", "iamt", "input igst"],
-    "cgst": ["central tax", "cgst", "cgst amount", "central tax amount", "camt", "input cgst"],
+    "igst": ["integrated tax", "igst", "igst amount", "integrated tax amount", "iamt", "input igst", "igst value"],
+    "cgst": ["central tax", "cgst", "cgst amount", "central tax amount", "camt", "input cgst", "cgst value"],
     "sgst": [
         "state ut tax", "state tax", "sgst", "sgst utgst", "utgst", "sgst amount", "state ut tax amount", "samt",
-        "input sgst",
+        "input sgst", "sgst value", "sgst utgst value",
     ],
-    "cess": ["cess", "cess amount", "compensation cess", "csamt", "input cess"],
+    "cess": ["cess", "cess amount", "compensation cess", "csamt", "input cess", "cess value"],
     "rate": ["rate", "tax rate", "gst rate", "rate pct", "rt", "gst rate pct"],
     "place_of_supply": ["place of supply", "pos", "place of supply name"],
     "reverse_charge": ["supply attract reverse charge", "reverse charge", "rcm", "rev", "rchrg", "reverse charge applicable"],
@@ -81,6 +86,12 @@ SYNONYMS: dict[str, list[str]] = {
     "quantity": ["quantity", "qty", "billed qty", "actual qty", "billed quantity"],
     "description": ["narration", "description", "item description", "goods description", "expense head",
                     "purchase ledger", "nature of expense", "description of goods services", "item name"],
+    "irn": ["irn", "irn no", "irn number", "invoice reference number", "e invoice irn"],
+    "ref_no": ["ack no", "ack number", "acknowledgement no", "acknowledgement number", "ack no irn",
+               "ewb no", "ewb number", "eway bill no", "e way bill no", "eway bill number", "e way bill number",
+               "ewaybill no", "ewaybill number", "ewb"],
+    "ref_status": ["irn status", "ewb status", "e way bill status", "eway bill status", "e invoice status",
+                   "einvoice status", "status"],
     "ims_action": ["ims action", "action", "action taken", "ims status", "recipient action", "action status"],
 }
 
@@ -104,7 +115,8 @@ FIELD_LABELS = {
     "supplier_period": "Supplier filing period", "itc_availability": "ITC availability",
     "itc_reason": "ITC reason", "original_invoice_no": "Original invoice number",
     "original_invoice_date": "Original invoice date", "description": "Narration / description",
-    "ims_action": "IMS action", "hsn": "HSN / SAC", "uqc": "Unit (UQC)", "quantity": "Quantity",
+    "ims_action": "IMS action", "irn": "IRN", "ref_no": "Ack. / e-way bill number",
+    "ref_status": "IRN / e-way bill status", "hsn": "HSN / SAC", "uqc": "Unit (UQC)", "quantity": "Quantity",
 }
 
 
