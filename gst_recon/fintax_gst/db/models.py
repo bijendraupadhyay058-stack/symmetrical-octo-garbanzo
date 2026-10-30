@@ -553,4 +553,42 @@ class TdsTcsCredit(Base):
 
 
 V10_TABLES = [TdsTcsCredit]
+
+
+class ReturnFiling(Base):
+    """Date a return was filed (entered or imported), for late fees and interest on delay."""
+
+    __tablename__ = "return_filings"
+    __table_args__ = (UniqueConstraint("client_id", "return_type", "period", name="uq_return_filing"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    return_type: Mapped[str] = mapped_column(String(10))  # GSTR-1, GSTR-3B, GSTR-9
+    period: Mapped[str] = mapped_column(String(7))  # YYYY-MM, or the FY (2025-26) for GSTR-9
+    filed_on: Mapped[date] = mapped_column(Date)
+    arn: Mapped[str] = mapped_column(String(30), default="")
+    nil: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class InterestSettlement(Base):
+    """How a possible short payment or excess ITC of a period was dealt with: paid / reversed on a
+    date (DRC-03, a later GSTR-3B), or not payable with the reason."""
+
+    __tablename__ = "interest_settlements"
+    __table_args__ = (UniqueConstraint("client_id", "kind", "period", name="uq_interest_settlement"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # SHORT_PAYMENT or EXCESS_ITC
+    period: Mapped[str] = mapped_column(String(7))
+    status: Mapped[str] = mapped_column(String(12))  # SETTLED or NOT_PAYABLE
+    settled_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reference: Mapped[str] = mapped_column(String(60), default="")  # DRC-03 ARN, return period
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V12_TABLES = [ReturnFiling, InterestSettlement]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

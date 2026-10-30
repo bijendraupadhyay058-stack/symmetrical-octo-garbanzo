@@ -608,5 +608,11 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "agrees with the sales to it (May credit not yet accepted); Pune Municipal Corporation's TDS has no sales "
               "in the register; Mehta Polymers (Gujarat) deducted CGST/SGST instead of IGST (rejected); the May TCS is "
               "1% of net value where 0.5% applies."]
+    lines += ["", "## Interest and late fees (Phase 11)", "",
+              "* `returns_filed_2025-26.csv`: April GSTR-1 filed 4 days late and GSTR-3B 8 days late → late fees "
+              "₹200 and ₹400 at the highest cap (AATO not entered); no interest on the delay, as no tax was paid in "
+              "cash (Table 6.1).",
+              "* The April GSTR-1 tax exceeds GSTR-3B by ₹3,600 (CGST/SGST ₹1,800 each) → interest at 18% from 20-05-2025 "
+              "until paid; ITC in GSTR-3B above GSTR-2B is listed with interest as an upper limit."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

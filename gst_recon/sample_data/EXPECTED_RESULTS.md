@@ -79,3 +79,8 @@ Rows that must be rejected at import (books):
 * `einvoice_report_2025-04.csv` vs the sales register: 9 documents match (B2B, credit note, SEZ, export); the IRN of SGT/25-26/0011 is cancelled although the sale is still in the register (client clarification); SGT/25-26/0014 has no IRN; SGT/25-26/0012 has an IRN but is not in the register. B2C and exempt sales are not e-invoiced and are left out.
 * `ewaybill_report_2025-04.csv`: 7 documents match (SGT/25-26/0002 through its regenerated e-way bill); SGT/25-26/0005 (₹76,700) has none; 12 documents below ₹50,000 or credit notes need none (no action); SGT/25-26/0018 has an e-way bill but is not in the register; a delivery challan and an inward e-way bill are not compared.
 * `tds_tcs_credit_2025-26.xlsx` (TDS and TCS credit received): Venkatesh Traders' TDS on ₹1,20,000 agrees with the sales to it (May credit not yet accepted); Pune Municipal Corporation's TDS has no sales in the register; Mehta Polymers (Gujarat) deducted CGST/SGST instead of IGST (rejected); the May TCS is 1% of net value where 0.5% applies.
+
+## Interest and late fees (Phase 11)
+
+* `returns_filed_2025-26.csv`: April GSTR-1 filed 4 days late and GSTR-3B 8 days late → late fees ₹200 and ₹400 at the highest cap (AATO not entered); no interest on the delay, as no tax was paid in cash (Table 6.1).
+* The April GSTR-1 tax exceeds GSTR-3B by ₹3,600 (CGST/SGST ₹1,800 each) → interest at 18% from 20-05-2025 until paid; ITC in GSTR-3B above GSTR-2B is listed with interest as an upper limit.

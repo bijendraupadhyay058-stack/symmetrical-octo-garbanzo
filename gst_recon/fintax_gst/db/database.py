@@ -148,6 +148,12 @@ def _migration_11(conn) -> None:
         conn.exec_driver_sql("ALTER TABLE recon_lines ADD COLUMN updated_by VARCHAR(80) NOT NULL DEFAULT ''")
 
 
+def _migration_12(conn) -> None:
+    from .models import V12_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V12_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -163,6 +169,8 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (9, "e-invoice IRN and e-way bill numbers and status of imported documents", _migration_9),
     (10, "TDS (GSTR-7) and TCS (GSTR-8) credits received", _migration_10),
     (11, "version and last editor of review lines (concurrent edits detected)", _migration_11),
+    (12, "return filing dates and settlements of short payments / excess ITC (interest, late fees)",
+     _migration_12),
 ]
 
 

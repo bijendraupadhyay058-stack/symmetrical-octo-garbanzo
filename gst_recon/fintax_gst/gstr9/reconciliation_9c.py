@@ -48,10 +48,11 @@ LABELS = {c: lab for c, lab, _s in TABLE5} | {
     "12C": "ITC booked in the current financial year to be claimed in subsequent financial years",
     "12D": "ITC availed as per audited financial statements or books of account (A + B − C)",
     "12E": "ITC claimed in the annual return (GSTR-9)", "12F": "Un-reconciled ITC (E − D)",
+    "AATO": "Aggregate annual turnover of the preceding year (late fee slab)",
 }
 #: Items the preparer enters (amounts); the reason codes hold explanations of differences.
 INPUT_ITEMS = [c for c, _l, _s in TABLE5] + ["7B", "7C", "7D", "12A", "12B", "12C", "9INT", "9FEE", "9PEN",
-                                              "9OTH"] + TABLE14_INPUTS + ENTERED_ITEMS
+                                              "9OTH"] + TABLE14_INPUTS + ENTERED_ITEMS + ["AATO"]
 REASON_ITEMS = {"R6": "Reasons for un-reconciled turnover (Table 6)",
                 "R8": "Reasons for un-reconciled taxable turnover (Table 8)",
                 "R10": "Reasons for un-reconciled tax payable (Table 10)",

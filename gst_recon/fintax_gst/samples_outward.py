@@ -282,7 +282,7 @@ def write_outward(out: Path) -> dict[str, Path]:
     files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
              "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json",
              "einv_april": out / "einvoice_report_2025-04.csv", "ewb_april": out / "ewaybill_report_2025-04.csv",
-             "tds_tcs": out / "tds_tcs_credit_2025-26.xlsx"}
+             "tds_tcs": out / "tds_tcs_credit_2025-26.xlsx", "filings": out / "returns_filed_2025-26.csv"}
     write_sales_register(files["sales_april"])
     write_gstr1_json(files["gstr1_april_json"])
     write_gstr1_may_json(files["gstr1_may_json"])
@@ -290,6 +290,7 @@ def write_outward(out: Path) -> dict[str, Path]:
     write_einvoice_report(files["einv_april"])
     write_ewb_report(files["ewb_april"])
     write_tds_tcs_credits(files["tds_tcs"])
+    write_filings(files["filings"])
     return files
 
 
@@ -397,3 +398,18 @@ def write_tds_tcs_credits(path: Path) -> None:
     tcs.append([ECO[0], ECO[1], "Apr-25", 120000, 20000, 100000, 0, 250, 250, "Accepted"])
     tcs.append([ECO[0], ECO[1], "May-25", 80000, 0, 80000, 800, 0, 0, None])  # collected at the old 1% rate
     wb.save(path)
+
+
+# ------------------------------------------------------------ returns filed (Phase 11)
+#: April 2025 returns filed late: GSTR-1 4 days, GSTR-3B 8 days.
+FILINGS = [("GSTR-1", "2025-04", "15-05-2025", "AA270425000101K", "No"),
+           ("GSTR-3B", "2025-04", "28-05-2025", "AA270425000202L", "No")]
+
+
+def write_filings(path: Path) -> None:
+    import csv
+
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Return Type", "Tax Period", "Date of Filing", "ARN", "Nil Return"])
+        w.writerows(FILINGS)

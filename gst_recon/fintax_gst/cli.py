@@ -30,6 +30,8 @@ from .cli_phase5 import add_commands as add_phase5_commands
 from .cli_phase5 import permission_for as _permission_phase5
 from .cli_phase10 import add_commands as add_phase10_commands
 from .cli_phase10 import permission_for as _permission_phase10
+from .cli_phase11 import add_commands as add_phase11_commands
+from .cli_phase11 import permission_for as _permission_phase11
 from .services.auth import Session
 from .services.common import ServiceError, current_user
 from .services.imports import ImportService
@@ -529,6 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_phase4_commands(sub)
     add_phase5_commands(sub)
     add_phase10_commands(sub)
+    add_phase11_commands(sub)
 
     dc = sub.add_parser("db-copy", help="copy all data into another empty database, e.g. SQLite → PostgreSQL")
     dc.add_argument("--to", help="target: file path or URL (or FINTAX_TARGET_DB_URL); password via PGPASSWORD")
@@ -546,7 +549,7 @@ def build_parser() -> argparse.ArgumentParser:
 def permission_for(args) -> str | None:
     if getattr(args, "no_db", False):
         return None
-    return (_permission_phase10(args) or _permission_phase5(args) or _permission_phase4(args)
+    return (_permission_phase11(args) or _permission_phase10(args) or _permission_phase5(args) or _permission_phase4(args)
             or _permission_phase3(args))
 
 

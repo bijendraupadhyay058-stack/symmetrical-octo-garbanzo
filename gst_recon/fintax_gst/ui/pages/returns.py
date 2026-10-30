@@ -54,6 +54,7 @@ class ReturnsPage(LazyPage):
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")
         tabs.addTab(self._tds_tab(), "TDS / TCS credits")
+        tabs.addTab(self._interest_tab(), "Interest && late fee")
         lay.addWidget(tabs, 1)
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
@@ -152,6 +153,163 @@ class ReturnsPage(LazyPage):
         split.setSizes([420, 330])
         lay.addWidget(split, 1)
         return w
+
+    def _interest_tab(self) -> QWidget:
+        from PySide6.QtCore import QDate
+        from PySide6.QtWidgets import QDateEdit
+
+        from ...services.interest import KINDS
+
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        top = QHBoxLayout()
+        self.int_asof = QDateEdit(QDate.currentDate())
+        self.int_asof.setCalendarPopup(True)
+        self.int_asof.setDisplayFormat("dd-MM-yyyy")
+        show = primary("Compute")
+        show.clicked.connect(self.show_interest)
+        export = QPushButton("Export working…")
+        export.clicked.connect(self.export_interest)
+        self.int_lbl = QLabel()
+        self.int_lbl.setObjectName("Muted")
+        self.int_lbl.setWordWrap(True)
+        for x in (QLabel("Interest up to"), self.int_asof, show, export):
+            top.addWidget(x)
+        top.addWidget(self.int_lbl, 1)
+        lay.addLayout(top)
+        rec = QHBoxLayout()
+        self.int_rtype = QComboBox()
+        self.int_rtype.addItems(["GSTR-3B", "GSTR-1", "GSTR-9"])
+        self.int_period = QLineEdit()
+        self.int_period.setPlaceholderText("Period YYYY-MM / FY")
+        self.int_period.setMaximumWidth(140)
+        self.int_filed = QDateEdit(QDate.currentDate())
+        self.int_filed.setCalendarPopup(True)
+        self.int_filed.setDisplayFormat("dd-MM-yyyy")
+        self.int_arn = QLineEdit()
+        self.int_arn.setPlaceholderText("ARN")
+        self.int_nil = QCheckBox("Nil return")
+        self.int_file_btn = QPushButton("Record filing")
+        self.int_file_btn.clicked.connect(self.record_filing)
+        for x in (QLabel("Filed:"), self.int_rtype, self.int_period, self.int_filed, self.int_arn, self.int_nil,
+                  self.int_file_btn):
+            rec.addWidget(x)
+        rec.addStretch()
+        lay.addLayout(rec)
+        st_row = QHBoxLayout()
+        self.int_kind = QComboBox()
+        for k, label in KINDS.items():
+            self.int_kind.addItem(label, k)
+        self.int_status = QComboBox()
+        self.int_status.addItems(["SETTLED", "NOT_PAYABLE", "(remove)"])
+        self.int_settled = QDateEdit(QDate.currentDate())
+        self.int_settled.setCalendarPopup(True)
+        self.int_settled.setDisplayFormat("dd-MM-yyyy")
+        self.int_ref = QLineEdit()
+        self.int_ref.setPlaceholderText("DRC-03 ARN / return")
+        self.int_note = QLineEdit()
+        self.int_note.setPlaceholderText("Reason (required when not payable)")
+        self.int_settle_btn = QPushButton("Record settlement")
+        self.int_settle_btn.clicked.connect(self.record_settlement)
+        for x in (QLabel("Settled:"), self.int_kind, self.int_status, self.int_settled, self.int_ref, self.int_note,
+                  self.int_settle_btn):
+            st_row.addWidget(x)
+        lay.addLayout(st_row)
+        split = QSplitter(Qt.Vertical)
+        self.int_late_model = RowsModel(["Return", "Period", "Due", "Filed", "Days", "Late fee", "Basis",
+                                         "Interest", "Interest paid", "Fee paid"],
+                                        kinds=["text", "text", "date", "date", "int", "money", "text", "money",
+                                               "money", "money"])
+        self.int_late = Table()
+        self.int_late.setModel(self.int_late_model)
+        split.addWidget(self.int_late)
+        self.int_exp_model = RowsModel(["Kind", "Period", "Head", "Amount", "From", "To", "Days", "Interest",
+                                        "Status", "Basis"],
+                                       kinds=["text", "text", "text", "money", "date", "date", "int", "money", "text",
+                                              "text"])
+        self.int_exp = Table()
+        self.int_exp.setModel(self.int_exp_model)
+        split.addWidget(self.int_exp)
+        lay.addWidget(split, 1)
+        return w
+
+    def _int_session_ok(self) -> bool:
+        if self.state.client is None:
+            return False
+        if not self.state.can("review"):
+            QMessageBox.information(self, "Interest", "Recording dates needs the review permission.")
+            return False
+        return True
+
+    def record_filing(self) -> None:
+        if not self._int_session_ok():
+            return
+        from ...services.interest import InterestService
+
+        d = self.int_filed.date()
+        try:
+            InterestService(self.state.db).set_filing(
+                self.state.client.id, self.int_rtype.currentText(), self.int_period.text().strip(),
+                date(d.year(), d.month(), d.day()), self.state.session, self.int_arn.text(), self.int_nil.isChecked())
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Interest", str(exc))
+            return
+        self.int_arn.clear()
+        self.show_interest()
+
+    def record_settlement(self) -> None:
+        if not self._int_session_ok():
+            return
+        from ...services.interest import InterestService
+
+        d = self.int_settled.date()
+        status = None if self.int_status.currentText().startswith("(") else self.int_status.currentText()
+        try:
+            InterestService(self.state.db).set_settlement(
+                self.state.client.id, self.int_kind.currentData(), self.int_period.text().strip(), status,
+                self.state.session, date(d.year(), d.month(), d.day()) if status == "SETTLED" else None,
+                self.int_ref.text(), self.int_note.text())
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Interest", str(exc))
+            return
+        self.show_interest()
+
+    def _int_asof(self) -> date:
+        d = self.int_asof.date()
+        return date(d.year(), d.month(), d.day())
+
+    def show_interest(self) -> None:
+        from ...services.interest import HEADS, KINDS, InterestService
+
+        st = self.state
+        if st.client is None:
+            return
+        w = InterestService(st.db).working(st.client.id, st.fy, self._int_asof())
+        self.int_late_model.set_rows([[r.return_type, r.period, r.due, r.filed, r.days,
+                                       r.fee_total if r.fee_cgst is not None else None, r.fee_basis,
+                                       r.interest_total, r.interest_paid, r.fee_paid] for r in w.late])
+        self.int_exp_model.set_rows([[KINDS[e.kind], e.period, e.head.upper(), e.amount, e.start, e.end, e.days,
+                                      e.interest, e.status, e.basis] for e in w.exposures])
+        self.int_late.fit(300)
+        self.int_exp.fit(400)
+        d = w.drc03()
+        due = "; ".join(f"{h.upper()} tax {money(d[h]['tax'])}, interest {money(d[h]['interest'])}, fee "
+                        f"{money(d[h]['fee'])}" for h in HEADS if any(d[h].values()))
+        self.int_lbl.setText(("DRC-03 not yet paid – " + due if due else "Nothing unpaid in the working.") + "  "
+                             + " ".join(w.notes))
+
+    def export_interest(self, out_dir: str | None = None) -> Path | None:
+        from ...reports.interest_report import export_interest
+
+        st = self.state
+        if st.client is None:
+            return None
+        out_dir = out_dir or QFileDialog.getExistingDirectory(self, "Folder for the interest working")
+        if not out_dir:
+            return None
+        path = export_interest(st.db, st.client.id, st.fy, out_dir, self._int_asof(), st.user)
+        QMessageBox.information(self, "Interest", f"Saved {path}")
+        return path
 
     def _tds_tab(self) -> QWidget:
         w = QWidget()
@@ -464,6 +622,8 @@ class ReturnsPage(LazyPage):
             b.setEnabled(st.can("review") and st.client is not None)
         self.tds_import_btn.setEnabled(st.can("import") and st.client is not None)
         self.g9_json_btn.setEnabled(st.can("export") and st.client is not None)
+        for b in (self.int_file_btn, self.int_settle_btn):
+            b.setEnabled(st.can("review") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):
             cur = cb.currentText()
@@ -489,6 +649,9 @@ class ReturnsPage(LazyPage):
         self.show_table4()
         self.show_annual()
         self.show_tds()
+        for m in (self.int_late_model, self.int_exp_model):  # computed on request (it reads several workings)
+            m.set_rows([])
+        self.int_lbl.setText("Press Compute for the interest and late fee working of the year.")
 
     def show_table4(self) -> None:
         st = self.state
