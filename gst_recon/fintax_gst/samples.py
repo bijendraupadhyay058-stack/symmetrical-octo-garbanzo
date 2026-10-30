@@ -483,6 +483,24 @@ def write_gstr8a_json(path: Path, docs: list[Doc]) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+#: Item-wise purchase register (HSN, unit, quantity): each of the first five April invoices is split into two
+#: lines at the same tax rate but different HSN – they merge into one document, and feed GSTR-9 Table 18.
+ITEMWISE_HSN = [("7208", "Flat-rolled steel", "KGS", D("0.6")), ("7318", "Screws and bolts", "KGS", D("0.4"))]
+
+
+def write_itemwise_register(path: Path) -> None:
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Supplier Name", "GSTIN", "Bill No", "Bill Date", "HSN/SAC", "UQC", "Quantity", "Taxable Value",
+                    "IGST", "CGST", "SGST"])
+        for d in books_docs()[:5]:
+            gst, name = SUPPLIERS[d.sup]
+            for code, _desc, uqc, share in ITEMWISE_HSN:
+                part = lambda x: (D(x) * share).quantize(D("0.01"))  # noqa: E731
+                w.writerow([name, gst, d.no, d.dt.strftime("%d-%m-%Y"), code, uqc, int(D(d.taxable) * share / 50),
+                            part(d.taxable), part(d.igst), part(d.cgst), part(d.sgst)])
+
+
 EXPENSE_LEDGER = [  # (ledger head, value, total ITC, eligible ITC) – FY 2025-26
     ("Purchase Accounts", "760000", "136800", "136800"), ("Freight Inward", "20000", "3600", "3600"),
     ("Electricity Charges", "48000", "0", "0"), ("Office Rent", "240000", "43200", "43200"),
@@ -513,6 +531,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "ims_april_json": out / "ims_2025-04.json",
         "gstr8a_json": out / "gstr9_table8a_2025-26.json",
         "expense_ledger": out / "expense_ledger_2025-26.csv",
+        "books_itemwise_csv": out / "purchase_register_itemwise_2025-04.csv",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -525,6 +544,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_ims_json(files["ims_april_json"])
     write_gstr8a_json(files["gstr8a_json"], table8a_docs())
     write_expense_ledger(files["expense_ledger"])
+    write_itemwise_register(files["books_itemwise_csv"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -571,5 +591,9 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "exceeds the GSTR-1 sections by 1,000.",
               "* `expense_ledger_2025-26.csv`: ledger heads placed in GSTR-9C Table 14 rows by keyword (salaries and "
               "staff welfare in 14H, repairs to machinery in 14M, the computer in 14O, audit fees in 14N)."]
+    lines += ["", "## GSTR-9 Tables 15, 16 and 18 (Phase 9)", "",
+              "* `purchase_register_itemwise_2025-04.csv`: the first five April invoices, each in two lines at the same "
+              "rate with different HSN (7208, 7318) – merged into one document each; GSTR-9 Table 18 shows both HSN.",
+              "* Tables 15 and 16 are entered (items such as 15E-I, 16A-T)."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

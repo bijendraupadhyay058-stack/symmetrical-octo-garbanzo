@@ -6,7 +6,7 @@ Offline GST reconciliation for Indian accountants, tax consultants and CA firms:
 import a TallyPrime purchase register and GSTR-2B, match every invoice, see the exact
 differences and ITC exposure, and download an audit-ready Excel workbook.
 
-**Status: Phases 1–8 are complete.** The release includes:
+**Status: Phases 1–9 are complete.** The release includes:
 
 * the reconciliation engine, database and imports
 * exception management with manual match and unmatch, and the vendor follow-up register
@@ -33,6 +33,9 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 * **Phase 8**: GSTR-9 Tables 10–14 (this year's figures declared in the next year's returns)
   and Table 17 (HSN summary from GSTR-1, checked against the sections), and GSTR-9C Table 14
   (ITC on expenses) with an expense-ledger import ([docs/PHASE8.md](docs/PHASE8.md))
+* **Phase 9**: HSN lines in purchase registers and GSTR-9 Table 18, and Tables 15 and 16
+  entered by the preparer – the GSTR-9 working now covers Tables 4 to 18
+  ([docs/PHASE9.md](docs/PHASE9.md))
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 
@@ -259,6 +262,7 @@ fintax-gst --login admin gstr9 --client 1 --fy 2025-26 --out reports/     # GSTR
 fintax-gst --login admin gstr9c set --client 1 --fy 2025-26 --item 5A --amount 785000 --note "AFS note 21"
 fintax-gst --login admin gstr9c --client 1 --fy 2025-26                  # GSTR-9C Tables 5, 7, 9, 12, 14
 fintax-gst --login admin gstr9c import-expenses --client 1 --fy 2025-26 --file expense_ledger.csv
+fintax-gst --login admin gstr9 set --client 1 --fy 2025-26 --item 15E-I --amount 25000 --note "DRC-07"
 ```
 
 Other commands: `client list [--pan]`, `imports --client X [--remove ID]`, `runs --client X`,
@@ -282,7 +286,7 @@ are added together.
 ## Tests and benchmark
 
 ```bash
-python -m pytest              # 208 tests: engine, importers, ITC, outward, compliance, letters, working papers,
+python -m pytest              # 214 tests: engine, importers, ITC, outward, compliance, letters, working papers,
                               # sync, web, Table 8A, calendar, GSTR-9/9C, security, reports, CLI, desktop UI
 FINTAX_TEST_DB_URL=postgresql+psycopg://user@localhost/fintax_test python -m pytest   # same suite on PostgreSQL
 python scripts/benchmark.py 10000 50000
@@ -312,6 +316,7 @@ Timings on an office PC will differ. Run the script on the target machine.
 * [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – layers, file structure, database
 * [docs/RECONCILIATION_LOGIC.md](docs/RECONCILIATION_LOGIC.md) – exactly how matching works
 * [docs/ITC_MODULE.md](docs/ITC_MODULE.md) – ITC rules, 16(4), claims, Table 4, GSTR-9 Table 8, IMS
+* [docs/PHASE9.md](docs/PHASE9.md) – GSTR-9 Tables 15, 16 and 18; HSN lines in purchase registers
 * [docs/PHASE8.md](docs/PHASE8.md) – GSTR-9 Tables 10–14 and 17, GSTR-9C Table 14
 * [docs/PHASE7.md](docs/PHASE7.md) – advances, Table 6.1 payments, GSTR-9C
 * [docs/PHASE6.md](docs/PHASE6.md) – GSTR-9 working, web column mapping, Windows CI build

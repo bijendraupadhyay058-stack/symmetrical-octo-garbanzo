@@ -175,6 +175,17 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     except AmountParseError:
         warnings.append(f"Tax rate '{row.get('rate')}' ignored")
 
+    hsn_lines = []
+    hsn = parse_text(row.get("hsn")).replace(" ", "").replace(".", "")[:10]
+    if hsn:
+        try:
+            qty = abs(parse_amount(row.get("quantity")) or ZERO)
+        except AmountParseError:
+            qty = ZERO
+            warnings.append(f"Quantity '{row.get('quantity')}' ignored")
+        hsn_lines = [{"hsn": hsn, "uqc": parse_text(row.get("uqc")).upper()[:10], "qty": str(qty),
+                      "taxable": str(taxable), **{k: str(v) for k, v in t.items()}}]
+
     record = InvoiceRecord(
         uid=uid, source=ctx.source, supplier_gstin=gstin, doc_type=doc_type, invoice_no=invoice_no,
         invoice_date=invoice_date, taxable=taxable, igst=t["igst"], cgst=t["cgst"], sgst=t["sgst"],
@@ -186,6 +197,6 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
         supplier_period=parse_period(row.get("supplier_period")) or parse_text(row.get("supplier_period")),
         source_file=ctx.file_name, source_rows=str(row.get("_row", "")),
         description=parse_text(row.get("description"))[:500], ims_action=ims_action,
-        supply_type=parse_text(row.get("supply_type"))[:40],
+        supply_type=parse_text(row.get("supply_type"))[:40], hsn_lines=hsn_lines,
     )
     return RowOutcome(record, errors, warnings)

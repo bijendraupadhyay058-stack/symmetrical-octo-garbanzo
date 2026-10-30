@@ -116,6 +116,13 @@ def _migration_7(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V7_TABLES])
 
 
+def _migration_8(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    if "hsn_json" not in {c["name"] for c in sa_inspect(conn).get_columns("invoices")}:
+        conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN hsn_json TEXT NOT NULL DEFAULT ''")
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -127,6 +134,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (5, "GST due-date extensions recorded by the user", _migration_5),
     (6, "GSTR-9C figures from the audited financial statements and reasons", _migration_6),
     (7, "GSTR-1 HSN-wise summary of outward supplies", _migration_7),
+    (8, "HSN lines of imported documents (GSTR-9 Table 18)", _migration_8),
 ]
 
 

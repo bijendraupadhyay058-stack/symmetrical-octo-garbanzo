@@ -69,7 +69,7 @@ def gstr9_sheets(wb, w: Gstr9Working) -> None:
                       "Paid through ITC (6.1)", "Total paid", "Payable − Paid"], t9,
                  ["text", "money", "money", "money", "money", "money", "money"], name="Gstr9Table9", totals=False)
 
-    nx = _Sheet(wb, "GSTR-9 Tables 10-17", [9, 70, 16, 14, 14, 14, 12, 50])
+    nx = _Sheet(wb, "GSTR-9 Tables 10-18", [9, 70, 16, 14, 14, 14, 12, 50])
     nx.banner(f"GSTR-9 – Tables 10 to 14 and 17 – FY {w.fy}", "Tables 10–13: this year's supplies and ITC declared in "
               "the next year's returns up to the cut-off. Table 17: HSN summary of outward supplies (GSTR-1).", 8)
     nx.append([section_label(nx, "TABLES 10 TO 14")])
@@ -91,9 +91,37 @@ def gstr9_sheets(wb, w: Gstr9Working) -> None:
                  [[g["hsn"], g["description"], g["uqc"], g["qty"], g["rate"], g["taxable"], g["igst"],
                    g["cgst"] + g["sgst"] + g["cess"]] for g in w.table17],
                  ["text", "wrap", "text", "money", "text", "money", "money", "money"], name="Gstr9Table17")
+    nx.append([])
+    nx.append([section_label(nx, "TABLE 18 – HSN-WISE SUMMARY OF INWARD SUPPLIES (PURCHASE REGISTER)")])
+    _write_table(nx, ["HSN", "", "UQC", "Quantity", "", "Taxable", "IGST", "CGST + SGST + Cess"],
+                 [[g["hsn"], "", g["uqc"], g["qty"], "", g["taxable"], g["igst"], g["cgst"] + g["sgst"] + g["cess"]]
+                  for g in w.table18],
+                 ["text", "text", "text", "money", "text", "money", "money", "money"], name="Gstr9Table18")
+    n_missing, v_missing = w.table18_without_hsn
+    if n_missing:
+        nx.append([nx.cell(f"{n_missing} purchase document(s) without HSN (taxable ₹{v_missing:,.2f}) are not in "
+                           "Table 18.", "ftp_note")])
     if w.hsn_check:
         nx.append([nx.cell(f"Check: HSN summary taxable ₹{w.hsn_check[0]:,.2f}; GSTR-1 supplies (sections) "
                            f"₹{w.hsn_check[1]:,.2f}; difference ₹{w.hsn_check[0] - w.hsn_check[1]:,.2f}.", "ftp_note")])
+
+    from ..gstr9.entered import TABLE15_COLUMNS, TABLE16_COLUMNS
+
+    en = _Sheet(wb, "GSTR-9 Tables 15-16", [8, 60, 14, 14, 14, 12, 12, 12, 14, 40])
+    en.banner(f"GSTR-9 – Tables 15 and 16 – FY {w.fy}", "Entered by the preparer from the refund and demand records "
+              "and the job-work / approval registers.", 10)
+    en.append([section_label(en, "TABLE 15 – DEMANDS AND REFUNDS")])
+    _write_table(en, ["Table", "Description"] + [c for _k, c in TABLE15_COLUMNS] + ["Notes"],
+                 [[x.code, x.label] + [x.values.get(k) for k, _c in TABLE15_COLUMNS] + ["; ".join(x.notes)]
+                  for x in w.table15],
+                 ["text", "wrap"] + ["money"] * len(TABLE15_COLUMNS) + ["wrap"], name="Gstr9Table15", totals=False)
+    en.append([])
+    en.append([section_label(en, "TABLE 16 – COMPOSITION, DEEMED SUPPLY AND GOODS ON APPROVAL")])
+    _write_table(en, ["Table", "Description"] + [c for _k, c in TABLE16_COLUMNS] + ["", "", "Notes"],
+                 [[x.code, x.label] + [x.values.get(k) for k, _c in TABLE16_COLUMNS] + [None, None, "; ".join(x.notes)]
+                  for x in w.table16],
+                 ["text", "wrap"] + ["money"] * len(TABLE16_COLUMNS) + ["money", "money", "wrap"],
+                 name="Gstr9Table16", totals=False)
 
     am = _Sheet(wb, "GSTR-9 Amendments", [9, 9, 18, 22, 22, 15, 15, 15, 9, 46])
     am.banner("GSTR-1 amendments of the year", "Change from the original where the original was imported; other "

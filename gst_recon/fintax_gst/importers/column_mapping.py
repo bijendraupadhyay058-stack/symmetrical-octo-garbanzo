@@ -76,6 +76,9 @@ SYNONYMS: dict[str, list[str]] = {
     ],
     "itc_availability": ["itc availability", "itc available", "itcavl", "eligibility for itc"],
     "itc_reason": ["reason", "rsn", "itc unavailability reason"],
+    "hsn": ["hsn", "hsn sac", "hsn code", "hsn sac code", "hsn sc", "sac", "hsn sac no"],
+    "uqc": ["uqc", "unit", "uom", "unit of measure", "unit of measurement"],
+    "quantity": ["quantity", "qty", "billed qty", "actual qty", "billed quantity"],
     "description": ["narration", "description", "item description", "goods description", "expense head",
                     "purchase ledger", "nature of expense", "description of goods services", "item name"],
     "ims_action": ["ims action", "action", "action taken", "ims status", "recipient action", "action status"],
@@ -101,7 +104,7 @@ FIELD_LABELS = {
     "supplier_period": "Supplier filing period", "itc_availability": "ITC availability",
     "itc_reason": "ITC reason", "original_invoice_no": "Original invoice number",
     "original_invoice_date": "Original invoice date", "description": "Narration / description",
-    "ims_action": "IMS action",
+    "ims_action": "IMS action", "hsn": "HSN / SAC", "uqc": "Unit (UQC)", "quantity": "Quantity",
 }
 
 

@@ -83,3 +83,20 @@ def test_9c_expense_ledger_import(qtbot, db, tmp_path, sample_files, messages): 
     assert rp.import_expense_path(sample_files["expense_ledger"])
     codes = {r[0]: r for r in rp.c9_model.rows}
     assert "14A" in codes and codes["14R"][2] > 0
+
+
+def test_gstr9_entered_tables_via_desktop(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.state.set_client(win.state.clients.create(**CLIENT))
+    win.go("returns")
+    rp = win.pages["returns"]
+    idx = rp.c9_item.findData("15E-I")
+    assert idx >= 0 and "Total demand of taxes" in rp.c9_item.itemText(idx)
+    rp.c9_item.setCurrentIndex(idx)
+    rp.c9_amount.setText("25000")
+    rp.c9_note.setText("DRC-07")
+    rp.save_9c_input()
+    rp.show_gstr9()
+    assert any(r[0] == "15E" and r[3] == 25000 for r in rp.g9_model.rows)

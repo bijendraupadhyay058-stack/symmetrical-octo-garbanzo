@@ -40,6 +40,15 @@ class Gstr9Service:
         this_year = [d for d in docs if d.period in months]
         next_year = [d for d in docs if d.period in next_months]
         sales = out.sales(client_id, months)
+        with self.db.session() as s:
+            purchases = [invoice_to_record(r) for r in s.execute(
+                select(it).where(it.c.client_id == client_id, it.c.source_type == Source.BOOKS.value,
+                                 it.c.period.in_(months)).order_by(it.c.id))]
         filed = Gstr3bService(self.db).values(client_id, months)
         actions = ItcService(self.db)._claim_actions(client_id, next_months)
-        return build_gstr9(fy, months, summaries, this_year, sales, filed, hsn, next_year, actions, cutoff)
+        w = build_gstr9(fy, months, summaries, this_year, sales, filed, hsn, next_year, actions, cutoff, purchases)
+        from ..gstr9.entered import entered_tables
+        from .gstr9c import Gstr9cService
+
+        w.table15, w.table16 = entered_tables(Gstr9cService(self.db).inputs(client_id, fy))
+        return w

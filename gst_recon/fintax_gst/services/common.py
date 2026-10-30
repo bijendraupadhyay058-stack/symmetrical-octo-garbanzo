@@ -59,4 +59,5 @@ def invoice_to_record(row: Invoice, file_name: str = "", prior: bool = False) ->
         source_file=file_name, source_rows=row.source_rows, db_id=row.id, is_prior_period=prior,
         description=row.description or "", ims_action=row.ims_action or "",
         supply_type=getattr(row, "supply_type", "") or "",
+        hsn_lines=json.loads(row.hsn_json) if getattr(row, "hsn_json", "") else [],
     )

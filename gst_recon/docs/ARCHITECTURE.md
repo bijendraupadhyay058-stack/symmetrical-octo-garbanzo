@@ -48,6 +48,7 @@ gst_recon/
 │   ├── gstr9/working.py       GSTR-9 Tables 4–7 and 9 from GSTR-1, GSTR-3B and books (pure)
 │   ├── gstr9/reconciliation_9c.py  GSTR-9C Tables 5, 7, 9, 12, 14 (pure)
 │   ├── gstr9/expenses.py      expense-ledger import for GSTR-9C Table 14
+│   ├── gstr9/entered.py       GSTR-9 Tables 15 and 16 (entered figures)
 │   ├── letters/               supplier letter content (pure) and Word/PDF/e-mail rendering
 │   ├── web/                   read-only FastAPI app and templates
 │   ├── core/
@@ -145,6 +146,7 @@ gst_recon/
 | `due_date_overrides` (v5) | due-date extensions recorded from CBIC notifications |
 | `gstr9c_inputs` (v6) | GSTR-9C figures per audited accounts and reasons, per client and year |
 | `gstr1_hsn` (v7) | GSTR-1 Table 12 HSN summary lines (GSTR-9 Table 17) |
+| `invoices.hsn_json` (v8) | HSN lines of imported documents (GSTR-9 Table 18) |
 
 **Database engines.** `Database` opens a SQLite file (default) or a server URL such as
 `postgresql+psycopg://user@host/db` (`--db`, `FINTAX_DB_URL`). Attachments, uploads and

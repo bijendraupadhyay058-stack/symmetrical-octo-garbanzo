@@ -445,9 +445,10 @@ def test_annual_workbook(db, sample_files, tmp_path):
     c, run = _demo(db, sample_files)
     out = export_annual(db, c.id, "2025-26", tmp_path, portal_8a=Decimal("120000"))
     wb = load_workbook(out)
-    assert wb.sheetnames[-6:] == ["GSTR-9 Tables 4-5", "GSTR-9 Tables 6-7-9", "GSTR-9 Tables 10-17",
-                                  "GSTR-9 Amendments", "GSTR-9C Reconciliation", "GSTR-9C Table 9"]
-    assert wb.sheetnames[:-6] == ["Table 8 Summary", "Month-wise ITC", "8A Docs Not in Books", "Books Not in 8A",
+    assert wb.sheetnames[-7:] == ["GSTR-9 Tables 4-5", "GSTR-9 Tables 6-7-9", "GSTR-9 Tables 10-18",
+                                  "GSTR-9 Tables 15-16", "GSTR-9 Amendments", "GSTR-9C Reconciliation",
+                                  "GSTR-9C Table 9"]
+    assert wb.sheetnames[:-7] == ["Table 8 Summary", "Month-wise ITC", "8A Docs Not in Books", "Books Not in 8A",
                                   "Claim Register", "ITC Rules Applied"]
     t = ItcService(db).annual(c.id, "2025-26")
     rows = list(wb["Table 8 Summary"].iter_rows(values_only=True))

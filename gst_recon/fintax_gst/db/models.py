@@ -129,6 +129,7 @@ class Invoice(Base):
     description: Mapped[str] = mapped_column(Text, default="")  # schema v3
     ims_action: Mapped[str] = mapped_column(String(2), default="")  # schema v3
     supply_type: Mapped[str] = mapped_column(String(40), default="")  # schema v4
+    hsn_json: Mapped[str] = mapped_column(Text, default="")  # schema v8: HSN lines of the document (JSON)
     source_file: Mapped[SourceFile] = relationship()
 
 

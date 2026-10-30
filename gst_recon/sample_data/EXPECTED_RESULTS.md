@@ -68,3 +68,8 @@ Rows that must be rejected at import (books):
 * `gstr1_2026-04.json` (next year): B2BA raising SGT/25-26/0005 from 65,000 to 70,000 and SGT/25-26/0099 of 30-03-2026 reported late → GSTR-9 2025-26 Table 10 = 13,000; SGT/26-27/0001 belongs to 2026-27.
 * GSTR-1 HSN summaries (Table 12): April includes the 1,000 B2C sale left out of B2CS, so Table 17 exceeds the GSTR-1 sections by 1,000.
 * `expense_ledger_2025-26.csv`: ledger heads placed in GSTR-9C Table 14 rows by keyword (salaries and staff welfare in 14H, repairs to machinery in 14M, the computer in 14O, audit fees in 14N).
+
+## GSTR-9 Tables 15, 16 and 18 (Phase 9)
+
+* `purchase_register_itemwise_2025-04.csv`: the first five April invoices, each in two lines at the same rate with different HSN (7208, 7318) – merged into one document each; GSTR-9 Table 18 shows both HSN.
+* Tables 15 and 16 are entered (items such as 15E-I, 16A-T).

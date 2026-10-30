@@ -123,6 +123,7 @@ class ImportService:
                 "original_invoice_no": r.original_invoice_no[:100], "original_invoice_date": r.original_invoice_date,
                 "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
                 "description": r.description, "ims_action": r.ims_action, "supply_type": r.supply_type[:40],
+                "hsn_json": json.dumps(r.hsn_lines) if r.hsn_lines else "",
             } for r in new_records]
             for i in range(0, len(rows), BATCH):
                 if cancel:

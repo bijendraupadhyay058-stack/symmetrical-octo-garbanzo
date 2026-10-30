@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from ..core.models import DocType, InvoiceRecord
 from ..core.money import ZERO
+from .entered import ENTERED_ITEMS
 from .expenses import TABLE14, TABLE14_INPUTS
 from .working import Gstr9Working, classify_sale
 
@@ -50,7 +51,7 @@ LABELS = {c: lab for c, lab, _s in TABLE5} | {
 }
 #: Items the preparer enters (amounts); the reason codes hold explanations of differences.
 INPUT_ITEMS = [c for c, _l, _s in TABLE5] + ["7B", "7C", "7D", "12A", "12B", "12C", "9INT", "9FEE", "9PEN",
-                                              "9OTH"] + TABLE14_INPUTS
+                                              "9OTH"] + TABLE14_INPUTS + ENTERED_ITEMS
 REASON_ITEMS = {"R6": "Reasons for un-reconciled turnover (Table 6)",
                 "R8": "Reasons for un-reconciled taxable turnover (Table 8)",
                 "R10": "Reasons for un-reconciled tax payable (Table 10)",

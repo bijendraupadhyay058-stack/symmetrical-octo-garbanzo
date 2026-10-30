@@ -148,15 +148,20 @@ class ReturnsPage(LazyPage):
         return w
 
     def _gstr9c_tab(self) -> QWidget:
+        from ...gstr9.entered import ITEM_LABELS
+        from ...gstr9.expenses import TABLE14
         from ...gstr9.reconciliation_9c import INPUT_ITEMS, LABELS, REASON_ITEMS
+
+        parts = {"V": "value", "T": "total ITC", "E": "eligible ITC"}
+        t14 = {f"{c}-{p}": f"{label} – {name}" for c, label in TABLE14 for p, name in parts.items()}
 
         w = QWidget()
         lay = QVBoxLayout(w)
         form = QHBoxLayout()
         self.c9_item = QComboBox()
         for code in INPUT_ITEMS:
-            label = LABELS.get(code) or {"9INT": "Interest", "9FEE": "Late fee", "9PEN": "Penalty",
-                                         "9OTH": "Others (Table 9)"}.get(code, code)
+            label = LABELS.get(code) or ITEM_LABELS.get(code) or t14.get(code) or {
+                "9INT": "Interest", "9FEE": "Late fee", "9PEN": "Penalty", "9OTH": "Others (Table 9)"}.get(code, code)
             self.c9_item.addItem(f"{code} – {label}"[:90], code)
         for code, label in REASON_ITEMS.items():
             self.c9_item.addItem(f"{code} – {label}", code)
@@ -302,6 +307,10 @@ class ReturnsPage(LazyPage):
                          r.gstr1.taxable if r.gstr1 and r in w.table4 + w.table5 + w.table10_14 else None,
                          r.gstr1.total if r.gstr1 else None, r.books.taxable if r.books else None,
                          r.books.total if r.books else None, d.total if d else None, r.note])
+        for x in w.table15 + w.table16:
+            tax = sum((x.values.get(k, 0) for k in ("C", "S", "I", "X")), 0)
+            if tax or x.values.get("T"):
+                rows.append([x.code, x.label, x.values.get("T"), tax, None, None, None, "entered"])
         self.g9_model.set_rows(rows)
         self.g9_table.fit(520)
         self.g9_tax_model.set_rows([[x.head, x.payable, x.declared, x.paid_cash, x.paid_itc, x.unpaid]

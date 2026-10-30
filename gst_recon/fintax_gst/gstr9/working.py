@@ -155,6 +155,10 @@ class Gstr9Working:
     next_year_periods: list[str] = field(default_factory=list)
     table17: list[dict] = field(default_factory=list)  # HSN-wise outward supplies
     hsn_check: tuple[Decimal, Decimal] | None = None  # (HSN summary taxable, GSTR-1 supplies taxable)
+    table18: list[dict] = field(default_factory=list)  # HSN-wise inward supplies (purchase register)
+    table15: list = field(default_factory=list)  # entered (refunds and demands)
+    table16: list = field(default_factory=list)  # entered (composition, deemed supply, goods on approval)
+    table18_without_hsn: tuple[int, Decimal] = (0, Decimal(0))  # documents without HSN and their taxable value
     interest_paid: Decimal | None = None  # GSTR-3B 6.1 interest paid in cash (None = not imported)
     late_fee_paid: Decimal | None = None
     advances_imported: bool = False
@@ -232,7 +236,8 @@ DOC_SECTIONS = {"B2B", "B2BA", "CDNR", "CDNRA"}  # invoice-level records exist f
 # ------------------------------------------------------------------ builder
 def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: list[InvoiceRecord],
                 sales: list[InvoiceRecord], filed: dict[str, dict[str, V]], hsn: list[dict] = (),
-                next_docs: list[InvoiceRecord] = (), next_actions: list = (), cutoff: str = "") -> Gstr9Working:
+                next_docs: list[InvoiceRecord] = (), next_actions: list = (), cutoff: str = "",
+                purchases: list[InvoiceRecord] = ()) -> Gstr9Working:
     w = Gstr9Working(fy)
     g1: dict[str, V] = {}
     bk: dict[str, V] = {}
@@ -397,7 +402,31 @@ def build_gstr9(fy: str, months: list[str], summaries: list[dict], gstr1_docs: l
         w.notes.append("No GSTR-1 advance tables (11A/11B) imported – 4F is shown as nil.")
     _next_year(w, fy, originals, next_docs, next_actions, cutoff)
     _table17(w, hsn, r)
+    _table18(w, purchases)
     return w
+
+
+def _table18(w: Gstr9Working, purchases: list[InvoiceRecord]) -> None:
+    """Table 18: HSN-wise summary of inward supplies, from the HSN lines of the purchase register."""
+    groups: dict[tuple, dict] = {}
+    missing, missing_value = 0, Decimal(0)
+    for r in purchases:
+        if not r.hsn_lines:
+            missing += 1
+            missing_value += r.signed("taxable")
+            continue
+        sign = -1 if r.doc_type == DocType.CREDIT_NOTE else 1
+        for h in r.hsn_lines:
+            g = groups.setdefault((h["hsn"], h.get("uqc", "")), {
+                "hsn": h["hsn"], "uqc": h.get("uqc", ""), "qty": Decimal(0), "taxable": Decimal(0),
+                "igst": Decimal(0), "cgst": Decimal(0), "sgst": Decimal(0), "cess": Decimal(0)})
+            for k in ("qty", "taxable", "igst", "cgst", "sgst", "cess"):
+                g[k] += Decimal(str(h.get(k) or 0)) * sign
+    w.table18 = sorted(groups.values(), key=lambda g: (g["hsn"], g["uqc"]))
+    w.table18_without_hsn = (missing, missing_value)
+    if purchases and missing:
+        w.notes.append(f"{missing} purchase document(s) (taxable ₹{missing_value:,.2f}) have no HSN – Table 18 covers "
+                       "only documents imported with an HSN / SAC column.")
 
 
 def _next_year(w: Gstr9Working, fy: str, originals: dict, next_docs, next_actions, cutoff: str) -> None:

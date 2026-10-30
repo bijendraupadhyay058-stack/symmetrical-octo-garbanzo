@@ -184,6 +184,8 @@ class InvoiceRecord:
     description: str = ""  # narration / expense head / item description (used by ITC rules)
     supply_type: str = ""  # e.g. Regular, SEZ with payment, Export – outward summaries use it
     ims_action: str = ""  # IMS only: A accepted, R rejected, P pending, N no action (deemed accepted)
+    #: HSN lines of the document (hsn, uqc, qty, taxable, igst, cgst, sgst, cess), kept through rate/HSN merges
+    hsn_lines: list[dict] = field(default_factory=list)
     source_file: str = ""
     source_rows: str = ""
     db_id: int | None = None

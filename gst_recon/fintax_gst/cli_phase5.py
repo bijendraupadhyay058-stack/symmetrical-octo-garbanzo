@@ -56,6 +56,13 @@ def cmd_gstr9(db, args) -> None:
     from .services.gstr9 import Gstr9Service
 
     client = ClientService(db).resolve(args.client)
+    if args.action == "set":
+        from .services.gstr9c import Gstr9cService
+
+        if not args.item:
+            raise ValueError("Give --item (e.g. 15E-I or 16A-T) with --amount and/or --note")
+        Gstr9cService(db).set_input(client.id, args.fy, args.item, args.amount, args.note or "", args.session)
+        print(f"{args.item.upper()} recorded for FY {args.fy}")
     w = Gstr9Service(db).working(client.id, args.fy)
     print(f"GSTR-9 working – {client.name} ({client.gstin}) FY {args.fy}")
     print(f"  {'Table':<7}{'Returns taxable':>17}{'Returns tax':>15}{'Books taxable':>17}{'Books tax':>15}")
@@ -71,6 +78,12 @@ def cmd_gstr9(db, args) -> None:
               f"paid {f(x.paid):>14}")
     for g in w.table17:
         print(f"  Table 17 HSN {g['hsn']:<8} {g['uqc']:<5} rate {g['rate']:>5}  taxable {fmt_inr(g['taxable']):>16}")
+    for x in w.table15 + w.table16:
+        if any(x.values.values()):
+            print(f"  Table {x.code:<4} " + "  ".join(f"{k} {fmt_inr(v)}" for k, v in x.values.items() if v)
+                  + f"  {x.label[:50]}")
+    for g in w.table18:
+        print(f"  Table 18 HSN {g['hsn']:<8} {g['uqc']:<5} qty {g['qty']:>10}  taxable {fmt_inr(g['taxable']):>16}")
     for a in w.amendments:
         change = fmt_inr(a["delta"].taxable) if a["delta"] else "-"
         print(f"  Amendment {a['period']} {a['section']:<6} {a['document']:<22} change {change:>12}  {a['status']}")
@@ -142,11 +155,15 @@ def add_commands(sub) -> None:
     c9.add_argument("--out", help="folder for the annual workbook (GSTR-9, GSTR-9C)")
     c9.set_defaults(func=cmd_gstr9c)
 
-    g9 = sub.add_parser("gstr9", help="GSTR-9 working (Tables 4–9) from GSTR-1, GSTR-3B and the sales register")
+    g9 = sub.add_parser("gstr9", help="GSTR-9 working (Tables 4–18) from GSTR-1, GSTR-3B and the registers")
+    g9.add_argument("action", nargs="?", default="show", choices=["show", "set"])
+    g9.add_argument("--item", help="set: Table 15/16 item, e.g. 15E-I (demand, IGST) or 16A-T")
+    g9.add_argument("--amount", help="set: amount (omit to clear)")
+    g9.add_argument("--note", help="set: note")
     g9.add_argument("--client", required=True)
     g9.add_argument("--fy", required=True)
     g9.add_argument("--out", help="folder for the annual workbook (Table 8 and Tables 4–9)")
-    g9.set_defaults(func=cmd_gstr9, perm="view")
+    g9.set_defaults(func=cmd_gstr9)
 
     st = sub.add_parser("setting", help="application settings, e.g. setting set web_uploads true")
     st.add_argument("action", nargs="?", default="list", choices=["list", "set"])
@@ -168,6 +185,8 @@ def add_commands(sub) -> None:
 
 
 def permission_for(args) -> str | None:
+    if args.command == "gstr9":
+        return "review" if args.action == "set" else "view"
     if args.command == "gstr9c":
         return "review" if args.action in ("set", "import-expenses") else "view"
     if args.command == "setting":

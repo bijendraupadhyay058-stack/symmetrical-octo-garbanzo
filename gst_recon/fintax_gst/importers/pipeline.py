@@ -244,16 +244,18 @@ def _aggregate_and_flag(preview: ImportPreview) -> None:
         if len(members) == 1:
             merged.append(members[0])
             continue
-        rates = [m.rate for m in members]
-        if all(rt is not None for rt in rates) and len(set(rates)) == len(rates):
+        # lines of one document differ by tax rate and/or HSN; anything else is a genuine repeat
+        keys = [(m.rate, tuple(h["hsn"] for h in m.hsn_lines)) for m in members]
+        if all(m.rate is not None or m.hsn_lines for m in members) and len(set(keys)) == len(keys):
             head = members[0]
             for m in members[1:]:
                 for f in AMOUNT_FIELDS:
                     setattr(head, f, getattr(head, f) + getattr(m, f))
+                head.hsn_lines = head.hsn_lines + m.hsn_lines
             head.source_rows = ",".join(m.source_rows for m in members)
             head.rate = None
             preview.issues.append(RowIssue("", head.source_rows, "info",
-                                           f"{len(members)} tax-rate lines combined into one document "
+                                           f"{len(members)} tax-rate / HSN lines combined into one document "
                                            f"'{head.invoice_no}'"))
             merged.append(head)
         else:
