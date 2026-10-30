@@ -1,13 +1,13 @@
 """Low-level file readers. They return raw cell values; nothing is interpreted here."""
 from __future__ import annotations
 
+import csv
 import io
 import json
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-import pandas as pd
 from openpyxl import load_workbook
 
 MAX_ZIP_MEMBER_BYTES = 200 * 1024 * 1024
@@ -43,19 +43,27 @@ def read_excel(data: bytes | Path) -> list[RawTable]:
 
 
 def read_csv(data: bytes | Path, name: str) -> RawTable:
+    # Python's own csv module (no pandas / numpy): every cell stays text, exactly as in the file.
     raw = data if isinstance(data, (bytes, bytearray)) else Path(data).read_bytes()
-    last_error = None
     for encoding in ("utf-8-sig", "cp1252", "latin-1"):
         try:
-            frame = pd.read_csv(io.BytesIO(raw), header=None, dtype=str, keep_default_na=False,
-                                encoding=encoding, skip_blank_lines=False, sep=None, engine="python")
+            text = raw.decode(encoding)
             break
-        except (UnicodeDecodeError, pd.errors.ParserError) as exc:
-            last_error = exc
-    else:
-        raise UnsupportedFileError(f"Could not read CSV: {last_error}")
+        except UnicodeDecodeError:
+            continue
+    else:  # pragma: no cover - latin-1 decodes any bytes
+        raise UnsupportedFileError("Could not read CSV: unknown text encoding")
+    sample = "\n".join(text.splitlines()[:50])
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+    except csv.Error:
+        dialect = csv.excel  # a single column, or nothing to tell from: comma-separated
+    try:
+        parsed = list(csv.reader(io.StringIO(text, newline=""), dialect))
+    except csv.Error as exc:
+        raise UnsupportedFileError(f"Could not read CSV: {exc}") from None
     rows = []
-    for i, values in enumerate(frame.itertuples(index=False, name=None), start=1):
+    for i, values in enumerate(parsed, start=1):
         vals = [v if v != "" else None for v in values]
         while vals and vals[-1] is None:
             vals.pop()

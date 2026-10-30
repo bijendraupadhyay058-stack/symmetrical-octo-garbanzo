@@ -29,8 +29,6 @@ def parse_date(value) -> date | None:
         return value.date()
     if isinstance(value, date):
         return value
-    if hasattr(value, "to_pydatetime"):  # pandas Timestamp
-        return value.to_pydatetime().date()
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         if 20000 <= value <= 80000:  # Excel serial date
             return _EXCEL_EPOCH + timedelta(days=int(value))

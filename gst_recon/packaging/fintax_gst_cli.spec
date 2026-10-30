@@ -12,7 +12,7 @@ a = Analysis(  # noqa: F821
     datas=collect_data_files("docx"),  # Word letter template
     hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer", "cryptography.fernet"]
     + collect_submodules("uvicorn"),
-    excludes=["PySide6", "tkinter", "matplotlib", "IPython"],
+    excludes=["PySide6", "tkinter", "matplotlib", "IPython", "numpy", "pandas"],
 )
 pyz = PYZ(a.pure)  # noqa: F821
 exe = EXE(  # noqa: F821

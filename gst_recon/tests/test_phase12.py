@@ -114,3 +114,60 @@ def test_cli_tally(tmp_path, tally, capsys):
                  "--from", "2025-04"]) == 0
     out = capsys.readouterr().out
     assert "Fetched from Tally" in out and "28 documents saved" in out
+
+
+# ------------------------------------------------------------------ desktop build: no numpy / pandas
+def test_program_works_without_numpy_or_pandas(tmp_path, sample_files):
+    """numpy failed to load on an office PC, so the desktop build contains neither numpy nor pandas.
+    With both blocked (as if not installed), the program must import, reconcile and write its reports."""
+    import os
+    import subprocess
+    import sys
+
+    code = f"""
+import sys
+class Block:
+    def find_spec(self, name, path=None, target=None):
+        if name.split(".")[0] in ("numpy", "pandas"):
+            raise ImportError(name + " is blocked in this test")
+sys.meta_path.insert(0, Block())
+import fintax_gst.cli, fintax_gst.ui.app
+from fintax_gst.core.models import Source
+from fintax_gst.db.database import open_database
+from fintax_gst.samples import CLIENT
+from fintax_gst.services.clients import ClientService
+from fintax_gst.services.imports import ImportService
+from fintax_gst.services.reconciliation import ReconciliationService
+from fintax_gst.services.reports import export_run
+db = open_database(r"{tmp_path / 'nonumpy.db'}")
+c = ClientService(db).create(**CLIENT)
+svc = ImportService(db)
+svc.import_file(c.id, r"{sample_files['books_april']}", Source.BOOKS)
+svc.import_file(c.id, r"{sample_files['books_april_csv']}", Source.BOOKS)
+svc.import_file(c.id, r"{sample_files['gstr2b_april_json']}", Source.GSTR2B)
+run = ReconciliationService(db).run(c.id, "2025-04")
+paths = export_run(db, run, r"{tmp_path}", pdf=True)
+assert not [m for m in ("numpy", "pandas") if m in sys.modules]
+print("OK", len(paths))
+"""
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                         env={**os.environ, "QT_QPA_PLATFORM": "offscreen"}, timeout=300)
+    assert out.returncode == 0 and "OK 2" in out.stdout, out.stdout + out.stderr
+
+
+def test_csv_reader_without_pandas(tmp_path):
+    from fintax_gst.importers.readers import read_csv
+
+    p = tmp_path / "semi.csv"
+    p.write_bytes("GSTIN;Invoice No;Taxable\n27AAPFU0939F1ZV;INV/1;\"1,23,456.50\"\n\n;;\n".encode("cp1252"))
+    t = read_csv(p, p.name)
+    assert t.rows[0] == (1, ["GSTIN", "Invoice No", "Taxable"])
+    assert t.rows[1] == (2, ["27AAPFU0939F1ZV", "INV/1", "1,23,456.50"])  # text kept exactly, no float
+    assert t.rows[2] == (3, []) and t.rows[3] == (4, [])
+    q = tmp_path / "comma.csv"
+    q.write_text('﻿Party,Bill No,Amount\n"Sharma & Sons, Pune",00123,1180\n', encoding="utf-8")
+    t = read_csv(q, q.name)
+    assert t.rows[1][1] == ["Sharma & Sons, Pune", "00123", "1180"]  # leading zeros kept
+    one = tmp_path / "one.csv"
+    one.write_text("Only\nvalue\n", encoding="utf-8")
+    assert read_csv(one, one.name).rows == [(1, ["Only"]), (2, ["value"])]

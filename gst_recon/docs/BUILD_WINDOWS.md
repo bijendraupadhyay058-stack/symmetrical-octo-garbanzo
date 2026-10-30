@@ -18,14 +18,13 @@ The script
    * `dist\FinTaxPro\FinTaxPro.exe` – the desktop application (windowed)
    * `dist\FinTaxPro-GST\FinTaxPro-GST.exe` – the command-line tool
 5. runs `FinTaxPro.exe --smoke-test` and the CLI demo,
-6. builds `dist\installer\FinTaxPro-Setup-1.0.1.exe` if Inno Setup 6 is installed
+6. builds `dist\installer\FinTaxPro-Setup-1.0.2.exe` if Inno Setup 6 is installed
    (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
    uninstalling never deletes the data folder).
 
-**Pinned library versions.** The build installs `requirements.txt` with
-`packaging\build-constraints.txt`, which pins numpy 1.26.4 and pandas 2.2.3. Newer numpy builds failed to load on
-an older office PC ("DLL load failed while importing _multiarray_umath"). Change the pins only after testing the
-installer on an older PC. If the desktop program cannot start, it shows a message and writes
+**No numpy / pandas.** numpy failed to load on an office PC ("DLL load failed while importing
+_multiarray_umath"), so the program does not use numpy or pandas at all. CSV files are read with Python's `csv`
+module, and both packages are excluded in the PyInstaller specs (see `packaging\build-constraints.txt`). If the desktop program cannot start, it shows a message and writes
 `%LOCALAPPDATA%\FinTaxPro\startup-error.txt`, with the Windows version, the processor and its features, and the error.
 
 **Code signing (optional).** Unsigned programs trigger SmartScreen warnings. To sign, set
@@ -55,7 +54,7 @@ script end to end:
 * both PyInstaller builds;
 * `FinTaxPro.exe --smoke-test`;
 * the CLI demo from `FinTaxPro-GST.exe`;
-* the Inno Setup compile of `FinTaxPro-Setup-1.0.1.exe`.
+* the Inno Setup compile of `FinTaxPro-Setup-1.0.2.exe`.
 
 The build is unsigned until a certificate is configured.
 

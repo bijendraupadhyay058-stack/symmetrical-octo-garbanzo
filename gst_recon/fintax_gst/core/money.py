@@ -23,13 +23,6 @@ def is_blank(value) -> bool:
         return True
     if isinstance(value, str) and value.strip() in ("", "-", "--", "nan", "NaN", "None"):
         return True
-    try:  # pandas NaT / NA
-        import pandas as pd
-
-        if value is pd.NaT or value is pd.NA:
-            return True
-    except Exception:  # pragma: no cover - pandas always present
-        pass
     return False
 
 

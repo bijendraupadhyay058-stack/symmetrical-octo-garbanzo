@@ -62,6 +62,8 @@ def _fail(exc: BaseException) -> int:
 if __name__ == "__main__":
     try:
         from fintax_gst.ui.app import main
-    except Exception as exc:  # noqa: BLE001 - any failure to load the program is reported to the user
-        raise SystemExit(_fail(exc)) from None
-    raise SystemExit(main())
+
+        code = main()
+    except Exception as exc:  # noqa: BLE001 - any failure to start the program is reported to the user
+        code = _fail(exc)
+    raise SystemExit(code)

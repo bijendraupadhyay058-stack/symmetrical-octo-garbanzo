@@ -13,7 +13,7 @@ a = Analysis(  # noqa: F821
     hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer",
                    "PySide6.QtCharts", "cryptography.fernet"]
     + collect_submodules("uvicorn"),  # the desktop can start the web view
-    excludes=["tkinter", "matplotlib", "IPython", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
+    excludes=["tkinter", "matplotlib", "IPython", "numpy", "pandas", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
               "PySide6.Qt3DCore", "PySide6.QtQuick", "PySide6.QtQml"],
 )
 pyz = PYZ(a.pure)  # noqa: F821
