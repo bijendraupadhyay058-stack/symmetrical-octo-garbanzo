@@ -523,4 +523,28 @@ class Gstr1Hsn(Base):
 
 
 V7_TABLES = [Gstr1Hsn]
+
+
+class TdsTcsCredit(Base):
+    """TDS (GSTR-7) or TCS (GSTR-8) credit received by the client, from the portal's
+    *TDS and TCS credit received* download."""
+
+    __tablename__ = "tds_tcs_credits"
+    __table_args__ = (Index("ix_tdstcs_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(3))  # TDS or TCS
+    period: Mapped[str] = mapped_column(String(7))  # tax period of the deductor's GSTR-7 / operator's GSTR-8
+    party_gstin: Mapped[str] = mapped_column(String(15))
+    party_name: Mapped[str] = mapped_column(String(200), default="")
+    value: Mapped[Decimal] = mapped_column(DecimalText)  # taxable value paid (TDS) / net value of supplies (TCS)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    action: Mapped[str] = mapped_column(String(10), default="PENDING")  # ACCEPTED / REJECTED / PENDING
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V10_TABLES = [TdsTcsCredit]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

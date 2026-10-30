@@ -603,6 +603,10 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
               "* `ewaybill_report_2025-04.csv`: 7 documents match (SGT/25-26/0002 through its regenerated e-way bill); "
               "SGT/25-26/0005 (₹76,700) has none; 12 documents below ₹50,000 or credit notes need none (no action); "
               "SGT/25-26/0018 has an e-way bill but is not in the register; a delivery challan and an inward e-way "
-              "bill are not compared."]
+              "bill are not compared.",
+              "* `tds_tcs_credit_2025-26.xlsx` (TDS and TCS credit received): Venkatesh Traders' TDS on ₹1,20,000 "
+              "agrees with the sales to it (May credit not yet accepted); Pune Municipal Corporation's TDS has no sales "
+              "in the register; Mehta Polymers (Gujarat) deducted CGST/SGST instead of IGST (rejected); the May TCS is "
+              "1% of net value where 0.5% applies."]
     (out / "EXPECTED_RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return files

@@ -103,7 +103,8 @@ summary, backup/restore, CLI, demo data, 105 automated tests, benchmark.
 * ✅ Sales register vs e-invoices (IRP) and vs e-way bills (schema v9): cancelled IRNs and
   e-way bills kept and explained, latest import wins, e-way bill threshold setting, review
   work carried forward within the same comparison only.
-* TDS/TCS credits (GSTR-7/8 credit received).
+* ✅ TDS/TCS credits received (schema v10): import, statement against the sales register and the
+  statutory rates, pending acceptance, annual workbook sheet.
 * GSTR-9 draft JSON for the offline tool.
 * Multi-user hardening: concurrent edits, per-user activity, load test on PostgreSQL.
 

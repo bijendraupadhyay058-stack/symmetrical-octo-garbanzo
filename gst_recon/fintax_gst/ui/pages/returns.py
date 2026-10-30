@@ -53,6 +53,7 @@ class ReturnsPage(LazyPage):
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")
+        tabs.addTab(self._tds_tab(), "TDS / TCS credits")
         lay.addWidget(tabs, 1)
         for sig in (state.clientChanged, state.dataChanged):
             sig.connect(self.lazy(self.reload))
@@ -146,6 +147,87 @@ class ReturnsPage(LazyPage):
         split.setSizes([420, 330])
         lay.addWidget(split, 1)
         return w
+
+    def _tds_tab(self) -> QWidget:
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        row = QHBoxLayout()
+        self.tds_import_btn = primary("Import TDS/TCS credit received…")
+        self.tds_import_btn.setToolTip("Excel/CSV download of 'TDS and TCS credit received' from the GST portal")
+        self.tds_import_btn.clicked.connect(self.import_tds_dialog)
+        show = QPushButton("Refresh")
+        show.clicked.connect(self.show_tds)
+        self.tds_lbl = QLabel()
+        self.tds_lbl.setObjectName("Muted")
+        self.tds_lbl.setWordWrap(True)
+        row.addWidget(self.tds_import_btn)
+        row.addWidget(show)
+        row.addWidget(self.tds_lbl, 1)
+        lay.addLayout(row)
+        split = QSplitter(Qt.Vertical)
+        self.tds_model = RowsModel(["Kind", "GSTIN", "Name", "Sales register", "Value per GSTR-7/8",
+                                    "GSTR-7 − sales", "Tax", "Accepted", "Pending", "Rejected"],
+                                   kinds=["text", "text", "text"] + ["money"] * 7)
+        self.tds_table = Table()
+        self.tds_table.setModel(self.tds_model)
+        split.addWidget(self.tds_table)
+        box = QWidget()
+        bl = QVBoxLayout(box)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.addWidget(section("Findings"))
+        self.tds_find_model = RowsModel(["Severity", "Kind", "Period", "Finding", "Amount"],
+                                        kinds=["text", "text", "text", "text", "money"])
+        self.tds_find = Table()
+        self.tds_find.setModel(self.tds_find_model)
+        bl.addWidget(self.tds_find)
+        split.addWidget(box)
+        lay.addWidget(split, 1)
+        return w
+
+    def show_tds(self) -> None:
+        from ...services.tds_tcs import TdsTcsService
+
+        st = self.state
+        if st.client is None:
+            return
+        s = TdsTcsService(st.db).statement(st.client.id, st.fy)
+        self.tds_model.set_rows([[p.kind, p.gstin, p.name, p.sales_taxable, p.value, p.difference, p.tax, p.accepted,
+                                  p.pending, p.rejected] for p in s.parties])
+        self.tds_find_model.set_rows([[f.severity.upper(), f.kind, f.period or "year", f.text, f.amount]
+                                      for f in s.findings])
+        self.tds_table.fit(300)
+        self.tds_find.fit(600)
+        self.tds_lbl.setText(
+            f"FY {st.fy}: TDS credit accepted {money(s.total('TDS', 'ACCEPTED'))}, pending "
+            f"{money(s.total('TDS', 'PENDING'))}; TCS accepted {money(s.total('TCS', 'ACCEPTED'))}, pending "
+            f"{money(s.total('TCS', 'PENDING'))}. Accept or reject credits on the portal – nothing is changed there "
+            "by this software." if s.lines else "No TDS / TCS credits imported for this year.")
+
+    def import_tds_dialog(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "TDS and TCS credit received", "", "Excel/CSV (*.xlsx *.csv)")
+        if path:
+            self.import_tds_path(path)
+
+    def import_tds_path(self, path) -> bool:
+        from ...services.tds_tcs import TdsTcsService
+
+        st = self.state
+        if st.client is None:
+            return False
+        svc = TdsTcsService(st.db)
+        try:
+            pv = svc.preview(st.client.id, path)
+            text = (f"{len(pv.new)} new credit(s), {len(pv.changed)} changed action(s), {pv.unchanged} already "
+                    "imported." + ("\n\n" + "\n".join(pv.problems[:15]) if pv.problems else "") + "\n\nSave?")
+            if QMessageBox.question(self, "TDS / TCS credits", text) != QMessageBox.Yes:
+                return False
+            svc.import_file(st.client.id, path, st.user)
+        except (ServiceError, ValueError) as exc:
+            QMessageBox.warning(self, "TDS / TCS credits", str(exc))
+            return False
+        st.notify()
+        self.show_tds()
+        return True
 
     def _gstr9c_tab(self) -> QWidget:
         from ...gstr9.entered import ITEM_LABELS
@@ -375,6 +457,7 @@ class ReturnsPage(LazyPage):
         self.recon_8a_btn.setEnabled(st.can("reconcile") and st.client is not None)
         for b in (self.c9_save, self.c9_clear, self.c9_exp_btn):
             b.setEnabled(st.can("review") and st.client is not None)
+        self.tds_import_btn.setEnabled(st.can("import") and st.client is not None)
         months = fy_months(st.fy)
         for cb in (self.from_cb, self.to_cb):
             cur = cb.currentText()
@@ -399,6 +482,7 @@ class ReturnsPage(LazyPage):
             self.to_cb.setCurrentText(run.run.period_to if run.run.period_to in months else run.run.period_from)
         self.show_table4()
         self.show_annual()
+        self.show_tds()
 
     def show_table4(self) -> None:
         st = self.state

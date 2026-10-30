@@ -59,3 +59,35 @@ def gstr1_sections_sheet(wb, data: OutwardReportData) -> None:
     _write_table(sh, ["Period", "Section", "Supply", "POS", "Rate", "Docs", "Taxable", "IGST", "CGST", "SGST",
                       "Cess"], rows, ["text", "text", "text", "text", "money", "int", "money", "money", "money",
                                       "money", "money"], name="Gstr1Sections", totals=False)
+
+
+def tds_tcs_sheet(wb, st) -> None:
+    """TDS (GSTR-7) and TCS (GSTR-8) credits received, by party and month, with the checks."""
+    from .excel_report import _Sheet, _write_table, section_label
+
+    sh = _Sheet(wb, "TDS-TCS Credits", [9, 17, 34, 13, 15, 15, 13, 13, 13, 13, 13, 13])
+    sh.banner(f"TDS and TCS credit received – {st.months[0]} to {st.months[-1]}",
+              "From the portal's 'TDS and TCS credit received' download. TDS is compared with the sales register; "
+              "rates: TDS 2%, TCS 1% (0.5% from 10 July 2024). Accepted credit goes to the cash ledger.", 12)
+    sh.append([section_label(sh, "BY DEDUCTOR / E-COMMERCE OPERATOR")])
+    _write_table(sh, ["Kind", "GSTIN", "Name", "Sales register", "Value per GSTR-7/8", "GSTR-7 − sales", "IGST",
+                      "CGST", "SGST", "Accepted", "Pending", "Rejected"],
+                 [[p.kind, p.gstin, p.name, p.sales_taxable, p.value, p.difference, p.igst, p.cgst, p.sgst,
+                   p.accepted, p.pending, p.rejected] for p in st.parties],
+                 ["text", "text", "wrap"] + ["money"] * 9, name="TdsTcsParties")
+    sh.append([])
+    sh.append([section_label(sh, "BY MONTH (CASH LEDGER CREDIT)")])
+    _write_table(sh, ["Period", "Kind", "IGST", "CGST", "SGST", "Accepted", "Pending"],
+                 [list(r) for r in st.by_period], ["text", "text"] + ["money"] * 5, name="TdsTcsMonths")
+    sh.append([])
+    sh.append([section_label(sh, "CREDITS")])
+    _write_table(sh, ["Period", "Kind", "GSTIN", "Name", "Value", "IGST", "CGST", "SGST", "Action", "Row"],
+                 [[c.period, c.kind, c.party_gstin, c.party_name, c.value, c.igst, c.cgst, c.sgst, c.action, c.row]
+                  for c in st.lines],
+                 ["text", "text", "text", "wrap", "money", "money", "money", "money", "text", "text"],
+                 name="TdsTcsLines")
+    sh.append([])
+    sh.append([section_label(sh, "FINDINGS")])
+    _write_table(sh, ["Severity", "Kind", "Party", "Period", "Finding", "Amount"],
+                 [[f.severity.upper(), f.kind, f.party, f.period, f.text, f.amount] for f in st.findings],
+                 ["text", "text", "text", "text", "wrap", "money"], name="TdsTcsFindings", totals=False)

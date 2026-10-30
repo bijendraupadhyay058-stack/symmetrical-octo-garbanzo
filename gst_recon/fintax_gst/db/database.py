@@ -132,6 +132,12 @@ def _migration_9(conn) -> None:
             conn.exec_driver_sql(f"ALTER TABLE invoices ADD COLUMN {column} VARCHAR({size}) NOT NULL DEFAULT ''")
 
 
+def _migration_10(conn) -> None:
+    from .models import V10_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V10_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -145,6 +151,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (7, "GSTR-1 HSN-wise summary of outward supplies", _migration_7),
     (8, "HSN lines of imported documents (GSTR-9 Table 18)", _migration_8),
     (9, "e-invoice IRN and e-way bill numbers and status of imported documents", _migration_9),
+    (10, "TDS (GSTR-7) and TCS (GSTR-8) credits received", _migration_10),
 ]
 
 

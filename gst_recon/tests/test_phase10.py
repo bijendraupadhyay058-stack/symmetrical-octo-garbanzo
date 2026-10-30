@@ -161,3 +161,71 @@ def test_cli_einvoice(tmp_path, sample_files, capsys):
     assert main(["--db", dbp, "reconcile", "--client", "1", "--from", "2025-04", "--compare", "ewb"]) == 0
     out = capsys.readouterr().out
     assert "e-Way bill" in out or "Sales register" in out
+
+
+# ------------------------------------------------------------------ TDS / TCS credits
+def test_tds_tcs_read_and_statement(db, sample_files):
+    from fintax_gst.outward.tds_tcs import read_credits
+    from fintax_gst.samples_outward import ECO, PMC
+    from fintax_gst.services.tds_tcs import TdsTcsService
+
+    lines, problems = read_credits(sample_files["tds_tcs"])
+    assert not problems and Counter(c.kind for c in lines) == {"TDS": 4, "TCS": 2}
+    tcs = next(c for c in lines if c.kind == "TCS" and c.period == "2025-04")
+    assert tcs.value == 100000 and tcs.action == "ACCEPTED" and tcs.tax == 500
+
+    c = _client(db, sample_files)
+    svc = TdsTcsService(db)
+    pv = svc.import_file(c.id, sample_files["tds_tcs"])
+    assert len(pv.new) == 6
+    st = svc.statement(c.id, "2025-26")
+    ven = next(p for p in st.parties if p.name == "Venkatesh Traders")
+    assert ven.sales_taxable == ven.value == 120000 and ven.accepted == 1200 and ven.pending == 1200
+    texts = [(f.severity, f.party, f.text) for f in st.findings]
+    assert texts[0][0] == "high" and texts[0][1] == PMC[0] and "no sales" in texts[0][2]
+    assert any("expected 0.5%" in t and p == ECO[0] for _s, p, t in texts)  # May TCS at the old 1% rate
+    assert any("CGST/SGST" in t and "another state" in t for _s, _p, t in texts)
+    assert sum(1 for s_, _p, t in texts if "not yet accepted" in t) == 3
+    assert st.total("TDS", "ACCEPTED") == 1200 and st.total("TCS", "PENDING") == 800
+
+    # a later download: the same credits, the May TDS now accepted – no duplicates, the action is updated
+    with pytest.raises(Exception):
+        svc.import_file(c.id, sample_files["tds_tcs"])  # nothing new
+    from openpyxl import load_workbook
+
+    later = sample_files["tds_tcs"].with_name("tds_later.xlsx")
+    wb = load_workbook(sample_files["tds_tcs"])
+    wb["TDS Credit"]["H5"] = "Accepted"
+    wb.save(later)
+    pv = svc.import_file(c.id, later)
+    assert not pv.new and len(pv.changed) == 1 and pv.changed[0][1] == "PENDING"
+    assert svc.statement(c.id, "2025-26").total("TDS", "PENDING") == 6000
+
+    # removing the import removes its credits; the purge removes them all
+    from fintax_gst.db.models import SourceFile
+    from sqlalchemy import select
+
+    with db.session() as s:
+        first = s.scalar(select(SourceFile.id).where(SourceFile.source_type == "TDSTCS").order_by(SourceFile.id))
+    ImportService(db).remove_import(c.id, first)
+    assert not svc.statement(c.id, "2025-26").lines
+
+
+def test_tds_tcs_in_annual_workbook_and_cli(tmp_path, sample_files, capsys):
+    from openpyxl import load_workbook
+
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "import", "--client", "1", "--source", "sales", "--file",
+                 str(sample_files["sales_april"])]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "tds-tcs", "import", "--client", "1", "--fy", "2025-26", "--file",
+                 str(sample_files["tds_tcs"]), "--preview"]) == 0
+    assert "preview only" in capsys.readouterr().out
+    assert main(["--db", dbp, "tds-tcs", "import", "--client", "1", "--fy", "2025-26", "--file",
+                 str(sample_files["tds_tcs"])]) == 0
+    out = capsys.readouterr().out
+    assert "6 new credit(s)" in out and "[HIGH]" in out and "Pune Municipal Corporation" in out
+    assert main(["--db", dbp, "gstr9", "--client", "1", "--fy", "2025-26", "--out", str(tmp_path)]) == 0
+    wb = load_workbook(next(tmp_path.glob("FINTAXPRO_GSTR9_Working_*.xlsx")), read_only=True)
+    assert wb.sheetnames[-1] == "TDS-TCS Credits"

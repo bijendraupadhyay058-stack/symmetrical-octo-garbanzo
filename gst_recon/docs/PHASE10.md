@@ -1,4 +1,4 @@
-# Phase 10 – e-invoice and e-way bill reconciliation
+# Phase 10 – e-invoice and e-way bill reconciliation, TDS/TCS credits
 
 ## 1. Sales register vs e-invoices (IRP) and e-way bills
 
@@ -86,6 +86,74 @@ comparison are used.
 
 The GSTR-1 liability sheets are added only to sales vs GSTR-1 reports.
 
+## 2. TDS and TCS credits received (GSTR-7 / GSTR-8)
+
+When a customer deducts TDS, or an e-commerce operator collects TCS, the credit appears
+on the portal under *TDS and TCS credit received*:
+
+| | Who | Rate | On |
+|---|---|---|---|
+| TDS (section 51) | government departments and other notified deductors | 2% (1% CGST + 1% SGST, or 2% IGST) | taxable value paid under a contract above ₹2.5 lakh |
+| TCS (section 52) | e-commerce operators | 1% until 9 July 2024, **0.5% from 10 July 2024** | net value of supplies made through the operator |
+
+The client accepts or rejects each credit on the portal. An accepted credit goes to the
+electronic cash ledger.
+
+**Import.** Download the page as Excel or CSV; the TDS and TCS sheets are both read. Then
+use *GSTR-3B & annual → TDS / TCS credits → Import…*, or:
+
+```bash
+fintax-gst tds-tcs import --client 1 --fy 2025-26 --file tds_tcs_credit_2025-26.xlsx --preview
+fintax-gst tds-tcs import --client 1 --fy 2025-26 --file tds_tcs_credit_2025-26.xlsx
+fintax-gst tds-tcs --client 1 --fy 2025-26
+```
+
+* Each sheet is identified by its headings: *deductor* / *GSTR-7* for TDS; *e-commerce
+  operator* / *GSTR-8* for TCS.
+* For TCS, a missing net value is computed as gross value less supplies returned.
+* **Rows that are not imported** are listed with the reason: an invalid GSTIN, an
+  unreadable tax period, or a row that cannot be identified as TDS or TCS.
+* **Re-importing a later download** adds only new credits. A credit already imported
+  (same kind, period, party and amounts) only takes the newer action, for example
+  *pending → accepted*. The change is audited.
+* Removing the import removes its credits. Credits travel in sync packages and are
+  removed by a client purge.
+
+**Statement.** The statement covers the financial year and shows:
+
+* **by deductor / operator:** the value per GSTR-7/8, the tax, and how much is accepted,
+  pending and rejected. For TDS it also shows the sales register's taxable value to that
+  GSTIN in the year and the difference;
+* **by month:** the credit to the cash ledger;
+* **findings:**
+
+| Finding | Severity |
+|---|---|
+| TDS from a GSTIN with no sales in the sales register | high |
+| GSTR-7 value above the sales to the deductor (an earlier year's invoices, or a deductor error) | medium |
+| Tax not 2% (TDS) or not the TCS rate of the period (both rates accepted for July 2024) | medium |
+| TDS charged as IGST by a deductor in the same state, or as CGST/SGST by one in another state | medium |
+| Credit not yet accepted on the portal | medium |
+| Credit rejected – the deductor / operator corrects it in a later return | info |
+| Sales to the deductor not yet covered by GSTR-7 (payment due, contract up to ₹2.5 lakh, or not filed) | info |
+
+Nothing is changed on the portal by this software. Accepting or rejecting a credit is
+done there.
+
+When credits are imported for the year, the annual workbook (`gstr9 --out`) gets a
+*TDS-TCS Credits* sheet.
+
+**Limitations.**
+
+* TCS is not compared with the sales register, because the register does not show
+  which sales went through the operator. Compare it with the operator's settlement
+  statements.
+* The portal JSON layout of this page is not read; use the Excel or CSV download.
+
+Sample: `sample_data/tds_tcs_credit_2025-26.xlsx`.
+
+![TDS / TCS credits](screenshots/tds_tcs.png)
+
 ### Schema v9
 
 | Change | Purpose |
@@ -93,3 +161,9 @@ The GSTR-1 liability sheets are added only to sales vs GSTR-1 reports.
 | `invoices.irn` | e-invoice IRN |
 | `invoices.ref_no` | e-invoice acknowledgement number / e-way bill number |
 | `invoices.ref_status` | ACTIVE or CANCELLED |
+
+### Schema v10
+
+| Change | Purpose |
+|---|---|
+| `tds_tcs_credits` | TDS / TCS credits received: kind, period, deductor / operator, value, tax, action |

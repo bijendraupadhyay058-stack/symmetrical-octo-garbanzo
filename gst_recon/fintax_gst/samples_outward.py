@@ -281,13 +281,15 @@ def write_gstr1_next_year_json(path: Path) -> None:
 def write_outward(out: Path) -> dict[str, Path]:
     files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
              "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json",
-             "einv_april": out / "einvoice_report_2025-04.csv", "ewb_april": out / "ewaybill_report_2025-04.csv"}
+             "einv_april": out / "einvoice_report_2025-04.csv", "ewb_april": out / "ewaybill_report_2025-04.csv",
+             "tds_tcs": out / "tds_tcs_credit_2025-26.xlsx"}
     write_sales_register(files["sales_april"])
     write_gstr1_json(files["gstr1_april_json"])
     write_gstr1_may_json(files["gstr1_may_json"])
     write_gstr1_next_year_json(files["gstr1_next_json"])
     write_einvoice_report(files["einv_april"])
     write_ewb_report(files["ewb_april"])
+    write_tds_tcs_credits(files["tds_tcs"])
     return files
 
 
@@ -365,3 +367,33 @@ def write_ewb_report(path: Path) -> None:
             r = _report_row(s)
             w.writerow([f"3410{i:08d}", f"{r['dt']} 09:{i:02d}", direction, r["no"], r["dt"], doc, r["gstin"],
                         r["name"], r["taxable"], r["cgst"], r["sgst"], r["igst"], r["total"], status])
+
+
+# ------------------------------------------------------------ TDS / TCS credit received (Phase 10)
+PMC = (gstin("27", "AAALP1234Q"), "Pune Municipal Corporation")  # deductor with no sales in the register
+ECO = (gstin("27", "AACCF5555K"), "Fastkart India Pvt Ltd")  # e-commerce operator
+
+
+def write_tds_tcs_credits(path: Path) -> None:
+    """Portal download *TDS and TCS credit received* for FY 2025-26 (two sheets)."""
+    wb = Workbook()
+    tds = wb.active
+    tds.title = "TDS Credit"
+    tds.append(["TDS and TCS credit received – TDS", None, None, None])
+    tds.append([])
+    tds.append(["GSTIN of Deductor", "Deductor's Name", "Tax Period of GSTR-7", "Taxable Value", "Integrated Tax",
+                "Central Tax", "State/UT Tax", "Action Taken"])
+    ven, mpl = CUSTOMERS["VEN"], CUSTOMERS["MPL"]
+    tds.append([ven[0], ven[1], "Apr-25", 60000, 1200, 0, 0, "Accepted"])  # SGT/25-26/0004
+    tds.append([ven[0], ven[1], "May-25", 60000, 1200, 0, 0, None])  # SGT/25-26/0013, not yet accepted
+    tds.append([PMC[0], PMC[1], "Jun-25", 300000, 0, 3000, 3000, None])  # no sales to this GSTIN
+    tds.append([mpl[0], mpl[1], "Jul-25", 65000, 0, 650, 650, "Rejected"])  # other state, deducted as CGST/SGST
+    tcs = wb.create_sheet("TCS Credit")
+    tcs.append(["TDS and TCS credit received – TCS"])
+    tcs.append([])
+    tcs.append(["GSTIN of e-Commerce Operator", "Trade Name of e-Commerce Operator", "Tax Period of GSTR-8",
+                "Gross Value of Supplies", "Value of Supplies Returned", "Net Amount Liable for TCS",
+                "Integrated Tax", "Central Tax", "State/UT Tax", "Action Taken"])
+    tcs.append([ECO[0], ECO[1], "Apr-25", 120000, 20000, 100000, 0, 250, 250, "Accepted"])
+    tcs.append([ECO[0], ECO[1], "May-25", 80000, 0, 80000, 800, 0, 0, None])  # collected at the old 1% rate
+    wb.save(path)

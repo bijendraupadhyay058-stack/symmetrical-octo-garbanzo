@@ -148,6 +148,7 @@ gst_recon/
 | `gstr1_hsn` (v7) | GSTR-1 Table 12 HSN summary lines (GSTR-9 Table 17) |
 | `invoices.hsn_json` (v8) | HSN lines of imported documents (GSTR-9 Table 18) |
 | `invoices.irn`, `ref_no`, `ref_status` (v9) | e-invoice IRN / acknowledgement number, e-way bill number, ACTIVE or CANCELLED |
+| `tds_tcs_credits` (v10) | TDS (GSTR-7) / TCS (GSTR-8) credits received, with the action taken on the portal |
 
 **Database engines.** `Database` opens a SQLite file (default) or a server URL such as
 `postgresql+psycopg://user@host/db` (`--db`, `FINTAX_DB_URL`). Attachments, uploads and
