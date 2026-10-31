@@ -54,6 +54,10 @@ class ReturnsPage(LazyPage):
 
         self.rule42_tab = Rule42Tab(state)
         tabs.addTab(self.rule42_tab, "Rule 42/43")
+        from .rcm_tab import RcmTab
+
+        self.rcm_tab = RcmTab(state)
+        tabs.addTab(self.rcm_tab, "RCM && ISD")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")

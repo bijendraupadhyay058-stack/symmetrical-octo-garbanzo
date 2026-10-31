@@ -858,4 +858,49 @@ class StaffTask(Base):
 
 
 V22_TABLES = [FeeInvoice, FeeReceipt, StaffTask]
+
+
+class RcmEntry(Base):
+    """A reverse-charge purchase from an unregistered person (no GSTIN, so not in the purchase register that is
+    matched with GSTR-2B): rent, advocate, GTA, director … entered or imported. Schema v23."""
+
+    __tablename__ = "rcm_entries"
+    __table_args__ = (Index("ix_rcm_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    entry_date: Mapped[date] = mapped_column(Date)
+    supplier_name: Mapped[str] = mapped_column(String(200), default="")
+    bill_no: Mapped[str] = mapped_column(String(60), default="")
+    supplier_state: Mapped[str] = mapped_column(String(2), default="")
+    description: Mapped[str] = mapped_column(String(300), default="")
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    rate: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BankLine(Base):
+    """A line of the client's bank statement (to match GST payments with the electronic cash ledger). Schema v23."""
+
+    __tablename__ = "bank_lines"
+    __table_args__ = (Index("ix_bank_client_date", "client_id", "txn_date"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    txn_date: Mapped[date] = mapped_column(Date)
+    narration: Mapped[str] = mapped_column(String(400), default="")
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    debit: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    credit: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    balance: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V23_TABLES = [RcmEntry, BankLine]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

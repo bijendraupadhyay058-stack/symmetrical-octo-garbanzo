@@ -10,7 +10,7 @@ from ..core.models import Source
 from ..db.database import Database
 from ..db.models import (
     Gstr1Hsn, Gstr1Summary, TdsTcsCredit, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, ItcClaim, ItcReview,
-    MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, BooksGstr3b, LedgerEntry,
+    MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, BooksGstr3b, LedgerEntry, RcmEntry, BankLine,
 )
 from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
@@ -265,6 +265,8 @@ class ImportService:
             s.execute(delete(SupplierPayment).where(SupplierPayment.source_file_id == file_id))
             s.execute(delete(BooksGstr3b).where(BooksGstr3b.source_file_id == file_id))
             s.execute(delete(LedgerEntry).where(LedgerEntry.source_file_id == file_id))
+            s.execute(delete(RcmEntry).where(RcmEntry.source_file_id == file_id))
+            s.execute(delete(BankLine).where(BankLine.source_file_id == file_id))
             keys = set(s.execute(select(Gstr3bEntry.period, Gstr3bEntry.table_code)
                                  .where(Gstr3bEntry.source_file_id == file_id)).all())
             s.execute(delete(Gstr3bEntry).where(Gstr3bEntry.source_file_id == file_id))

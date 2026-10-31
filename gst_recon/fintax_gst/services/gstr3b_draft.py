@@ -123,6 +123,18 @@ class Gstr3bDraftService:
             t4["4C"] = net
             notes.append("ITC on reverse-charge purchases (4(A)(3)) is taken as the tax paid under 3.1(d) – check "
                          "that it is eligible.")
+        # reverse-charge purchases from unregistered persons (RCM register): tax payable and, once paid, ITC
+        from .rcm import RcmService
+
+        unreg = Gstr3bValues()
+        for e in RcmService(self.db).entries(client_id, p):
+            unreg = _add(unreg, Gstr3bValues(e.igst, e.cgst, e.sgst, e.cess, e.taxable))
+        if unreg.total:
+            t31["31D"] = _add(t31["31D"], unreg)
+            t4["4A3"] = _add(t4["4A3"], Gstr3bValues(unreg.igst, unreg.cgst, unreg.sgst, unreg.cess))
+            t4["4C"] = _add(t4["4C"], Gstr3bValues(unreg.igst, unreg.cgst, unreg.sgst, unreg.cess))
+            notes.append(f"Reverse charge on purchases from unregistered persons (RCM register): Rs. {unreg.total} "
+                         "added to 3.1(d) and, as ITC, to 4(A)(3) – check that the credit is eligible.")
         # Rule 42 / 43 reversal of common credit, once the month's working is saved (or capital goods exist)
         from .common_credit import CommonCreditService
 
