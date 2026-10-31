@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from ...core.models import ReconSettings
+from ...services.common import ServiceError
 from ..state import AppState
 from ..widgets import OBJECT_ROLE, LazyPage, RowsModel, Table, page_header, primary, section, sortable
 from ..workers import run_task
@@ -40,9 +41,14 @@ class HistoryPage(LazyPage):
         open_btn.clicked.connect(self.open_selected)
         rerun_btn = QPushButton("Re-run same period")
         rerun_btn.clicked.connect(self.rerun_selected)
+        self.delete_btn = QPushButton("Delete reconciliation…")
+        self.delete_btn.setObjectName("Danger")
+        self.delete_btn.setToolTip("Delete the selected run and its review work. Imported files are kept.")
+        self.delete_btn.clicked.connect(self.delete_selected)
         row.addWidget(open_btn)
         row.addWidget(rerun_btn)
         row.addStretch()
+        row.addWidget(self.delete_btn)
         lay.addLayout(row)
         lay.addWidget(section("Manual match decisions (applied to every later run)"))
         self.dec_model = RowsModel(["Decision", "Books document", "GSTR-2B document", "Remarks", "By", "On", "Run"],
@@ -56,6 +62,7 @@ class HistoryPage(LazyPage):
 
     def reload(self) -> None:
         st = self.state
+        self.delete_btn.setEnabled(st.client is not None and st.can("delete_data"))
         if st.client is None:
             self.model.set_rows([])
             self.dec_model.set_rows([])
@@ -86,6 +93,29 @@ class HistoryPage(LazyPage):
         if run is not None:
             self.state.set_run(run.id)
             self.navigate.emit("exceptions")
+
+    def delete_selected(self) -> bool:
+        run = self._selected()
+        if run is None:
+            QMessageBox.information(self, "Delete reconciliation", "Select a reconciliation in the list first.")
+            return False
+        if QMessageBox.question(
+                self, "Delete reconciliation",
+                f"Delete reconciliation #{run.id} ({run.period_from}..{run.period_to}, "
+                f"{run.comparison.replace('_', ' ')})?\n\nThe statuses, remarks and matches entered on this run are "
+                "deleted with it. The imported files, manual match decisions and ITC records are kept, so you can "
+                "remove a wrong file on the Imports page and reconcile again.\n\nThe deletion is recorded in the "
+                "audit log. It cannot be undone.") != QMessageBox.Yes:
+            return False
+        try:
+            self.state.recon.delete_run(run.client_id, run.id, self.state.user)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Delete reconciliation", str(exc))
+            return False
+        if self.state.run_id == run.id:
+            self.state.set_run(None)
+        self.state.notify()
+        return True
 
     def rerun_selected(self) -> None:
         run = self._selected()

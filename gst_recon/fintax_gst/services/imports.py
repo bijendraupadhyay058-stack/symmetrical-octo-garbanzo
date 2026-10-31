@@ -8,7 +8,10 @@ from sqlalchemy import delete, func, insert, select
 
 from ..core.models import Source
 from ..db.database import Database
-from ..db.models import Gstr1Hsn, Gstr1Summary, TdsTcsCredit, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, OtherItc, ReconLineRow, SourceFile
+from ..db.models import (
+    Gstr1Hsn, Gstr1Summary, TdsTcsCredit, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, ItcClaim, ItcReview,
+    MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile,
+)
 from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
 from ..importers.pipeline import ImportPreview, preview_file
@@ -194,18 +197,60 @@ class ImportService:
             return list(s.scalars(select(ImportIssue).where(ImportIssue.source_file_id.in_(file_ids))
                                   .order_by(ImportIssue.source_file_id, ImportIssue.id)))
 
-    def remove_import(self, client_id: int, file_id: int, user: str | None = None) -> int:
-        """Remove an import that has not been used in any reconciliation run (audited)."""
+    @staticmethod
+    def _usage(s, file_id: int) -> dict:
+        ids = select(Invoice.id).where(Invoice.source_file_id == file_id)
+        run_ids = select(ReconLineRow.run_id).where(
+            (ReconLineRow.books_invoice_id.in_(ids)) | (ReconLineRow.gstr2b_invoice_id.in_(ids))).distinct()
+        return {
+            "runs": list(s.scalars(select(ReconRun).where(ReconRun.id.in_(run_ids)).order_by(ReconRun.id))),
+            "decisions": s.scalar(select(func.count()).select_from(MatchDecision).where(
+                (MatchDecision.books_invoice_id.in_(ids)) | (MatchDecision.gstr2b_invoice_id.in_(ids)))) or 0,
+            "reviews": s.scalar(select(func.count()).select_from(ItcReview).where(ItcReview.invoice_id.in_(ids))) or 0,
+            "claims": s.scalar(select(func.count()).select_from(ItcClaim).where(ItcClaim.invoice_id.in_(ids))) or 0,
+        }
+
+    def usage(self, client_id: int, file_id: int) -> dict:
+        """What depends on an import: reconciliation runs, manual match decisions, ITC reviews and claims."""
         with self.db.session() as s:
             sf = s.get(SourceFile, file_id)
             if sf is None or sf.client_id != client_id:
                 raise ServiceError(f"Import #{file_id} not found for this client")
+            u = self._usage(s, file_id)
+            s.expunge_all()
+            return u
+
+    def remove_import(self, client_id: int, file_id: int, user: str | None = None, *,
+                      with_dependants: bool = False) -> int:
+        """Remove an import and its documents (audited). If reconciliations, match decisions or ITC records use
+        its documents, they are removed too only with ``with_dependants``; otherwise the import is refused."""
+        from .reconciliation import delete_runs
+
+        with self.db.session() as s:
+            sf = s.get(SourceFile, file_id)
+            if sf is None or sf.client_id != client_id:
+                raise ServiceError(f"Import #{file_id} not found for this client")
+            u = self._usage(s, file_id)
+            if (u["runs"] or u["decisions"] or u["reviews"] or u["claims"]) and not with_dependants:
+                used = [f"{len(u['runs'])} reconciliation(s) (#{', #'.join(str(r.id) for r in u['runs'])})"
+                        if u["runs"] else "", f"{u['decisions']} manual match decision(s)" if u["decisions"] else "",
+                        f"{u['reviews']} ITC review decision(s)" if u["reviews"] else "",
+                        f"{u['claims']} ITC claim register entr(ies)" if u["claims"] else ""]
+                raise ServiceError(f"Import #{file_id} is used by " + ", ".join(x for x in used if x) +
+                                   ". Delete those reconciliations first (History page), or remove the import "
+                                   "together with everything that uses it.")
             ids = select(Invoice.id).where(Invoice.source_file_id == file_id)
-            used = s.scalar(select(func.count()).select_from(ReconLineRow).where(
-                (ReconLineRow.books_invoice_id.in_(ids)) | (ReconLineRow.gstr2b_invoice_id.in_(ids))))
-            if used:
-                raise ServiceError(f"Import #{file_id} is referenced by {used} reconciliation line(s) and is kept "
-                                   "for audit traceability")
+            if u["runs"]:
+                delete_runs(s, u["runs"], user)
+            removed = {}
+            for model, cond in ((MatchDecision, (MatchDecision.books_invoice_id.in_(ids)) |
+                                 (MatchDecision.gstr2b_invoice_id.in_(ids))),
+                                (ItcReview, ItcReview.invoice_id.in_(ids)), (ItcClaim, ItcClaim.invoice_id.in_(ids))):
+                rows = list(s.scalars(select(model).where(cond)))
+                if rows:  # the audit log keeps each removed record in full
+                    removed[model.__tablename__] = [
+                        {a.key: str(getattr(r, a.key)) for a in model.__mapper__.column_attrs} for r in rows]
+                    s.execute(delete(model).where(model.id.in_([r.id for r in rows])))
             count = s.scalar(select(func.count()).select_from(Invoice).where(Invoice.source_file_id == file_id))
             s.execute(delete(ImportIssue).where(ImportIssue.source_file_id == file_id))
             s.execute(delete(OtherItc).where(OtherItc.source_file_id == file_id))
@@ -222,6 +267,8 @@ class ImportService:
                 if latest is not None:
                     latest.active = True
             s.execute(delete(Invoice).where(Invoice.source_file_id == file_id))
-            audit(s, "DELETE", "source_file", file_id, {"file": sf.file_name, "documents": count}, user, client_id)
+            audit(s, "DELETE", "source_file", file_id, {"file": sf.file_name, "documents": count,
+                                                        "runs_deleted": [r.id for r in u["runs"]], **removed},
+                  user, client_id)
             s.delete(sf)
         return count

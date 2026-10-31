@@ -174,7 +174,7 @@ def cmd_imports(db: Database, args) -> None:
     client = ClientService(db).resolve(args.client)
     svc = ImportService(db)
     if args.remove:
-        n = svc.remove_import(client.id, args.remove, args.user)
+        n = svc.remove_import(client.id, args.remove, args.user, with_dependants=args.with_dependants)
         print(f"Import #{args.remove} removed ({n} documents).")
         return
     for f in svc.list_files(client.id):
@@ -218,6 +218,10 @@ def cmd_reconcile(db: Database, args) -> None:
 
 def cmd_runs(db: Database, args) -> None:
     client = ClientService(db).resolve(args.client)
+    if args.delete:
+        n = ReconciliationService(db).delete_run(client.id, args.delete, args.user)
+        print(f"Reconciliation #{args.delete} deleted ({n} lines). Imported files are kept.")
+        return
     for r in ReconciliationService(db).list_runs(client.id):
         d = json.loads(r.summary_json)
         print(f"#{r.id:<4} {r.period_from}..{r.period_to} {r.comparison:<16} lines {d.get('total_lines', 0):<6} "
@@ -443,7 +447,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     il = sub.add_parser("imports", help="list (or remove unused) imports of a client")
     il.add_argument("--client", required=True)
-    il.add_argument("--remove", type=int, help="import id to remove (only if not used in a reconciliation)")
+    il.add_argument("--remove", type=int, help="import id to remove (refused if a reconciliation uses it)")
+    il.add_argument("--with-dependants", action="store_true",
+                    help="with --remove: also delete the reconciliations, match decisions and ITC records using it")
     il.set_defaults(func=cmd_imports)
 
     r = sub.add_parser("reconcile", help="run a reconciliation")
@@ -464,6 +470,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     rl = sub.add_parser("runs", help="list reconciliation runs")
     rl.add_argument("--client", required=True)
+    rl.add_argument("--delete", type=int, help="delete this reconciliation run (imported files are kept)")
     rl.set_defaults(func=cmd_runs)
 
     sh = sub.add_parser("show", help="list lines of a run")

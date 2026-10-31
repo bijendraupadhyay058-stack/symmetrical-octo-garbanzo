@@ -100,7 +100,7 @@ class ImportsPage(LazyPage):
         imp = primary("Import file…")
         imp.setEnabled(state.can("import"))
         imp.clicked.connect(self.import_file)
-        self.remove_btn = QPushButton("Remove unused import")
+        self.remove_btn = QPushButton("Remove import…")
         self.remove_btn.setObjectName("Danger")
         self.remove_btn.clicked.connect(self.remove)
         self.remove_btn.setEnabled(state.can("delete_data"))
@@ -175,15 +175,34 @@ class ImportsPage(LazyPage):
         f = self._selected()
         if f is None or self.state.client is None:
             return
-        if QMessageBox.question(self, "Remove import", f"Remove import #{f.id} ({f.file_name}) and its documents? "
-                                "This is recorded in the audit log.") != QMessageBox.Yes:
-            return
         try:
-            n = self.state.imports.remove_import(self.state.client.id, f.id, self.state.user)
+            u = self.state.imports.usage(self.state.client.id, f.id)
         except ServiceError as exc:
             QMessageBox.warning(self, "Remove import", str(exc))
             return
-        QMessageBox.information(self, "Remove import", f"Removed {n} document(s).")
+        also = [f"• reconciliation #{r.id} ({r.period_from}..{r.period_to}, {r.comparison.replace('_', ' ')}) with "
+                "its statuses and remarks" for r in u["runs"]]
+        for key, label in (("decisions", "manual match decision(s)"), ("reviews", "ITC review decision(s)"),
+                           ("claims", "ITC claim register entr(ies)")):
+            if u[key]:
+                also.append(f"• {u[key]} {label} for documents of this file")
+        text = f"Remove import #{f.id} ({f.file_name}) and its documents?"
+        if also:
+            text += ("\n\nThis file is used by the following, which will be deleted too:\n" + "\n".join(also) +
+                     "\n\nAfterwards, import the correct file and click Start Reconciliation again.")
+        text += "\n\nThis is recorded in the audit log and cannot be undone."
+        if QMessageBox.question(self, "Remove import", text) != QMessageBox.Yes:
+            return
+        try:
+            n = self.state.imports.remove_import(self.state.client.id, f.id, self.state.user,
+                                                 with_dependants=bool(also))
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Remove import", str(exc))
+            return
+        if u["runs"] and self.state.run_id in {r.id for r in u["runs"]}:
+            self.state.set_run(None)
+        QMessageBox.information(self, "Remove import", f"Removed {n} document(s)" +
+                                (f" and {len(u['runs'])} reconciliation(s)." if u["runs"] else "."))
         self.state.notify()
 
 

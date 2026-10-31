@@ -215,3 +215,52 @@ def test_backup_and_restore(db, sample_files, tmp_path):
     assert ImportService(db).list_files(c.id)
     db.restore(backup)
     assert ImportService(db).list_files(c.id) == []
+
+
+def test_delete_reconciliation_run(db, sample_files):
+    c = _load_demo(db, sample_files)
+    recon = ReconciliationService(db)
+    first = recon.run(c.id, "2025-04")
+    second = recon.run(c.id, "2025-04")
+    lines = len(recon.load(second).result.lines)
+    other = ClientService(db).create(gstin=gstin("29", "AACCB5678L"), name="Other client")
+    with pytest.raises(ServiceError, match="not found"):
+        recon.delete_run(other.id, second)
+    assert recon.delete_run(c.id, second, "tester") == lines
+    assert [r.id for r in recon.list_runs(c.id)] == [first]  # the earlier run stays
+    assert len(ImportService(db).list_files(c.id)) >= 2  # imported files are kept
+    with db.session() as s:
+        a = s.scalars(select(AuditLog).where(AuditLog.entity == "recon_run", AuditLog.action == "DELETE")).one()
+        assert a.entity_id == str(second) and json.loads(a.details_json)["lines"] == lines
+    assert recon.run(c.id, "2025-04")  # and the period can be reconciled again
+
+
+def test_remove_import_with_its_reconciliations(db, sample_files):
+    from fintax_gst.db.models import ItcClaim, MatchDecision, ReconRun
+    from fintax_gst.services.itc import ItcService
+
+    c = _load_demo(db, sample_files)
+    svc, recon = ImportService(db), ReconciliationService(db)
+    books = [f for f in svc.list_files(c.id) if f.file_name == "tally_purchase_register_2025-04.xlsx"][0]
+    run = recon.run(c.id, "2025-04")
+    lines = recon.load(run).result.lines
+    with db.session() as s:
+        april = set(s.scalars(select(Invoice.id).where(Invoice.source_file_id == books.id)))
+    pair = next(ln for ln in lines if ln.books and ln.gstr2b and ln.category != Category.FULLY_MATCHED
+                and ln.books.db_id in april)
+    recon.confirm_match(run, pair.line_no, "tester")
+    ItcService(db).claim(c.id, [pair.books.db_id], "2025-04", "tester")
+    u = svc.usage(c.id, books.id)
+    assert [r.id for r in u["runs"]] == [run] and u["decisions"] == 1 and u["claims"] == 1
+    with pytest.raises(ServiceError, match="History page"):
+        svc.remove_import(c.id, books.id)
+    n = svc.remove_import(c.id, books.id, "tester", with_dependants=True)
+    assert n > 0
+    with db.session() as s:
+        assert s.scalar(select(ReconRun).where(ReconRun.id == run)) is None
+        assert not s.scalars(select(MatchDecision)).all() and not s.scalars(select(ItcClaim)).all()
+        a = s.scalars(select(AuditLog).where(AuditLog.entity == "source_file", AuditLog.action == "DELETE")).one()
+        details = json.loads(a.details_json)
+        assert details["runs_deleted"] == [run] and len(details["itc_claims"]) == 1  # nothing lost silently
+    svc.import_file(c.id, sample_files["books_april"], Source.BOOKS, user="tester")
+    assert recon.run(c.id, "2025-04")

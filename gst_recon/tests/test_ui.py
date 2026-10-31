@@ -191,11 +191,32 @@ def test_full_workflow_through_the_ui(window, sample_files, monkeypatch, tmp_pat
     rerun = st.recon.load(st.run_id).result.lines
     assert any(ln.category == Category.MANUALLY_MATCHED and ln.books.invoice_no == "DOS-1189" for ln in rerun)
 
+    # Delete the re-run from History: the earlier run remains, the current run is cleared.
+    assert hist.delete_btn.isEnabled()
+    hist.reload()
+    hist.table.selectRow(0)
+    deleted = st.run_id
+    assert hist.delete_selected()
+    assert st.run_id is None and deleted not in [r.id for r in st.recon.list_runs(st.client.id)]
+    assert old_run in [r.id for r in st.recon.list_runs(st.client.id)]
+    st.set_run(old_run)
+
     # Open items lists each unresolved document once.
     window.go("open_items")
     oi = window.pages["open_items"]
     ids = [oi.model.rows[i][4] for i in range(oi.model.rowCount())]
     assert "MSL/260/25-26" in ids and "DOS-1189" not in ids
+
+    # Imports: removing a file used by a reconciliation also deletes that reconciliation, after confirmation.
+    window.go("imports")
+    ip = window.pages["imports"]
+    ip.reload()
+    row = next(i for i in range(ip.model.rowCount()) if ip.model.rows[i][2] == "GSTR2B")
+    ip.table.selectRow(row)
+    ip.remove()
+    assert "reconciliation(s)" in messages[-1]
+    assert st.run_id is None and not st.recon.list_runs(st.client.id)
+    assert "GSTR2B" not in [f.source_type for f in st.imports.list_files(st.client.id)]
 
 
 def test_mapping_dialog_drag_and_select(qtbot, window):

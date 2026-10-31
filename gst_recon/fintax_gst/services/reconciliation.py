@@ -8,7 +8,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import and_, func, insert, select
+from sqlalchemy import and_, delete, func, insert, select
 
 from ..core.models import (
     CLOSED_STATUSES, LEFT_SOURCES, PAIRED_CATEGORIES, PARTNER, REFERENCE_SOURCES, Category, DocType,
@@ -372,6 +372,15 @@ class ReconciliationService:
             return list(s.scalars(select(ReconRun).where(ReconRun.client_id == client_id)
                                   .order_by(ReconRun.id.desc())))
 
+    def delete_run(self, client_id: int, run_id: int, user: str | None = None) -> int:
+        """Delete one reconciliation run and its lines (audited). Imported files, manual match decisions and
+        ITC records are kept; the previous run of the period becomes the latest again. Returns the line count."""
+        with self.db.session() as s:
+            run = s.get(ReconRun, run_id)
+            if run is None or run.client_id != client_id:
+                raise ServiceError(f"Reconciliation #{run_id} not found for this client")
+            return delete_runs(s, [run], user)
+
     # ---------------------------------------------------- exception updates
     def update_line(self, run_id: int, line_no: int, user: str | None = None, *, status: str | None = None,
                     remarks: str | None = None, assigned_to: str | None = None,
@@ -624,6 +633,22 @@ class ReconciliationService:
                              .order_by(AuditLog.id))
             return [{"at": r.at, "user": r.user, "action": r.action, "details": json.loads(r.details_json)}
                     for r in rows]
+
+
+def delete_runs(s, runs: list[ReconRun], user: str | None) -> int:
+    """Delete runs with their lines; the audit log keeps what each run was and its summary."""
+    total = 0
+    for run in runs:
+        n = s.scalar(select(func.count()).select_from(ReconLineRow).where(ReconLineRow.run_id == run.id)) or 0
+        s.execute(delete(ReconLineRow).where(ReconLineRow.run_id == run.id))
+        audit(s, "DELETE", "recon_run", run.id,
+              {"period": f"{run.period_from}..{run.period_to}", "comparison": run.comparison, "lines": n,
+               "run_by": run.created_by, "run_at": f"{run.started_at:%Y-%m-%d %H:%M}",
+               "summary": json.loads(run.summary_json or "{}")}, user, run.client_id)
+        s.delete(run)
+        total += n
+    s.flush()
+    return total
 
 
 def default_report_name(client: Client, run: ReconRun, ext: str) -> str:
