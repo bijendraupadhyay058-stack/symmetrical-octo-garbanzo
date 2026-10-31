@@ -219,3 +219,68 @@ def test_cli_client_report(tmp_path, capsys):
     assert main(["--db", dbp, "client-report", "--period", "2025-04", "--client", CLIENT["gstin"], "--out",
                  str(tmp_path / "r")]) == 0
     assert "GST_summary.pdf" in capsys.readouterr().out and len(list((tmp_path / "r").iterdir())) == 1
+
+
+# ------------------------------------------------------------------ backup copy to a cloud folder (13D)
+def test_backup_copy_to_cloud_folder(db, tmp_path, sample_files):
+    import sqlite3
+
+    from sqlalchemy import select
+
+    from fintax_gst.db.models import AuditLog
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.services.auth import SETUP_SESSION, PermissionDenied, Session
+    from fintax_gst.services.clients import ClientService
+    from fintax_gst.services.security import SecurityService
+
+    ClientService(db).create(**CLIENT)
+    sec = SecurityService(db)
+    cloud = tmp_path / "OneDrive"
+    assert sec.cloud_copy() is None
+    with pytest.raises(ServiceError, match="not turned on"):
+        sec.copy_to_cloud()
+    with pytest.raises(ServiceError, match="8 characters"):
+        sec.configure_cloud_copy(tmp_path, "short", SETUP_SESSION)
+    with pytest.raises(ServiceError, match="not a folder"):
+        sec.configure_cloud_copy(cloud, "long enough pw", SETUP_SESSION)
+    with pytest.raises(PermissionDenied):
+        sec.configure_cloud_copy(tmp_path, "long enough pw", Session("v", "viewer", "v"))
+    cloud.mkdir()
+    sec.configure_cloud_copy(cloud, "long enough pw", SETUP_SESSION)
+
+    made = sec.auto_backup(force=True)  # every automatic backup is also copied, encrypted
+    copies = sorted(cloud.glob("FinTaxPro-backup-*.ftpbk"))
+    assert made and len(copies) == 1 and not list(cloud.glob("*.part"))
+    raw = copies[0].read_bytes()
+    assert raw.startswith(b"FTPBK1") and b"SQLite format" not in raw and CLIENT["name"].encode() not in raw
+    with pytest.raises(ServiceError, match="Wrong password"):
+        sec.decrypt_backup(copies[0], "wrong password", tmp_path / "x.db")
+    plain = sec.decrypt_backup(copies[0], "long enough pw", tmp_path / "restored.db")
+    con = sqlite3.connect(plain)
+    assert con.execute("select name from clients").fetchone()[0] == CLIENT["name"]
+    con.close()
+    status = sec.cloud_copy()["status"]
+    assert status["ok"] and status["file"] == copies[0].name
+    # the key is never written to the audit log
+    with db.session() as s:
+        details = " ".join(a.details_json for a in s.scalars(select(AuditLog)))
+    assert '"key"' not in details and str(cloud) in details
+
+    # only the newest copies of this computer are kept
+    sec.set_setting("backup_keep", 2, SETUP_SESSION)
+    import time
+
+    for _ in range(3):
+        time.sleep(1.1)  # copies are named by the second
+        sec.copy_to_cloud()
+    assert len(list(cloud.glob("FinTaxPro-backup-*.ftpbk"))) == 2
+
+    # folder gone (e.g. OneDrive signed out): start-up still works, the problem is shown
+    import shutil
+
+    shutil.rmtree(cloud)
+    assert sec.auto_backup(force=True) is not None
+    status = sec.cloud_copy()["status"]
+    assert status["ok"] is False and "not available" in status["message"]
+    sec.disable_cloud_copy(SETUP_SESSION)
+    assert sec.cloud_copy() is None

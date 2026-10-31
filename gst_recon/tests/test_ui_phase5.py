@@ -215,3 +215,17 @@ def test_firm_page_client_reports(qtbot, db, tmp_path, messages, monkeypatch):  
     page.table.selectRow(0)
     one = page.client_reports(str(tmp_path / "one"))
     assert len(one) == 1 and len(opened) == 1
+
+
+def test_security_cloud_copy(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.go("security")
+    sec = win.pages["security"]
+    sec.reload()
+    assert sec.cloud_lbl.text() == "Off." and not sec.cloud_now_btn.isEnabled()
+    folder = tmp_path / "GoogleDrive"
+    folder.mkdir()
+    assert sec.cloud_on(str(folder), "my backup pw 1")
+    assert "First copy saved" in messages[-1] and len(list(folder.glob("*.ftpbk"))) == 1
+    assert "On" in sec.cloud_lbl.text() and "OK" in sec.cloud_lbl.text() and sec.cloud_now_btn.isEnabled()
+    assert sec.cloud_off() and sec.cloud_lbl.text() == "Off."

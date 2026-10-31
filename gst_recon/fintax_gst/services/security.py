@@ -4,6 +4,11 @@ Encrypted backup format: ``FTPBK1`` + 16-byte salt + Fernet token (AES-128-CBC w
 HMAC-SHA256), the key derived from the password with scrypt. The SQLite database
 itself is not encrypted; protect the computer with full-disk encryption (e.g.
 BitLocker) and use encrypted backups for anything that leaves it.
+
+Copy to a cloud folder (OneDrive, Google Drive, Dropbox …): after each automatic backup an encrypted
+copy in the same format is written to a folder the user chooses. Only the scrypt-derived key and its salt
+are kept on this computer (setting ``backup_copy``, never in the audit log or a sync package), so copies
+are made without asking for the password, and restoring a copy needs the password.
 """
 from __future__ import annotations
 
@@ -11,7 +16,10 @@ import base64
 import csv
 import hashlib
 import json
+import logging
 import os
+import re
+import socket
 import sqlite3
 import tempfile
 from collections import Counter
@@ -33,6 +41,8 @@ from .auth import Session, require
 from .common import ServiceError, audit
 
 MAGIC = b"FTPBK1"
+CLOUD_SETTING, CLOUD_STATUS = "backup_copy", "backup_copy_status"
+log = logging.getLogger(__name__)
 DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
             "web_uploads": False, "ewb_threshold": 50000,
             "tally_url": "http://localhost:9000"}
@@ -133,8 +143,88 @@ class SecurityService:
         made = None
         if force or not autos or datetime.now() - datetime.fromtimestamp(autos[-1].stat().st_mtime) >= interval:
             made = self.db.backup(suffix="auto")
+            if self.setting(CLOUD_SETTING):
+                try:
+                    self.copy_to_cloud(made)
+                except ServiceError as exc:  # never block start-up; the status is shown on the Backups tab
+                    log.warning("backup copy to the cloud folder failed: %s", exc)
         self.apply_retention()
         return made
+
+    # ------------------------------------------------- copy to a cloud folder
+    def _put(self, key: str, value) -> None:
+        """Store an internal setting without an audit entry (used for the copy key and its status)."""
+        with self.db.session() as s:
+            row = s.get(AppSetting, key)
+            if row is None:
+                row = AppSetting(key=key, value_json="null")
+                s.add(row)
+            row.value_json = json.dumps(value)
+
+    def cloud_copy(self) -> dict | None:
+        """The configured copy folder and the last copy's status (the key is not returned)."""
+        cfg = self.setting(CLOUD_SETTING)
+        if not cfg:
+            return None
+        return {"dir": cfg["dir"], "status": self.setting(CLOUD_STATUS) or {}}
+
+    def configure_cloud_copy(self, folder: str | Path, password: str, by: Session | None) -> None:
+        require(by, "settings")
+        folder = Path(folder)
+        if len(password) < 8:
+            raise ServiceError("Backup password must have at least 8 characters")
+        if not folder.is_dir():
+            raise ServiceError(f"{folder} is not a folder – choose your OneDrive / Google Drive folder")
+        probe = folder / ".fintaxpro-write-test"
+        try:
+            probe.write_bytes(b"ok")
+            probe.unlink()
+        except OSError as exc:
+            raise ServiceError(f"Cannot write to {folder}: {exc}") from None
+        salt = os.urandom(16)
+        self._put(CLOUD_SETTING, {"dir": str(folder), "salt": base64.b64encode(salt).decode(),
+                                  "key": _key(password, salt).decode()})
+        self._put(CLOUD_STATUS, {})
+        with self.db.session() as s:
+            audit(s, "SETTING", "app_settings", CLOUD_SETTING, {"after": {"dir": str(folder)}}, by.username)
+
+    def disable_cloud_copy(self, by: Session | None) -> None:
+        require(by, "settings")
+        with self.db.session() as s:
+            for key in (CLOUD_SETTING, CLOUD_STATUS):
+                row = s.get(AppSetting, key)
+                if row is not None:
+                    s.delete(row)
+            audit(s, "SETTING", "app_settings", CLOUD_SETTING, {"after": None}, by.username)
+
+    def copy_to_cloud(self, plain_backup: Path | None = None) -> Path:
+        """Encrypt a backup (a fresh one if none is given) into the copy folder and keep the newest copies."""
+        cfg = self.setting(CLOUD_SETTING)
+        if not cfg:
+            raise ServiceError("Copying backups to a cloud folder is not turned on")
+        try:
+            folder = Path(cfg["dir"])
+            if not folder.is_dir():
+                raise ServiceError(f"The backup copy folder {folder} is not available (is OneDrive / Google Drive "
+                                   "running and signed in?)")
+            with tempfile.TemporaryDirectory() as tmp:
+                plain = plain_backup or self.db.backup(Path(tmp) / "plain.db")
+                data = Path(plain).read_bytes()
+            salt = base64.b64decode(cfg["salt"])
+            host = re.sub(r"[^A-Za-z0-9-]+", "-", socket.gethostname())[:30] or "PC"
+            target = folder / f"FinTaxPro-backup-{host}-{datetime.now():%Y%m%d-%H%M%S}.ftpbk"
+            part = target.with_name(target.name + ".part")  # sync clients never pick up a half-written file
+            part.write_bytes(MAGIC + salt + Fernet(cfg["key"].encode()).encrypt(data))
+            part.replace(target)
+            keep = max(int(self.setting("backup_keep")), 1)
+            mine = sorted(folder.glob(f"FinTaxPro-backup-{host}-*.ftpbk"), key=lambda p: p.name, reverse=True)
+            for old in mine[keep:]:
+                old.unlink(missing_ok=True)
+        except (OSError, ServiceError) as exc:
+            self._put(CLOUD_STATUS, {"at": f"{datetime.now():%Y-%m-%d %H:%M}", "ok": False, "message": str(exc)})
+            raise ServiceError(str(exc)) from None
+        self._put(CLOUD_STATUS, {"at": f"{datetime.now():%Y-%m-%d %H:%M}", "ok": True, "file": target.name})
+        return target
 
     def apply_retention(self) -> list[Path]:
         """Keep at most ``backup_keep`` automatic backups and none older than ``backup_retention_days``

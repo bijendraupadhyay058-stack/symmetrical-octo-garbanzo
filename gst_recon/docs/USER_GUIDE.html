@@ -43,6 +43,7 @@
   <a href="#sales">7. Sales and GSTR-1</a> ·
   <a href="#batch">7a. Many clients at once</a> ·
   <a href="#firm">7b. Firm work dashboard</a> ·
+  <a href="#reminders">7c. Client reminders and reports</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -50,7 +51,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.0.5.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.1.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -184,6 +185,20 @@
   <li><span class="btn">Export to Excel…</span> saves the whole dashboard, e.g. for the weekly office meeting.</li>
 </ul>
 
+<h2 id="reminders">7c. Client reminders and the one-page client report</h2>
+<ul>
+  <li><b>Reminders</b> lists, for the month, each client who still has to send the purchase (or sales) register,
+      or explain / correct invoices you marked <i>Client Clarification Required</i> or <i>Correction Required in
+      Books</i>. Select a client to see a ready message; edit it if you like, then
+      <span class="btn">Copy message</span>, <span class="btn">Open in e-mail</span> or
+      <span class="btn">Open WhatsApp</span>. The program never sends anything itself – you press Send in your own
+      e-mail or WhatsApp. Each reminder is counted, so you can see who has been reminded and when.</li>
+  <li><b>Firm work</b> → <span class="btn">Client report (PDF)…</span> makes a one-page GST summary of the month for the
+      selected client (or, with no client selected, for every client in the list): ITC as per books, GSTR-2B and
+      GSTR-3B, ITC at risk, output tax, suppliers to follow up, returns filed or due, and what is still needed.
+      The “Signed” name from the Reminders page is shown as “Prepared by”.</li>
+</ul>
+
 <h2 id="more">8. Other features</h2>
 <table>
   <tr><th>Page</th><th>What it does</th></tr>
@@ -204,10 +219,21 @@
 <h2 id="backup">9. Backups – please set this up</h2>
 <ol>
   <li>On <b>Security</b> → <b>Backups</b>, automatic backups are on by default (every 24 hours, kept on this PC).</li>
+  <li><b>Copy to OneDrive / Google Drive</b> (same tab): <span class="btn">Choose folder and turn on…</span>, pick your
+      OneDrive or Google Drive folder and choose a backup password. After every automatic backup an encrypted copy is
+      saved there, so it is safe even if this computer fails. Write the password down – the copies cannot be opened
+      without it. To restore one: <span class="btn">Restore encrypted backup…</span>.</li>
   <li>At least once a month, click <span class="btn">Create encrypted backup…</span> and save the file to a pen drive
       or another PC. Choose a password and keep it safe: without it the backup cannot be opened.</li>
   <li>Your data is kept in <code>%LOCALAPPDATA%\FinTaxPro</code>. Uninstalling the program does not delete it.</li>
 </ol>
+
+<h2 id="updates">9a. Updates</h2>
+<p>Once a day the program checks the download page for a new version (it reads only the latest version number; no
+   client data is sent). When there is one, a blue bar appears at the top: click
+   <span class="btn">Download and install</span>. The installer is downloaded, checked against the fingerprint on the
+   download page, and started when you agree; your data is kept. You can also click
+   <span class="btn">Check for updates now</span> on <b>Settings</b>, or switch the daily check off there.</p>
 
 <h2 id="help">10. If something goes wrong</h2>
 <table>

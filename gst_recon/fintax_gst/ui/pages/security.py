@@ -117,6 +117,28 @@ class SecurityPage(LazyPage):
         self.backup_lbl.setWordWrap(True)
         f2.addWidget(self.backup_lbl)
         lay.addWidget(frame2)
+        frame3, f3 = card()
+        f3.addWidget(section("Copy to OneDrive / Google Drive"))
+        f3.addWidget(_wrapped("After each automatic backup, an encrypted copy is saved in a folder you choose – for "
+                              "example your OneDrive or Google Drive folder – so a copy is safe if this computer "
+                              "fails. The copies are locked with a backup password; without it they cannot be "
+                              "opened, also not by the cloud provider. To restore one, use 'Restore encrypted "
+                              "backup…' above."))
+        row3 = QHBoxLayout()
+        self.cloud_on_btn = primary("Choose folder and turn on…")
+        self.cloud_on_btn.clicked.connect(lambda: self.cloud_on())
+        self.cloud_now_btn = QPushButton("Copy now")
+        self.cloud_now_btn.clicked.connect(self.cloud_now)
+        self.cloud_off_btn = QPushButton("Turn off")
+        self.cloud_off_btn.clicked.connect(self.cloud_off)
+        for b in (self.cloud_on_btn, self.cloud_now_btn, self.cloud_off_btn):
+            row3.addWidget(b)
+        row3.addStretch()
+        f3.addLayout(row3)
+        self.cloud_lbl = QLabel()
+        self.cloud_lbl.setWordWrap(True)
+        f3.addWidget(self.cloud_lbl)
+        lay.addWidget(frame3)
         lay.addStretch()
         return w
 
@@ -229,6 +251,19 @@ class SecurityPage(LazyPage):
         self.purge_btn.setEnabled(st.can("delete_data") and st.client is not None)
         for b in (self.save_auto_btn, self.now_btn, self.enc_btn):
             b.setEnabled(st.can("settings"))
+        cloud = st.security.cloud_copy()
+        self.cloud_on_btn.setEnabled(st.can("settings"))
+        self.cloud_on_btn.setText("Change folder / password…" if cloud else "Choose folder and turn on…")
+        for b in (self.cloud_now_btn, self.cloud_off_btn):
+            b.setEnabled(st.can("settings") and cloud is not None)
+        if cloud is None:
+            self.cloud_lbl.setText("Off.")
+        else:
+            stt = cloud["status"]
+            last = ("" if not stt else f" Last copy {stt['at']}: " + (
+                f"<span style='color:#2E7D32'>OK ({stt['file']})</span>" if stt.get("ok") else
+                f"<span style='color:#C62828'>failed – {stt.get('message', '')}</span>"))
+            self.cloud_lbl.setText(f"<b>On</b> – copies go to {cloud['dir']}.{last}")
         self.pw_btn.setEnabled(s.username != "setup")
         self.users_model.set_rows([[u.username, u.full_name, ROLES.get(u.role, u.role),
                                     "active" if u.active else "disabled",
@@ -365,6 +400,32 @@ class SecurityPage(LazyPage):
         except ServiceError as exc:
             QMessageBox.warning(self, "Security", str(exc))
         self.reload()
+
+    def cloud_on(self, folder: str | None = None, password: str | None = None) -> bool:
+        folder = folder or QFileDialog.getExistingDirectory(self, "Folder for the backup copies (e.g. OneDrive)")
+        if not folder:
+            return False
+        if password is None:
+            password = self.ask("Backup password", "Password that locks the copies (8+ characters).\n"
+                                "Write it down – without it the copies cannot be restored:", True)
+            if not password:
+                return False
+            again = self.ask("Backup password", "Type the password again:", True)
+            if again != password:
+                QMessageBox.warning(self, "Security", "The two passwords are different – nothing was changed.")
+                return False
+        if not self._do(self.state.security.configure_cloud_copy, folder, password, self.state.session):
+            return False
+        return self._do(self.state.security.copy_to_cloud, done="Turned on. First copy saved: {result}")
+
+    def cloud_now(self) -> bool:
+        return self._do(self.state.security.copy_to_cloud, done="Copy saved: {result}")
+
+    def cloud_off(self) -> bool:
+        if QMessageBox.question(self, "Security", "Stop copying backups to the folder? Copies already there are "
+                                "kept.") != QMessageBox.Yes:
+            return False
+        return self._do(self.state.security.disable_cloud_copy, self.state.session)
 
     def backup_now(self) -> None:
         self._do(self.state.security.auto_backup, True, done="Backup written to {result}.")
