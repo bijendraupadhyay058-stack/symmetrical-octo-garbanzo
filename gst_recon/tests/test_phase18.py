@@ -115,3 +115,65 @@ def test_mail_account_and_outbox(db, sample_files, smtp):
     with pytest.raises(ServiceError, match="password"):
         svc.send([d.id], ADMIN, password="wrong")
     assert svc.send([d.id], ADMIN, password="app-pass")[0] == 1
+
+
+# ------------------------------------------------------------------ invoices from PDF (18B)
+def _pdf(path, lines):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+
+    c = canvas.Canvas(str(path), pagesize=A4)
+    y = 800
+    for ln in lines:
+        c.drawString(40, y, ln)
+        y -= 16
+    if not lines:
+        c.rect(40, 400, 200, 200, fill=1)  # an "image" only, like a scan
+    c.save()
+    return path
+
+
+def _invoice_pdfs(tmp_path, own):
+    from fintax_gst.samples import gstin
+
+    sup1, sup2 = gstin("27", "AABCM1234K"), gstin("29", "AAFFV5678Q")
+    a = _pdf(tmp_path / "mahalaxmi_inv_0012.pdf", [
+        "Mahalaxmi Steel Pvt Ltd", "TAX INVOICE  (Original for recipient)", f"GSTIN: {sup1}",
+        "Invoice No: MSL/25-26/0012", "Invoice Date: 14-04-2025", f"Buyer GSTIN: {own}",
+        "1  Steel sheets  7208  10 MT  9,000.00  90,000.00", "Taxable Value 90,000.00",
+        "CGST @ 9% 8,100.00", "SGST @ 9% 8,100.00", "Grand Total 1,06,200.00",
+        "Rupees One Lakh Six Thousand Two Hundred only"])
+    b = _pdf(tmp_path / "venkatesh_b77.pdf", [
+        "Venkatesh Traders", f"GSTIN {sup2}", "Bill No. B-77   Dated 02/04/2025", f"Bill to: GSTIN {own}",
+        "Sub Total 25,000.00", "IGST 18% 4,500.00", "Invoice Value 29,500.00"])
+    bad = _pdf(tmp_path / "mismatch.pdf", [
+        "Some Supplier", f"GSTIN {sup2}", "Invoice No: X-1", "Invoice Date: 05-04-2025", f"GSTIN {own}",
+        "Taxable Value 1,000.00", "IGST 18% 180.00", "Grand Total 1,500.00"])
+    scan = _pdf(tmp_path / "scanned.pdf", [])
+    return sup1, sup2, [a, b, bad, scan]
+
+
+def test_pdf_invoices_into_purchase_register(db, tmp_path):
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.services.clients import ClientService
+    from fintax_gst.services.imports import ImportService
+    from fintax_gst.services.pdf_invoices import PdfInvoiceService
+
+    c = ClientService(db).create(**CLIENT)
+    sup1, sup2, files = _invoice_pdfs(tmp_path, c.gstin)
+    svc = PdfInvoiceService(db)
+    a, b, bad, scan = svc.read(c.id, files)
+    assert (a.supplier_gstin, a.invoice_no, a.invoice_date) == (sup1, "MSL/25-26/0012", date(2025, 4, 14))
+    assert (a.taxable, a.cgst, a.sgst, a.igst, a.total) == (D(90000), D(8100), D(8100), D(0), D(106200))
+    assert a.supplier_name == "Mahalaxmi Steel Pvt Ltd" and not a.problems()
+    assert (b.supplier_gstin, b.invoice_no, b.invoice_date, b.taxable, b.igst) == (
+        sup2, "B-77", date(2025, 4, 2), D(25000), D(4500))
+    assert not b.problems()
+    assert any("does not equal the total" in p for p in bad.problems())
+    assert "scanned image" in scan.notes[0] and scan.problems()
+    pv = svc.preview(c.id, [a, b, bad, scan], "2025-04")
+    assert len(pv.records) == 3  # the scan is left out and listed
+    assert any(i.severity == "ignored" and i.row == "scanned.pdf" for i in pv.issues)
+    sf = ImportService(db).commit(c.id, pv, "accountant")
+    assert sf.documents_imported == 3 and sf.file_name.startswith("PDF invoices (3)")
+    assert svc.preview(c.id, [a, b, bad], "2025-04").already_imported_file_id == sf.id

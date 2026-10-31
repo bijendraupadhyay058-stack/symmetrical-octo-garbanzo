@@ -53,3 +53,35 @@ def test_outbox_email_flow(qtbot, db, tmp_path, sample_files, messages, smtp):  
     firm = win.pages["firm"]
     firm.reload()
     assert firm.email_reports(all_clients=True)
+
+
+def test_invoices_from_pdf_on_reconcile_page(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.ui.dialogs.pdf_invoices import PdfInvoicesDialog
+
+    from .test_phase18 import _invoice_pdfs
+
+    checked = []
+
+    def fix_and_accept(self):
+        checked.append(self)
+        bad_row = next(r for r, i in enumerate(self.invoices) if i.file.name == "mismatch.pdf")
+        self.grid.item(bad_row, 10).setText("1180")  # correct the total
+        self.accept()
+        return 1
+
+    monkeypatch.setattr(PdfInvoicesDialog, "exec", fix_and_accept)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    win.go("workflow")
+    wf = win.pages["workflow"]
+    wf.set_period("2025-04")
+    _s1, _s2, files = _invoice_pdfs(tmp_path, c.gstin)
+    sf = wf.import_pdfs([str(f) for f in files])
+    assert sf is not None and sf.documents_imported == 3
+    dlg = checked[0]
+    assert "2 " not in dlg.summary.text() and dlg.summary.text().startswith("3 of 4")
+    bad = next(i for i in dlg.invoices if i.file.name == "mismatch.pdf")
+    assert not bad.problems()
