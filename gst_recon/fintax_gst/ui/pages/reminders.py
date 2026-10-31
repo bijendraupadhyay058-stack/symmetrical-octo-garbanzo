@@ -73,7 +73,11 @@ class RemindersPage(LazyPage):
         self.mail_btn.clicked.connect(lambda: self.send("email"))
         self.wa_btn = QPushButton("Open WhatsApp")
         self.wa_btn.clicked.connect(lambda: self.send("whatsapp"))
-        for w in (self.copy_btn, self.mail_btn, self.wa_btn):
+        self.outbox_btn = QPushButton("Add all to Outbox")
+        self.outbox_btn.setToolTip("Prepares an e-mail for every client in the list; you check and send them on the "
+                                   "Outbox page")
+        self.outbox_btn.clicked.connect(lambda: self.to_outbox())
+        for w in (self.copy_btn, self.mail_btn, self.wa_btn, self.outbox_btn):
             buttons.addWidget(w)
         rl.addLayout(buttons)
         split.addWidget(left)
@@ -133,6 +137,19 @@ class RemindersPage(LazyPage):
             self.mail_btn.setToolTip(r.email or "No e-mail address on the client form – your e-mail program opens "
                                                 "without a recipient")
             self.wa_btn.setToolTip(r.mobile or "No mobile number on the client form – WhatsApp asks whom to send to")
+
+    def to_outbox(self):
+        from ...services.mailer import MailService
+
+        if not self.requests:
+            return None
+        drafts = MailService(self.state.db).reminder_drafts(self.requests, self.signature.text().strip(),
+                                                             self.state.user)
+        missing = sum(1 for m in drafts if not m.to_addr)
+        self.info.setText(f"{len(drafts)} e-mail(s) added to the Outbox – check and send them there."
+                          + (f" {missing} client(s) have no e-mail address." if missing else ""))
+        self.state.notify()
+        return drafts
 
     def send(self, channel: str) -> str | None:
         r = self._selected()

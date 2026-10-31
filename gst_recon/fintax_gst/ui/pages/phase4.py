@@ -546,7 +546,12 @@ class LettersPage(LazyPage):
             b.setChecked(True)
         self.gen_btn = primary("Generate letters…")
         self.gen_btn.clicked.connect(self.generate)
-        for w in (self.reply, self.signatory, self.fmt_docx, self.fmt_pdf, self.fmt_eml, self.gen_btn):
+        self.email_btn = QPushButton("E-mail to suppliers…")
+        self.email_btn.setToolTip("Puts each letter (PDF) in the Outbox as an e-mail to the supplier's address – you "
+                                  "check and send them there")
+        self.email_btn.clicked.connect(lambda: self.email_letters())
+        for w in (self.reply, self.signatory, self.fmt_docx, self.fmt_pdf, self.fmt_eml, self.gen_btn,
+                  self.email_btn):
             row.addWidget(w)
         row.addStretch()
         lay.addLayout(row)
@@ -606,6 +611,7 @@ class LettersPage(LazyPage):
                                     "; ".join(sorted({i.issue for i in lt.items}))] for lt in letters], letters)
             self.l_tbl.fit(380)
         self.gen_btn.setEnabled(ctx is not None and st.can("letters"))
+        self.email_btn.setEnabled(ctx is not None and st.can("letters"))
         self.prep_btn.setEnabled(ctx is not None and st.can("prepare_papers"))
         self.review_btn.setEnabled(st.can("review_papers"))
         papers = WorkingPaperService(st.db).list(st.client.id) if st.client else []
@@ -635,6 +641,29 @@ class LettersPage(LazyPage):
         QMessageBox.information(self, "Letters", f"{len(task.result_value)} letter(s) written to {folder}.\n"
                                                  "E-mail drafts are not sent – open them in your mail program.")
         self.state.notify(keep_cache=True)
+
+    def email_letters(self, go: bool = True):
+        from ...services.mailer import MailService
+
+        ctx = self._inward_run()
+        if ctx is None:
+            return None
+        task = run_task(self, "Preparing e-mails", MailService(self.state.db).letters_to_drafts, ctx.run.id,
+                        self.signatory.text().strip(), self.reply.value(), self.state.user, cancellable=False)
+        if not task.ok:
+            QMessageBox.warning(self, "Letters", task.message)
+            return None
+        drafts = task.result_value
+        missing = sum(1 for m in drafts if not m.to_addr)
+        QMessageBox.information(self, "Letters", f"{len(drafts)} e-mail(s) are ready in the Outbox." + (
+            f"\n{missing} supplier(s) have no e-mail address yet – type it in the Outbox (or on the Suppliers "
+            "page)." if missing else "") + "\nNothing has been sent yet.")
+        self.state.notify(keep_cache=True)
+        if go:
+            win = self.window()
+            if hasattr(win, "go"):
+                win.go("outbox")
+        return drafts
 
     def prepare(self) -> None:
         from ...services.papers import WorkingPaperService

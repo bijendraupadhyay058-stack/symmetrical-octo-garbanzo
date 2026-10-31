@@ -107,7 +107,11 @@ class FirmPage(LazyPage):
         self.report_btn.clicked.connect(lambda: self.client_reports())
         self.info = QLabel()
         self.info.setObjectName("Muted")
-        for w in (self.open_btn, self.filing_btn, self.staff_btn, self.report_btn):
+        self.report_mail_btn = QPushButton("E-mail client reports…")
+        self.report_mail_btn.setToolTip("Prepares the one-page report as an e-mail to the selected client (or to every "
+                                        "client in the list) in the Outbox")
+        self.report_mail_btn.clicked.connect(lambda: self.email_reports())
+        for w in (self.open_btn, self.filing_btn, self.staff_btn, self.report_btn, self.report_mail_btn):
             actions.addWidget(w)
         actions.addWidget(self.info, 1)
         lay.addLayout(actions)
@@ -288,6 +292,29 @@ class FirmPage(LazyPage):
         if len(paths) == 1:  # a single report opens straight away
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(paths[0])))
         return paths
+
+    def email_reports(self, all_clients: bool | None = None):
+        from ...services.mailer import MailService
+        from ..workers import run_task
+
+        if self.work is None or not self.work.clients:
+            return None
+        c = self._selected()
+        if all_clients is None:
+            all_clients = c is None
+        ids = [x.client_id for x in self.work.clients] if all_clients else [c.client_id]
+        firm = str(self.state.qsettings.value("reminder_signature", "")).strip()
+        task = run_task(self, "Preparing client reports", MailService(self.state.db).report_drafts, self.work.period,
+                        ids, firm, self.state.user)
+        if not task.ok:
+            QMessageBox.warning(self, "Client report", task.message)
+            return None
+        drafts = task.result_value
+        missing = sum(1 for m in drafts if not m.to_addr)
+        self.info.setText(f"{len(drafts)} report e-mail(s) in the Outbox – check and send them there."
+                          + (f" {missing} client(s) have no e-mail address." if missing else ""))
+        self.state.notify()
+        return drafts
 
     def export(self, path: str | None = None):
         if self.work is None:

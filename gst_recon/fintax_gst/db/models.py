@@ -770,4 +770,30 @@ class LedgerEntry(Base):
 
 
 V20_TABLES = [LedgerEntry]
+
+
+class OutboxMail(Base):
+    """An e-mail prepared by the program (supplier letter, client report, document reminder). It is sent only when
+    a user approves it on the Outbox page, through the firm's own mail account. Schema v21."""
+
+    __tablename__ = "email_outbox"
+    __table_args__ = (Index("ix_outbox_status", "status"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # supplier_letter / client_report / reminder / other
+    ref: Mapped[str] = mapped_column(String(80), default="")  # e.g. supplier GSTIN or period
+    to_addr: Mapped[str] = mapped_column(String(400), default="")
+    cc_addr: Mapped[str] = mapped_column(String(400), default="")
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    attachments_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(10), default="draft")  # draft / sent / failed / cancelled
+    error: Mapped[str] = mapped_column(String(500), default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    sent_by: Mapped[str] = mapped_column(String(80), default="")
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+V21_TABLES = [OutboxMail]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

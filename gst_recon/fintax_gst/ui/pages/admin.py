@@ -277,12 +277,13 @@ class SettingsPage(QWidget):
         dl.addWidget(QLabel(f"Database: {state.db.location}"))
         row = QHBoxLayout()
         for text, fn in (("Back up now", self.backup), ("Restore from backup…", self.restore),
-                         ("Open data folder", self.open_folder)):
+                         ("Open data folder", self.open_folder), ("E-mail account…", self.mail_account)):
             b = QPushButton(text)
             b.clicked.connect(fn)
             row.addWidget(b)
             b.setEnabled({"Back up now": state.can("settings"),
-                          "Restore from backup…": state.can("restore")}.get(text, True))
+                          "Restore from backup…": state.can("restore"),
+                          "E-mail account…": state.can("settings")}.get(text, True))
         row.addStretch()
         dl.addLayout(row)
         self.backup_lbl = QLabel("")
@@ -313,6 +314,11 @@ class SettingsPage(QWidget):
         al.addLayout(up)
         lay.addWidget(about)
         lay.addStretch()
+
+    def mail_account(self):
+        from ..dialogs.mail_account import MailAccountDialog
+
+        return MailAccountDialog(self, self.state).exec()
 
     def check_updates(self):
         bar = getattr(self.window(), "update_bar", None)
