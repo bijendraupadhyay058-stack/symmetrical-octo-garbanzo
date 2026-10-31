@@ -45,6 +45,7 @@
   <a href="#firm">7b. Firm work dashboard</a> ·
   <a href="#reminders">7c. Client reminders and reports</a> ·
   <a href="#phase14">7d. Tax checks, journals, payments, PAN view</a> ·
+  <a href="#phase15">7e. GSTR-1 file, GSTR-3B draft, invoices by hand</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -52,7 +53,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.2.1.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.3.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -234,6 +235,24 @@
    makes the month’s ITC reversal and re-claim journal vouchers as a file for TallyPrime: <i>Gateway of Tally → Import
    → Vouchers</i>. Enter the ledger names exactly as in that client’s Tally company (saved per client). Use one source
    per month – the claim register <i>or</i> the 180-day rule – so nothing is booked twice.</p>
+
+<h2 id="phase15">7e. GSTR-1 file, GSTR-3B draft and invoices by hand</h2>
+<h3>Prepare GSTR-1</h3>
+<p><b>Sales &amp; GSTR-1</b> → choose the month in <i>From</i> → <span class="btn">Prepare GSTR-1 JSON…</span>. The sales
+   register is placed in the GSTR-1 tables (B2B, B2C large and small, credit / debit notes, exports, nil-rated, HSN
+   summary B2B / B2C and documents issued). Documents that cannot be placed correctly – an invalid customer GSTIN, tax
+   that fits no GST rate – are <b>left out and listed with the reason</b>. Save the file, open it in the GST Offline
+   Tool (or upload it on the portal: GSTR-1 → Prepare offline → Upload), check every table, then file.</p>
+<h3>GSTR-3B draft</h3>
+<p><b>GSTR-3B &amp; annual</b> → choose the month → <span class="btn">GSTR-3B draft (one page)…</span>: the figures for
+   3.1, 3.2, 4 and 5, and Table 6.1 – how the ITC is set off (IGST credit first, as the law requires) and the
+   <b>cash to pay</b>. Save it as a one-page PDF. Interest and late fee are not included.</p>
+<h3>Enter or correct invoices by hand</h3>
+<p><b>✎ Invoices</b> lists a client’s purchase or sales documents. <span class="btn">New document…</span> adds one
+   (e.g. a small client without Excel); select a document and <span class="btn">Correct…</span> to fix a wrong number,
+   date or amount without importing the whole file again. The same checks as an import apply, and every change is
+   kept in the audit log. If the document was already reconciled, click <i>Start Reconciliation</i> again for that
+   month.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

@@ -114,4 +114,4 @@ jobs:
           gh release delete fintaxpro-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
           gh release create fintaxpro-latest "$setup" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "FIN TAX PRO – Windows installer (latest build)" \
-            --notes "Download FinTaxPro-Setup-1.2.1.exe below and double-click it. If Windows says 'Windows protected your PC' (the installer is not code-signed yet), click More info, then Run anyway. The user guide opens after installation. Built from commit $GITHUB_SHA after all tests passed."
+            --notes "Download FinTaxPro-Setup-1.3.0.exe below and double-click it. If Windows says 'Windows protected your PC' (the installer is not code-signed yet), click More info, then Run anyway. The user guide opens after installation. Built from commit $GITHUB_SHA after all tests passed."
