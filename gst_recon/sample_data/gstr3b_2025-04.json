@@ -1,0 +1,132 @@
+{
+  "gstin": "27AAPFU0939F1ZV",
+  "ret_period": "042025",
+  "sup_details": {
+    "osup_det": {
+      "txval": 404000.0,
+      "iamt": 34380.0,
+      "camt": 17370.0,
+      "samt": 17370.0,
+      "csamt": 0
+    },
+    "osup_zero": {
+      "txval": 340000.0,
+      "iamt": 16200.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0
+    },
+    "osup_nil_exmp": {
+      "txval": 12000.0
+    },
+    "isup_rev": {
+      "txval": 0.0,
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0
+    },
+    "osup_nongst": {
+      "txval": 0
+    }
+  },
+  "tx_pmt": {
+    "pditc": {
+      "i_pdi": 50580.0,
+      "c_pdc": 17370.0,
+      "s_pds": 17370.0,
+      "i_pdc": 0,
+      "i_pds": 0,
+      "c_pdi": 0,
+      "s_pdi": 0,
+      "cs_pdcs": 0
+    },
+    "pdcash": [
+      {
+        "ipd": 0,
+        "cpd": 0,
+        "spd": 0,
+        "cspd": 0,
+        "c_intrpd": 60.0,
+        "s_intrpd": 60.0
+      }
+    ]
+  },
+  "itc_elg": {
+    "itc_avl": [
+      {
+        "ty": "IMPG",
+        "iamt": 1800.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "IMPS",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISRC",
+        "iamt": 0.0,
+        "camt": 500.0,
+        "samt": 500.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISD",
+        "iamt": 0.0,
+        "camt": 900.0,
+        "samt": 900.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 58638.0,
+        "camt": 35363.1,
+        "samt": 35362.1,
+        "csamt": 0.0
+      }
+    ],
+    "itc_rev": [
+      {
+        "ty": "RUL",
+        "iamt": 0.0,
+        "camt": 720.0,
+        "samt": 720.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ],
+    "itc_net": {
+      "iamt": 60438.0,
+      "camt": 36043.1,
+      "samt": 36042.1,
+      "csamt": 0.0
+    },
+    "itc_inelg": [
+      {
+        "ty": "RUL",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 6480.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ]
+  }
+}

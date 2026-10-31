@@ -1,0 +1,415 @@
+"""Outward demo data (April 2025): TallyPrime sales register and GSTR-1 JSON.
+
+Scenarios: perfect B2B matches, an invoice not reported in GSTR-1, an invoice in
+GSTR-1 missing from the sales register, a value difference, a wrong customer
+GSTIN, a credit note, an SEZ supply, B2C sales (one under-reported in B2CS), an
+export under LUT and an exempt supply. The GSTR-3B 3.1(a) tax is ₹3,600 lower
+than GSTR-1, which the liability working reports as a possible short payment.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal as D
+from pathlib import Path
+
+from openpyxl import Workbook
+from openpyxl.styles import Font
+
+from .core.models import Category
+from .samples import CLIENT, gstin
+
+CUSTOMERS = {
+    "RAJ": (gstin("27", "AABCR1122A"), "Rajlaxmi Retail Pvt Ltd"),
+    "SHV": (gstin("27", "AAFFS3344B"), "Shivam Hardware"),
+    "VEN": (gstin("29", "AACCV5566C"), "Venkatesh Traders"),
+    "MPL": (gstin("24", "AADCM7788D"), "Mehta Polymers Ltd"),
+    "SEZ": (gstin("27", "AAECS9900E"), "Pune SEZ Unit – Infotech Park"),
+    "B2C": ("", "Cash sales"),
+    "EXP": ("", "Gulf Imports LLC (Dubai)"),
+}
+
+
+@dataclass
+class Sale:
+    cust: str
+    no: str
+    dt: date
+    taxable: str
+    rate: int = 18
+    inter: bool = False
+    doc: str = "INV"
+    supply: str = "Regular"
+
+
+def A(day):
+    return date(2025, 4, day)
+
+
+def tax(s: Sale) -> dict[str, D]:
+    t = (D(s.taxable) * D(s.rate) / D(100)).quantize(D("0.01"))
+    if s.supply in ("Export (LUT)", "Exempt"):
+        return {"igst": D(0), "cgst": D(0), "sgst": D(0)}
+    if s.inter:
+        return {"igst": t, "cgst": D(0), "sgst": D(0)}
+    return {"igst": D(0), "cgst": t / 2, "sgst": t / 2}
+
+
+# (scenario, in sales register, in GSTR-1, expected category for B2B documents or None for summary-level)
+OUT_SCENARIOS: list[tuple[str, list[Sale], list[Sale], Category | None]] = []
+
+
+def scenario(name, books, g1, expected):
+    OUT_SCENARIOS.append((name, books, g1, expected))
+
+
+for i, c in enumerate(["RAJ", "SHV", "RAJ", "VEN", "MPL"], start=1):
+    s = Sale(c, f"SGT/25-26/{i:04d}", A(i + 2), f"{40000 + i * 5000}", inter=c in ("VEN", "MPL"))
+    scenario(f"B2B perfect {i}", [s], [s], Category.FULLY_MATCHED)
+scenario("Not reported in GSTR-1", [Sale("SHV", "SGT/25-26/0011", A(28), "20000")], [], Category.MISSING_IN_2B)
+scenario("In GSTR-1, not in sales register", [], [Sale("RAJ", "SGT/25-26/0012", A(29), "10000")],
+         Category.MISSING_IN_BOOKS)
+scenario("Value difference", [Sale("VEN", "SGT/25-26/0013", A(15), "60000", inter=True)],
+         [Sale("VEN", "SGT/25-26/0013", A(15), "66000", inter=True)], Category.MULTIPLE_DIFFERENCES)
+scenario("Wrong customer GSTIN", [Sale("SHV", "SGT/25-26/0014", A(16), "18000")],
+         [Sale("RAJ", "SGT/25-26/0014", A(16), "18000")], Category.PROBABLE)
+scenario("Credit note", [Sale("RAJ", "SGT-CN/25-26/001", A(20), "5000", doc="CRN")],
+         [Sale("RAJ", "SGT-CN/25-26/001", A(20), "5000", doc="CRN")], Category.FULLY_MATCHED)
+scenario("SEZ supply with payment", [Sale("SEZ", "SGT/25-26/0015", A(21), "90000", inter=True, supply="SEZ with payment")],
+         [Sale("SEZ", "SGT/25-26/0015", A(21), "90000", inter=True, supply="SEZ with payment")], Category.FULLY_MATCHED)
+B2C_SALES = [Sale("B2C", f"CS/25-26/{i:03d}", A(i + 1), f"{4000 + i * 250}") for i in range(1, 9)]
+scenario("B2C cash sales (one under-reported in B2CS)", B2C_SALES, B2C_SALES, None)
+EXPORT = Sale("EXP", "EXP/25-26/001", A(24), "250000", inter=True, supply="Export (LUT)")
+scenario("Export under LUT", [EXPORT], [EXPORT], None)
+EXEMPT = Sale("SHV", "SGT/25-26/0016", A(25), "12000", supply="Exempt")
+scenario("Exempt supply", [EXEMPT], [EXEMPT], None)
+B2CS_UNDER_REPORTED = D("1000")  # taxable value missing from the B2CS row
+SHORT_PAID_3B = D("3600")  # 3.1(a) tax paid less than GSTR-1
+
+
+def sales_docs() -> list[Sale]:
+    return [s for _n, b, _g, _c in OUT_SCENARIOS for s in b]
+
+
+def gstr1_docs() -> list[Sale]:
+    return [s for _n, _b, g, _c in OUT_SCENARIOS for s in g]
+
+
+HEADERS = ["Date", "Particulars", "Voucher Type", "Voucher No.", "GSTIN/UIN", "Type of Supply", "Gross Total",
+           "Sales @18%", "Sales @12%", "Output CGST 9%", "Output SGST 9%", "Output IGST 18%"]
+
+
+def write_sales_register(path: Path) -> None:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sales Register"
+    for line in (CLIENT["name"], "Sales Register", "1-Apr-2025 to 30-Apr-2025", None):
+        ws.append([line] if line else [])
+    ws.append(HEADERS)
+    for c in ws[5]:
+        c.font = Font(bold=True)
+    for s in sales_docs():
+        g, name = CUSTOMERS[s.cust]
+        sign = -1 if s.doc == "CRN" else 1
+        t = {k: v * sign for k, v in tax(s).items()}
+        tx = D(s.taxable) * sign
+        vtype = {"INV": "Sales", "CRN": "Credit Note", "DBN": "Debit Note"}[s.doc]
+        ws.append([s.dt, name, vtype, s.no, g or None, s.supply, float(tx + sum(t.values())), float(tx), None,
+                   float(t["cgst"]) or None, float(t["sgst"]) or None, float(t["igst"]) or None])
+    ws.append(["Grand Total"])
+    wb.save(path)
+
+
+def _itm(s: Sale) -> dict:
+    t = tax(s)
+    return {"num": 1, "itm_det": {"rt": s.rate, "txval": float(D(s.taxable)), "iamt": float(t["igst"]),
+                                  "camt": float(t["cgst"]), "samt": float(t["sgst"]), "csamt": 0}}
+
+
+def write_gstr1_json(path: Path) -> None:
+    import json
+
+    b2b: dict[str, dict] = {}
+    cdnr: dict[str, dict] = {}
+    b2cs: dict[tuple, dict] = {}
+    exp, nil = [], []
+    for s in gstr1_docs():
+        g, _name = CUSTOMERS[s.cust]
+        val = float(D(s.taxable) + sum(tax(s).values()))
+        if s.supply == "Export (LUT)":
+            exp.append({"inum": s.no, "idt": s.dt.strftime("%d-%m-%Y"), "val": val, "sbpcode": "INNSA1",
+                        "sbnum": "4455667", "sbdt": "25-04-2025", "itms": [{"txval": float(D(s.taxable)), "rt": 0,
+                                                                            "iamt": 0, "csamt": 0}]})
+        elif s.supply == "Exempt":
+            nil.append(D(s.taxable))
+        elif not g:
+            t = tax(s)
+            key = ("INTRA", s.rate, "27")
+            row = b2cs.setdefault(key, {"sply_ty": "INTRA", "rt": s.rate, "typ": "OE", "pos": "27", "txval": D(0),
+                                        "iamt": D(0), "camt": D(0), "samt": D(0), "csamt": 0})
+            row["txval"] += D(s.taxable)
+            row["camt"] += t["cgst"]
+            row["samt"] += t["sgst"]
+        elif s.doc == "CRN":
+            cdnr.setdefault(g, {"ctin": g, "nt": []})["nt"].append(
+                {"ntty": "C", "nt_num": s.no, "nt_dt": s.dt.strftime("%d-%m-%Y"), "val": val, "pos": g[:2],
+                 "rchrg": "N", "inv_typ": "R", "itms": [_itm(s)]})
+        else:
+            inv_typ = "SEWP" if s.supply.startswith("SEZ") else "R"
+            b2b.setdefault(g, {"ctin": g, "inv": []})["inv"].append(
+                {"inum": s.no, "idt": s.dt.strftime("%d-%m-%Y"), "val": val, "pos": g[:2], "rchrg": "N",
+                 "inv_typ": inv_typ, "itms": [_itm(s)]})
+    b2cs_rows = []
+    for row in b2cs.values():  # one B2C invoice of ₹1,000 taxable is left out of the B2CS total
+        cut = B2CS_UNDER_REPORTED * D(row["rt"]) / D(200)
+        b2cs_rows.append({**row, "txval": float(row["txval"] - B2CS_UNDER_REPORTED),
+                          "camt": float(row["camt"] - cut), "samt": float(row["samt"] - cut)})
+    payload = {"gstin": CLIENT["gstin"], "fp": "042025", "b2b": list(b2b.values()), "cdnr": list(cdnr.values()),
+               "b2cs": b2cs_rows, "exp": [{"exp_typ": "WOPAY", "inv": exp}],
+               "nil": {"inv": [{"sply_ty": "INTRAB2B", "expt_amt": float(sum(nil)), "nil_amt": 0, "ngsup_amt": 0}]},
+               "hsn": hsn_summary(gstr1_docs()), "doc_issue": {"doc_det": []}}
+    path.write_text(json.dumps(payload, indent=2, default=float), encoding="utf-8")
+
+
+HSN_OF = {"Exempt": ("0713", "Dried pulses", "KGS"), "Export (LUT)": ("7326", "Articles of iron or steel", "NOS")}
+DEFAULT_HSN = ("7318", "Screws, bolts and nuts of iron or steel", "KGS")
+
+
+def hsn_summary(docs: list[Sale]) -> dict[str, list[dict]]:
+    """GSTR-1 Table 12 (HSN-wise, split B2B / B2C as from 2025) built from the documents themselves – so it
+    includes the B2C sale left out of the B2CS total."""
+    groups: dict[tuple, dict] = {}
+    for s in docs:
+        code, desc, uqc = HSN_OF.get(s.supply, DEFAULT_HSN)
+        seg = "hsn_b2b" if CUSTOMERS[s.cust][0] else "hsn_b2c"
+        sign = -1 if s.doc == "CRN" else 1
+        rate = 0 if s.supply in ("Export (LUT)", "Exempt") else s.rate
+        g = groups.setdefault((seg, code, rate), {"hsn_sc": code, "desc": desc, "uqc": uqc, "rt": rate, "qty": D(0),
+                                                  "txval": D(0), "iamt": D(0), "camt": D(0), "samt": D(0),
+                                                  "csamt": 0})
+        t = tax(s)
+        g["qty"] += D(s.taxable) / 100 * sign
+        g["txval"] += D(s.taxable) * sign
+        for k, key in (("igst", "iamt"), ("cgst", "camt"), ("sgst", "samt")):
+            g[key] += t[k] * sign
+    out: dict[str, list[dict]] = {"hsn_b2b": [], "hsn_b2c": []}
+    for (seg, _c, _r), g in sorted(groups.items()):
+        out[seg].append({k: (float(v) if isinstance(v, D) else v) for k, v in g.items()})
+    return out
+
+
+def gstr3b_31() -> dict[str, dict]:
+    """Table 3.1 as filed for April 2025 (derived from GSTR-1, with 3.1(a) tax short by ₹3,600)."""
+    a = {"txval": D(0), "iamt": D(0), "camt": D(0), "samt": D(0)}
+    b = {"txval": D(0), "iamt": D(0)}
+    c = D(0)
+    for s in gstr1_docs():
+        g, _ = CUSTOMERS[s.cust]
+        t = tax(s)
+        sign = -1 if s.doc == "CRN" else 1
+        if s.supply == "Export (LUT)" or s.supply.startswith("SEZ"):
+            b["txval"] += D(s.taxable)
+            b["iamt"] += t["igst"]
+        elif s.supply == "Exempt":
+            c += D(s.taxable)
+        else:
+            a["txval"] += D(s.taxable) * sign
+            a["iamt"] += t["igst"] * sign
+            a["camt"] += t["cgst"] * sign
+            a["samt"] += t["sgst"] * sign
+    a["txval"] -= B2CS_UNDER_REPORTED
+    a["camt"] -= B2CS_UNDER_REPORTED * D("0.09") + SHORT_PAID_3B / 2
+    a["samt"] -= B2CS_UNDER_REPORTED * D("0.09") + SHORT_PAID_3B / 2
+    f = lambda d: {k: float(d.get(k, 0)) for k in ("txval", "iamt", "camt", "samt")} | {"csamt": 0}  # noqa: E731
+    return {"osup_det": f(a), "osup_zero": f(b), "osup_nil_exmp": {"txval": float(c)},
+            "isup_rev": f({}), "osup_nongst": {"txval": 0}}
+
+
+#: May 2025 GSTR-1: one new B2B invoice, the April value difference (SGT/25-26/0013, 66,000 reported
+#: against 60,000 in the books) amended down through B2BA, and a B2CSA revising April's B2C total.
+MAY_INVOICE = Sale("RAJ", "SGT/25-26/0021", date(2025, 5, 6), "30000")
+AMENDED_0013 = Sale("VEN", "SGT/25-26/0013", A(15), "60000", inter=True)
+ADVANCE_MAY = D("50000")  # advance received in May 2025 against a June supply (GSTR-1 Table 11A)
+
+
+def write_gstr1_may_json(path: Path) -> None:
+    import json
+
+    g_raj, g_ven = CUSTOMERS["RAJ"][0], CUSTOMERS["VEN"][0]
+    may = MAY_INVOICE
+    amended = AMENDED_0013
+    b2b = [{"ctin": g_raj, "inv": [{"inum": may.no, "idt": may.dt.strftime("%d-%m-%Y"),
+                                    "val": float(D(may.taxable) + sum(tax(may).values())), "pos": "27",
+                                    "rchrg": "N", "inv_typ": "R", "itms": [_itm(may)]}]}]
+    b2ba = [{"ctin": g_ven, "inv": [{"oinum": amended.no, "oidt": amended.dt.strftime("%d-%m-%Y"),
+                                     "inum": amended.no, "idt": amended.dt.strftime("%d-%m-%Y"),
+                                     "val": float(D(amended.taxable) + sum(tax(amended).values())), "pos": "29",
+                                     "rchrg": "N", "inv_typ": "R", "itms": [_itm(amended)]}]}]
+    b2csa = [{"omon": "042025", "sply_ty": "INTRA", "pos": "27", "typ": "OE",
+              "itms": [{"rt": 18, "txval": 41000.0, "iamt": 0, "camt": 3690.0, "samt": 3690.0, "csamt": 0}]}]
+    at = [{"pos": "27", "sply_ty": "INTRA", "itms": [{"rt": 18, "ad_amt": float(ADVANCE_MAY), "iamt": 0,
+                                                     "camt": float(ADVANCE_MAY * D("0.09")),
+                                                     "samt": float(ADVANCE_MAY * D("0.09")), "csamt": 0}]}]
+    payload = {"gstin": CLIENT["gstin"], "fp": "052025", "b2b": b2b, "b2ba": b2ba, "b2csa": b2csa, "at": at,
+               "hsn": {"data": hsn_summary([MAY_INVOICE])["hsn_b2b"]}, "doc_issue": {"doc_det": []}}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+#: April 2026 GSTR-1 (next year): amends SGT/25-26/0005 up from 65,000 to 70,000 (GSTR-9 2025-26 Table 10)
+#: and reports SGT/25-26/0099 of 30 March 2026 late (Table 10). Its own April 2026 invoice is next year's.
+NEXT_AMEND_0005 = Sale("MPL", "SGT/25-26/0005", A(6), "70000", inter=True)
+LATE_INVOICE = Sale("RAJ", "SGT/25-26/0099", date(2026, 3, 30), "8000")
+NEXT_OWN = Sale("SHV", "SGT/26-27/0001", date(2026, 4, 3), "12000")
+
+
+def write_gstr1_next_year_json(path: Path) -> None:
+    import json
+
+    def inv(s: Sale, **extra):
+        return {"inum": s.no, "idt": s.dt.strftime("%d-%m-%Y"), "val": float(D(s.taxable) + sum(tax(s).values())),
+                "pos": CUSTOMERS[s.cust][0][:2], "rchrg": "N", "inv_typ": "R", "itms": [_itm(s)], **extra}
+
+    b2b = [{"ctin": CUSTOMERS["RAJ"][0], "inv": [inv(LATE_INVOICE)]},
+           {"ctin": CUSTOMERS["SHV"][0], "inv": [inv(NEXT_OWN)]}]
+    a = NEXT_AMEND_0005
+    b2ba = [{"ctin": CUSTOMERS["MPL"][0], "inv": [inv(a, oinum=a.no, oidt=a.dt.strftime("%d-%m-%Y"))]}]
+    payload = {"gstin": CLIENT["gstin"], "fp": "042026", "b2b": b2b, "b2ba": b2ba,
+               "hsn": {"data": hsn_summary([NEXT_OWN, LATE_INVOICE])["hsn_b2b"]}, "doc_issue": {"doc_det": []}}
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def write_outward(out: Path) -> dict[str, Path]:
+    files = {"sales_april": out / "tally_sales_register_2025-04.xlsx", "gstr1_april_json": out / "gstr1_2025-04.json",
+             "gstr1_may_json": out / "gstr1_2025-05.json", "gstr1_next_json": out / "gstr1_2026-04.json",
+             "einv_april": out / "einvoice_report_2025-04.csv", "ewb_april": out / "ewaybill_report_2025-04.csv",
+             "tds_tcs": out / "tds_tcs_credit_2025-26.xlsx", "filings": out / "returns_filed_2025-26.csv"}
+    write_sales_register(files["sales_april"])
+    write_gstr1_json(files["gstr1_april_json"])
+    write_gstr1_may_json(files["gstr1_may_json"])
+    write_gstr1_next_year_json(files["gstr1_next_json"])
+    write_einvoice_report(files["einv_april"])
+    write_ewb_report(files["ewb_april"])
+    write_tds_tcs_credits(files["tds_tcs"])
+    write_filings(files["filings"])
+    return files
+
+
+# ---------------------------------------------------------------- e-invoice and e-way bill reports (Phase 10)
+def _irn(no: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(f"{CLIENT['gstin']}|{no}".encode()).hexdigest()
+
+
+def _report_row(s: Sale) -> dict:
+    g, name = CUSTOMERS[s.cust]
+    t = tax(s)
+    return {"no": s.no, "dt": s.dt.strftime("%d/%m/%Y"), "gstin": g or "URP", "name": name,
+            "taxable": D(s.taxable), **t, "total": D(s.taxable) + sum(t.values())}
+
+
+def _by_no(no: str) -> Sale:
+    return next(s for s in [*sales_docs(), *gstr1_docs()] if s.no == no)
+
+
+#: e-invoices of April: 0011 cancelled (still in the sales register), 0014 never reported,
+#: 0012 reported but not in the sales register; B2C and exempt sales are not e-invoiced.
+EINV_MATCHED = ["SGT/25-26/0001", "SGT/25-26/0002", "SGT/25-26/0003", "SGT/25-26/0004", "SGT/25-26/0005",
+                "SGT/25-26/0013", "SGT-CN/25-26/001", "SGT/25-26/0015", "EXP/25-26/001"]
+EINV_CANCELLED = "SGT/25-26/0011"
+EINV_NOT_REPORTED = "SGT/25-26/0014"
+EINV_NOT_IN_BOOKS = "SGT/25-26/0012"
+
+
+def write_einvoice_report(path: Path) -> None:
+    import csv
+
+    heads = ["Ack No", "Ack Date", "Doc No", "Doc Date", "Doc Type", "Supply Type", "Buyer GSTIN", "Buyer Name",
+             "Total Assessable Value", "IGST", "CGST", "SGST", "Total Invoice Value", "IRN", "Status"]
+    supply = {"Regular": "B2B", "SEZ with payment": "SEZWP", "Export (LUT)": "EXPWOP"}
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(heads)
+        for i, no in enumerate([*EINV_MATCHED, EINV_CANCELLED, EINV_NOT_IN_BOOKS], start=1):
+            s = _by_no(no)
+            r = _report_row(s)
+            w.writerow([f"1125100{i:08d}", f"{r['dt']} 11:{i:02d}:00", r["no"], r["dt"], s.doc,
+                        supply.get(s.supply, "B2B"), r["gstin"], r["name"], r["taxable"], r["igst"], r["cgst"],
+                        r["sgst"], r["total"], _irn(no), "CNL" if no == EINV_CANCELLED else "ACT"])
+
+
+#: e-way bills of April: 0005 (above ₹50,000) has none; 0002 was cancelled and generated
+#: again; SGT/25-26/0018 is not in the sales register; a delivery challan and an inward
+#: e-way bill are not compared. Documents below ₹50,000 have none.
+EWB_MATCHED = ["SGT/25-26/0001", "SGT/25-26/0002", "SGT/25-26/0003", "SGT/25-26/0004", "SGT/25-26/0013",
+               "SGT/25-26/0015", "EXP/25-26/001"]
+EWB_MISSING = "SGT/25-26/0005"
+EWB_NOT_IN_BOOKS = Sale("MPL", "SGT/25-26/0018", A(30), "80000", inter=True)
+
+
+def write_ewb_report(path: Path) -> None:
+    import csv
+
+    heads = ["EWB No", "EWB Date", "Supply Type", "Doc No", "Doc Date", "Doc Type", "Other Party GSTIN",
+             "Other Party Name", "Assessable Value", "CGST Value", "SGST Value", "IGST Value", "Total Invoice Value",
+             "Status"]
+    rows = []
+    for no in EWB_MATCHED:
+        rows.append((_by_no(no), "Outward", "Tax Invoice", "ACT"))
+        if no == "SGT/25-26/0002":
+            rows.insert(len(rows) - 1, (_by_no(no), "Outward", "Tax Invoice", "CNL"))
+    rows += [(EWB_NOT_IN_BOOKS, "Outward", "Tax Invoice", "ACT"),
+             (Sale("SHV", "DC/25-26/004", A(12), "60000"), "Outward", "Delivery Challan", "ACT"),
+             (Sale("RAJ", "RJ/INV/778", A(18), "70000"), "Inward", "Tax Invoice", "ACT")]
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(heads)
+        for i, (s, direction, doc, status) in enumerate(rows, start=1):
+            r = _report_row(s)
+            w.writerow([f"3410{i:08d}", f"{r['dt']} 09:{i:02d}", direction, r["no"], r["dt"], doc, r["gstin"],
+                        r["name"], r["taxable"], r["cgst"], r["sgst"], r["igst"], r["total"], status])
+
+
+# ------------------------------------------------------------ TDS / TCS credit received (Phase 10)
+PMC = (gstin("27", "AAALP1234Q"), "Pune Municipal Corporation")  # deductor with no sales in the register
+ECO = (gstin("27", "AACCF5555K"), "Fastkart India Pvt Ltd")  # e-commerce operator
+
+
+def write_tds_tcs_credits(path: Path) -> None:
+    """Portal download *TDS and TCS credit received* for FY 2025-26 (two sheets)."""
+    wb = Workbook()
+    tds = wb.active
+    tds.title = "TDS Credit"
+    tds.append(["TDS and TCS credit received – TDS", None, None, None])
+    tds.append([])
+    tds.append(["GSTIN of Deductor", "Deductor's Name", "Tax Period of GSTR-7", "Taxable Value", "Integrated Tax",
+                "Central Tax", "State/UT Tax", "Action Taken"])
+    ven, mpl = CUSTOMERS["VEN"], CUSTOMERS["MPL"]
+    tds.append([ven[0], ven[1], "Apr-25", 60000, 1200, 0, 0, "Accepted"])  # SGT/25-26/0004
+    tds.append([ven[0], ven[1], "May-25", 60000, 1200, 0, 0, None])  # SGT/25-26/0013, not yet accepted
+    tds.append([PMC[0], PMC[1], "Jun-25", 300000, 0, 3000, 3000, None])  # no sales to this GSTIN
+    tds.append([mpl[0], mpl[1], "Jul-25", 65000, 0, 650, 650, "Rejected"])  # other state, deducted as CGST/SGST
+    tcs = wb.create_sheet("TCS Credit")
+    tcs.append(["TDS and TCS credit received – TCS"])
+    tcs.append([])
+    tcs.append(["GSTIN of e-Commerce Operator", "Trade Name of e-Commerce Operator", "Tax Period of GSTR-8",
+                "Gross Value of Supplies", "Value of Supplies Returned", "Net Amount Liable for TCS",
+                "Integrated Tax", "Central Tax", "State/UT Tax", "Action Taken"])
+    tcs.append([ECO[0], ECO[1], "Apr-25", 120000, 20000, 100000, 0, 250, 250, "Accepted"])
+    tcs.append([ECO[0], ECO[1], "May-25", 80000, 0, 80000, 800, 0, 0, None])  # collected at the old 1% rate
+    wb.save(path)
+
+
+# ------------------------------------------------------------ returns filed (Phase 11)
+#: April 2025 returns filed late: GSTR-1 4 days, GSTR-3B 8 days.
+FILINGS = [("GSTR-1", "2025-04", "15-05-2025", "AA270425000101K", "No"),
+           ("GSTR-3B", "2025-04", "28-05-2025", "AA270425000202L", "No")]
+
+
+def write_filings(path: Path) -> None:
+    import csv
+
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["Return Type", "Tax Period", "Date of Filing", "ARN", "Nil Return"])
+        w.writerows(FILINGS)

@@ -1,0 +1,107 @@
+{
+  "gstin": "27AAPFU0939F1ZV",
+  "fp": "042026",
+  "b2b": [
+    {
+      "ctin": "27AABCR1122A1Z7",
+      "inv": [
+        {
+          "inum": "SGT/25-26/0099",
+          "idt": "30-03-2026",
+          "val": 9440.0,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 8000.0,
+                "iamt": 0.0,
+                "camt": 720.0,
+                "samt": 720.0,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "27AAFFS3344B1ZI",
+      "inv": [
+        {
+          "inum": "SGT/26-27/0001",
+          "idt": "03-04-2026",
+          "val": 14160.0,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 12000.0,
+                "iamt": 0.0,
+                "camt": 1080.0,
+                "samt": 1080.0,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2ba": [
+    {
+      "ctin": "24AADCM7788D1ZA",
+      "inv": [
+        {
+          "inum": "SGT/25-26/0005",
+          "idt": "06-04-2025",
+          "val": 82600.0,
+          "pos": "24",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 70000.0,
+                "iamt": 12600.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0
+              }
+            }
+          ],
+          "oinum": "SGT/25-26/0005",
+          "oidt": "06-04-2025"
+        }
+      ]
+    }
+  ],
+  "hsn": {
+    "data": [
+      {
+        "hsn_sc": "7318",
+        "desc": "Screws, bolts and nuts of iron or steel",
+        "uqc": "KGS",
+        "rt": 18,
+        "qty": 200.0,
+        "txval": 20000.0,
+        "iamt": 0.0,
+        "camt": 1800.0,
+        "samt": 1800.0,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": []
+  }
+}

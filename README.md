@@ -77,3 +77,12 @@ scripts/                 Service-worker build, icon generator, DB test runner
 - Attachments are stored in a **private** bucket, reachable only by members via short-lived signed URLs.
 - HTTPS + HSTS and security headers in production; auto-lock after inactivity; biometric unlock via WebAuthn.
 - The data model has a `business_members` table with roles (`owner`, `accountant`, `viewer`) so staff users can be added later.
+
+## GST Reconciliation desktop/CLI application (Python)
+
+The `gst_recon/` folder contains **FIN TAX PRO – Smart GST Reconciliation & ITC Management
+System**, an offline Python desktop application (PySide6) and command-line tool. It reconciles
+TallyPrime and custom purchase registers with GSTR-2B/2A, and sales registers with GSTR-1 and
+GSTR-3B. It produces audit-ready Excel workbooks, compliance summaries, supplier letters and
+working papers, and it has a read-only web view for phones. See
+[gst_recon/README.md](gst_recon/README.md).

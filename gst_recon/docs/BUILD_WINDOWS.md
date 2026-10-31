@@ -1,0 +1,78 @@
+# Building the Windows executables
+
+Requirements: Windows 10/11 (64-bit), Python 3.12 or newer from python.org
+("Add python.exe to PATH" ticked).
+
+```powershell
+cd gst_recon
+.\packaging\build_windows.ps1
+```
+
+The script
+
+1. creates an isolated virtual environment `.venv-build`,
+2. installs `requirements.txt`,
+3. runs the full test suite and **stops if any test fails**,
+4. builds two one-folder applications with PyInstaller (one-folder builds start faster
+   and are flagged by antivirus less often than `--onefile`):
+   * `dist\FinTaxPro\FinTaxPro.exe` – the desktop application (windowed)
+   * `dist\FinTaxPro-GST\FinTaxPro-GST.exe` – the command-line tool
+5. runs `FinTaxPro.exe --smoke-test` and the CLI demo,
+6. builds `dist\installer\FinTaxPro-Setup-1.3.0.exe` if Inno Setup 6 is installed
+   (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
+   uninstalling never deletes the data folder).
+
+**No numpy / pandas.** numpy failed to load on an office PC ("DLL load failed while importing
+_multiarray_umath"), so the program does not use numpy or pandas at all. CSV files are read with Python's `csv`
+module, and both packages are excluded in the PyInstaller specs (see `packaging\build-constraints.txt`). If the desktop program cannot start, it shows a message and writes
+`%LOCALAPPDATA%\FinTaxPro\startup-error.txt`, with the Windows version, the processor and its features, and the error.
+
+**Code signing (optional).** Unsigned programs trigger SmartScreen warnings. To sign, set
+`FINTAX_SIGN_CERT` to your code-signing certificate (`.pfx`) and `FINTAX_SIGN_PASSWORD`
+to its password before running the script. Install the Windows SDK, which provides
+`signtool.exe`. The script then signs `FinTaxPro.exe`, `FinTaxPro-GST.exe` and the
+installer with SHA-256 and an RFC 3161 timestamp, and verifies each signature. Set
+`FINTAX_SIGN_TIMESTAMP` to use another timestamp server. A certificate from a public CA is
+needed; the build cannot produce one.
+
+Check the desktop build with `dist\FinTaxPro\FinTaxPro.exe --smoke-test`. It opens every
+page once and exits with code 0.
+
+To distribute, copy the `dist\FinTaxPro` folder (and the CLI folder, if needed). Zip it or
+wrap it with an installer such as Inno Setup. The target PC does not need Python. The
+desktop folder is about 300 MB, mostly Qt libraries.
+
+**Continuous integration.** The `windows-build` job in `.github/workflows/gst-recon.yml` runs
+this script on a GitHub Windows runner on every push that changes `gst_recon/` (and on
+demand). It uploads the executables and installer as the `FinTaxPro-windows` artifact.
+Set `FINTAX_BUILD_PYTHON=python` when the `py` launcher is not installed.
+
+**Verified:** CI run 40931038348 (commit a9c9ae8, 29 Oct 2026) on `windows-latest` ran this
+script end to end:
+
+* the test suite;
+* both PyInstaller builds;
+* `FinTaxPro.exe --smoke-test`;
+* the CLI demo from `FinTaxPro-GST.exe`;
+* the Inno Setup compile of `FinTaxPro-Setup-1.3.0.exe`.
+
+The build is unsigned until a certificate is configured.
+
+Manual equivalent:
+
+```powershell
+py -3.12 -m venv .venv-build
+.\.venv-build\Scripts\pip install -r requirements.txt
+.\.venv-build\Scripts\python -m pytest
+.\.venv-build\Scripts\pyinstaller --noconfirm --clean packaging\fintax_gst_gui.spec
+.\.venv-build\Scripts\pyinstaller --noconfirm --clean packaging\fintax_gst_cli.spec
+```
+
+Data location on Windows: `%LOCALAPPDATA%\FinTaxPro\`. It holds `fintaxpro.db` (the
+database), `fintaxpro.log`, `backups\` and `attachments\` (evidence files). Override it
+with the `FINTAX_HOME` or `FINTAX_DB` environment variables, or with the `--db` option
+(both executables accept it).
+
+To run from source instead, use `python -m fintax_gst.ui` (desktop) or
+`python -m fintax_gst` (CLI). After `pip install -e .` the commands are `fintax-gst-gui`
+and `fintax-gst`.

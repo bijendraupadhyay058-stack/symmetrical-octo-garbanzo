@@ -1,0 +1,366 @@
+"""Encrypted backups, automatic backups with retention, client data purge and audit export.
+
+Encrypted backup format: ``FTPBK1`` + 16-byte salt + Fernet token (AES-128-CBC with
+HMAC-SHA256), the key derived from the password with scrypt. The SQLite database
+itself is not encrypted; protect the computer with full-disk encryption (e.g.
+BitLocker) and use encrypted backups for anything that leaves it.
+
+Copy to a cloud folder (OneDrive, Google Drive, Dropbox …): after each automatic backup an encrypted
+copy in the same format is written to a folder the user chooses. Only the scrypt-derived key and its salt
+are kept on this computer (setting ``backup_copy``, never in the audit log or a sync package), so copies
+are made without asking for the password, and restoring a copy needs the password.
+"""
+from __future__ import annotations
+
+import base64
+import csv
+import hashlib
+import json
+import logging
+import os
+import re
+import socket
+import sqlite3
+import tempfile
+from collections import Counter
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from pathlib import Path
+
+from cryptography.fernet import Fernet, InvalidToken
+from sqlalchemy import delete, select
+
+from ..db.database import Database
+from ..db.models import utcnow
+from ..db.models import (
+    AppSetting, Attachment, AuditLog, Client, ClientReminder, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice,
+    WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
+    MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, Vendor,
+)
+from .auth import Session, require
+from .common import ServiceError, audit
+
+MAGIC = b"FTPBK1"
+CLOUD_SETTING, CLOUD_STATUS = "backup_copy", "backup_copy_status"
+log = logging.getLogger(__name__)
+DEFAULTS = {"auto_backup": True, "backup_interval_hours": 24, "backup_keep": 14, "backup_retention_days": 90,
+            "web_uploads": False, "ewb_threshold": 50000,
+            "tally_url": "http://localhost:9000"}
+
+
+@dataclass
+class UserActivity:
+    user: str
+    actions: Counter[str]
+    clients: set[int]
+    first: datetime
+    last: datetime
+    recent: list = field(default_factory=list)  # latest audit entries (newest first)
+
+    @property
+    def total(self) -> int:
+        return sum(self.actions.values())
+
+    @property
+    def edits(self) -> int:
+        """Review work: line updates and manual decisions."""
+        return sum(n for a, n in self.actions.items() if a in ("UPDATE", "MANUAL_MATCH", "CONFIRM_MATCH", "UNMATCH",
+                                                               "PENDING_CLARIFICATION"))
+
+
+def _key(password: str, salt: bytes) -> bytes:
+    return base64.urlsafe_b64encode(hashlib.scrypt(password.encode(), salt=salt, n=2 ** 14, r=8, p=1, dklen=32))
+
+
+class SecurityService:
+    def __init__(self, db: Database):
+        self.db = db
+        self.backup_dir = db.data_dir / "backups"
+
+    # -------------------------------------------------------------- settings
+    def setting(self, key: str):
+        with self.db.session() as s:
+            row = s.get(AppSetting, key)
+        return json.loads(row.value_json) if row else DEFAULTS.get(key)
+
+    def set_setting(self, key: str, value, by: Session | None) -> None:
+        require(by, "settings")
+        with self.db.session() as s:
+            row = s.get(AppSetting, key)
+            before = json.loads(row.value_json) if row else None
+            if row is None:
+                row = AppSetting(key=key, value_json="null")
+                s.add(row)
+            row.value_json = json.dumps(value)
+            audit(s, "SETTING", "app_settings", key, {"before": before, "after": value}, by.username)
+
+    # --------------------------------------------------------------- backups
+    def encrypted_backup(self, target: str | Path, password: str, by: Session | None = None) -> Path:
+        if len(password) < 8:
+            raise ServiceError("Backup password must have at least 8 characters")
+        target = Path(target)
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = self.db.backup(Path(tmp) / "plain.db")
+            data = plain.read_bytes()
+        salt = os.urandom(16)
+        token = Fernet(_key(password, salt)).encrypt(data)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(MAGIC + salt + token)
+        with self.db.session() as s:
+            audit(s, "BACKUP_ENCRYPTED", "database", str(target), {"bytes": len(data)}, by.username if by else "")
+        return target
+
+    def decrypt_backup(self, source: str | Path, password: str, target: str | Path) -> Path:
+        raw = Path(source).read_bytes()
+        if not raw.startswith(MAGIC):
+            raise ServiceError("Not a FIN TAX PRO encrypted backup")
+        salt, token = raw[len(MAGIC):len(MAGIC) + 16], raw[len(MAGIC) + 16:]
+        try:
+            data = Fernet(_key(password, salt)).decrypt(token)
+        except InvalidToken:
+            raise ServiceError("Wrong password or damaged backup file") from None
+        target = Path(target)
+        target.write_bytes(data)
+        return target
+
+    def restore_encrypted(self, source: str | Path, password: str, by: Session | None) -> Path:
+        require(by, "restore")
+        with tempfile.TemporaryDirectory() as tmp:
+            plain = self.decrypt_backup(source, password, Path(tmp) / "restore.db")
+            safety = self.db.restore(plain)
+        with self.db.session() as s:
+            audit(s, "RESTORE", "database", str(source), {"previous_saved_as": str(safety)},
+                  by.username if by else "")
+        return safety
+
+    def auto_backup(self, force: bool = False) -> Path | None:
+        """Take a backup if the last automatic one is older than the interval, then apply retention."""
+        if not self.setting("auto_backup") and not force:
+            return None
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        autos = sorted(self.backup_dir.glob("fintaxpro-*-auto.db"), key=lambda p: p.stat().st_mtime)
+        interval = timedelta(hours=float(self.setting("backup_interval_hours")))
+        made = None
+        if force or not autos or datetime.now() - datetime.fromtimestamp(autos[-1].stat().st_mtime) >= interval:
+            made = self.db.backup(suffix="auto")
+            if self.setting(CLOUD_SETTING):
+                try:
+                    self.copy_to_cloud(made)
+                except ServiceError as exc:  # never block start-up; the status is shown on the Backups tab
+                    log.warning("backup copy to the cloud folder failed: %s", exc)
+        self.apply_retention()
+        return made
+
+    # ------------------------------------------------- copy to a cloud folder
+    def _put(self, key: str, value) -> None:
+        """Store an internal setting without an audit entry (used for the copy key and its status)."""
+        with self.db.session() as s:
+            row = s.get(AppSetting, key)
+            if row is None:
+                row = AppSetting(key=key, value_json="null")
+                s.add(row)
+            row.value_json = json.dumps(value)
+
+    def cloud_copy(self) -> dict | None:
+        """The configured copy folder and the last copy's status (the key is not returned)."""
+        cfg = self.setting(CLOUD_SETTING)
+        if not cfg:
+            return None
+        return {"dir": cfg["dir"], "status": self.setting(CLOUD_STATUS) or {}}
+
+    def configure_cloud_copy(self, folder: str | Path, password: str, by: Session | None) -> None:
+        require(by, "settings")
+        folder = Path(folder)
+        if len(password) < 8:
+            raise ServiceError("Backup password must have at least 8 characters")
+        if not folder.is_dir():
+            raise ServiceError(f"{folder} is not a folder – choose your OneDrive / Google Drive folder")
+        probe = folder / ".fintaxpro-write-test"
+        try:
+            probe.write_bytes(b"ok")
+            probe.unlink()
+        except OSError as exc:
+            raise ServiceError(f"Cannot write to {folder}: {exc}") from None
+        salt = os.urandom(16)
+        self._put(CLOUD_SETTING, {"dir": str(folder), "salt": base64.b64encode(salt).decode(),
+                                  "key": _key(password, salt).decode()})
+        self._put(CLOUD_STATUS, {})
+        with self.db.session() as s:
+            audit(s, "SETTING", "app_settings", CLOUD_SETTING, {"after": {"dir": str(folder)}}, by.username)
+
+    def disable_cloud_copy(self, by: Session | None) -> None:
+        require(by, "settings")
+        with self.db.session() as s:
+            for key in (CLOUD_SETTING, CLOUD_STATUS):
+                row = s.get(AppSetting, key)
+                if row is not None:
+                    s.delete(row)
+            audit(s, "SETTING", "app_settings", CLOUD_SETTING, {"after": None}, by.username)
+
+    def copy_to_cloud(self, plain_backup: Path | None = None) -> Path:
+        """Encrypt a backup (a fresh one if none is given) into the copy folder and keep the newest copies."""
+        cfg = self.setting(CLOUD_SETTING)
+        if not cfg:
+            raise ServiceError("Copying backups to a cloud folder is not turned on")
+        try:
+            folder = Path(cfg["dir"])
+            if not folder.is_dir():
+                raise ServiceError(f"The backup copy folder {folder} is not available (is OneDrive / Google Drive "
+                                   "running and signed in?)")
+            with tempfile.TemporaryDirectory() as tmp:
+                plain = plain_backup or self.db.backup(Path(tmp) / "plain.db")
+                data = Path(plain).read_bytes()
+            salt = base64.b64decode(cfg["salt"])
+            host = re.sub(r"[^A-Za-z0-9-]+", "-", socket.gethostname())[:30] or "PC"
+            target = folder / f"FinTaxPro-backup-{host}-{datetime.now():%Y%m%d-%H%M%S}.ftpbk"
+            part = target.with_name(target.name + ".part")  # sync clients never pick up a half-written file
+            part.write_bytes(MAGIC + salt + Fernet(cfg["key"].encode()).encrypt(data))
+            part.replace(target)
+            keep = max(int(self.setting("backup_keep")), 1)
+            mine = sorted(folder.glob(f"FinTaxPro-backup-{host}-*.ftpbk"), key=lambda p: p.name, reverse=True)
+            for old in mine[keep:]:
+                old.unlink(missing_ok=True)
+        except (OSError, ServiceError) as exc:
+            self._put(CLOUD_STATUS, {"at": f"{datetime.now():%Y-%m-%d %H:%M}", "ok": False, "message": str(exc)})
+            raise ServiceError(str(exc)) from None
+        self._put(CLOUD_STATUS, {"at": f"{datetime.now():%Y-%m-%d %H:%M}", "ok": True, "file": target.name})
+        return target
+
+    def apply_retention(self) -> list[Path]:
+        """Keep at most ``backup_keep`` automatic backups and none older than ``backup_retention_days``
+        – except that the newest backup is always kept."""
+        keep = int(self.setting("backup_keep"))
+        cutoff = datetime.now() - timedelta(days=int(self.setting("backup_retention_days")))
+        autos = sorted(self.backup_dir.glob("fintaxpro-*-auto.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+        removed = []
+        for i, p in enumerate(autos):
+            too_old = datetime.fromtimestamp(p.stat().st_mtime) < cutoff
+            if i >= max(keep, 1) or (too_old and i >= 1):
+                secure_unlink(p)
+                removed.append(p)
+        return removed
+
+    # ------------------------------------------------------------ deletion
+    def purge_client(self, client_id: int, confirm_gstin: str, by: Session | None) -> dict:
+        """Permanently delete a client and all its data (secure delete + VACUUM)."""
+        require(by, "delete_data")
+        with self.db.session() as s:
+            client = s.get(Client, client_id)
+            if client is None:
+                raise ServiceError(f"Client {client_id} not found")
+            if confirm_gstin.strip().upper() != client.gstin:
+                raise ServiceError("Type the client's GSTIN to confirm deletion")
+            files = [a.stored_path for a in s.scalars(select(Attachment).where(Attachment.client_id == client_id))]
+            run_ids = select(ReconRun.id).where(ReconRun.client_id == client_id)
+            file_ids = select(SourceFile.id).where(SourceFile.client_id == client_id)
+            counts = {}
+            for model, cond in (
+                (ReconLineRow, ReconLineRow.run_id.in_(run_ids)), (Attachment, Attachment.client_id == client_id),
+                (MatchDecision, MatchDecision.client_id == client_id), (ItcClaim, ItcClaim.client_id == client_id),
+                (ItcReview, ItcReview.client_id == client_id), (ItcRuleRow, ItcRuleRow.client_id == client_id),
+                (Vendor, Vendor.client_id == client_id), (ReconRun, ReconRun.client_id == client_id),
+                (Gstr3bEntry, Gstr3bEntry.client_id == client_id), (OtherItc, OtherItc.client_id == client_id),
+                (Gstr1Summary, Gstr1Summary.client_id == client_id),
+                (Gstr1Hsn, Gstr1Hsn.client_id == client_id),
+                (TdsTcsCredit, TdsTcsCredit.client_id == client_id),
+                (ReturnFiling, ReturnFiling.client_id == client_id),
+                (InterestSettlement, InterestSettlement.client_id == client_id),
+                (GstNotice, GstNotice.client_id == client_id),
+                (ClientReminder, ClientReminder.client_id == client_id),
+                (SupplierPayment, SupplierPayment.client_id == client_id),
+                (SyncAuthorization, SyncAuthorization.client_id == client_id),
+                (LetterRecord, LetterRecord.client_id == client_id),
+                (WorkingPaper, WorkingPaper.client_id == client_id),
+                (Gstr9cInput, Gstr9cInput.client_id == client_id),
+                (ImportIssue, ImportIssue.source_file_id.in_(file_ids)), (Invoice, Invoice.client_id == client_id),
+                (SourceFile, SourceFile.client_id == client_id),
+            ):
+                counts[model.__tablename__] = s.execute(delete(model).where(cond)).rowcount
+            # Audit entries of this client lose their details; the purge itself stays on record.
+            for a in s.scalars(select(AuditLog).where(AuditLog.client_id == client_id)):
+                a.details_json = "{}"
+            gstin = client.gstin
+            s.delete(client)
+            audit(s, "PURGE_CLIENT", "client", client_id, {"gstin": gstin, "rows": counts}, by.username, None)
+        for f in files:
+            secure_unlink(Path(f))
+        att_dir = self.db.data_dir / "attachments" / str(client_id)
+        if att_dir.exists():
+            for p in sorted(att_dir.rglob("*"), reverse=True):
+                p.rmdir() if p.is_dir() else secure_unlink(p)
+            att_dir.rmdir()
+        # reclaim the space of deleted rows (SQLite rewrites the file; PostgreSQL frees the tuples)
+        with self.db.engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            conn.exec_driver_sql("VACUUM")
+        return counts
+
+    # ----------------------------------------------------------------- audit
+    def audit_rows(self, client_id: int | None = None, since: datetime | None = None, limit: int = 5000):
+        with self.db.session() as s:
+            q = select(AuditLog).order_by(AuditLog.id.desc()).limit(limit)
+            if client_id is not None:
+                q = q.where(AuditLog.client_id == client_id)
+            if since is not None:
+                q = q.where(AuditLog.at >= since)
+            return list(s.scalars(q))
+
+    def activity(self, by: Session | None, since: datetime | None = None, user: str | None = None,
+                 limit: int = 200_000) -> list["UserActivity"]:
+        """Who did what since a date, per user, from the audit log (partners and administrators)."""
+        require(by, "settings")
+        since = since or utcnow() - timedelta(days=30)
+        with self.db.session() as s:
+            q = select(AuditLog).where(AuditLog.at >= since).order_by(AuditLog.id.desc()).limit(limit)
+            if user:
+                q = q.where(AuditLog.user == user)
+            rows = list(s.scalars(q))
+        out: dict[str, UserActivity] = {}
+        for a in rows:
+            u = out.get(a.user or "(system)")
+            if u is None:
+                u = out[a.user or "(system)"] = UserActivity(a.user or "(system)", Counter(), set(), a.at, a.at)
+            u.actions[a.action] += 1
+            if a.client_id:
+                u.clients.add(a.client_id)
+            u.first, u.last = min(u.first, a.at), max(u.last, a.at)
+            if len(u.recent) < 50:
+                u.recent.append(a)
+        return sorted(out.values(), key=lambda u: u.last, reverse=True)
+
+    def export_audit(self, target: str | Path, client_id: int | None = None, by: Session | None = None) -> Path:
+        require(by, "export")
+        target = Path(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        rows = self.audit_rows(client_id, limit=1_000_000)
+        with open(target, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["id", "at_utc", "user", "client_id", "action", "entity", "entity_id", "details"])
+            for a in reversed(rows):
+                w.writerow([a.id, f"{a.at:%Y-%m-%d %H:%M:%S}", a.user, a.client_id or "", a.action, a.entity,
+                            a.entity_id, a.details_json])
+        with self.db.session() as s:
+            audit(s, "EXPORT_AUDIT", "audit_log", str(target), {"rows": len(rows), "client_id": client_id},
+                  by.username if by else "")
+        return target
+
+
+def secure_unlink(path: Path) -> None:
+    """Overwrite a file with random bytes before deleting it (best effort on SSDs/journaling filesystems)."""
+    path = Path(path)
+    if not path.exists():
+        return
+    size = path.stat().st_size
+    with open(path, "r+b") as fh:
+        fh.write(os.urandom(size))
+        fh.flush()
+        os.fsync(fh.fileno())
+    path.unlink()
+
+
+def integrity_ok(path: str | Path) -> bool:
+    conn = sqlite3.connect(path)
+    try:
+        return conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    finally:
+        conn.close()
+
