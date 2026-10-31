@@ -95,6 +95,10 @@ jobs:
     needs: windows-build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/ccr-34d246f0-51v3iq' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    # one publish at a time: two pushes close together must not replace the release at the same moment
+    concurrency:
+      group: fintaxpro-release
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
