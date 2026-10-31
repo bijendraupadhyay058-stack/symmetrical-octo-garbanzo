@@ -44,6 +44,7 @@
   <a href="#batch">7a. Many clients at once</a> ·
   <a href="#firm">7b. Firm work dashboard</a> ·
   <a href="#reminders">7c. Client reminders and reports</a> ·
+  <a href="#phase14">7d. Tax checks, journals, payments, PAN view</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -51,7 +52,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.1.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.2.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -198,6 +199,41 @@
       GSTR-3B, ITC at risk, output tax, suppliers to follow up, returns filed or due, and what is still needed.
       The “Signed” name from the Reminders page is shown as “Prepared by”.</li>
 </ul>
+
+<h2 id="phase14">7d. Tax checks, journal and payment registers, 180-day rule, PAN view, Tally journals</h2>
+<h3>Check tax types and rates</h3>
+<p><b>Reconcile</b> → step 6 → <span class="btn">Check tax types and rates…</span> lists purchases and sales where IGST
+   was charged instead of CGST + SGST (or the reverse) for the supplier’s / customer’s state and the place of supply,
+   CGST + SGST of another state (e.g. a hotel elsewhere – not your ITC), and tax that is not the taxable value × a GST
+   rate. Nothing is changed; export the list to Excel and ask the supplier for a corrected invoice.</p>
+<h3>Journal register</h3>
+<p>When expenses with GST (rent, professional fees, repairs…) are booked as journals in Tally: export the
+   <b>Journal Register</b> (columnar, with GSTIN/UIN, Reference No. and the GST ledgers) and click
+   <span class="btn">Import journal register…</span> in step 3. Journals with GST and a supplier GSTIN are read as
+   bills; depreciation, provisions, TDS and ITC reversal journals are listed in the preview as not imported.
+   <span class="btn">Import from Tally…</span> reads such journals automatically. Example:
+   <code>tally_journal_register_2025-04.xlsx</code>.</p>
+<h3>Payment register and the 180-day rule (Rule 37)</h3>
+<ol>
+  <li>Export the <b>Payment Register</b> from Tally (Excel, with bill-wise details if you use them) and click
+      <span class="btn">Import payment register…</span> in step 3 (or on the <b>180-day rule</b> page).</li>
+  <li>The <b>⏱ 180-day rule</b> page lists every purchase bill: <i>Paid in time</i>, <i>Not yet due</i>,
+      <i>Reverse ITC</i> (not fully paid within 180 days of the invoice date – the ITC on the unpaid part, the month in
+      which to reverse it in GSTR-3B 4(B)(2) and an interest estimate) or <i>Paid late – re-claim</i>.</li>
+  <li>Payments that name a bill settle that bill; the rest settle the supplier’s oldest open bills. Import purchase
+      registers from the start of the year so that payments are matched correctly. A bill paid by cheque not in the
+      register: select it and <span class="btn">Mark as paid…</span>.</li>
+  <li>Payments whose party is not found among the suppliers are shown in red (name spelt differently?).</li>
+</ol>
+<h3>PAN view</h3>
+<p><b>▥ PAN view</b> shows a business registered in several states (same PAN) on one screen: each GSTIN’s ITC as per
+   books, GSTR-2B and GSTR-3B, ITC at risk, output tax, returns overdue and notices, with totals – and the suppliers
+   to follow up across all its registrations. Export to Excel for the client.</p>
+<h3>Tally journals</h3>
+<p><span class="btn">Tally journals…</span> (on <b>ITC review</b> → claim register, and on the <b>180-day rule</b> page)
+   makes the month’s ITC reversal and re-claim journal vouchers as a file for TallyPrime: <i>Gateway of Tally → Import
+   → Vouchers</i>. Enter the ledger names exactly as in that client’s Tally company (saved per client). Use one source
+   per month – the claim register <i>or</i> the 180-day rule – so nothing is booked twice.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
