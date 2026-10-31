@@ -100,3 +100,20 @@ def test_gstr9_entered_tables_via_desktop(qtbot, db, tmp_path, sample_files, mes
     rp.save_9c_input()
     rp.show_gstr9()
     assert any(r[0] == "15E" and r[3] == 25000 for r in rp.g9_model.rows)
+
+
+def test_batch_page(qtbot, db, tmp_path, messages):  # noqa: F811
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.go("batch")
+    page = win.pages["batch"]
+    root = page.make_example(str(tmp_path))
+    assert root.is_dir() and page.folder.text() == str(root)
+    page.create_clients.setChecked(True)
+    page.start(dry_run=True)
+    assert "nothing changed" in page.status.text() and "8 item(s)" in page.status.text()
+    assert not win.state.clients.list()
+    page.start(dry_run=False)
+    assert "4 reconciliation(s)" in page.status.text() and page.open_btn.isEnabled()
+    results = {page.model.rows[i][3] for i in range(page.model.rowCount())}
+    assert {"Client added", "Imported", "Reconciled", "Report saved"} <= results
+    assert len(win.state.clients.list()) == 1

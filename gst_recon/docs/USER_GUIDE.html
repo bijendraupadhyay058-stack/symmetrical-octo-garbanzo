@@ -41,6 +41,7 @@
   <a href="#monthly">5. Monthly purchase reconciliation</a> ·
   <a href="#review">6. Review the differences</a> ·
   <a href="#sales">7. Sales and GSTR-1</a> ·
+  <a href="#batch">7a. Many clients at once</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -48,7 +49,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.0.3.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.0.4.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -134,6 +135,30 @@
    GSTR-1 JSON from the portal. A ready sales register layout is in the sample files folder:
    <code>TEMPLATE_sales_register.xlsx</code> (with a filled <code>EXAMPLE_sales_register.xlsx</code>). Choose what to compare it with (GSTR-1, e-Invoice or e-Way bill) and click
    <b>Reconcile</b>. The same page compares GSTR-1 with the tax paid in GSTR-3B.</p>
+
+<h2 id="batch">7a. Many clients at once (Batch)</h2>
+<p>Instead of importing client by client, put all the files in one folder and let the program do the rest.</p>
+<ol>
+  <li>Make one folder for the batch, for example <code>D:\GST April</code>.</li>
+  <li>Inside it, one folder per client. Its name must contain the client’s <b>GSTIN</b>, for example
+      <code>Shree Ganesh Traders 27AAPFU0939F1ZV</code>.</li>
+  <li>Inside each client folder, one folder per month, named like <code>2025-04</code>.</li>
+  <li>Put the month’s files there. The file name says what it is: <code>purchase</code>, <code>sales</code>,
+      <code>gstr2b</code>, <code>gstr1</code>, <code>gstr3b</code>, <code>einvoice</code>, <code>ewb</code>,
+      <code>ims</code> or <code>tds</code> – for example <code>purchase_register.xlsx</code>,
+      <code>gstr2b.json</code>.</li>
+  <li>In the program: <b>Batch</b> → <span class="btn">Choose folder…</span> →
+      <span class="btn">Check folder</span> (shows what will happen, changes nothing) →
+      <span class="btn">▶ Run batch</span>.</li>
+</ol>
+<p>The program imports each new file, reconciles purchases with GSTR-2B and sales with GSTR-1, e-invoices and
+   e-way bills, and saves the Excel reports in a <code>reports</code> folder inside each month folder. The result
+   list (also saved as <code>batch_summary_….csv</code>) shows every file and any problem with its reason. Files
+   already imported are skipped, so you can run the same folder again after adding files.</p>
+<div class="box note">To try it: <span class="btn">Create example folder…</span> makes a ready folder with the demo
+  client. Tick <i>Add clients that do not exist yet</i> to add clients from the folder names. If a register’s
+  columns are not recognised, import it once on the Reconcile page, match the columns and save a template – the
+  batch then uses that template.</div>
 
 <h2 id="more">8. Other features</h2>
 <table>

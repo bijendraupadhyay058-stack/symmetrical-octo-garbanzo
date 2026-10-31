@@ -12,6 +12,7 @@ from fintax_gst.importers.readers import UnsupportedFileError
 from fintax_gst.importers.tally_xml import TallyClient, flatten_vouchers, parse_xml
 from fintax_gst.samples import CLIENT
 from fintax_gst.services.clients import ClientService
+from fintax_gst.services.common import ServiceError
 from fintax_gst.services.imports import ImportService
 from fintax_gst.services.tally import TallyService
 
@@ -136,6 +137,7 @@ from fintax_gst.core.models import Source
 from fintax_gst.db.database import open_database
 from fintax_gst.samples import CLIENT
 from fintax_gst.services.clients import ClientService
+from fintax_gst.services.common import ServiceError
 from fintax_gst.services.imports import ImportService
 from fintax_gst.services.reconciliation import ReconciliationService
 from fintax_gst.services.reports import export_run
@@ -185,3 +187,82 @@ def test_register_templates_import_without_mapping(name, source, count):
     if name == "EXAMPLE_purchase_register":
         rcm = [r for r in p.records if r.invoice_no == "SR/77"]
         assert rcm[0].reverse_charge and any(r.doc_type == DocType.CREDIT_NOTE for r in p.records)
+
+
+# ------------------------------------------------------------------ batch processing (Phase 12B)
+@pytest.mark.parametrize("name, kind", [
+    ("gstr2b_2025-04.json", "GSTR2B"), ("GSTR-2B Apr.xlsx", "GSTR2B"), ("2B.json", "GSTR2B"), ("gstr2a.xlsx", "GSTR2A"),
+    ("table8a.json", "GSTR8A"), ("GSTR3B.json", "GSTR3B"), ("gstr1.json", "GSTR1"), ("GSTR-1 April.json", "GSTR1"),
+    ("R1.json", "GSTR1"), ("ims.json", "IMS"), ("einvoice_report.csv", "EINV"), ("e-way bills.csv", "EWB"),
+    ("TDS credit.xlsx", "TDSTCS"), ("tally_sales_register.xlsx", "SALES"), ("Purchase Register.xlsx", "BOOKS"),
+    ("27AAPFU0939F1ZV purchase.xlsx", "BOOKS"), ("claims.xlsx", None), ("notes.xlsx", None), ("a2b3.xlsx", None)])
+def test_batch_file_kinds(name, kind):
+    from fintax_gst.services.batch import kind_of
+
+    assert kind_of(name) == kind
+
+
+def test_batch_folder(db, tmp_path):
+    from fintax_gst.services.batch import BatchService, write_example
+
+    root = write_example(tmp_path / "batch")
+    month = root / f"{CLIENT['name']} {CLIENT['gstin']}" / "2025-04"
+    (month / "notes.xlsx").write_bytes(b"x")  # name says nothing about the contents
+    (month / "gstr2b_wrong.xlsx").write_bytes((month / "purchase_register.xlsx").read_bytes())  # contents differ
+    (month.parent / "loose purchase.xlsx").write_bytes(b"x")  # not in a month folder
+    (root / "No GSTIN here" / "2025-04").mkdir(parents=True)
+    (root / "No GSTIN here" / "2025-04" / "purchase.xlsx").write_bytes(b"x")
+    svc = BatchService(db)
+
+    check = svc.run(root, dry_run=True)  # nothing changes, the missing client is reported
+    assert check.summary_path is None and check.count("planned") == 0
+    assert any("add the client first" in r.detail for r in check.rows if r.action == "error")
+    check = svc.run(root, dry_run=True, create_clients=True)  # the client and 8 files would be done
+    assert check.count("planned") == 9 and "client would be added" in [r.detail for r in check.rows]
+    with pytest.raises(ServiceError):
+        ClientService(db).by_gstin(CLIENT["gstin"])
+
+    res = svc.run(root, user="preparer", create_clients=True)
+    by = {(r.item, r.action): r.detail for r in res.rows}
+    assert res.count("client") == 1 and res.count("imported") == 7 and res.count("reconciled") == 4
+    assert "cannot tell what the file is" in by[("notes.xlsx", "skipped")]
+    assert "not in a month folder" in by[("loose purchase.xlsx", "skipped")]
+    assert ("gstr2b_wrong.xlsx", "error") in by  # the importer refuses a purchase register as GSTR-2B
+    assert any("no valid GSTIN" in r.detail for r in res.rows if r.client == "No GSTIN here")
+    reports = sorted(p.name for p in (month / "reports").iterdir())
+    assert len(reports) == 4 and reports[0].startswith("Purchase vs GSTR-2B – FINTAXPRO_GSTRecon_")
+    assert res.summary_path.exists() and "imported" in res.summary_path.read_text(encoding="utf-8-sig")
+    assert ClientService(db).by_gstin(CLIENT["gstin"]).name == CLIENT["name"]
+
+    again = svc.run(root, user="preparer")  # nothing new: nothing imported, nothing re-run
+    assert again.count("imported") == 0 and again.count("reconciled") == 0 and again.count("skipped") >= 7
+    assert svc.run(root, rerun=True).count("reconciled") == 4
+
+
+def test_batch_cancel_keeps_a_summary(db, tmp_path):
+    from fintax_gst.engine.matcher import CancelToken
+    from fintax_gst.services.batch import BatchService, write_example
+
+    root = write_example(tmp_path / "batch")
+    token = CancelToken()
+    seen = []
+
+    def progress(pct, msg):
+        seen.append(msg)
+        if len(seen) == 3:
+            token.cancel()
+
+    res = BatchService(db).run(root, create_clients=True, progress=progress, cancel=token)
+    assert res.cancelled and res.count("imported") == 3 and res.count("reconciled") == 0
+    assert "cancelled" in res.summary_path.read_text(encoding="utf-8-sig")
+
+
+def test_cli_batch(tmp_path, capsys):
+    dbp = str(tmp_path / "cli.db")
+    folder = str(tmp_path / "batch")
+    assert main(["--db", dbp, "batch", folder, "--example"]) == 0
+    assert main(["--db", dbp, "batch", folder, "--check"]) == 0
+    assert "Check only" in capsys.readouterr().out
+    assert main(["--db", dbp, "batch", folder, "--add-clients"]) == 0
+    out = capsys.readouterr().out
+    assert "7 file(s) imported" in out and "4 reconciliation(s)" in out
