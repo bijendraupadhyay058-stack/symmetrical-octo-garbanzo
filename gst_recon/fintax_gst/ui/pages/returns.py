@@ -69,9 +69,14 @@ class ReturnsPage(LazyPage):
             cb.setMinimumWidth(110)
         self.show_btn = primary("Show working")
         self.show_btn.clicked.connect(self.show_table4)
+        self.draft3b_btn = QPushButton("GSTR-3B draft (one page)…")
+        self.draft3b_btn.setToolTip("The figures of the 'From' month to enter in GSTR-3B, the ITC set-off and the cash "
+                                    "to pay")
+        self.draft3b_btn.clicked.connect(lambda: self.gstr3b_draft())
         for x in (QLabel("From"), self.from_cb, QLabel("To"), self.to_cb, self.show_btn):
             row.addWidget(x)
         row.addStretch()
+        row.addWidget(self.draft3b_btn)
         lay.addLayout(row)
         split = QSplitter(Qt.Vertical)
         self.t4_model = RowsModel(["Period", "Table", "Description", "GSTR-2B (auto)", "Books / review", "3B filed",
@@ -652,6 +657,16 @@ class ReturnsPage(LazyPage):
         for m in (self.int_late_model, self.int_exp_model):  # computed on request (it reads several workings)
             m.set_rows([])
         self.int_lbl.setText("Press Compute for the interest and late fee working of the year.")
+
+    def gstr3b_draft(self, show: bool = True):
+        if self.state.client is None or not self.from_cb.currentText():
+            return None
+        from ..dialogs.gstr3b_draft import Gstr3bDraftDialog
+
+        dlg = Gstr3bDraftDialog(self, self.state, self.from_cb.currentText())
+        if show:
+            dlg.exec()
+        return dlg
 
     def show_table4(self) -> None:
         st = self.state

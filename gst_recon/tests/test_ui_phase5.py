@@ -386,3 +386,21 @@ def test_gstr1_json_dialog(qtbot, db, tmp_path, sample_files, messages):  # noqa
     dlg = page.prepare_gstr1(show=False)
     assert dlg.sec_model.rowCount() >= 4 and dlg.save_btn.isEnabled() and "placed in GSTR-1" in dlg.info.text()
     assert dlg.save(str(tmp_path / "g1.json")).exists()
+
+
+def test_gstr3b_draft_dialog(qtbot, db, tmp_path, sample_files, messages, monkeypatch):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.imports.import_file(c.id, sample_files["sales_april"], Source.SALES)
+    st.fy = "2025-26"
+    st.set_client(st.clients.get(c.id))
+    win.go("returns")
+    page = win.pages["returns"]
+    page.from_cb.setCurrentText("2025-04")
+    dlg = page.gstr3b_draft(show=False)
+    assert "Cash to pay" in dlg.info.text() and dlg.pay_model.rowCount() == 5 and dlg.model.rowCount() >= 15
+    assert dlg.save_pdf(str(tmp_path / "d.pdf"), open_file=False).exists()

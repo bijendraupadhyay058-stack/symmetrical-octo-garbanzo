@@ -111,3 +111,83 @@ def test_cli_gstr1_json(tmp_path, capsys, sample_files):
     out = tmp_path / "g1.json"
     assert main(["--db", dbp, "gstr1-json", "--client", ME, "--period", "2025-04", "--out", str(out)]) == 0
     assert "B2B" in capsys.readouterr().out and out.exists()
+
+
+# ------------------------------------------------------------------ GSTR-3B draft (15B)
+def _h(i=0, c=0, s=0, cess=0):
+    return {"igst": D(i), "cgst": D(c), "sgst": D(s), "cess": D(cess)}
+
+
+@pytest.mark.parametrize("liab, credit, rcm, cash, used", [
+    # IGST credit pays IGST first, the rest CGST / SGST where their own credit falls short
+    (_h(1000, 500, 500), _h(1500, 0, 500), None, _h(0, 0, 0), {("igst", "igst"): D(1000), ("igst", "cgst"): D(500),
+                                                                ("sgst", "sgst"): D(500)}),
+    # CGST credit pays CGST then IGST, never SGST
+    (_h(300, 100, 400), _h(0, 500, 0), None, _h(0, 0, 400), {("cgst", "cgst"): D(100), ("cgst", "igst"): D(300)}),
+    # reverse charge is paid in cash even with credit available
+    (_h(0, 0, 0), _h(5000, 5000, 5000), _h(0, 25, 25), _h(0, 25, 25), {}),
+    # cess only with cess credit
+    (_h(0, 0, 0, 100), _h(1000, 0, 0, 40), None, _h(0, 0, 0, 60), {("cess", "cess"): D(40)}),
+])
+def test_set_off(liab, credit, rcm, cash, used):
+    from fintax_gst.compliance.gstr3b_draft import set_off
+
+    so = set_off(liab, credit, rcm)
+    assert so.cash == cash and so.used == used
+    assert so.total_cash == sum(cash.values())
+    for c in ("igst", "cgst", "sgst", "cess"):  # nothing created or lost
+        assert so.credit[c] == sum(v for (cc, _h2), v in so.used.items() if cc == c) + so.carried[c]
+    assert not any(v for (c, h), v in so.used.items() if {c, h} == {"cgst", "sgst"})
+
+
+def test_gstr3b_draft_service(db, tmp_path):
+    from pypdf import PdfReader
+
+    from fintax_gst.reports.gstr3b_draft_pdf import build_pdf
+    from fintax_gst.services.batch import BatchService, write_example
+    from fintax_gst.services.gstr3b_draft import Gstr3bDraftService
+
+    BatchService(db).run(write_example(tmp_path / "b"), create_clients=True)
+    svc = Gstr3bDraftService(db)
+    d = svc.draft(1, "2025-04")
+    assert d.t31["31A"].taxable > 0 and d.t31["31B"].igst > 0 and d.t31["31C"].taxable == D(12000)
+    assert d.t4["4C"].total > 0 and "matched to GSTR-2B" in d.t4_basis
+    # reverse-charge bills GSTR-2B shows (not marked in the register): their tax is in 3.1(d) and paid in cash
+    assert d.t31["31D"].total == d.t4["4A3"].total > 0 and d.setoff.total_cash == d.t31["31D"].total
+    assert any("3.1(d)" in n for n in d.notes)
+    pdf = build_pdf(d, tmp_path / "g3b.pdf", "R. Sharma & Co.")
+    r = PdfReader(str(pdf))
+    assert len(r.pages) == 1 and "Cash to pay" in r.pages[0].extract_text()
+    with pytest.raises(ServiceError):
+        svc.draft(1, "April")
+
+
+def test_gstr3b_draft_unreconciled_and_reversals(db, tmp_path):
+    from fintax_gst.services.gstr3b_draft import Gstr3bDraftService
+
+    c = ClientService(db).create(**CLIENT)
+    two_b = tmp_path / "2b.json"
+    two_b.write_text(json.dumps({"data": {"gstin": ME, "rtnprd": "042025", "docdata": {"b2b": [
+        {"ctin": KA_CUST, "trdnm": "X", "inv": [{"inum": "Z1", "dt": "02-04-2025", "val": 1180, "typ": "R",
+                                                 "pos": "27", "rev": "N", "itcavl": "Y", "rsn": "",
+                                                 "items": [{"rt": 18, "txval": 1000, "igst": 180, "cgst": 0, "sgst": 0,
+                                                            "cess": 0}]}]}]}}}))
+    ImportService(db).import_file(c.id, two_b, Source.GSTR2B)
+    d = Gstr3bDraftService(db).draft(c.id, "2025-04")
+    assert "not reconciled" in d.t4_basis and d.t4["4A5"].igst == D(180)
+    assert d.setoff.carried["igst"] == D(180) and d.setoff.total_cash == 0
+    assert any("No sales register" in n for n in d.notes)
+
+
+def test_cli_gstr3b_draft(tmp_path, capsys, sample_files):
+    from fintax_gst.cli import main
+
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "import", "--client", ME, "--source", "sales", "--file",
+                 str(sample_files["sales_april"])]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "gstr3b-draft", "--client", ME, "--period", "2025-04", "--pdf",
+                 str(tmp_path / "d.pdf")]) == 0
+    out = capsys.readouterr().out
+    assert "Cash to pay:" in out and (tmp_path / "d.pdf").exists()
