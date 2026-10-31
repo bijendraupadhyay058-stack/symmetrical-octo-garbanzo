@@ -204,3 +204,114 @@ def test_ewaybill_file(db, tmp_path):
     assert svc.ewaybills(c.id, "2025-04").payload["billLists"][0]["fromPincode"] == 410501
     with pytest.raises(ServiceError, match="6 digits"):
         svc.save_seller(c.id, "x", "y", "123")
+
+
+# ------------------------------------------------------------------ TallyPrime statutory reports (17B)
+def _offline_gstr1(path):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    def sheet(name, headers, *rows):
+        ws = wb.create_sheet(name)
+        ws.append(["Summary For B2B"])  # the offline tool's three summary rows above the headings
+        ws.append([])
+        ws.append([])
+        ws.append(headers)
+        for r in rows:
+            ws.append(r)
+
+    ka, mh = gstin("29", "AACCV5566C"), gstin("27", "AABCR1122A")
+    sheet("b2b,sez,de", ["GSTIN/UIN of Recipient", "Receiver Name", "Invoice Number", "Invoice date", "Invoice Value",
+                         "Place Of Supply", "Reverse Charge", "Applicable % of Tax Rate", "Invoice Type",
+                         "E-Commerce GSTIN", "Rate", "Taxable Value", "Cess Amount"],
+          [ka, "Venkatesh", "S/1", "03-Apr-2025", 70800, "29-Karnataka", "N", None, "Regular B2B", None, 18, 60000, 0],
+          [mh, "Rajlaxmi", "S/2", "04-Apr-2025", 17400, "27-Maharashtra", "N", None, "Regular B2B", None, 18, 10000, 0],
+          [mh, "Rajlaxmi", "S/2", "04-Apr-2025", 17400, "27-Maharashtra", "N", None, "Regular B2B", None, 12, 5000, 0],
+          [ka, "Venkatesh", "S/3", "05-Apr-2025", 5000, "29-Karnataka", "N", None, "SEZ supplies without payment",
+           None, 0, 5000, 0])
+    sheet("b2cl", ["Invoice Number", "Invoice date", "Invoice Value", "Place Of Supply", "Applicable % of Tax Rate",
+                   "Rate", "Taxable Value", "Cess Amount", "E-Commerce GSTIN"],
+          ["L/1", "06-Apr-2025", 141600, "29-Karnataka", None, 18, 120000, 0, None])
+    sheet("b2cs", ["Type", "Place Of Supply", "Applicable % of Tax Rate", "Rate", "Taxable Value", "Cess Amount",
+                   "E-Commerce GSTIN"], ["OE", "27-Maharashtra", None, 18, 41000, 0, None])
+    sheet("cdnr", ["GSTIN/UIN of Recipient", "Receiver Name", "Note Number", "Note Date", "Note Type",
+                   "Place Of Supply", "Reverse Charge", "Note Supply Type", "Note Value", "Applicable % of Tax Rate",
+                   "Rate", "Taxable Value", "Cess Amount"],
+          [mh, "Rajlaxmi", "CN/1", "20-Apr-2025", "C", "27-Maharashtra", "N", "Regular", 1180, None, 18, 1000, 0])
+    sheet("exp", ["Export Type", "Invoice Number", "Invoice date", "Invoice Value", "Port Code",
+                  "Shipping Bill Number", "Shipping Bill Date", "Rate", "Taxable Value", "Cess Amount"],
+          ["WOPAY", "E/1", "24-Apr-2025", 250000, "INNSA1", "123", "25-Apr-2025", 0, 250000, 0])
+    sheet("exemp", ["Description", "Nil Rated Supplies", "Exempted(other than nil rated/non GST supply)",
+                    "Non-GST Supplies"],
+          ["Intra-State supplies to registered persons", 0, 12000, 0])
+    wb.save(path)
+    return path
+
+
+def test_tally_gstr1_report(db, tmp_path):
+    from fintax_gst.services.tally_statutory import TallyStatutoryService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = TallyStatutoryService(db)
+    pv = svc.preview(c.id, _offline_gstr1(tmp_path / "GSTR1_Apr.xlsx"), "gstr1", "2025-04")
+    docs = {r.invoice_no: r for r in pv.records}
+    assert pv.source == Source.SALES and pv.file_name == "GSTR1_Apr.xlsx" and pv.layout == "tally_gstr1"
+    s1, s2 = docs["S/1"], docs["S/2"]
+    assert (s1.igst, s1.cgst) == (D("10800.00"), D(0))  # Karnataka customer: IGST worked out from rate
+    assert (s2.taxable, s2.cgst, s2.sgst) == (D("15000"), D("1200.00"), D("1200.00"))  # two rates, one invoice
+    assert docs["S/3"].supply_type == "SEZ without payment" and docs["L/1"].igst == D("21600.00")
+    assert docs["CN/1"].doc_type.value == "CRN" and docs["E/1"].supply_type == "Export (LUT)"
+    assert docs["B2CS 27-18%"].cgst == D("3690.00") and docs["B2CS 27-18%"].supplier_gstin == ""
+    assert any(r.supply_type == "Exempt" and r.taxable == D("12000") for r in pv.records)
+    sf = ImportService(db).commit(c.id, pv, "accountant")
+    assert sf.file_name == "GSTR1_Apr.xlsx" and sf.source_type == "SALES"
+    with pytest.raises(ServiceError):  # the same report again
+        ImportService(db).commit(c.id, svc.preview(c.id, tmp_path / "GSTR1_Apr.xlsx", "gstr1", "2025-04"))
+    # the GSTR-1 file made from it reads back the same B2B documents (JSON export of Tally = portal layout)
+    from fintax_gst.services.gstr1_prep import Gstr1PrepService
+    import json as _json
+
+    draft = Gstr1PrepService(db).draft(c.id, "2025-04")
+    # S/2 has items at two rates and no HSN lines: its rate-wise split is unknown, so it is left out, not guessed
+    assert any(i.doc and i.doc.number == "S/2" and "not a GST rate" in i.message for i in draft.issues)
+    out = Gstr1PrepService(db).save(c.id, draft, tmp_path / "g1.json")
+    c2 = ClientService(db).create(gstin("27", "AAPFU0940F"), None, name="Second")
+    pv2 = svc.preview(c2.id, out, "gstr1", "2025-04")
+    assert {r.invoice_no for r in pv2.records if r.supplier_gstin} == {"S/1", "S/3", "CN/1"}
+    assert _json.loads(out.read_text())["fp"] == "042025"
+    with pytest.raises(ServiceError, match="month"):
+        svc.preview(c.id, out, "gstr1")
+
+
+def test_tally_reconciliation_and_3b_reports(db, tmp_path, sample_files):
+    from openpyxl import Workbook
+
+    from fintax_gst.services.tally_statutory import TallyStatutoryService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = TallyStatutoryService(db)
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Shree Ganesh Traders"])
+    ws.append(["GSTR-2B Reconciliation"])
+    ws.append(["Party Name", "GSTIN/UIN", "Supplier Invoice No", "Invoice Date", "Taxable Value", "CGST", "SGST",
+               "Status"])
+    ws.append(["Mahalaxmi", MH, "A-1", "02-04-2025", 1000, 90, 90, "Matched"])
+    ws.append(["Mahalaxmi", MH, "A-2", "03-04-2025", 2000, 180, 180, "Not available in portal"])
+    ws.append(["Pune Packaging", gstin("27", "AAFFP4321M"), "P-9", "05-04-2025", 500, 45, 45,
+               "Available only in GSTR-2B"])
+    wb.save(tmp_path / "recon.xlsx")
+    pv = svc.preview(c.id, tmp_path / "recon.xlsx", "recon")
+    assert pv.source == Source.BOOKS and sorted(r.invoice_no for r in pv.records) == ["A-1", "A-2"]
+    assert any(i.severity == "ignored" and "portal only" in i.message for i in pv.issues)
+    sf, periods = svc.import_gstr3b(c.id, sample_files["gstr3b_april_json"], user="accountant")
+    assert periods == ["2025-04"] and sf.source_type == "TALLY3B"
+    books = svc.books_3b(c.id, "2025-04")
+    assert books["4A5"].total > 0
+    from fintax_gst.services.gstr3b import Gstr3bService
+
+    assert Gstr3bService(db).values(c.id, ["2025-04"]) == {}  # never mixed with the GSTR-3B filed on the portal
+    with pytest.raises(ServiceError, match="already imported"):
+        svc.import_gstr3b(c.id, sample_files["gstr3b_april_json"])

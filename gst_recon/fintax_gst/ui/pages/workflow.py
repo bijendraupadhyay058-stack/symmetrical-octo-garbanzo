@@ -130,6 +130,10 @@ class WorkflowPage(LazyPage):
                                      "the 180-day rule page to find bills not paid within 180 days")
         self.payments_btn.clicked.connect(lambda: self.import_payments())
         self.books_lbl = QLabel()
+        self.statutory_btn = QPushButton("Tally statutory report…")
+        self.statutory_btn.setToolTip("TallyPrime GST reports: GSTR-1 (as sales), GSTR-2A / 2B reconciliation (as "
+                                      "purchases) or GSTR-3B (as per books)")
+        self.statutory_btn.clicked.connect(lambda: self.tally_statutory())
         self.tally_btn = QPushButton("Import from Tally…")
         self.tally_btn.setToolTip("Fetch the purchase vouchers straight from TallyPrime (XML interface, port 9000)")
         self.tally_btn.clicked.connect(lambda: self.tally_dialog(Source.BOOKS))
@@ -137,6 +141,7 @@ class WorkflowPage(LazyPage):
         r3.addWidget(b3)
         r3.addWidget(self.journal_btn)
         r3.addWidget(self.payments_btn)
+        r3.addWidget(self.statutory_btn)
         r3.addWidget(self.tally_btn)
         r3.addWidget(self.books_lbl, 1)
         self.s3.body.addLayout(r3)
@@ -384,7 +389,7 @@ class WorkflowPage(LazyPage):
         self.s6.set_done(bool(rows), f"{rejected} rejected rows" if rows else "")
         self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0 and st.can("reconcile"))
         self.delete_run_btn.setEnabled(st.run_id is not None and st.can("delete_data"))
-        for b in (self.books_btn, self.journal_btn, self.payments_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
+        for b in (self.books_btn, self.journal_btn, self.payments_btn, self.statutory_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
             b.setEnabled(st.can("import"))
         self.export_btn.setEnabled(st.can("export"))
         self._show_run()
@@ -460,6 +465,26 @@ class WorkflowPage(LazyPage):
         latest = st.tracking.latest_run(st.client.id, st.fy)
         st.set_run(latest.id if latest else None, data_changed=True)
         return True
+
+    def tally_statutory(self, kind: str | None = None, path: str | None = None):
+        from PySide6.QtWidgets import QInputDialog
+
+        from ...services.tally_statutory import KINDS
+        from ..import_flow import tally_statutory_interactive
+
+        if self.state.client is None:
+            return None
+        if kind is None:
+            label, ok = QInputDialog.getItem(self, "TallyPrime statutory report", "Which report did you export from "
+                                             "TallyPrime (Display More Reports → GST Reports)?", list(KINDS.values()),
+                                             0, False)
+            if not ok:
+                return None
+            kind = next(k for k, v in KINDS.items() if v == label)
+        path = path or QFileDialog.getOpenFileName(self, KINDS[kind], "", "TallyPrime export (*.xlsx *.xls *.json)")[0]
+        if not path:
+            return None
+        return tally_statutory_interactive(self, self.state, kind, path, self.period()[0])
 
     def import_payments(self, path: str | None = None):
         from .rule37 import import_payments_dialog

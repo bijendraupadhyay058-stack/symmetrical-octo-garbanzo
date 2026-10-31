@@ -114,3 +114,44 @@ def replace_interactive(parent: QWidget, state: AppState, old: SourceFile, path:
     state.notify()
     return sf
 
+
+def tally_statutory_interactive(parent: QWidget, state: AppState, kind: str, path: str | Path,
+                                period: str | None = None):
+    """TallyPrime statutory report: GSTR-1 / reconciliation through the import preview, GSTR-3B stored as per books."""
+    from ..services.common import ServiceError
+    from ..services.tally_statutory import TallyStatutoryService
+
+    if state.client is None:
+        QMessageBox.information(parent, "Import", "Select a client first.")
+        return None
+    svc, client_id = TallyStatutoryService(state.db), state.client.id
+    if kind == "gstr3b":
+        task = run_task(parent, f"Reading {Path(path).name}", svc.import_gstr3b, client_id, path, period, state.user,
+                        cancellable=False)
+        if not task.ok:
+            QMessageBox.warning(parent, "TallyPrime GSTR-3B", task.message)
+            return None
+        sf, periods = task.result_value
+        QMessageBox.information(parent, "TallyPrime GSTR-3B", f"GSTR-3B as per the books saved for "
+                                f"{', '.join(periods)}. It is compared with the draft in 'GSTR-3B draft (one page)'.")
+        state.notify()
+        return sf
+    task = run_task(parent, f"Reading {Path(path).name}", svc.preview, client_id, path, kind, period,
+                    cancellable=False)
+    if not task.ok:
+        QMessageBox.warning(parent, "TallyPrime report", task.message)
+        return None
+    preview: ImportPreview = task.result_value
+    if ImportPreviewDialog(parent, preview).exec() != QDialog.Accepted:
+        return None
+    try:
+        saved = run_task(parent, f"Saving {Path(path).name}", state.imports.commit, client_id, preview, state.user)
+    except ServiceError as exc:  # pragma: no cover - reported by the task
+        QMessageBox.warning(parent, "TallyPrime report", str(exc))
+        return None
+    if not saved.ok:
+        QMessageBox.warning(parent, "TallyPrime report", saved.message)
+        return None
+    state.notify()
+    return saved.result_value
+

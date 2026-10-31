@@ -720,4 +720,25 @@ class PartyAddress(Base):
 
 
 V18_TABLES = [PartyAddress]
+
+
+class BooksGstr3b(Base):
+    """GSTR-3B as prepared in the books (TallyPrime's GSTR-3B report) – kept apart from the GSTR-3B filed on the
+    portal (Gstr3bEntry). Schema v19."""
+
+    __tablename__ = "books_gstr3b"
+    __table_args__ = (Index("ix_books3b_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    table_code: Mapped[str] = mapped_column(String(6))
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+
+
+V19_TABLES = [BooksGstr3b]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -571,3 +571,35 @@ def test_reconcile_page_2a_8a_and_delete(qtbot, db, tmp_path, sample_files, mess
     assert run and wf.delete_run_btn.isEnabled()
     assert wf.delete_run() and st.run_id is None
     assert run not in [r.id for r in st.recon.list_runs(c.id)]
+
+
+def test_tally_statutory_reports_on_reconcile_page(qtbot, db, tmp_path, sample_files, messages,  # noqa: F811
+                                                   monkeypatch):
+    from openpyxl import Workbook
+
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.ui.dialogs.gstr3b_draft import Gstr3bDraftDialog
+    from fintax_gst.ui.dialogs.import_preview import ImportPreviewDialog
+
+    monkeypatch.setattr(ImportPreviewDialog, "exec", lambda self: 1)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    win.go("workflow")
+    wf = win.pages["workflow"]
+    wf.set_period("2025-04")
+    assert wf.statutory_btn.isEnabled()
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Party Name", "GSTIN/UIN", "Supplier Invoice No", "Invoice Date", "Taxable Value", "CGST", "SGST",
+               "Status"])
+    ws.append(["Mahalaxmi", "27AAACM1234A1Z5", "A-1", "02-04-2025", 1000, 90, 90, "Matched"])
+    ws.append(["Mahalaxmi", "27AAACM1234A1Z5", "A-9", "09-04-2025", 1000, 90, 90, "Available only in GSTR-2B"])
+    wb.save(tmp_path / "recon.xlsx")
+    sf = wf.tally_statutory("recon", str(tmp_path / "recon.xlsx"))
+    assert sf is not None and sf.documents_imported == 1
+    assert wf.tally_statutory("gstr3b", str(sample_files["gstr3b_april_json"])) is not None
+    dlg = Gstr3bDraftDialog(win, st, "2025-04")
+    qtbot.addWidget(dlg)
+    assert dlg.tally_model.rowCount() > 0 and dlg.tally_table.isVisibleTo(dlg)

@@ -35,7 +35,16 @@ class Gstr3bDraftDialog(QDialog):
         t2 = Table()
         t2.setModel(sortable(self.pay_model))
         lay.addWidget(t2, 1)
-        self.tables = (t1, t2)
+        self.tally_lbl = section("Draft vs GSTR-3B report imported from TallyPrime")
+        lay.addWidget(self.tally_lbl)
+        self.tally_model = RowsModel(["Table", "Draft – total tax", "TallyPrime – total tax", "Difference",
+                                      "Draft – taxable", "TallyPrime – taxable"],
+                                     kinds=["text", "money", "money", "money", "money", "money"])
+        t3 = Table()
+        t3.setModel(sortable(self.tally_model))
+        lay.addWidget(t3, 1)
+        self.tally_table = t3
+        self.tables = (t1, t2, t3)
         self.notes = QLabel()
         self.notes.setWordWrap(True)
         self.notes.setObjectName("Muted")
@@ -75,6 +84,18 @@ class Gstr3bDraftDialog(QDialog):
         pay.append(["Total", sum((so.liability[h] + so.rcm[h] for h in HEADS), ZERO),
                     *[sum((so.paid_by(x)[c] for x in HEADS), ZERO) for c in HEADS], so.total_cash])
         self.pay_model.set_rows(pay)
+        from ...services.tally_statutory import TallyStatutoryService
+
+        labels = {**{c: f"3.1{TABLE31[c][3:6]}" for c in TABLE31}, **{c: TABLE4[c][:40] for c in TABLE4}}
+        cmp = TallyStatutoryService(self.state.db).compare_3b(self.state.client.id, self.period, d)
+
+        def tax(v):
+            return v.igst + v.cgst + v.sgst + v.cess
+
+        self.tally_model.set_rows([[labels.get(c, c), tax(a), tax(b), tax(a) - tax(b), a.taxable, b.taxable]
+                                   for c, a, b in cmp])
+        for w in (self.tally_lbl, self.tally_table):
+            w.setVisible(bool(cmp))
         for t in self.tables:
             t.fit(420)
         carried = ", ".join(f"{h.upper()} Rs. {fmt_inr(so.carried[h])}" for h in HEADS if so.carried[h])
