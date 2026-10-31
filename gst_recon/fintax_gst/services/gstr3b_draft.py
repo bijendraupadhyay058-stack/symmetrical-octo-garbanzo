@@ -123,6 +123,20 @@ class Gstr3bDraftService:
             t4["4C"] = net
             notes.append("ITC on reverse-charge purchases (4(A)(3)) is taken as the tax paid under 3.1(d) – check "
                          "that it is eligible.")
+        # Rule 42 / 43 reversal of common credit, once the month's working is saved (or capital goods exist)
+        from .common_credit import CommonCreditService
+
+        cc = CommonCreditService(self.db)
+        if cc.applies(client_id, p):
+            m = cc.month(client_id, p, as_of)
+            rev = m.reversal
+            if any(rev.values()):
+                r = Gstr3bValues(rev["igst"], rev["cgst"], rev["sgst"], rev["cess"])
+                t4["4B1"] = _add(t4["4B1"], r)
+                c = t4["4C"]
+                t4["4C"] = Gstr3bValues(c.igst - r.igst, c.cgst - r.cgst, c.sgst - r.sgst, c.cess - r.cess)
+                notes.append(f"Rule 42/43: Rs. {m.total} of common credit reversed in 4(B)(1) (exempt share "
+                             f"{m.ratio * 100:.2f} % of turnover{' of ' + m.ratio_from if m.ratio_from else ''}).")
         # 5 – exempt / nil / non-GST inward supplies
         t5 = {"inter": ZERO, "intra": ZERO}
         for b in books:

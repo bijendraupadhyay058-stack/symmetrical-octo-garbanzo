@@ -50,6 +50,10 @@ class ReturnsPage(LazyPage):
         lay.addLayout(top)
         tabs = QTabWidget()
         tabs.addTab(self._table4_tab(), "GSTR-3B Table 4 working")
+        from .rule42_tab import Rule42Tab
+
+        self.rule42_tab = Rule42Tab(state)
+        tabs.addTab(self.rule42_tab, "Rule 42/43")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")
@@ -626,6 +630,7 @@ class ReturnsPage(LazyPage):
         for b in (self.c9_save, self.c9_clear, self.c9_exp_btn):
             b.setEnabled(st.can("review") and st.client is not None)
         self.tds_import_btn.setEnabled(st.can("import") and st.client is not None)
+        self.rule42_tab.reload()
         self.g9_json_btn.setEnabled(st.can("export") and st.client is not None)
         for b in (self.int_file_btn, self.int_settle_btn):
             b.setEnabled(st.can("review") and st.client is not None)

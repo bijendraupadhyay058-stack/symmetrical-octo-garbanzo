@@ -179,6 +179,12 @@ def _migration_16(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V16_TABLES])
 
 
+def _migration_17(conn) -> None:
+    from .models import V17_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V17_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -200,6 +206,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (14, "staff member responsible for each client (firm work dashboard)", _migration_14),
     (15, "log of document reminders prepared for clients", _migration_15),
     (16, "payments to suppliers (payment register) for the 180-day rule", _migration_16),
+    (17, "common credit (Rule 42) figures and common capital goods (Rule 43)", _migration_17),
 ]
 
 

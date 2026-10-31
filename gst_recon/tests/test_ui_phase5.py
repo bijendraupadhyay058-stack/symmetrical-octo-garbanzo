@@ -495,3 +495,30 @@ def test_replace_import_with_revised_file(qtbot, db, tmp_path, messages, monkeyp
     assert kinds == ["Changed", "New", "No longer in the file"]
     assert "taxable: 1000 → 1100" in next(r[3] for r in shown[0].model.rows if r[0] == "Changed")
     assert [f.file_name for f in st.imports.list_files(c.id)] == ["v2.csv"]
+
+
+def test_rule42_tab(qtbot, db, tmp_path, messages):  # noqa: F811
+    from datetime import date as _date
+    from decimal import Decimal
+
+    from fintax_gst.services.batch import BatchService, write_example
+
+    BatchService(db).run(write_example(tmp_path / "b"), create_clients=True)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    st.fy = "2025-26"
+    st.set_client(st.clients.list()[0])
+    win.go("returns")
+    tab = win.pages["returns"].rule42_tab
+    tab.reload()
+    tab.month.setCurrentText("2025-04")
+    m = tab.show_month()
+    assert m is not None and "save the month" in tab.result.rows[-1][1]
+    tab.t["t4"].setText("10000")
+    assert tab.save() and "save the month" not in tab.result.rows[-1][1]
+    assert tab.add_good({"description": "Van", "invoice_no": "V1", "invoice_date": _date(2025, 4, 2),
+                         "igst": Decimal(0), "cgst": Decimal("600"), "sgst": Decimal("600"), "cess": Decimal(0)})
+    assert tab.goods.rowCount() == 1
+    assert "FY 2025-26" in (tab.show_year() and tab.year_lbl.text())
+    dlg = tab.journals(show=False)
+    assert dlg.entries and dlg.source.currentData() == "rule42"

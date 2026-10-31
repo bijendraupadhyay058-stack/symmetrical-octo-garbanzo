@@ -659,4 +659,43 @@ class SupplierPayment(Base):
 
 
 V16_TABLES = [SupplierPayment]
+
+
+class CommonCredit(Base):
+    """The user's figures for the Rule 42 working of a month (schema v17). Saving the month applies its
+    reversal in the GSTR-3B draft."""
+
+    __tablename__ = "common_credit"
+    __table_args__ = (UniqueConstraint("client_id", "period", name="uq_common_credit"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    t1: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively non-business
+    t2: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively exempt supplies
+    t4: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively taxable supplies
+    non_business: Mapped[bool] = mapped_column(Boolean, default=False)  # common inputs also for non-business (D2)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CapitalGood(Base):
+    """A capital good used for both taxable and exempt supplies (Rule 43): its ITC is spread over 60 months."""
+
+    __tablename__ = "capital_goods"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    description: Mapped[str] = mapped_column(String(200))
+    invoice_no: Mapped[str] = mapped_column(String(100), default="")
+    invoice_date: Mapped[date] = mapped_column(Date)
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    disposed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V17_TABLES = [CommonCredit, CapitalGood]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

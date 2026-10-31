@@ -13,7 +13,8 @@ from ..importers.parsing import parse_period
 from .common import ServiceError, audit
 
 SOURCES = {"claims": "ITC claim register (reversals and re-claims of the month)",
-           "rule37": "180-day rule (bills to reverse or re-claim in the month)"}
+           "rule37": "180-day rule (bills to reverse or re-claim in the month)",
+           "rule42": "Rule 42/43 common credit (reversal of the month)"}
 
 
 def _key(client_id: int) -> str:
@@ -51,6 +52,14 @@ class TallyJournalService:
         led = {**self.ledgers(client_id), **{k: v for k, v in (ledgers or {}).items() if k in DEFAULT_LEDGERS and v}}
         on = month_end(p)
         out: list[JournalEntry] = []
+        if source == "rule42":
+            from .common_credit import CommonCreditService
+
+            m = CommonCreditService(self.db).month(client_id, p)
+            e = entry("REVERSE", on, m.reversal, led,
+                      f"ITC reversed – Rules 42/43 CGST Rules, common credit for exempt supplies "
+                      f"({m.ratio * 100:.2f} % of turnover) – {p}", f"R42-{p}")
+            return [e] if e else []
         if source == "claims":
             from .itc import ItcService
 
