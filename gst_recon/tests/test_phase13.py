@@ -263,8 +263,9 @@ def test_backup_copy_to_cloud_folder(db, tmp_path, sample_files):
     assert status["ok"] and status["file"] == copies[0].name
     # the key is never written to the audit log
     with db.session() as s:
-        details = " ".join(a.details_json for a in s.scalars(select(AuditLog)))
-    assert '"key"' not in details and str(cloud) in details
+        entries = [json.loads(a.details_json) for a in s.scalars(select(AuditLog))]
+    assert '"key"' not in json.dumps(entries)
+    assert {"after": {"dir": str(cloud)}} in entries  # the folder is recorded (Windows paths too)
 
     # only the newest copies of this computer are kept
     sec.set_setting("backup_keep", 2, SETUP_SESSION)
