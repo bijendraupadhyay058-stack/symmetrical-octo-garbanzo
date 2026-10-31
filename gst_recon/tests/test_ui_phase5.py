@@ -547,3 +547,27 @@ def test_einvoice_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
     dlg.kind.setCurrentIndex(0)
     dlg.refresh()
     assert "4 e-invoice(s)" in dlg.info.text()  # S/2 now has an address
+
+
+def test_reconcile_page_2a_8a_and_delete(qtbot, db, tmp_path, sample_files, messages, monkeypatch):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.ui.dialogs.import_preview import ImportPreviewDialog
+
+    monkeypatch.setattr(ImportPreviewDialog, "exec", lambda self: 1)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    win.go("workflow")
+    wf = win.pages["workflow"]
+    wf.set_period("2025-04")
+    assert wf.g2a_btn.isEnabled() and wf.g8a_btn.isEnabled() and not wf.delete_run_btn.isEnabled()
+    assert wf.import_path(sample_files["books_april"], Source.BOOKS) is not None
+    assert wf.import_path(sample_files["gstr2b_april_json"], Source.GSTR2B) is not None
+    assert wf.import_path(sample_files["gstr8a_json"], Source.GSTR8A) is not None
+    wf.start_btn.click()
+    run = st.run_id
+    assert run and wf.delete_run_btn.isEnabled()
+    assert wf.delete_run() and st.run_id is None
+    assert run not in [r.id for r in st.recon.list_runs(c.id)]

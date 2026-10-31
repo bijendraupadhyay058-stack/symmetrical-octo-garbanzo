@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from ...core.models import ReconSettings, Source
 from ...importers.pipeline import LAYOUT_LABELS
 from ...engine.summary import category_summary, dashboard
+from ...services.common import ServiceError
 from ...services.reconciliation import fy_periods, months_between
 from ...services.reports import export_run
 from ..dialogs.client_form import ClientDialog
@@ -139,16 +140,24 @@ class WorkflowPage(LazyPage):
         r3.addWidget(self.tally_btn)
         r3.addWidget(self.books_lbl, 1)
         self.s3.body.addLayout(r3)
-        self.s4 = StepCard(4, "Import GSTR-2B", "GST portal Excel, JSON or ZIP download. The return period is read "
-                                                "from the file; otherwise the From month is used.")
+        self.s4 = StepCard(4, "Import GSTR-2B, GSTR-2A and GSTR-8A",
+                           "GST portal Excel, JSON or ZIP downloads (or files picked up on the GST Portal page). The "
+                           "return period is read from the file; otherwise the From month is used. GSTR-8A is the "
+                           "annual statement used for GSTR-9 Table 8.")
         b4 = self.g2b_btn = primary("Import GSTR-2B…")
         b4.clicked.connect(lambda: self.import_dialog(Source.GSTR2B))
+        self.g2a_btn = QPushButton("Import GSTR-2A…")
+        self.g2a_btn.clicked.connect(lambda: self.import_dialog(Source.GSTR2A))
+        self.g8a_btn = QPushButton("Import GSTR-8A…")
+        self.g8a_btn.clicked.connect(lambda: self.import_dialog(Source.GSTR8A))
         self.g2b_lbl = QLabel()
         r4 = QHBoxLayout()
         r4.addWidget(b4)
+        r4.addWidget(self.g2a_btn)
+        r4.addWidget(self.g8a_btn)
         r4.addWidget(self.g2b_lbl, 1)
         self.s4.body.addLayout(r4)
-        self.s5 = StepCard(5, "Optional: GSTR-3B, IMS, prior-period books and GSTR-2A",
+        self.s5 = StepCard(5, "Optional: GSTR-3B, IMS and prior-period books",
                            "GSTR-3B (portal JSON or template) feeds the Table 4 working; the IMS download is compared "
                            "with books and GSTR-2B; earlier months' purchase registers let the engine recognise "
                            "invoices booked earlier that appear in this GSTR-2B.")
@@ -159,9 +168,7 @@ class WorkflowPage(LazyPage):
         b5d.clicked.connect(lambda: self.navigate.emit("ims"))
         b5a = QPushButton("Import earlier purchase register…")
         b5a.clicked.connect(lambda: self.import_dialog(Source.BOOKS, prior=True))
-        b5b = QPushButton("Import GSTR-2A…")
-        b5b.clicked.connect(lambda: self.import_dialog(Source.GSTR2A))
-        self.optional_btns = (b5a, b5b, b5c, b5d)
+        self.optional_btns = (b5a, b5c, b5d, self.g2a_btn, self.g8a_btn)
         for b in self.optional_btns:
             r5.addWidget(b)
         r5.addStretch()
@@ -215,9 +222,16 @@ class WorkflowPage(LazyPage):
         self.start_btn = primary("▶  Start Reconciliation")
         self.start_btn.setMinimumHeight(36)
         self.start_btn.clicked.connect(self.start)
+        self.delete_run_btn = QPushButton("Delete reconciliation…")
+        self.delete_run_btn.setObjectName("Danger")
+        self.delete_run_btn.setToolTip("Delete the reconciliation shown now (its statuses and remarks); the imported "
+                                       "files are kept. Earlier ones: History page.")
+        self.delete_run_btn.clicked.connect(lambda: self.delete_run())
+        self.delete_run_btn.setEnabled(False)
         r7 = QHBoxLayout()
         r7.addWidget(self.start_btn)
         r7.addStretch()
+        r7.addWidget(self.delete_run_btn)
         self.s7.body.addLayout(r7)
         self._load_settings()
 
@@ -369,6 +383,7 @@ class WorkflowPage(LazyPage):
             if rows else "No files imported for this period yet.")
         self.s6.set_done(bool(rows), f"{rejected} rejected rows" if rows else "")
         self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0 and st.can("reconcile"))
+        self.delete_run_btn.setEnabled(st.run_id is not None and st.can("delete_data"))
         for b in (self.books_btn, self.journal_btn, self.payments_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
             b.setEnabled(st.can("import"))
         self.export_btn.setEnabled(st.can("export"))
@@ -420,6 +435,31 @@ class WorkflowPage(LazyPage):
         path, _ = QFileDialog.getOpenFileName(self, f"Select {source.value} file", "", FILE_FILTER)
         if path:
             self.import_path(path, source, prior)
+
+    def delete_run(self) -> bool:
+        st = self.state
+        if st.client is None or st.run_id is None:
+            QMessageBox.information(self, "Delete reconciliation", "There is no reconciliation to delete for this "
+                                    "client and year.")
+            return False
+        run = next((r for r in st.recon.list_runs(st.client.id) if r.id == st.run_id), None)
+        if run is None:
+            return False
+        if QMessageBox.question(
+                self, "Delete reconciliation",
+                f"Delete reconciliation #{run.id} ({run.period_from}..{run.period_to}, "
+                f"{run.comparison.replace('_', ' ')})?\n\nIts statuses, remarks and matches are deleted with it. The "
+                "imported files are kept, so you can correct them and reconcile again.\n\nThis is recorded in the "
+                "audit log and cannot be undone.") != QMessageBox.Yes:
+            return False
+        try:
+            st.recon.delete_run(st.client.id, run.id, st.user)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Delete reconciliation", str(exc))
+            return False
+        latest = st.tracking.latest_run(st.client.id, st.fy)
+        st.set_run(latest.id if latest else None, data_changed=True)
+        return True
 
     def import_payments(self, path: str | None = None):
         from .rule37 import import_payments_dialog
