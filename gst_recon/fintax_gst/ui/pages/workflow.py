@@ -167,6 +167,11 @@ class WorkflowPage(LazyPage):
         self.s6.body.addWidget(self.files_table)
         r6 = QHBoxLayout()
         r6.addWidget(self.validate_lbl, 1)
+        self.taxcheck_btn = QPushButton("Check tax types and rates…")
+        self.taxcheck_btn.setToolTip("Purchases and sales charged IGST instead of CGST + SGST (or the reverse), tax "
+                                     "of another state, and tax that does not match taxable value × a GST rate")
+        self.taxcheck_btn.clicked.connect(lambda: self.tax_checks())
+        r6.addWidget(self.taxcheck_btn)
         imports_btn = QPushButton("Import details / issues")
         imports_btn.clicked.connect(lambda: self.navigate.emit("imports"))
         r6.addWidget(imports_btn)
@@ -403,6 +408,20 @@ class WorkflowPage(LazyPage):
         path, _ = QFileDialog.getOpenFileName(self, f"Select {source.value} file", "", FILE_FILTER)
         if path:
             self.import_path(path, source, prior)
+
+    def tax_checks(self, show: bool = True):
+        """Run the tax type / rate checks for the selected period; returns the findings."""
+        st = self.state
+        p_from, p_to = self.period()
+        if st.client is None or not p_from:
+            return None
+        from ...services.tax_checks import TaxCheckService
+        from ..dialogs.tax_checks import TaxCheckDialog
+
+        issues = TaxCheckService(st.db).check(st.client.id, p_from, p_to)
+        if show:
+            TaxCheckDialog(self, issues, f"{st.client.name} {p_from}..{p_to}").exec()
+        return issues
 
     def import_path(self, path: str | Path, source: Source, prior: bool = False):
         period = None

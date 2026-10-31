@@ -229,3 +229,25 @@ def test_security_cloud_copy(qtbot, db, tmp_path, messages, monkeypatch):  # noq
     assert "First copy saved" in messages[-1] and len(list(folder.glob("*.ftpbk"))) == 1
     assert "On" in sec.cloud_lbl.text() and "OK" in sec.cloud_lbl.text() and sec.cloud_now_btn.isEnabled()
     assert sec.cloud_off() and sec.cloud_lbl.text() == "Off."
+
+
+def test_workflow_tax_checks(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.ui.dialogs.tax_checks import TaxCheckDialog
+
+    shown = []
+    monkeypatch.setattr(TaxCheckDialog, "exec", lambda self: shown.append(self) or 0)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    c = win.state.clients.create(**CLIENT)
+    reg = tmp_path / "p.csv"
+    reg.write_text(f"GSTIN,Invoice No,Invoice Date,Taxable Value,IGST\n{gstin('27', 'AABCM1234K')},IG-1,03-04-2025,"
+                   "1000,180\n")
+    win.state.imports.import_file(c.id, reg, Source.BOOKS)
+    win.state.set_client(win.state.clients.get(c.id))
+    win.go("workflow")
+    wf = win.pages["workflow"]
+    wf.set_period("2025-04")
+    issues = wf.tax_checks()
+    assert len(issues) == 1 and shown and shown[0].model.rowCount() == 1
+    assert shown[0].export(str(tmp_path / "tc.xlsx")).exists()
