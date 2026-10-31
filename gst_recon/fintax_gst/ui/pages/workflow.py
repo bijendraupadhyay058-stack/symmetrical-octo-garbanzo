@@ -479,8 +479,7 @@ class WorkflowPage(LazyPage):
             QMessageBox.information(self, "Reconciliation", task.message)
             return
         self.last_export = []
-        st.set_run(task.result_value)
-        st.notify()
+        st.set_run(task.result_value, data_changed=True)
 
     def _browse_out(self) -> None:
         d = QFileDialog.getExistingDirectory(self, "Report folder", self.out_dir.text())

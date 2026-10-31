@@ -331,3 +331,40 @@ def test_tally_journal_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
     claims.period.setText("2025-10")
     claims.refresh()
     assert claims.entries == [] and "No reversal" in claims.info.text()
+
+
+def test_errors_are_logged_and_shown(qtbot, tmp_path, messages, monkeypatch, caplog):  # noqa: F811
+    import logging
+    import sys
+
+    from PySide6.QtWidgets import QMessageBox
+
+    from fintax_gst.ui import crash
+
+    shown = []
+    monkeypatch.setattr(QMessageBox, "critical", staticmethod(lambda *a, **k: shown.append(a[2])))
+    monkeypatch.setattr(crash, "_state", {"file": None, "showing": False, "shown": 0, "home": tmp_path})
+    old_hook = sys.excepthook
+    try:
+        crash.install(tmp_path)
+        with caplog.at_level(logging.ERROR):
+            try:
+                raise RuntimeError("boom in a button")
+            except RuntimeError:
+                sys.excepthook(*sys.exc_info())
+        assert "boom in a button" in caplog.text and "Traceback" in caplog.text
+        assert shown and "boom in a button" in shown[0] and "fintaxpro.log" in shown[0]
+        for _ in range(5):  # a repeating error does not bury the window under messages
+            crash.show_error(RuntimeError("again"))
+        assert len(shown) == crash.MAX_DIALOGS
+    finally:
+        sys.excepthook = old_hook
+        import faulthandler
+
+        faulthandler.disable()
+        if crash._state["file"]:
+            crash._state["file"].close()
+    (tmp_path / "crash.log").write_text("Fatal Python error: Segmentation fault")
+    kept = crash.previous_crash(tmp_path)
+    assert kept and kept.name.startswith("crash-") and not (tmp_path / "crash.log").exists()
+    assert crash.previous_crash(tmp_path) is None  # reported once

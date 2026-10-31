@@ -221,6 +221,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="open every page once and exit (used to verify an installation or build)")
     args, qt_args = parser.parse_known_args(argv)
     setup_logging(default_home(), False)
+    from . import crash
+
+    crashed = crash.previous_crash(default_home())
+    crash.install(default_home())
     app = create_app([sys.argv[0], *qt_args])
     db = open_database(args.db)
     if args.smoke_test:  # opens each page once and exits – never interactive, so no login needed
@@ -237,6 +241,12 @@ def main(argv: list[str] | None = None) -> int:
         log.warning("automatic backup failed: %s", exc)
     win = build_window(db, session)
     win.show()
+    if crashed is not None and not args.smoke_test:
+        from PySide6.QtWidgets import QMessageBox
+
+        QMessageBox.warning(win, "FIN TAX PRO", "FIN TAX PRO closed unexpectedly last time. Your data is safe.\n\n"
+                            f"A report was saved in:\n{crashed}\n\nPlease send that file (and fintaxpro.log in the same "
+                            "folder) to your support contact, so the cause can be fixed.")
     if not args.smoke_test:
         win.update_bar.check_in_background(win.state.qsettings)
     if args.smoke_test:

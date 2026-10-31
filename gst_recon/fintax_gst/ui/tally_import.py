@@ -35,7 +35,7 @@ def tally_import(parent: QWidget, state: AppState, source: Source, p_from: str, 
     if not ok:
         return False
     task = run_task(parent, f"Fetching vouchers from Tally – {company}", svc.fetch, state.client.id, company, p_from,
-                    p_to, url.strip(), state.user, cancellable=False)
+                    p_to, url.strip(), state.user)
     if not task.ok:
         QMessageBox.warning(parent, "Tally", task.message)
         return False

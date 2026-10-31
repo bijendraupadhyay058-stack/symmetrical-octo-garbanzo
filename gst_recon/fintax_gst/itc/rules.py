@@ -19,6 +19,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from decimal import Decimal
+from functools import lru_cache
 
 SEVERITIES = ("high", "medium", "info")
 
@@ -47,11 +48,14 @@ class Rule:
         return self.effective_from <= d and (self.effective_to is None or d <= self.effective_to)
 
     def keyword_hit(self, *texts: str) -> str | None:
+        """The first keyword (in the rule's order) found as a whole word in the texts."""
+        if not self.keywords:
+            return None
         hay = " ".join(t for t in texts if t).lower()
-        for kw in self.keywords:
-            if re.search(rf"(?<![a-z0-9]){re.escape(kw.lower())}(?![a-z0-9])", hay):
-                return kw
-        return None
+        any_kw, each = _patterns(tuple(self.keywords))
+        if not any_kw.search(hay):  # most documents: one search per rule
+            return None
+        return next((kw for kw, rx in zip(self.keywords, each) if rx.search(hay)), None)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -66,6 +70,14 @@ class Rule:
         d["effective_to"] = date.fromisoformat(d["effective_to"]) if d.get("effective_to") else None
         allowed = set(cls.__dataclass_fields__)
         return cls(**{k: v for k, v in d.items() if k in allowed})
+
+
+@lru_cache(maxsize=512)
+def _patterns(keywords: tuple[str, ...]) -> tuple[re.Pattern, list[re.Pattern]]:
+    """Compiled once per keyword list: any keyword, and each keyword on its own."""
+    words = [re.escape(k.lower()) for k in keywords]
+    return (re.compile(rf"(?<![a-z0-9])(?:{'|'.join(words)})(?![a-z0-9])"),
+            [re.compile(rf"(?<![a-z0-9]){w}(?![a-z0-9])") for w in words])
 
 
 def _blocked(code, title, ref, keywords, guidance, **kw) -> Rule:

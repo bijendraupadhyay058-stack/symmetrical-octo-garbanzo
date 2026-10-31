@@ -246,15 +246,16 @@ class ItcService:
     def ims_compare(self, client_id: int, periods: list[str]) -> tuple[list[ImsRow], list[str]]:
         with self.db.session() as s:
             ims = self._docs(s, client_id, Source.IMS, periods)
+            if not ims:  # nothing to compare: do not load every purchase document
+                return [], [f"No IMS data imported for {', '.join(periods)}"]
             books = self._docs(s, client_id, Source.BOOKS, upto=max(periods))
             g2b = self._docs(s, client_id, Source.GSTR2B, periods)
-        if not ims:
-            return [], [f"No IMS data imported for {', '.join(periods)}"]
         return compare_ims(ims, books, g2b, period=min(periods))
 
     # --------------------------------------------------------------- review
-    def review_run(self, run_id: int, as_of: date | None = None) -> tuple[list[DocReview], dict]:
-        ctx = self.recon.load(run_id)
+    def review_run(self, run_id: int, as_of: date | None = None, ctx=None) -> tuple[list[DocReview], dict]:
+        """Review a run's documents; ``ctx`` is the already loaded run (saves loading it again)."""
+        ctx = ctx if ctx is not None and ctx.run.id == run_id else self.recon.load(run_id)
         if not ctx.run.comparison.startswith("BOOKS"):
             return [], {}  # outward runs carry no input tax credit
         cid = ctx.client.id
@@ -306,7 +307,9 @@ class ItcService:
                                               Gstr3bValues(c.igst, c.cgst, c.sgst, c.cess), c.rule_ref)))
         return out
 
-    def table4(self, client_id: int, periods: list[str], as_of: date | None = None) -> list[PeriodWorking]:
+    def table4(self, client_id: int, periods: list[str], as_of: date | None = None,
+               loaded=None) -> list[PeriodWorking]:
+        """``loaded`` is a run already in memory (the desktop's current run): it is not loaded again."""
         with self.db.session() as s:
             run_for = self._latest_month_runs(s, client_id, periods)
             g2b = self._docs(s, client_id, Source.GSTR2B, periods)
@@ -318,8 +321,9 @@ class ItcService:
         for p in periods:
             lines, reviews = [], []
             if p in run_for:
-                lines = self.recon.load(run_for[p]).result.lines
-                reviews, _ = self.review_run(run_for[p], as_of)
+                ctx = loaded if loaded is not None and loaded.run.id == run_for[p] else self.recon.load(run_for[p])
+                lines = ctx.result.lines
+                reviews, _ = self.review_run(run_for[p], as_of, ctx)
             out.append(build_period(
                 p, [r for r in g2b if r.period == p], [o for o in other if o["period"] == p], filed.get(p),
                 [ca for per, ca in actions if per == p], lines, reviews, rules))

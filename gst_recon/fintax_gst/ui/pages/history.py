@@ -131,8 +131,7 @@ class HistoryPage(LazyPage):
         if not task.ok:
             QMessageBox.information(self, "Re-run", task.message)
             return
-        self.state.set_run(task.result_value)
-        self.state.notify()
+        self.state.set_run(task.result_value, data_changed=True)
 
 
 class OpenItemsPage(LazyPage):

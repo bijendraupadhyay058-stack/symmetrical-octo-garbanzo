@@ -255,7 +255,7 @@ class ItcPage(LazyPage):
         ctx = st.run_context()
         self.header.subtitle.setText(f"{ctx.client.name} · Run #{ctx.run.id} · {ctx.run.period_from} to "
                                      f"{ctx.run.period_to} · flags carry statutory references and guidance")
-        self.reviews, self.buckets = st.itc.review_run(st.run_id, _d(self.as_of.date()))
+        self.reviews, self.buckets = st.itc.review_run(st.run_id, _d(self.as_of.date()), st.run_context())
         for k, c in self.cards.items():
             c.set(money(self.buckets.get(k, Decimal(0)), True))
         self.bucket_model.set_rows([[label, self.buckets.get(k, Decimal(0))] for k, label in BUCKET_LABELS])

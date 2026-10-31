@@ -384,3 +384,35 @@ def test_cli_tally_journals(tmp_path, capsys):
     assert main(["--db", dbp, "tally-journals", "--client", CLIENT["gstin"], "--period", "2025-10", "--source",
                  "rule37", "--out", str(out)]) == 0
     assert "Rule 37" in capsys.readouterr().out and out.exists()
+
+
+# ------------------------------------------------------------------ large data (performance fixes)
+def test_keyword_rule_finds_the_first_keyword_in_rule_order():
+    from fintax_gst.itc.rules import Rule
+
+    r = Rule("X", "t", "ref", "keyword", "blocked", keywords=["motor car", "car", "food"])
+    assert r.keyword_hit("Food and car hire") == "car"  # rule order, not position in the text
+    assert r.keyword_hit("Carbon paper", "catering") is None  # whole words only
+    assert r.keyword_hit("Motor Car service") == "motor car"
+    assert Rule("Y", "t", "r", "keyword", "blocked").keyword_hit("anything") is None
+
+
+def test_tally_fetch_month_by_month():
+    from fintax_gst.importers.tally_xml import TallyClient, _month_spans
+
+    assert _month_spans(date(2025, 4, 1), date(2025, 6, 30)) == [
+        (date(2025, 4, 1), date(2025, 4, 30)), (date(2025, 5, 1), date(2025, 5, 31)),
+        (date(2025, 6, 1), date(2025, 6, 30))]
+    asked, seen = [], []
+
+    class Fake(TallyClient):
+        def _ledger_xml(self, company):
+            return b"<ENVELOPE></ENVELOPE>"
+
+        def vouchers(self, company, start, end):
+            asked.append((start, end))
+            return f"<ENVELOPE><VOUCHER><DATE>{start:%Y%m%d}</DATE></VOUCHER></ENVELOPE>".encode()
+
+    data = Fake("http://127.0.0.1:9").fetch("Co", date(2025, 4, 1), date(2025, 6, 30),
+                                            progress=lambda p, m: seen.append(m))
+    assert len(asked) == 3 and data.count(b"<VOUCHER>") == 3 and "Fetching vouchers Jun 2025 (3 of 3)" in seen

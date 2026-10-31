@@ -31,16 +31,16 @@ class TallyService:
         return SecurityService(self.db).setting("tally_url") or DEFAULT_URL
 
     def companies(self, url: str | None = None) -> list[str]:
-        return TallyClient(url or self.url()).companies()
+        return TallyClient(url or self.url(), timeout=60).companies()
 
     def fetch(self, client_id: int, company: str, p_from: str, p_to: str | None = None, url: str | None = None,
-              user: str | None = None) -> Path:
+              user: str | None = None, progress=None, cancel=None) -> Path:
         """Fetch the company's vouchers for the months and save them as an XML file to import."""
         from .clients import ClientService
 
         client = ClientService(self.db).get(client_id)
         start, end = month_range(p_from, p_to)
-        data = TallyClient(url or self.url()).fetch(company, start, end)
+        data = TallyClient(url or self.url()).fetch(company, start, end, progress, cancel)
         folder = self.db.data_dir / "tally"
         folder.mkdir(parents=True, exist_ok=True)
         from ..db.models import utcnow

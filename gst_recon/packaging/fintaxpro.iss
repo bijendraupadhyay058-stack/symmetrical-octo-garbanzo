@@ -1,10 +1,10 @@
 ; Inno Setup script for FIN TAX PRO (desktop + CLI).
 ; Build the PyInstaller folders first (packaging\build_windows.ps1), then:
 ;   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\fintaxpro.iss
-; Output: dist\installer\FinTaxPro-Setup-1.2.0.exe
+; Output: dist\installer\FinTaxPro-Setup-1.2.1.exe
 
 #define AppName "FIN TAX PRO"
-#define AppVersion "1.2.0"
+#define AppVersion "1.2.1"
 
 [Setup]
 AppId={{6F1E7C1A-2E64-4C3B-9A51-3F2B9D0C7E11}

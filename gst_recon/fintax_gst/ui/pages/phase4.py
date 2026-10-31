@@ -254,8 +254,7 @@ class OutwardPage(LazyPage):
         if not task.ok:
             QMessageBox.information(self, "Reconciliation", task.message)
             return
-        st.set_run(task.result_value)
-        st.notify()
+        st.set_run(task.result_value, data_changed=True)
 
     def open_exceptions(self) -> None:
         if self.latest_run:

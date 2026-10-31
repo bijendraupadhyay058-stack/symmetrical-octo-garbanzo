@@ -64,8 +64,13 @@ class AppState(QObject):
         self.clientChanged.emit()
         self.runChanged.emit()
 
-    def set_run(self, run_id: int | None) -> None:
+    def set_run(self, run_id: int | None, data_changed: bool = False) -> None:
+        """Show another run. ``data_changed`` (a run was just made) also tells pages that data changed – in one
+        step, so the new run is loaded once and not again by a second refresh."""
         self.run_id = run_id
+        if data_changed:
+            self._ctx_cache = None
+            self.dataChanged.emit()
         self.runChanged.emit()
 
     def notify(self, keep_cache: bool = False) -> None:

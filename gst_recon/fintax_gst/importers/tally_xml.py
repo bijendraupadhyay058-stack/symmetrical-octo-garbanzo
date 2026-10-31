@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from urllib import request as urlrequest
 from xml.etree import ElementTree as ET
@@ -271,10 +271,22 @@ def _xml_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _month_spans(start: date, end: date) -> list[tuple[date, date]]:
+    import calendar
+
+    out, cur = [], start
+    while cur <= end:
+        last = date(cur.year, cur.month, calendar.monthrange(cur.year, cur.month)[1])
+        out.append((cur, min(last, end)))
+        cur = last + timedelta(days=1)
+    return out
+
+
 class TallyClient:
     """Minimal client for TallyPrime's XML-over-HTTP interface (local network only)."""
 
-    def __init__(self, url: str = DEFAULT_URL, timeout: float = 60):
+    def __init__(self, url: str = DEFAULT_URL, timeout: float = 600):
+        """``timeout``: seconds to wait for one answer – a large company's month of vouchers can take minutes."""
         if not re.match(r"^https?://", url):
             url = f"http://{url}"
         self.url, self.timeout = url.rstrip("/"), timeout
@@ -286,6 +298,9 @@ class TallyClient:
             opener = urlrequest.build_opener(urlrequest.ProxyHandler({}))
             with opener.open(req, timeout=self.timeout) as resp:
                 data = resp.read()
+        except TimeoutError:
+            raise ConnectionError(f"Tally did not finish within {self.timeout / 60:.0f} minute(s). Keep TallyPrime "
+                                  "open and try again, or fetch fewer months at a time.") from None
         except OSError as exc:
             raise ConnectionError(f"Tally did not answer at {self.url} ({exc}). In TallyPrime enable "
                                   "F1 Help → Settings → Connectivity → 'TallyPrime acts as: Server' (port 9000) and "
@@ -313,12 +328,22 @@ class TallyClient:
         return self._post(_envelope("FinTaxLedgers", tdl,
                                     f"<SVCURRENTCOMPANY>{_xml_escape(company)}</SVCURRENTCOMPANY>"))
 
-    def fetch(self, company: str, start: date, end: date) -> bytes:
+    def fetch(self, company: str, start: date, end: date, progress=None, cancel=None) -> bytes:
         """One XML document with the company's GST duty ledgers and its vouchers for the range – saved and
-        imported as a file."""
+        imported as a file. Vouchers are asked for one month at a time, so a large company never has to
+        answer for a whole year in one go."""
+        progress = progress or (lambda pct, msg: None)
+        progress(2, "Reading the GST ledgers")
         ledgers = _decode(_INVALID_REF.sub(b"", self._ledger_xml(company)))
-        vouchers = _decode(_INVALID_REF.sub(b"", self.vouchers(company, start, end)))
+        parts, months = [], _month_spans(start, end)
+        for i, (a, b) in enumerate(months, start=1):
+            if cancel:
+                cancel.check()
+            progress(5 + int(90 * (i - 1) / len(months)), f"Fetching vouchers {a:%b %Y} ({i} of {len(months)})")
+            parts.append(_decode(_INVALID_REF.sub(b"", self.vouchers(company, a, b))))
+        progress(98, "Saving")
         strip = lambda t: re.sub(r"^\s*<\?xml[^>]*\?>", "", t)  # noqa: E731
+        vouchers = "".join(strip(p) for p in parts)
         return (f'<?xml version="1.0" encoding="utf-8"?>\n<ENVELOPE><HEADER><TALLYREQUEST>FinTaxFetch</TALLYREQUEST>'
                 f"</HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{_xml_escape(company)}</SVCURRENTCOMPANY>"
                 f"<SVFROMDATE>{start:%Y%m%d}</SVFROMDATE><SVTODATE>{end:%Y%m%d}</SVTODATE></STATICVARIABLES></DESC>"

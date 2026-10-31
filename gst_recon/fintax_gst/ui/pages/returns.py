@@ -658,7 +658,7 @@ class ReturnsPage(LazyPage):
         if st.client is None:
             return
         periods = months_between(self.from_cb.currentText(), self.to_cb.currentText())
-        workings = st.itc.table4(st.client.id, periods, date.today())
+        workings = st.itc.table4(st.client.id, periods, date.today(), st.run_context())
         rows, frows, bases = [], [], set()
         for w in workings:
             bases.add(f"{w.period}: {w.books_basis}" + (f"; Rule 36(4) limit {w.provisional_pct}%"
@@ -719,8 +719,7 @@ class ReturnsPage(LazyPage):
         if not task.ok:
             QMessageBox.information(self, "Table 8A", task.message)
             return
-        st.set_run(task.result_value)
-        st.notify()
+        st.set_run(task.result_value, data_changed=True)
         self.navigate.emit("exceptions")
 
     def import_dialog(self) -> None:
