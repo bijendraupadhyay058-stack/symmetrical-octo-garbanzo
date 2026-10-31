@@ -124,6 +124,10 @@ class WorkflowPage(LazyPage):
                                     "Journals with GST and a supplier GSTIN are read as bills; journals without GST "
                                     "and ITC reversals are listed in the preview as not imported.")
         self.journal_btn.clicked.connect(lambda: self.import_dialog(Source.BOOKS))
+        self.payments_btn = QPushButton("Import payment register…")
+        self.payments_btn.setToolTip("Payments to suppliers (TallyPrime payment register, Excel or XML) – used by "
+                                     "the 180-day rule page to find bills not paid within 180 days")
+        self.payments_btn.clicked.connect(lambda: self.import_payments())
         self.books_lbl = QLabel()
         self.tally_btn = QPushButton("Import from Tally…")
         self.tally_btn.setToolTip("Fetch the purchase vouchers straight from TallyPrime (XML interface, port 9000)")
@@ -131,6 +135,7 @@ class WorkflowPage(LazyPage):
         r3 = QHBoxLayout()
         r3.addWidget(b3)
         r3.addWidget(self.journal_btn)
+        r3.addWidget(self.payments_btn)
         r3.addWidget(self.tally_btn)
         r3.addWidget(self.books_lbl, 1)
         self.s3.body.addLayout(r3)
@@ -364,7 +369,7 @@ class WorkflowPage(LazyPage):
             if rows else "No files imported for this period yet.")
         self.s6.set_done(bool(rows), f"{rejected} rejected rows" if rows else "")
         self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0 and st.can("reconcile"))
-        for b in (self.books_btn, self.journal_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
+        for b in (self.books_btn, self.journal_btn, self.payments_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
             b.setEnabled(st.can("import"))
         self.export_btn.setEnabled(st.can("export"))
         self._show_run()
@@ -415,6 +420,11 @@ class WorkflowPage(LazyPage):
         path, _ = QFileDialog.getOpenFileName(self, f"Select {source.value} file", "", FILE_FILTER)
         if path:
             self.import_path(path, source, prior)
+
+    def import_payments(self, path: str | None = None):
+        from .rule37 import import_payments_dialog
+
+        return import_payments_dialog(self, self.state, path)
 
     def tax_checks(self, show: bool = True):
         """Run the tax type / rate checks for the selected period; returns the findings."""

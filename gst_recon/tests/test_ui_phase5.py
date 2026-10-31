@@ -251,3 +251,37 @@ def test_workflow_tax_checks(qtbot, db, tmp_path, messages, monkeypatch):  # noq
     issues = wf.tax_checks()
     assert len(issues) == 1 and shown and shown[0].model.rowCount() == 1
     assert shown[0].export(str(tmp_path / "tc.xlsx")).exists()
+
+
+def test_rule37_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    from datetime import date as _date
+    from decimal import Decimal
+
+    from PySide6.QtCore import QDate
+
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.imports.import_file(c.id, sample_files["books_april"], Source.BOOKS)
+    st.set_client(st.clients.get(c.id))
+    win.go("workflow")
+    assert win.pages["workflow"].import_payments(str(sample_files["payments"])) is not None
+    assert "4 payment(s) imported" in messages[-1] and "Contra" in messages[-1]
+    win.go("rule37")
+    page = win.pages["rule37"]
+    page.as_of.setDate(QDate(2025, 11, 15))
+    page.reload()
+    assert "ITC to reverse: Rs." in page.summary.text() and page.model.rowCount() > 20
+    page.filter.setCurrentText("Paid late – re-claim")
+    assert page.model.rowCount() == 1
+    page.filter.setCurrentText("Reverse ITC")
+    page.table.selectRow(0)
+    first = page.model.rows[0][3]
+    assert page.mark_paid((_date(2025, 11, 14), Decimal("1"), "test"))  # part payment: still to reverse
+    done, skipped = page.record_reversals()
+    assert done == 0 and skipped  # nothing is recorded as claimed in the claim register
+    assert page.export(str(tmp_path / "r37.xlsx")).exists()
+    assert first

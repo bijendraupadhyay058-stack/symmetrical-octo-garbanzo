@@ -634,4 +634,29 @@ class ClientReminder(Base):
 
 
 V15_TABLES = [ClientReminder]
+
+
+class SupplierPayment(Base):
+    """A payment to a supplier (payment register import or entered by hand), for the 180-day rule
+    (CGST Rule 37). Schema v16."""
+
+    __tablename__ = "supplier_payments"
+    __table_args__ = (Index("ix_payment_client", "client_id", "party_key"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    party_name: Mapped[str] = mapped_column(String(200), default="")
+    party_key: Mapped[str] = mapped_column(String(200), default="")  # normalised name, for matching
+    supplier_gstin: Mapped[str] = mapped_column(String(15), default="")
+    pay_date: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(DecimalText)
+    voucher_no: Mapped[str] = mapped_column(String(60), default="")
+    bill_ref: Mapped[str] = mapped_column(String(100), default="")  # bill-wise reference (supplier invoice no)
+    invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # set when marked paid by hand
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V16_TABLES = [SupplierPayment]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -534,6 +534,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "books_itemwise_csv": out / "purchase_register_itemwise_2025-04.csv",
         "books_tally_xml": out / "tally_purchase_vouchers_2025-04.xml",
         "journal_april": out / "tally_journal_register_2025-04.xlsx",
+        "payments": out / "tally_payment_register_2025-26.xlsx",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -549,6 +550,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_expense_ledger(files["expense_ledger"])
     write_itemwise_register(files["books_itemwise_csv"])
     write_journal_register(files["journal_april"])
+    write_payment_register(files["payments"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -712,6 +714,44 @@ def write_journal_register(path: Path) -> None:
         c.font = Font(bold=True)
     for r in journal_rows():
         ws.append(r)
+    for row in ws.iter_rows(min_row=6):
+        for c in row:
+            if isinstance(c.value, date):
+                c.number_format = "DD-MMM-YYYY"
+    wb.save(path)
+
+
+PAYMENT_HEADERS = ["Date", "Particulars", "Vch Type", "Vch No.", "Agst Ref", "Debit Amount", "Credit Amount"]
+
+
+def payment_rows() -> list[list]:
+    """Payments for the April 2025 demo purchases: in time (with and without bill reference), part payment,
+    late payment; a contra entry and the total line are not supplier payments."""
+    bills = [d for d in books_docs() if d.doc == "INV" and not d.rcm][:6]
+    name = {code: n for code, (_g, n) in SUPPLIERS.items()}
+    rows = []
+    plan = [(bills[0], date(2025, 5, 10), _value(bills[0]), True),
+            (bills[1], date(2025, 6, 15), _value(bills[1]), False),
+            (bills[2], date(2025, 7, 1), (_value(bills[2]) / 2).quantize(D("0.01")), True),
+            (bills[3], date(2025, 11, 5), _value(bills[3]), True)]
+    for n, (d, when, amount, with_ref) in enumerate(plan, start=1):
+        rows.append([when, name[d.sup], "Payment", n, d.no if with_ref else None, float(amount), None])
+    rows.append([date(2025, 6, 30), "HDFC Bank", "Contra", 5, None, 50000.0, None])
+    return rows
+
+
+def write_payment_register(path: Path) -> None:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Payment Register"
+    for line in (CLIENT["name"], "Payment Register", "1-Apr-2025 to 30-Nov-2025", None):
+        ws.append([line] if line else [])
+    ws.append(PAYMENT_HEADERS)
+    for c in ws[5]:
+        c.font = Font(bold=True)
+    for r in payment_rows():
+        ws.append(r)
+    ws.append(["Grand Total", None, None, None, None, f"=SUM(F6:F{ws.max_row})", None])
     for row in ws.iter_rows(min_row=6):
         for c in row:
             if isinstance(c.value, date):

@@ -18,6 +18,38 @@ def cmd_tax_check(db, args) -> None:
         print(f"Saved {TaxCheckService.export_xlsx(issues, args.excel, client.name)}")
 
 
+def cmd_payments(db, args) -> None:
+    from .services.clients import ClientService
+    from .services.rule37 import Rule37Service
+
+    client = ClientService(db).resolve(args.client)
+    sf, result = Rule37Service(db).import_payments(client.id, args.file, args.user)
+    print(f"Imported as #{sf.id}: {len(result.rows)} payment(s), Rs. {result.total}.")
+    for row, why in result.ignored:
+        print(f"  not imported – row {row}: {why}")
+
+
+def cmd_rule37(db, args) -> None:
+    from datetime import date
+
+    from .services.clients import ClientService
+    from .services.rule37 import Rule37Service
+
+    client = ClientService(db).resolve(args.client)
+    as_of = date.fromisoformat(args.as_of) if args.as_of else None
+    svc = Rule37Service(db)
+    bills = svc.track(client.id, as_of)
+    for b in bills:
+        if args.all or b.status in ("Reverse ITC", "Paid late – re-claim"):
+            print(f"  {b.status:<22} {b.supplier[:28]:<28} {b.invoice_no:<16} {b.invoice_date:%d-%m-%Y} "
+                  f"unpaid {b.unpaid_at_day180:>12} ITC to reverse {b.itc_to_reverse:>10} in {b.reversal_period}"
+                  + (f", re-claim {b.itc_to_reclaim} in {b.reclaim_period}" if b.itc_to_reclaim else ""))
+    total = sum((b.itc_to_reverse for b in bills if b.status != "Not yet due"), 0)
+    print(f"ITC to reverse: {total}")
+    if args.excel:
+        print(f"Saved {svc.export_xlsx(bills, args.excel, client.name)}")
+
+
 def add_commands(sub) -> None:
     t = sub.add_parser("tax-check", help="purchases / sales with the wrong tax type (IGST vs CGST+SGST), tax of "
                                          "another state, or tax not matching a GST rate")
@@ -27,8 +59,22 @@ def add_commands(sub) -> None:
     t.add_argument("--excel", help="also save the findings to this .xlsx file")
     t.set_defaults(func=cmd_tax_check)
 
+    p = sub.add_parser("payments", help="import a payment register (payments to suppliers) for the 180-day rule")
+    p.add_argument("--client", required=True)
+    p.add_argument("--file", required=True, help="payment register (.xlsx, .csv or Tally .xml)")
+    p.set_defaults(func=cmd_payments)
+
+    r = sub.add_parser("rule37", help="bills not paid within 180 days: ITC to reverse and to re-claim (Rule 37)")
+    r.add_argument("--client", required=True)
+    r.add_argument("--as-of", help="date to judge on (YYYY-MM-DD, default today)")
+    r.add_argument("--all", action="store_true", help="list every bill, not only those to reverse / re-claim")
+    r.add_argument("--excel", help="also save the list to this .xlsx file")
+    r.set_defaults(func=cmd_rule37)
+
 
 def permission_for(args) -> str | None:
-    if args.command == "tax-check":
+    if args.command in ("tax-check", "rule37"):
         return "view"
+    if args.command == "payments":
+        return "import"
     return None
