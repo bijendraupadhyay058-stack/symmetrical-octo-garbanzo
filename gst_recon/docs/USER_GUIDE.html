@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.6.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.7.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -345,6 +345,30 @@
    state, IGST outside; a bill of supply without GST if the firm is not registered). Record payments with
    <span class="btn">Record receipt…</span> (including TDS the client deducted). <i>Outstanding fees by client</i> shows
    what is due and for how long. A wrong invoice is cancelled, not deleted, so numbers are never reused.</p>
+
+<h2 id="phase19">7i. ITC claim plan and the year-end pack</h2>
+<h3>ITC claim plan – what to claim this month</h3>
+<p><b>ITC review</b> → tab <b>Claim plan</b>. Type the GSTR-3B month (e.g. 2025-06) and click
+   <span class="btn">Prepare plan</span>. Every purchase invoice not yet claimed – including those of earlier months –
+   is looked for in all the GSTR-2Bs imported up to that month, so an April invoice that the supplier reports only in
+   June becomes claimable in June:</p>
+<ul>
+  <li><b>Claim now</b> (green) – in GSTR-2B, amounts agree, no open flag;</li>
+  <li><b>Check first</b> (yellow) – GSTR-2B shows less tax, marks ITC as not available, or a review flag is open;</li>
+  <li><b>Hold</b> (blue) – the supplier has not reported it yet; it is carried to the next month automatically, with
+      the last date to claim (section 16(4)) – follow up when that date is near;</li>
+  <li><b>Time-barred</b> (red) – the last date has passed;</li>
+  <li><b>Written off</b> – you decided not to claim it (select rows → <span class="btn">Do not claim (write off)…</span>
+      and give the reason; <span class="btn">Undo write-off</span> brings it back).</li>
+</ul>
+<p><span class="btn">Record all 'Claim now'</span> (or select rows → <span class="btn">Record claim for selected</span>)
+   enters them in the claim register for the month. The bottom list shows invoices in GSTR-2B that are not in the books –
+   ask the client about them. <span class="btn">Export to Excel…</span> saves the plan.</p>
+<h3>Year-end pack</h3>
+<p>Choose the year in the header, then <b>GSTR-3B &amp; annual</b> → tab <b>GSTR-9</b> →
+   <span class="btn">Year-end pack…</span> and a folder. You get one PDF with a contents page – status by month, GSTR-9,
+   GSTR-9C, Table 8, ITC still on hold, interest and late fee, open notices, supplier risk – and one Excel file with an
+   index sheet. Put both in the audit file.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
