@@ -177,3 +177,30 @@ def test_pdf_invoices_into_purchase_register(db, tmp_path):
     sf = ImportService(db).commit(c.id, pv, "accountant")
     assert sf.documents_imported == 3 and sf.file_name.startswith("PDF invoices (3)")
     assert svc.preview(c.id, [a, b, bad], "2025-04").already_imported_file_id == sf.id
+
+
+# ------------------------------------------------------------------ charts and MIS (18C)
+def test_mis_figures_and_pack(db, sample_files, tmp_path):
+    from openpyxl import load_workbook
+    from pypdf import PdfReader
+
+    from fintax_gst.services.mis import MisService
+
+    c, _inward, _outward = _full(db, sample_files)
+    svc = MisService(db)
+    mis = svc.build(c.id, "2025-26", date(2025, 5, 25))
+    assert len(mis.months) == 12 and [m.period for m in mis.active] == ["2025-04"]
+    april = mis.months[0]
+    assert april.sales and april.sales > 0 and april.output_basis == "GSTR-3B"
+    assert april.itc_books and april.itc_2b and april.itc_claimed is not None and april.cash_paid is not None
+    assert mis.months[5].sales is None  # no data: blank, not zero
+    assert mis.suppliers and all(a > 0 for _n, _g, a, _d in mis.suppliers)
+    assert mis.suppliers == sorted(mis.suppliers, key=lambda x: x[2], reverse=True)
+    pdf = svc.export_pdf(mis, tmp_path / "mis.pdf", "Sharma & Co")
+    text = "".join(p.extract_text() for p in PdfReader(str(pdf)).pages)
+    assert "GST MIS – 2025-26" in text and "ITC by month" in text and "Suppliers with the most ITC at risk" in text
+    xl = svc.export_xlsx(mis, tmp_path / "mis.xlsx")
+    wb = load_workbook(xl)
+    ws = wb["Monthly"]
+    assert ws["A3"].value == "Apr-25" and ws["A4"].value == "Total" and len(ws._charts) == 3
+    assert wb["Supplier risk"].max_row == len(mis.suppliers) + 1

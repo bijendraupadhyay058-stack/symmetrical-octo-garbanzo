@@ -85,3 +85,24 @@ def test_invoices_from_pdf_on_reconcile_page(qtbot, db, tmp_path, messages, monk
     assert "2 " not in dlg.summary.text() and dlg.summary.text().startswith("3 of 4")
     bad = next(i for i in dlg.invoices if i.file.name == "mismatch.pdf")
     assert not bad.problems()
+
+
+def test_charts_and_mis_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    _load(win, sample_files)
+    st = win.state
+    st.set_fy("2025-26")
+    win.go("mis")
+    page = win.pages["mis"]
+    page.reload()
+    assert page.mis is not None and len(page.charts) >= 3 and "Sales" in page.kpi.text()
+    assert page.export("pdf", str(tmp_path / "m.pdf"), open_file=False).exists()
+    assert page.export("xlsx", str(tmp_path / "m.xlsx"), open_file=False).exists()
+    m = page.email()
+    assert m.kind == "client_report" and m.subject.startswith("GST MIS 2025-26")
+    assert win.stack.currentWidget() is win.pages["outbox"]
+    win.go("mis")
+    win.grab().save(str(tmp_path / "mis.png"))
+    import shutil
+
+    shutil.copy(tmp_path / "mis.png", "/tmp/claude-0/mis/app.png") if os.path.isdir("/tmp/claude-0/mis") else None
