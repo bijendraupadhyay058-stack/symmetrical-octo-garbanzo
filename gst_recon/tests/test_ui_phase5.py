@@ -368,3 +368,21 @@ def test_errors_are_logged_and_shown(qtbot, tmp_path, messages, monkeypatch, cap
     kept = crash.previous_crash(tmp_path)
     assert kept and kept.name.startswith("crash-") and not (tmp_path / "crash.log").exists()
     assert crash.previous_crash(tmp_path) is None  # reported once
+
+
+def test_gstr1_json_dialog(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.imports.import_file(c.id, sample_files["sales_april"], Source.SALES)
+    st.fy = "2025-26"
+    st.set_client(st.clients.get(c.id))
+    win.go("outward")
+    page = win.pages["outward"]
+    page.from_cb.setCurrentText("2025-04")
+    dlg = page.prepare_gstr1(show=False)
+    assert dlg.sec_model.rowCount() >= 4 and dlg.save_btn.isEnabled() and "placed in GSTR-1" in dlg.info.text()
+    assert dlg.save(str(tmp_path / "g1.json")).exists()

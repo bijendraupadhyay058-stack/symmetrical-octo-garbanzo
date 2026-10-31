@@ -93,10 +93,15 @@ class OutwardPage(LazyPage):
         top.addStretch()
         lay.addLayout(top)
         run_row = QHBoxLayout()
+        self.gstr1_btn = QPushButton("Prepare GSTR-1 JSON…")
+        self.gstr1_btn.setToolTip("The sales register of the 'From' month as the GSTR-1 file for the portal / "
+                                  "GST Offline Tool")
+        self.gstr1_btn.clicked.connect(lambda: self.prepare_gstr1())
         for w in (QLabel("From"), self.from_cb, QLabel("To"), self.to_cb, QLabel("Sales register vs"),
                   self.compare_cb, self.run_btn, self.open_btn):
             run_row.addWidget(w)
         run_row.addStretch()
+        run_row.addWidget(self.gstr1_btn)
         lay.addLayout(run_row)
         self.status_lbl = QLabel()
         self.status_lbl.setObjectName("Muted")
@@ -153,6 +158,16 @@ class OutwardPage(LazyPage):
     def _from_changed(self, _i=None) -> None:
         if self.from_cb.currentText() and self.to_cb.currentText() < self.from_cb.currentText():
             self.to_cb.setCurrentText(self.from_cb.currentText())
+
+    def prepare_gstr1(self, show: bool = True):
+        if self.state.client is None or not self.from_cb.currentText():
+            return None
+        from ..dialogs.gstr1_json import Gstr1JsonDialog
+
+        dlg = Gstr1JsonDialog(self, self.state, self.from_cb.currentText())
+        if show:
+            dlg.exec()
+        return dlg
 
     def periods(self) -> list[str]:
         p_from, p_to = self.from_cb.currentText(), self.to_cb.currentText() or self.from_cb.currentText()
