@@ -260,3 +260,50 @@ def test_cli_payments_and_rule37(tmp_path, capsys, sample_files):
     assert main(["--db", dbp, "rule37", "--client", CLIENT["gstin"], "--as-of", "2025-11-15"]) == 0
     out = capsys.readouterr().out
     assert "Reverse ITC" in out and "Paid late – re-claim" in out and "ITC to reverse:" in out
+
+
+# ------------------------------------------------------------------ PAN view (14D)
+def test_pan_view(db, sample_files, tmp_path):
+    from openpyxl import load_workbook
+
+    from fintax_gst.services.pan_view import PanViewService
+    from fintax_gst.services.reconciliation import ReconciliationService
+
+    clients = ClientService(db)
+    mh = clients.create(**CLIENT)
+    ka = clients.create(gstin("29", "AAPFU0939F"), None, name="Shree Ganesh Traders (Karnataka)")
+    clients.create(gstin("24", "AADCG8765N"), None, name="Single State Ltd")
+    imp = ImportService(db)
+    imp.import_file(mh.id, sample_files["books_april"], Source.BOOKS)
+    imp.import_file(mh.id, sample_files["gstr2b_april_json"], Source.GSTR2B)
+    ReconciliationService(db).run(mh.id, "2025-04")
+    reg = tmp_path / "ka.csv"
+    reg.write_text(f"GSTIN,Invoice No,Invoice Date,Taxable Value,IGST\n{MH},K-1,03-04-2025,1000,180\n")
+    imp.import_file(ka.id, reg, Source.BOOKS)
+
+    svc = PanViewService(db)
+    groups = svc.groups()
+    assert [(pan, [c.gstin for c in cs]) for pan, cs in groups] == [("AAPFU0939F", [mh.gstin, ka.gstin])]
+    assert len(svc.groups(include_single=True)) == 2
+    v = svc.view("aapfu0939f", "2025-26", today=date(2025, 6, 15))
+    m, k = v.registrations
+    assert (m.state, k.state) == ("Maharashtra", "Karnataka")
+    assert m.months_reconciled == 1 and m.itc_at_risk > 0 and k.months_reconciled == 0
+    assert k.itc_books == D("180") and v.total("itc_books") == m.itc_books + D("180")
+    assert m.returns_overdue == 3  # April GSTR-1 and 3B, May GSTR-1 (due 11 June)
+    assert v.suppliers and all(a.registrations == {mh.gstin} for a in v.suppliers)
+    wb = load_workbook(svc.export_xlsx(v, tmp_path / "pan.xlsx", "Shree Ganesh Traders"))
+    assert wb.sheetnames == ["Registrations", "Suppliers to follow up"] and wb["Registrations"].max_row == 5
+    with pytest.raises(ServiceError):
+        svc.view("ZZZZZ9999Z", "2025-26")
+
+
+def test_cli_pan_view(tmp_path, capsys):
+    from fintax_gst.cli import main
+
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "pan-view"]) == 0
+    assert "AAPFU0939F" in capsys.readouterr().out
+    assert main(["--db", dbp, "pan-view", "--pan", "AAPFU0939F", "--fy", "2025-26"]) == 0
+    assert "Maharashtra" in capsys.readouterr().out

@@ -50,6 +50,23 @@ def cmd_rule37(db, args) -> None:
         print(f"Saved {svc.export_xlsx(bills, args.excel, client.name)}")
 
 
+def cmd_pan_view(db, args) -> None:
+    from .services.pan_view import PanViewService
+
+    svc = PanViewService(db)
+    if not args.pan:
+        for pan, clients in svc.groups(include_single=True):
+            print(f"  {pan}  {clients[0].name}: {', '.join(c.gstin for c in clients)}")
+        return
+    v = svc.view(args.pan, args.fy)
+    for r in v.registrations:
+        print(f"  {r.state:<16} {r.gstin} ITC books {r.itc_books:>12} 2B {r.itc_2b:>12} 3B {r.itc_3b:>12} "
+              f"at risk {r.itc_at_risk:>10} overdue returns {r.returns_overdue}")
+    print(f"Total ITC at risk {v.total('itc_at_risk')}; suppliers to follow up {len(v.suppliers)}")
+    if args.excel:
+        print(f"Saved {svc.export_xlsx(v, args.excel)}")
+
+
 def add_commands(sub) -> None:
     t = sub.add_parser("tax-check", help="purchases / sales with the wrong tax type (IGST vs CGST+SGST), tax of "
                                          "another state, or tax not matching a GST rate")
@@ -71,9 +88,15 @@ def add_commands(sub) -> None:
     r.add_argument("--excel", help="also save the list to this .xlsx file")
     r.set_defaults(func=cmd_rule37)
 
+    v = sub.add_parser("pan-view", help="all GST registrations of one PAN side by side for a financial year")
+    v.add_argument("--pan", help="the PAN (omit to list the businesses and their GSTINs)")
+    v.add_argument("--fy", default="2025-26", help="financial year, e.g. 2025-26")
+    v.add_argument("--excel", help="also save the view to this .xlsx file")
+    v.set_defaults(func=cmd_pan_view)
+
 
 def permission_for(args) -> str | None:
-    if args.command in ("tax-check", "rule37"):
+    if args.command in ("tax-check", "rule37", "pan-view"):
         return "view"
     if args.command == "payments":
         return "import"

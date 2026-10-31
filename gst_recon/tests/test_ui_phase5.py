@@ -285,3 +285,21 @@ def test_rule37_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
     assert done == 0 and skipped  # nothing is recorded as claimed in the claim register
     assert page.export(str(tmp_path / "r37.xlsx")).exists()
     assert first
+
+
+def test_pan_view_page(qtbot, db, tmp_path, messages):  # noqa: F811
+    from fintax_gst.samples import CLIENT, gstin
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    st.clients.create(**CLIENT)
+    st.clients.create(gstin("29", "AAPFU0939F"), None, name="Shree Ganesh Traders (Karnataka)")
+    st.fy = "2025-26"
+    win.go("pan")
+    page = win.pages["pan"]
+    page.reload()
+    assert page.pan_cb.count() == 1 and page.model.rowCount() == 2 and "2 registration(s)" in page.summary.text()
+    assert page.export(str(tmp_path / "pan.xlsx")).exists()
+    page.table.selectRow(1)
+    page.open_registration()
+    assert st.client is not None and win.stack.currentWidget() is win.pages["dashboard"]
