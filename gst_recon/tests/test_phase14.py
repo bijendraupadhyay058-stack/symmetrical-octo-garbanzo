@@ -307,3 +307,80 @@ def test_cli_pan_view(tmp_path, capsys):
     assert "AAPFU0939F" in capsys.readouterr().out
     assert main(["--db", dbp, "pan-view", "--pan", "AAPFU0939F", "--fy", "2025-26"]) == 0
     assert "Maharashtra" in capsys.readouterr().out
+
+
+# ------------------------------------------------------------------ Tally journal export (14E)
+def test_journal_entries_and_xml():
+    from fintax_gst.compliance.tally_journals import DEFAULT_LEDGERS, entry, to_tally_xml
+    from fintax_gst.importers.tally_xml import _amount, _ledger_entries, _t, parse_xml
+
+    rev = entry("REVERSE", date(2025, 10, 31), {"cgst": D("518.65"), "sgst": D("518.64")}, DEFAULT_LEDGERS,
+                "ITC reversed – Rule 37: A & B <test>", "A-1")
+    rec = entry("RECLAIM", date(2025, 11, 30), {"igst": D("180")}, DEFAULT_LEDGERS, "ITC re-claimed")
+    assert rev.balanced() and rev.total == D("1037.29") and rev.lines[0] == ("ITC Reversed", D("1037.29"))
+    assert rec.lines == [("Input IGST", D("180")), ("ITC Reversed", D("-180"))]
+    assert entry("REVERSE", date(2025, 10, 31), {}, DEFAULT_LEDGERS, "x") is None
+    root = parse_xml(to_tally_xml([rev, rec], company="Shree Ganesh & Co"))
+    assert root.findtext(".//SVCURRENTCOMPANY") == "Shree Ganesh & Co"
+    vouchers = list(root.iter("VOUCHER"))
+    assert [v.findtext("DATE") for v in vouchers] == ["20251031", "20251130"]
+    assert vouchers[0].findtext("NARRATION") == "ITC reversed – Rule 37: A & B <test>"
+    for v in vouchers:  # every voucher balances; a debit is negative with ISDEEMEDPOSITIVE Yes
+        lines = [(_t(e, "LEDGERNAME"), _t(e, "ISDEEMEDPOSITIVE"), _amount(_t(e, "AMOUNT"))) for e in _ledger_entries(v)]
+        assert sum(a for _n, _d, a in lines) == 0
+        assert all((d == "Yes") == (a < 0) for _n, d, a in lines)
+    bad = rev.__class__(date(2025, 1, 1), "bad", [("A", D(1)), ("B", D(-2))])
+    with pytest.raises(ValueError, match="does not balance"):
+        to_tally_xml([bad])
+
+
+def test_tally_journals_from_claims_and_rule37(db, tmp_path):
+    from sqlalchemy import select
+
+    from fintax_gst.db.models import Invoice
+    from fintax_gst.importers.gstr3b import Gstr3bValues
+    from fintax_gst.services.itc import ItcService
+    from fintax_gst.services.tally_journals import TallyJournalService
+
+    c = _bills(db, tmp_path)
+    with db.session() as s:
+        a2 = s.scalar(select(Invoice.id).where(Invoice.invoice_no == "A-2"))
+    itc = ItcService(db)
+    itc.claim(c.id, [a2], "2025-04", "accountant")
+    itc.reverse(c.id, a2, "2025-05", "accountant", "Blocked credit – motor car", "s.17(5)(a)",
+                Gstr3bValues(cgst=D("1800"), sgst=D("1800")))
+    svc = TallyJournalService(db)
+    assert svc.ledgers(c.id)["igst"] == "Input IGST"
+    svc.set_ledgers(c.id, {"cgst": "CGST Input A/c", "reversed": "GST ITC Disallowed", "bogus": "x"}, "admin")
+    assert svc.ledgers(c.id)["cgst"] == "CGST Input A/c" and "bogus" not in svc.ledgers(c.id)
+    (e,) = svc.entries(c.id, "2025-05")
+    assert e.on == date(2025, 5, 31) and e.total == D("3600")
+    assert e.lines == [("GST ITC Disallowed", D("3600")), ("CGST Input A/c", D("-1800")), ("Input SGST", D("-1800"))]
+    assert "motor car" in e.narration and "s.17(5)(a)" in e.narration
+    assert svc.entries(c.id, "2025-06") == []
+    # 180-day rule: nothing paid, so every bill's ITC is reversed in the month after day 180
+    oct_ = svc.entries(c.id, "2025-10", "rule37")  # A-1 (1 Apr): day 180 is 28 Sept – reversed in October
+    assert [x.reference for x in oct_] == ["A-1"] and all(x.balanced() for x in oct_)
+    nov = svc.entries(c.id, "2025-11", "rule37")  # day 180 of P-9 (5 Apr) is 2 Oct, of A-2 / A-3 in October
+    assert {x.reference for x in nov} == {"A-2", "A-3", "P-9"}
+    out = svc.save_xml(c.id, oct_, tmp_path / "j.xml", "Shree Ganesh Traders", "accountant")
+    assert out.read_bytes().startswith(b'<?xml version="1.0" encoding="UTF-8"?>')
+    with pytest.raises(ServiceError):
+        svc.save_xml(c.id, [], tmp_path / "none.xml")
+    with pytest.raises(ServiceError):
+        svc.entries(c.id, "May")
+
+
+def test_cli_tally_journals(tmp_path, capsys):
+    from fintax_gst.cli import main
+
+    dbp = str(tmp_path / "cli.db")
+    reg = tmp_path / "b.csv"
+    reg.write_text(f"GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST\n{MH},Z-1,02-04-2025,1000,90,90\n")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "import", "--client", CLIENT["gstin"], "--source", "books", "--file", str(reg)]) == 0
+    capsys.readouterr()
+    out = tmp_path / "j.xml"
+    assert main(["--db", dbp, "tally-journals", "--client", CLIENT["gstin"], "--period", "2025-10", "--source",
+                 "rule37", "--out", str(out)]) == 0
+    assert "Rule 37" in capsys.readouterr().out and out.exists()

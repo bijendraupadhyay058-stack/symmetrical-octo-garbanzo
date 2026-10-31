@@ -67,6 +67,22 @@ def cmd_pan_view(db, args) -> None:
         print(f"Saved {svc.export_xlsx(v, args.excel)}")
 
 
+def cmd_tally_journals(db, args) -> None:
+    from .services.clients import ClientService
+    from .services.tally_journals import TallyJournalService
+
+    client = ClientService(db).resolve(args.client)
+    svc = TallyJournalService(db)
+    entries = svc.entries(client.id, args.period, args.source)
+    for e in entries:
+        print(f"  {e.on:%d-%m-%Y} {e.total:>12}  {e.narration}")
+    if not entries:
+        print("No reversal or re-claim for this month.")
+        return
+    print(f"Saved {svc.save_xml(client.id, entries, args.out, args.company or client.name, args.user)} – import it "
+          "in TallyPrime with Import > Vouchers.")
+
+
 def add_commands(sub) -> None:
     t = sub.add_parser("tax-check", help="purchases / sales with the wrong tax type (IGST vs CGST+SGST), tax of "
                                          "another state, or tax not matching a GST rate")
@@ -94,10 +110,22 @@ def add_commands(sub) -> None:
     v.add_argument("--excel", help="also save the view to this .xlsx file")
     v.set_defaults(func=cmd_pan_view)
 
+    j = sub.add_parser("tally-journals", help="ITC reversal / re-claim journal vouchers of a month as a TallyPrime "
+                                              "import file")
+    j.add_argument("--client", required=True)
+    j.add_argument("--period", required=True, help="month (YYYY-MM)")
+    j.add_argument("--source", default="claims", choices=["claims", "rule37"],
+                   help="ITC claim register (default) or the 180-day rule")
+    j.add_argument("--out", required=True, help="the .xml file to write")
+    j.add_argument("--company", help="Tally company name (default: the client name)")
+    j.set_defaults(func=cmd_tally_journals)
+
 
 def permission_for(args) -> str | None:
     if args.command in ("tax-check", "rule37", "pan-view"):
         return "view"
+    if args.command == "tally-journals":
+        return "export"
     if args.command == "payments":
         return "import"
     return None

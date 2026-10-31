@@ -148,6 +148,10 @@ class ItcPage(LazyPage):
         self.claim_all_btn.clicked.connect(self.claim_all)
         row.addWidget(self.claim_all_btn)
         row.addStretch()
+        self.journal_btn = QPushButton("Tally journals…")
+        self.journal_btn.setToolTip("Reversals and re-claims of a month as journal vouchers for TallyPrime")
+        self.journal_btn.clicked.connect(lambda: self.tally_journals())
+        row.addWidget(self.journal_btn)
         lay.addLayout(row)
         self.claim_model = RowsModel(["Period", "Action", "Supplier GSTIN", "Invoice No", "Date", "Amount", "Reason",
                                       "Rule ref", "By", "At"],
@@ -158,6 +162,18 @@ class ItcPage(LazyPage):
         lay.addWidget(t, 1)
         self.claims_table = t
         return w
+
+    def tally_journals(self, show: bool = True):
+        st = self.state
+        if st.client is None:
+            return None
+        from ..dialogs.tally_journals import TallyJournalDialog
+        from .firm import previous_month
+
+        dlg = TallyJournalDialog(self, st, previous_month(), "claims")
+        if show:
+            dlg.exec()
+        return dlg
 
     def _rules_tab(self) -> QWidget:
         w = QWidget()

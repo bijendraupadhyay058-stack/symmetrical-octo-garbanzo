@@ -303,3 +303,31 @@ def test_pan_view_page(qtbot, db, tmp_path, messages):  # noqa: F811
     page.table.selectRow(1)
     page.open_registration()
     assert st.client is not None and win.stack.currentWidget() is win.pages["dashboard"]
+
+
+def test_tally_journal_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT, gstin
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    reg = tmp_path / "b.csv"
+    reg.write_text(f"GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST\n{gstin('27', 'AABCM1234K')},Z-1,"
+                   "02-04-2025,1000,90,90\n")
+    st.imports.import_file(c.id, reg, Source.BOOKS)
+    st.set_client(st.clients.get(c.id))
+    win.go("rule37")
+    dlg = win.pages["rule37"].tally_journals(show=False)
+    dlg.period.setText("2025-10")
+    dlg.refresh()
+    assert len(dlg.entries) == 1 and dlg.save_btn.isEnabled()
+    dlg.ledger_edits["reversed"].setText("GST ITC Disallowed")
+    dlg.save_ledgers()
+    assert dlg.entries[0].lines[0][0] == "GST ITC Disallowed"
+    assert dlg.save(str(tmp_path / "j.xml")).exists()
+    win.go("itc")
+    claims = win.pages["itc"].tally_journals(show=False)
+    claims.period.setText("2025-10")
+    claims.refresh()
+    assert claims.entries == [] and "No reversal" in claims.info.text()

@@ -106,10 +106,14 @@ class Rule37Page(LazyPage):
         self.record_btn.clicked.connect(lambda: self.record_reversals())
         export = QPushButton("Export to Excel…")
         export.clicked.connect(lambda: self.export())
+        journals = QPushButton("Tally journals…")
+        journals.setToolTip("The month's 180-day reversals and re-claims as journal vouchers for TallyPrime")
+        journals.clicked.connect(lambda: self.tally_journals())
         for w in (QLabel("As on"), self.as_of, QLabel("Show"), self.filter, self.import_btn, self.paid_btn,
                   self.record_btn):
             bar.addWidget(w)
         bar.addStretch()
+        bar.addWidget(journals)
         bar.addWidget(export)
         lay.addLayout(bar)
         self.summary = QLabel()
@@ -222,6 +226,17 @@ class Rule37Page(LazyPage):
         QMessageBox.information(self, "Record reversals", text)
         self.state.notify()
         return done, skipped
+
+    def tally_journals(self, show: bool = True):
+        if self.state.client is None:
+            return None
+        from ..dialogs.tally_journals import TallyJournalDialog
+
+        d = _pydate(self.as_of)
+        dlg = TallyJournalDialog(self, self.state, f"{d:%Y-%m}", "rule37")
+        if show:
+            dlg.exec()
+        return dlg
 
     def export(self, path: str | None = None):
         if not self.bills:
