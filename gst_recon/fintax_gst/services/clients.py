@@ -11,7 +11,7 @@ from ..db.models import Client
 from .common import ServiceError, audit
 
 FIELDS = ("name", "trade_name", "address", "financial_year", "registration_type", "return_frequency",
-          "contact_person", "email", "mobile")
+          "contact_person", "email", "mobile", "staff")
 _FY = re.compile(r"^\d{4}-\d{2}$")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

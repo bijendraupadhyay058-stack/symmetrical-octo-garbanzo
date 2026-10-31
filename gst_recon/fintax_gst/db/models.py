@@ -59,6 +59,7 @@ class Client(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    staff: Mapped[str] = mapped_column(String(80), default="")  # schema v14: firm staff responsible for the client
 
 
 class ImportTemplate(Base):

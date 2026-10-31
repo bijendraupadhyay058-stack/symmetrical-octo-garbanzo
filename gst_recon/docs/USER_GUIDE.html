@@ -42,6 +42,7 @@
   <a href="#review">6. Review the differences</a> ·
   <a href="#sales">7. Sales and GSTR-1</a> ·
   <a href="#batch">7a. Many clients at once</a> ·
+  <a href="#firm">7b. Firm work dashboard</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -49,7 +50,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.0.4.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.0.5.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -159,6 +160,29 @@
   client. Tick <i>Add clients that do not exist yet</i> to add clients from the folder names. If a register’s
   columns are not recognised, import it once on the Reconcile page, match the columns and save a template – the
   batch then uses that template.</div>
+
+<h2 id="firm">7b. Firm work dashboard</h2>
+<p><b>Firm work</b> (second item in the menu) shows every client for one month on a single screen:</p>
+<table>
+  <tr><th>Stage</th><th>Meaning</th></tr>
+  <tr><td>Awaiting data</td><td>Nothing imported for the month yet.</td></tr>
+  <tr><td>Data incomplete</td><td>One side is missing, e.g. purchase register without GSTR-2B.</td></tr>
+  <tr><td>Ready to reconcile</td><td>Both sides are in, but not reconciled – or new files came in after the last
+      reconciliation.</td></tr>
+  <tr><td>Under review</td><td>Exceptions still open, with who they are assigned to.</td></tr>
+  <tr><td>Reviewed – file returns</td><td>Review done; GSTR-1 / GSTR-3B filing not recorded yet.</td></tr>
+  <tr><td>Done</td><td>The month’s returns are filed.</td></tr>
+</table>
+<ul>
+  <li>The <b>Next step</b> column says what to do for each client, and warns when a return is overdue.</li>
+  <li><b>Deadlines</b> lists returns not filed and notice replies, overdue or due in the next 15 days.
+      <b>Staff workload</b> shows each person’s clients and open exception lines.</li>
+  <li><span class="btn">Set responsible staff…</span> assigns a client to a staff member (also on the client form);
+      the <b>Staff</b> box then shows only that person’s clients.</li>
+  <li><span class="btn">Record filing…</span> saves the date (and ARN) a return was filed – the client moves to
+      <i>Done</i>. <span class="btn">Open client</span> (or double-click) goes straight to that client’s work.</li>
+  <li><span class="btn">Export to Excel…</span> saves the whole dashboard, e.g. for the weekly office meeting.</li>
+</ul>
 
 <h2 id="more">8. Other features</h2>
 <table>

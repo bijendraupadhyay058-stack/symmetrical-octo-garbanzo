@@ -266,3 +266,96 @@ def test_cli_batch(tmp_path, capsys):
     assert main(["--db", dbp, "batch", folder, "--add-clients"]) == 0
     out = capsys.readouterr().out
     assert "7 file(s) imported" in out and "4 reconciliation(s)" in out
+
+
+# ------------------------------------------------------------------ firm work dashboard (Phase 12C)
+def test_firm_work_stages(db, sample_files, tmp_path):
+    from fintax_gst.core.models import ExceptionStatus
+    from fintax_gst.services.auth import SETUP_SESSION
+    from fintax_gst.services.firm import STAGES, UNASSIGNED, FirmService, export_xlsx
+    from fintax_gst.services.interest import InterestService
+    from fintax_gst.services.notices import NoticeService
+    from fintax_gst.services.reconciliation import ReconciliationService
+    from fintax_gst.samples import gstin
+
+    today = date(2025, 5, 15)
+    clients = ClientService(db)
+    demo = clients.create(**CLIENT)
+    clients.update(demo.id, "admin", staff="priya")
+    clients.create(gstin("29", "AACCB5678L"), None, name="Bangalore Electronics LLP", staff="rahul")
+    partial = clients.create(gstin("27", "AABCM1234K"), None, name="Mahalaxmi Steel", return_frequency="Quarterly")
+    imports = ImportService(db)
+    imports.import_file(partial.id, sample_files["books_april"], Source.BOOKS)  # register without GSTR-2B
+    firm = FirmService(db)
+
+    def stage(name, **kw):
+        return next(c for c in firm.work("2025-04", today, **kw).clients if c.name == name)
+
+    assert stage("Bangalore Electronics LLP").stage == "Awaiting data"
+    m = stage("Mahalaxmi Steel")
+    assert m.stage == "Data incomplete" and "GSTR-2B" in m.next_step
+    # QRMP, not a quarter end: PMT-06 is due, the IFF is optional
+    assert [(r.return_type, r.optional) for r in m.returns] == [("IFF", True), ("PMT-06", False)]
+
+    imports.import_file(demo.id, sample_files["books_april"], Source.BOOKS)
+    imports.import_file(demo.id, sample_files["gstr2b_april_json"], Source.GSTR2B)
+    assert stage(CLIENT["name"]).stage == "Ready to reconcile"
+    recon = ReconciliationService(db)
+    run = recon.run(demo.id, "2025-04")
+    open_lines = [ln for ln in recon.load(run).result.lines if ln.status.value not in
+                  ("No Action Required", "Resolved", "Closed After Review")]
+    for ln in open_lines[:3]:
+        recon.update_line(run, ln.line_no, "priya", assigned_to="priya", action_date=date(2025, 5, 10))
+    w = stage(CLIENT["name"])
+    assert w.stage == "Under review" and w.pending == len(open_lines)
+    assert w.pending_by_person == {"priya": 3, UNASSIGNED: len(open_lines) - 3} and w.overdue_actions == 3
+    work = firm.work("2025-04", today)
+    loads = {s.person: s for s in work.staff}
+    assert loads["priya"].pending_lines == 3 and loads["priya"].overdue_actions == 3 and loads["priya"].clients == 1
+    assert [c.name for c in firm.work("2025-04", today, staff="rahul").clients] == ["Bangalore Electronics LLP"]
+    assert work.clients[0].stage_no <= work.clients[-1].stage_no  # sorted by stage
+
+    for ln in open_lines:
+        recon.update_line(run, ln.line_no, "priya", status=ExceptionStatus.RESOLVED.value)
+    w = stage(CLIENT["name"])
+    assert w.stage == "Reviewed – file returns" and "GSTR-1 overdue" in w.next_step
+    deadlines = {(d.client, d.item): d.state for d in firm.work("2025-04", today).deadlines}
+    assert deadlines[(CLIENT["name"], "GSTR-1 not filed")] == "overdue"
+    assert deadlines[(CLIENT["name"], "GSTR-3B not filed")] == "due soon"
+
+    NoticeService(db).add(demo.id, SETUP_SESSION, form="ASMT-10", reference="ZD27", notice_date=date(2025, 5, 1),
+                          period_from="2025-04", period_to="2025-04", reply_due=date(2025, 5, 25))
+    interest = InterestService(db)
+    interest.set_filing(demo.id, "GSTR-1", "2025-04", date(2025, 5, 12), SETUP_SESSION)
+    interest.set_filing(demo.id, "GSTR-3B", "2025-04", date(2025, 5, 19), SETUP_SESSION)
+    interest.set_filing(partial.id, "PMT-06", "2025-04", date(2025, 5, 20), SETUP_SESSION)  # QRMP payment
+    w = stage(CLIENT["name"])
+    assert w.stage == "Done" and w.notices_open == 1 and w.next_reply_due == date(2025, 5, 25)
+    assert [r.state(today) for r in w.returns] == ["filed late", "filed"]
+    items = [(d.client, d.item) for d in firm.work("2025-04", today).deadlines]
+    assert (CLIENT["name"], "Reply to ASMT-10 ZD27") in items and (CLIENT["name"], "GSTR-1 not filed") not in items
+
+    extra = tmp_path / "late_bill.csv"  # a bill booked after the reconciliation
+    extra.write_text("GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST\n"
+                     f"{gstin('27', 'AABCM1234K')},LATE-1,28-04-2025,1000,90,90\n")
+    imports.import_file(demo.id, extra, Source.BOOKS)
+    w = stage(CLIENT["name"])
+    assert w.stage == "Ready to reconcile" and "reconcile again" in w.next_step
+    assert STAGES.index(w.stage) == 2
+
+    out = export_xlsx(firm.work("2025-04", today), tmp_path / "firm.xlsx")
+    from openpyxl import load_workbook
+
+    wb = load_workbook(out)
+    assert wb.sheetnames == ["Clients", "Deadlines", "Staff"] and wb["Clients"].max_row == 5
+    with pytest.raises(ServiceError):
+        firm.work("April")
+
+
+def test_cli_firm(tmp_path, capsys):
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "firm", "--period", "2025-04", "--excel", str(tmp_path / "f.xlsx")]) == 0
+    out = capsys.readouterr().out
+    assert "Awaiting data" in out and CLIENT["name"] in out and (tmp_path / "f.xlsx").exists()

@@ -117,3 +117,26 @@ def test_batch_page(qtbot, db, tmp_path, messages):  # noqa: F811
     results = {page.model.rows[i][3] for i in range(page.model.rowCount())}
     assert {"Client added", "Imported", "Reconciled", "Report saved"} <= results
     assert len(win.state.clients.list()) == 1
+
+
+def test_firm_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    st.clients.create(**CLIENT)
+    win.go("firm")
+    page = win.pages["firm"]
+    page.period.setText("2025-04")
+    page.reload()
+    assert page.cards["Awaiting data"].value.text() == "1" and page.model.rowCount() == 1
+    page.table.selectRow(0)
+    assert page.set_staff("priya")
+    assert page.model.rows[0][2] == "priya" and page.staff_cb.findText("priya") >= 0
+    page.table.selectRow(0)
+    assert page.record_filing(("GSTR-1", date(2025, 5, 10), "AA270525"))
+    assert "GSTR-1: filed" in page.model.rows[0][7]
+    assert page.export(str(tmp_path / "firm.xlsx")).exists()
+    page.table.selectRow(0)
+    page.open_client()
+    assert st.client is not None and win.stack.currentWidget() is win.pages["workflow"]

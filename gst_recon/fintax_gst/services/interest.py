@@ -24,7 +24,7 @@ from ..itc.annual import fy_months
 from .auth import Session, require
 from .common import ServiceError, audit
 
-RETURN_TYPES = ("GSTR-1", "GSTR-3B", "GSTR-9")
+RETURN_TYPES = ("GSTR-1", "IFF", "GSTR-3B", "PMT-06", "GSTR-9")  # returns whose filing date can be recorded
 KINDS = {"SHORT_PAYMENT": "Tax short paid (GSTR-1 above GSTR-3B)",
          "EXCESS_ITC": "ITC in GSTR-3B above GSTR-2B"}
 STATUSES = ("SETTLED", "NOT_PAYABLE")

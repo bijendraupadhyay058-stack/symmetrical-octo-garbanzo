@@ -179,7 +179,7 @@ class ReturnsPage(LazyPage):
         lay.addLayout(top)
         rec = QHBoxLayout()
         self.int_rtype = QComboBox()
-        self.int_rtype.addItems(["GSTR-3B", "GSTR-1", "GSTR-9"])
+        self.int_rtype.addItems(["GSTR-3B", "GSTR-1", "IFF", "PMT-06", "GSTR-9"])
         self.int_period = QLineEdit()
         self.int_period.setPlaceholderText("Period YYYY-MM / FY")
         self.int_period.setMaximumWidth(140)

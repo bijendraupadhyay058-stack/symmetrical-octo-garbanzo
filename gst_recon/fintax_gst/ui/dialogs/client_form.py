@@ -43,10 +43,18 @@ class ClientDialog(QDialog):
         self.contact = QLineEdit(client.contact_person if client else "")
         self.email = QLineEdit(client.email if client else "")
         self.mobile = QLineEdit(client.mobile if client else "")
+        self.staff = QComboBox()  # the firm's logins, or any name typed in
+        self.staff.setEditable(True)
+        self.staff.addItem("")
+        from ...services.auth import AuthService
+
+        self.staff.addItems([u.username for u in AuthService(service.db).users() if u.active])
+        self.staff.setCurrentText(client.staff if client else "")
         for label, w in (("GSTIN *", self.gstin), ("", self.derived), ("Client name *", self.name),
                          ("Trade name", self.trade), ("Financial year", self.fy), ("Registration type", self.reg),
                          ("Return frequency", self.freq), ("Business address", self.address),
-                         ("Contact person", self.contact), ("Email", self.email), ("Mobile", self.mobile)):
+                         ("Contact person", self.contact), ("Email", self.email), ("Mobile", self.mobile),
+                         ("Responsible staff", self.staff)):
             form.addRow(label, w)
         lay.addLayout(form)
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
@@ -71,7 +79,7 @@ class ClientDialog(QDialog):
                 "financial_year": self.fy.text().strip(), "registration_type": self.reg.currentText(),
                 "return_frequency": self.freq.currentText(), "address": self.address.toPlainText().strip(),
                 "contact_person": self.contact.text().strip(), "email": self.email.text().strip(),
-                "mobile": self.mobile.text().strip()}
+                "mobile": self.mobile.text().strip(), "staff": self.staff.currentText().strip()[:80]}
 
     def _save(self) -> None:
         try:

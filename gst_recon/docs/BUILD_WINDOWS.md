@@ -18,7 +18,7 @@ The script
    * `dist\FinTaxPro\FinTaxPro.exe` – the desktop application (windowed)
    * `dist\FinTaxPro-GST\FinTaxPro-GST.exe` – the command-line tool
 5. runs `FinTaxPro.exe --smoke-test` and the CLI demo,
-6. builds `dist\installer\FinTaxPro-Setup-1.0.4.exe` if Inno Setup 6 is installed
+6. builds `dist\installer\FinTaxPro-Setup-1.0.5.exe` if Inno Setup 6 is installed
    (`packaging\fintaxpro.iss`; per-user install, no administrator rights needed;
    uninstalling never deletes the data folder).
 
@@ -54,7 +54,7 @@ script end to end:
 * both PyInstaller builds;
 * `FinTaxPro.exe --smoke-test`;
 * the CLI demo from `FinTaxPro-GST.exe`;
-* the Inno Setup compile of `FinTaxPro-Setup-1.0.4.exe`.
+* the Inno Setup compile of `FinTaxPro-Setup-1.0.5.exe`.
 
 The build is unsigned until a certificate is configured.
 

@@ -160,6 +160,13 @@ def _migration_13(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V13_TABLES])
 
 
+def _migration_14(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    if "staff" not in {c["name"] for c in sa_inspect(conn).get_columns("clients")}:
+        conn.exec_driver_sql("ALTER TABLE clients ADD COLUMN staff VARCHAR(80) NOT NULL DEFAULT ''")
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -178,6 +185,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (12, "return filing dates and settlements of short payments / excess ITC (interest, late fees)",
      _migration_12),
     (13, "register of GST notices (DRC-01B, DRC-01C, ASMT-10) and their replies", _migration_13),
+    (14, "staff member responsible for each client (firm work dashboard)", _migration_14),
 ]
 
 
