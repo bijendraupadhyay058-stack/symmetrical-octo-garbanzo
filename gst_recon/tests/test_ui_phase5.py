@@ -170,3 +170,27 @@ def test_update_bar(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
         assert settings.check_updates() is None and "latest version" in messages[-1]
     finally:
         page.server.shutdown()
+
+
+def test_reminders_page(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from PySide6.QtGui import QDesktopServices
+    from PySide6.QtWidgets import QApplication
+
+    from fintax_gst.samples import CLIENT
+
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url.toString()) or True))
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.state.clients.create(**{**CLIENT, "mobile": "9820012345"})
+    win.go("reminders")
+    page = win.pages["reminders"]
+    page.period.setText("2025-04")
+    page.signature.setText("CA Office")
+    page.reload()
+    assert page.model.rowCount() == 1 and "Purchase register for April 2025" in page.text.toPlainText()
+    page.show_message()
+    assert page.text.toPlainText().endswith("CA Office")
+    page.text.setPlainText(page.text.toPlainText() + "\nPS: edited")
+    assert page.send("copy").endswith("PS: edited") and QApplication.clipboard().text().endswith("PS: edited")
+    assert page.send("whatsapp").startswith("https://wa.me/919820012345") and opened
+    assert page.model.rows[0][3] == 2

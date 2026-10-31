@@ -616,4 +616,22 @@ class GstNotice(Base):
 
 
 V13_TABLES = [GstNotice]
+
+
+class ClientReminder(Base):
+    """A request for documents or clarifications prepared for a client (schema v15). The program never sends
+    it; this records that the message was copied or opened in the e-mail / WhatsApp app."""
+
+    __tablename__ = "client_reminders"
+    __table_args__ = (Index("ix_reminder_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    period: Mapped[str] = mapped_column(String(7))
+    channel: Mapped[str] = mapped_column(String(10))  # copy, email, whatsapp
+    items_json: Mapped[str] = mapped_column(Text, default="[]")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    made_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V15_TABLES = [ClientReminder]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

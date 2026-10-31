@@ -105,3 +105,74 @@ def test_update_check_without_internet(tmp_path):
             svc.download(info, tmp_path)
     finally:
         page.server.shutdown()
+
+
+# ------------------------------------------------------------------ client document reminders (13B)
+def test_client_reminders(db, sample_files):
+    from sqlalchemy import select
+
+    from fintax_gst.core.models import ExceptionStatus, Source
+    from fintax_gst.db.models import AuditLog, ClientReminder
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.services.clients import ClientService
+    from fintax_gst.services.imports import ImportService
+    from fintax_gst.services.reconciliation import ReconciliationService
+    from fintax_gst.services.reminders import ReminderService
+
+    clients = ClientService(db)
+    demo = clients.create(**CLIENT)
+    clients.update(demo.id, "admin", mobile="9820012345", email="accounts@ganesh.example", staff="priya")
+    other = clients.create(gstin("29", "AACCB5678L"), None, name="Bangalore Electronics LLP")
+    ImportService(db).import_file(demo.id, sample_files["books_april"], Source.BOOKS)
+    ImportService(db).import_file(demo.id, sample_files["gstr2b_april_json"], Source.GSTR2B)
+    recon = ReconciliationService(db)
+    run = recon.run(demo.id, "2025-04")
+    lines = recon.load(run).result.lines
+    missing = next(ln for ln in lines if ln.books is None and ln.gstr2b)  # in GSTR-2B, not in the books
+    wrong = next(ln for ln in lines if ln.books and ln.gstr2b and ln.category.value != "Fully Matched")
+    recon.update_line(run, missing.line_no, "priya", status=ExceptionStatus.CLIENT_CLARIFICATION.value,
+                      remarks="Not in your purchase register – was it received?")
+    recon.update_line(run, wrong.line_no, "priya", status=ExceptionStatus.BOOKS_CORRECTION.value)
+
+    svc = ReminderService(db)
+    reqs = {r.name: r for r in svc.requests("2025-04")}
+    assert reqs[other.name].documents == ["Purchase register for April 2025"]
+    r = reqs[CLIENT["name"]]
+    assert r.documents == [] and len(r.clarify) == 1 and len(r.correct) == 1
+    assert r.clarify[0].invoice_no == missing.gstr2b.invoice_no
+    text = svc.message(r, "CA R. Sharma")
+    assert text.startswith(f"Dear {CLIENT['contact_person']},") and "was it received?" in text
+    assert "Please correct these entries" in text and text.endswith("CA R. Sharma")
+    assert svc.whatsapp(r, "Hi").startswith("https://wa.me/919820012345?text=Hi")
+    assert svc.mailto(r, "a b").startswith("mailto:accounts%40ganesh.example?subject=GST%20April%202025")
+    assert [x.name for x in svc.requests("2025-04", staff="priya")] == [CLIENT["name"]]
+    assert "Sales register for April 2025" in svc.requests("2025-04", ask_sales=True)[0].documents
+
+    svc.record(r, "whatsapp", "priya")
+    again = {x.name: x for x in svc.requests("2025-04")}[CLIENT["name"]]
+    assert again.times_reminded == 1 and again.last_reminded is not None
+    with db.session() as s:
+        row = s.scalars(select(ClientReminder)).one()
+        assert row.channel == "whatsapp" and len(row.items_json) > 10
+        assert s.scalars(select(AuditLog).where(AuditLog.action == "REMINDER")).one().user == "priya"
+    with pytest.raises(ServiceError):
+        svc.record(r, "sms")
+    # a client deleted for good takes its reminder log with it
+    from fintax_gst.services.auth import SETUP_SESSION
+    from fintax_gst.services.security import SecurityService
+
+    SecurityService(db).purge_client(demo.id, CLIENT["gstin"], SETUP_SESSION)
+    with db.session() as s:
+        assert not s.scalars(select(ClientReminder)).all()
+
+
+def test_cli_reminders(tmp_path, capsys):
+    from fintax_gst.cli import main
+    from fintax_gst.samples import CLIENT
+
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    capsys.readouterr()
+    assert main(["--db", dbp, "reminders", "--period", "2025-04", "--signature", "CA Office"]) == 0
+    out = capsys.readouterr().out
+    assert "Purchase register for April 2025" in out and "CA Office" in out

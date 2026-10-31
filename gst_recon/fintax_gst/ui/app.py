@@ -22,6 +22,7 @@ from .dialogs.login import LoginDialog
 from .pages.admin import ClientsPage, ImportsPage, SettingsPage
 from .pages.batch import BatchPage
 from .pages.firm import FirmPage
+from .pages.reminders import RemindersPage
 from .pages.dashboard import DashboardPage
 from .pages.exceptions import ExceptionsPage
 from .pages.history import HistoryPage, OpenItemsPage
@@ -39,7 +40,7 @@ from .theme import NAVY, STYLESHEET, TEAL
 log = logging.getLogger(__name__)
 
 NAV = [
-    ("dashboard", "◧  Dashboard"), ("firm", "▣  Firm work"), ("workflow", "▶  Reconcile"), ("exceptions", "⚑  Exceptions"),
+    ("dashboard", "◧  Dashboard"), ("firm", "▣  Firm work"), ("reminders", "✆  Reminders"), ("workflow", "▶  Reconcile"), ("exceptions", "⚑  Exceptions"),
     ("itc", "✓  ITC review"), ("returns", "▤  GSTR-3B & annual"), ("ims", "⇄  IMS"),
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("letters", "✉  Letters & papers"),
     ("notices", "⚖  GST notices"), ("batch", "⧉  Batch"),
@@ -90,7 +91,7 @@ class MainWindow(QMainWindow):
         self.nav.setFixedWidth(190)
         self.stack = QStackedWidget()
         self.pages: dict[str, QWidget] = {
-            "dashboard": DashboardPage(state), "firm": FirmPage(state), "workflow": WorkflowPage(state), "exceptions": ExceptionsPage(state),
+            "dashboard": DashboardPage(state), "firm": FirmPage(state), "reminders": RemindersPage(state), "workflow": WorkflowPage(state), "exceptions": ExceptionsPage(state),
             "itc": ItcPage(state), "returns": ReturnsPage(state), "ims": ImsPage(state),
             "outward": OutwardPage(state), "compliance": CompliancePage(state), "letters": LettersPage(state),
             "notices": NoticesPage(state), "batch": BatchPage(state),
