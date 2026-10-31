@@ -44,3 +44,28 @@ def test_rcm_and_isd_tab(qtbot, db, tmp_path, messages):  # noqa: F811
     shares = tab.isd({u.id: D(500) for u in tab.svc.isd_units(isd.id)})
     assert shares and tab.isd_grid.rowCount() == 2 and "1,800.00" in tab.isd_info.text()
     assert tab.export_isd(str(tmp_path / "isd.xlsx")).exists()
+
+
+def test_bank_vs_cash_ledger_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
+    from fintax_gst.samples import CLIENT
+
+    from .test_phase16 import _cash_ledger
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    _cash_ledger(tmp_path / "cash.xlsx", [["1", "05-04-2025", "CPIN 25042700012345", "Apr-25", "Deposit", "Credit",
+                                           0, 0, 500, 500, 500, 500, 0, 0, 0, 500, 500, 0]])
+    from fintax_gst.services.portal import PortalService
+
+    PortalService(db).import_ledger(c.id, tmp_path / "cash.xlsx")
+    win.go("portal")
+    dlg = win.pages["portal"].bank_recon(show=False)
+    assert "bank statement first" in dlg.info.text()
+    (tmp_path / "bank.csv").write_text("Date,Narration,Withdrawal,Deposit,Balance\n"
+                                       "05/04/2025,GST CPIN 25042700012345,1000,,9000\n"
+                                       "06/04/2025,GST CPIN 25042700066666,200,,8800\n", encoding="utf-8")
+    assert dlg.import_statement(str(tmp_path / "bank.csv")) == 2
+    assert dlg.model.rowCount() == 2 and "1 matched" in dlg.info.text() and "1 not credited" in dlg.info.text()
+    assert dlg.export(str(tmp_path / "x.xlsx")).exists()

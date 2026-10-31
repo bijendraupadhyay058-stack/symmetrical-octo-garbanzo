@@ -114,6 +114,11 @@ class PortalPage(LazyPage):
         self.balance_lbl.setWordWrap(True)
         lrow.addWidget(self.ledger_cb)
         lrow.addWidget(self.balance_lbl, 1)
+        self.bank_btn = QPushButton("Bank statement vs cash ledger…")
+        self.bank_btn.setToolTip("Match GST payments in the client's bank statement with the deposits in the "
+                                 "electronic cash ledger")
+        self.bank_btn.clicked.connect(lambda: self.bank_recon())
+        lrow.addWidget(self.bank_btn)
         bl.addLayout(lrow)
         self.ledger_model = RowsModel(["Date", "Reference", "Tax period", "Description", "Cr / Dr", "IGST", "CGST",
                                        "SGST", "Cess"],
@@ -252,6 +257,17 @@ class PortalPage(LazyPage):
         if done:
             QMessageBox.information(self, "Imported", "\n".join(done))
         self.refresh()
+
+    def bank_recon(self, show: bool = True):
+        from ..dialogs.bank_recon import BankReconDialog
+
+        if self.state.client is None:
+            QMessageBox.information(self, "Bank statement", "Select a client first.")
+            return None
+        dlg = BankReconDialog(self, self.state)
+        if show:
+            dlg.exec()
+        return dlg
 
     # ------------------------------------------------------------ ledgers
     def show_ledger(self) -> None:
