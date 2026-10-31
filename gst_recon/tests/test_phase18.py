@@ -204,3 +204,90 @@ def test_mis_figures_and_pack(db, sample_files, tmp_path):
     ws = wb["Monthly"]
     assert ws["A3"].value == "Apr-25" and ws["A4"].value == "Total" and len(ws._charts) == 3
     assert wb["Supplier risk"].max_row == len(mis.suppliers) + 1
+
+
+# ------------------------------------------------------------------ firm billing and staff tasks (18D)
+def test_fee_invoices_receipts_and_outstanding(db, tmp_path):
+    from pypdf import PdfReader
+
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.services.billing import BillingService, FirmProfile
+    from fintax_gst.services.clients import ClientService
+
+    cs = ClientService(db)
+    mh = cs.create(**CLIENT)  # Maharashtra
+    ka = cs.create(**{**CLIENT, "gstin": gstin("29", "AACCV5566C"), "name": "Venkatesh Traders",
+                      "state_code": "29"})
+    svc = BillingService(db)
+    with pytest.raises(ServiceError, match="firm profile"):
+        svc.create_invoice(mh.id, [("GST returns", "5000")], ADMIN)
+    with pytest.raises(ServiceError):
+        svc.save_profile(FirmProfile(name="Sharma & Co", gstin="27AAAAA0000A1Z0"), ADMIN)  # bad check digit
+    svc.save_profile(FirmProfile(name="Sharma & Co", address="Pune", gstin=gstin("27", "AAKFS1234P"),
+                                 bank="HDFC Bank A/c 123 IFSC HDFC0000001"), ADMIN)
+    assert svc.profile().state_code == "27" and svc.profile().pan == "AAKFS1234P"
+    a = svc.create_invoice(mh.id, [("GST returns – April 2025", "5,000"), ("GSTR-2B reconciliation", "2500.50")],
+                           ADMIN, date(2025, 5, 2))
+    assert a.number == "FTP/2025-26/0001" and a.taxable == D("7500.50")
+    assert (a.cgst, a.sgst, a.igst, a.total) == (D("675.05"), D("675.05"), D(0), D("8850.60"))
+    b = svc.create_invoice(ka.id, [("GST returns", "10000")], ADMIN, date(2025, 5, 3))
+    assert b.number == "FTP/2025-26/0002" and b.igst == D(1800) and b.total == D(11800)
+    c = svc.create_invoice(mh.id, [("Annual return", "1000")], ADMIN, date(2026, 4, 2))
+    assert c.number == "FTP/2026-27/0001"  # numbering restarts with the year
+    with pytest.raises(ServiceError):
+        svc.create_invoice(mh.id, [("", "100")], ADMIN)
+    with pytest.raises(ServiceError):
+        svc.create_invoice(mh.id, [("Fees", "100")], VIEWER)
+    # receipts with TDS; outstanding by client, oldest unpaid first
+    svc.record_receipt(mh.id, "7965.55", date(2025, 5, 20), ADMIN, "UPI", "UTR1", tds="885.05", invoice_id=a.id)
+    svc.record_receipt(ka.id, "5000", date(2025, 5, 25), ADMIN, "Bank transfer", invoice_id=b.id)
+    with pytest.raises(ServiceError, match="not this client's"):
+        svc.record_receipt(mh.id, "1", date(2025, 5, 25), ADMIN, invoice_id=b.id)
+    out = {o.name: o for o in svc.outstanding()}
+    assert out[CLIENT["name"]].balance == D(1180) and out[CLIENT["name"]].oldest_due == c.due_date
+    assert out["Venkatesh Traders"].balance == D(6800) and out["Venkatesh Traders"].overdue_days(date(2025, 6, 1)) == 14
+    views = {v.inv.number: v for v in svc.invoices()}
+    assert views["FTP/2025-26/0001"].balance == 0 and views["FTP/2025-26/0002"].balance == D(6800)
+    with pytest.raises(ServiceError, match="receipts"):
+        svc.cancel_invoice(b.id, "wrong client", ADMIN)
+    svc.cancel_invoice(c.id, "raised twice", ADMIN)
+    assert {o.name: o for o in svc.outstanding()}[CLIENT["name"]].balance == 0
+    pdf = svc.invoice_pdf(a.id, tmp_path / "a.pdf")
+    text = PdfReader(str(pdf)).pages[0].extract_text()
+    assert "TAX INVOICE" in text and "FTP/2025-26/0001" in text and "8,850.60" in text
+    assert "Eight Thousand Eight Hundred Fifty and Sixty Paise" in text
+    # an unregistered firm issues a bill of supply without GST
+    svc.save_profile(FirmProfile(name="Sharma & Co", prefix="SC"), ADMIN)
+    d = svc.create_invoice(mh.id, [("Fees", "3000")], ADMIN, date(2025, 6, 1))
+    assert d.number == "SC/2025-26/0001" and d.total == D(3000) and d.cgst == 0
+    assert "BILL OF SUPPLY" in PdfReader(str(svc.invoice_pdf(d.id, tmp_path / "d.pdf"))).pages[0].extract_text()
+
+
+def test_staff_tasks_from_due_dates(db):
+    from fintax_gst.samples import CLIENT
+    from fintax_gst.services.clients import ClientService
+    from fintax_gst.services.tasks import TaskService
+
+    cs = ClientService(db)
+    c = cs.create(**CLIENT)
+    cs.update(c.id, "admin", staff="priya")
+    svc = TaskService(db)
+    created, closed = svc.return_tasks("2025-04", "admin")
+    assert created == 2 and closed == 0
+    assert svc.return_tasks("2025-04", "admin") == (0, 0)  # never twice
+    tasks = svc.tasks("priya")
+    assert [t.task.title for t in tasks] == ["File GSTR-1 – April 2025", "File GSTR-3B – April 2025"]
+    assert tasks[0].task.due_date == date(2025, 5, 11) and tasks[0].state(date(2025, 5, 12)) == "Overdue"
+    manual = svc.add("Reply to ASMT-10", "admin", "rahul", date(2025, 5, 30), c.id)
+    assert "rahul" in svc.assignees() and "priya" in svc.assignees()
+    from fintax_gst.db.models import ReturnFiling
+
+    with db.session() as s:
+        s.add(ReturnFiling(client_id=c.id, return_type="GSTR-1", period="2025-04", filed_on=date(2025, 5, 10)))
+    open_titles = [t.task.title for t in svc.tasks()]
+    assert "File GSTR-1 – April 2025" not in open_titles and "Reply to ASMT-10" in open_titles
+    done = [t for t in svc.tasks(include_done=True) if t.task.status == "done"]
+    assert done[0].task.done_by == "filing recorded"
+    assert svc.set_status([manual.id], True, "rahul") == 1 and svc.set_status([manual.id], True, "rahul") == 0
+    assert svc.reassign([manual.id], "priya", "admin") == 1
+    assert svc.delete([manual.id], "admin") == 1

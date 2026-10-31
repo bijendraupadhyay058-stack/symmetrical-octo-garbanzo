@@ -796,4 +796,66 @@ class OutboxMail(Base):
 
 
 V21_TABLES = [OutboxMail]
+
+
+class FeeInvoice(Base):
+    """The firm's own fee invoice to a client (practice billing). Schema v22. A cancelled invoice keeps its number."""
+
+    __tablename__ = "fee_invoices"
+    __table_args__ = (UniqueConstraint("number", name="uq_fee_invoice_number"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    number: Mapped[str] = mapped_column(String(40))
+    invoice_date: Mapped[date] = mapped_column(Date)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    lines_json: Mapped[str] = mapped_column(Text, default="[]")  # [{"text": ..., "amount": "..."}]
+    sac: Mapped[str] = mapped_column(String(10), default="")
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    total: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    status: Mapped[str] = mapped_column(String(10), default="issued")  # issued / cancelled
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FeeReceipt(Base):
+    """Money received from a client against fees (with TDS deducted by the client). Schema v22."""
+
+    __tablename__ = "fee_receipts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    invoice_id: Mapped[int | None] = mapped_column(ForeignKey("fee_invoices.id"), nullable=True, index=True)
+    received_on: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    tds: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    mode: Mapped[str] = mapped_column(String(20), default="")  # bank / UPI / cheque / cash
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class StaffTask(Base):
+    """A piece of work for a staff member, entered by hand or created from the return due dates. Schema v22."""
+
+    __tablename__ = "staff_tasks"
+    __table_args__ = (Index("ix_task_assignee_status", "assignee", "status"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    assignee: Mapped[str] = mapped_column(String(80), default="")
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="open")  # open / done
+    auto_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)  # client:return:period
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    done_by: Mapped[str] = mapped_column(String(80), default="")
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+V22_TABLES = [FeeInvoice, FeeReceipt, StaffTask]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

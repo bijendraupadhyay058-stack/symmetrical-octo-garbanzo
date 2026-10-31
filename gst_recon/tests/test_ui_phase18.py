@@ -106,3 +106,38 @@ def test_charts_and_mis_page(qtbot, db, tmp_path, sample_files, messages):  # no
     import shutil
 
     shutil.copy(tmp_path / "mis.png", "/tmp/claude-0/mis/app.png") if os.path.isdir("/tmp/claude-0/mis") else None
+
+
+def test_fees_and_tasks_page(qtbot, db, tmp_path, messages):  # noqa: F811
+    from datetime import date
+    from decimal import Decimal as D
+
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.services.billing import FirmProfile
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.clients.update(c.id, "setup", staff="priya")
+    st.set_client(st.clients.get(c.id))
+    win.go("practice")
+    page = win.pages["practice"]
+    assert page.generate("2025-04") == (2, 0)
+    page.who.setCurrentText("priya")
+    assert page.t_model.rowCount() == 2 and page.t_model.rows[0][2] == "File GSTR-1 – April 2025"
+    t = page.add_task(("Reply to notice", "priya", date(2030, 1, 1), c.id, ""))
+    assert t is not None and page.t_model.rowCount() == 3
+    page.t_table.selectRow(2)
+    assert page.set_done(True) == 1 and page.t_model.rowCount() == 2
+    assert not page.new_invoice((c.id, [("Fees", "1000")], date(2025, 5, 1), ""))  # no profile yet
+    assert page.edit_profile(FirmProfile(name="Sharma & Co", gstin=gstin("27", "AAKFS1234P"), bank="HDFC 123"))
+    inv = page.new_invoice((c.id, [("GST returns April", "5000")], date(2025, 5, 1), ""))
+    assert inv.total == D(5900) and page.i_model.rowCount() == 1
+    assert page.new_receipt({"client_id": c.id, "amount": "5400", "received_on": date(2025, 5, 9), "mode": "UPI",
+                             "reference": "U1", "tds": "500", "invoice_id": inv.id})
+    assert page.o_model.rows[0][4] == 0
+    page.i_table.selectRow(0)
+    assert page.invoice_pdf(str(tmp_path / "i.pdf"), open_file=False).exists()
+    m = page.email_invoice()
+    assert m.subject.startswith("Invoice FTP/2025-26/0001") and m.attachments_json.endswith('.pdf"]')
+    assert not page.cancel_invoice("raised by mistake")  # it has a receipt
