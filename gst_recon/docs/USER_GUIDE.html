@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.7.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.8.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -369,6 +369,31 @@
    <span class="btn">Year-end pack…</span> and a folder. You get one PDF with a contents page – status by month, GSTR-9,
    GSTR-9C, Table 8, ITC still on hold, interest and late fee, open notices, supplier risk – and one Excel file with an
    index sheet. Put both in the audit file.</p>
+
+<h2 id="phase20">7j. Reverse charge, ISD, and bank statement vs cash ledger</h2>
+<h3>Reverse charge (RCM) register</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>RCM &amp; ISD</b>. Type the month and click <span class="btn">Show</span>. You see
+   purchases marked "reverse charge" in the purchase register, and purchases that look like reverse-charge services
+   (freight / GTA, advocate, director, security, rent …) where the supplier charged no GST – marked
+   <i>Possible RCM – check</i>. Purchases from persons <b>without GSTIN</b> (rent to an individual, advocate, local
+   transporter) are not in the purchase register: add them with <span class="btn">Add unregistered purchase…</span> or
+   <span class="btn">Import RCM list…</span> (Excel with date, party and amount; rate and state if known). The tax is
+   worked out, the month's total is compared with GSTR-3B 3.1(d), and it is added to the GSTR-3B draft.
+   <span class="btn">Self-invoices (PDF)…</span> prints the self-invoices you must issue for purchases from unregistered
+   persons – enter the next number of your series.</p>
+<h3>ISD distribution</h3>
+<p>Add the ISD registration and the branches (same PAN) as clients. Select the ISD as the client, import its purchase
+   register (the common input services), and on the <b>RCM &amp; ISD</b> tab click
+   <span class="btn">Work out distribution</span>. The credit is shared by turnover of the previous year from the
+   branches' sales registers – or type the turnover in the grid and work it out again. CGST/SGST go to a branch in the
+   same state as CGST/SGST and to other states as IGST. <span class="btn">Export ISD invoices (Excel)…</span> gives the
+   ISD invoices for GSTR-6.</p>
+<h3>Bank statement vs electronic cash ledger</h3>
+<p>On the <b>GST Portal</b> page, import the client's electronic cash ledger, then click
+   <span class="btn">Bank statement vs cash ledger…</span> → <span class="btn">Import bank statement…</span> (net banking →
+   statement → Excel / CSV). Every GST payment in the bank is matched with a deposit in the cash ledger (by CPIN, or by
+   amount and date). Red rows were <b>debited in the bank but not credited</b> on the portal – check with the bank and,
+   if the CIN was not generated, raise a grievance in GST PMT-07.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
