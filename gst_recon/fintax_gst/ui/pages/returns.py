@@ -119,9 +119,14 @@ class ReturnsPage(LazyPage):
         self.g9_json_btn.setToolTip("Draft GSTR-9 JSON with a mapping of what is included and what to enter in "
                                     "the offline tool – validate it there before filing")
         self.g9_json_btn.clicked.connect(self.export_gstr9_json)
+        self.g9_import_btn = QPushButton("Import GSTR-9 (filed / offline tool)…")
+        self.g9_import_btn.setToolTip("GSTR-9 JSON downloaded from the portal or saved by the offline tool, or an "
+                                      "Excel / CSV template – compared with this working table by table")
+        self.g9_import_btn.clicked.connect(lambda: self.import_annual("GSTR9"))
         row.addWidget(self.g9_btn)
         row.addWidget(self.g9_export_btn)
         row.addWidget(self.g9_json_btn)
+        row.addWidget(self.g9_import_btn)
         hint = QLabel("Returns = GSTR-1 (Tables 4–5) and GSTR-3B (4G, 6, 7); Books = sales register. "
                       "A working paper for review, not the return as filed.")
         hint.setObjectName("Muted")
@@ -436,6 +441,11 @@ class ReturnsPage(LazyPage):
         self.c9_exp_btn.setToolTip("Table 14: ledger heads with amount and ITC (Excel/CSV)")
         self.c9_exp_btn.clicked.connect(self.import_expense_dialog)
         form.addWidget(self.c9_exp_btn)
+        self.c9_import_btn = QPushButton("Import GSTR-9C template…")
+        self.c9_import_btn.setToolTip("GSTR-9C prepared in the offline tool's Excel template (or CSV): compared "
+                                      "with this statement; its audited figures can be used here")
+        self.c9_import_btn.clicked.connect(lambda: self.import_annual("GSTR9C"))
+        form.addWidget(self.c9_import_btn)
         for x in (self.c9_btn, self.c9_item, self.c9_amount, self.c9_note, self.c9_save, self.c9_clear):
             form.addWidget(x)
         lay.addLayout(form)
@@ -662,6 +672,30 @@ class ReturnsPage(LazyPage):
         for m in (self.int_late_model, self.int_exp_model):  # computed on request (it reads several workings)
             m.set_rows([])
         self.int_lbl.setText("Press Compute for the interest and late fee working of the year.")
+
+    def import_annual(self, kind: str, path: str | None = None, show: bool = True):
+        """Import a GSTR-9 / GSTR-9C prepared elsewhere for the year in the header and show the comparison."""
+        from ...importers.readers import UnsupportedFileError
+        from ...services.annual_import import AnnualImportService
+        from ..dialogs.annual_compare import AnnualCompareDialog
+
+        st = self.state
+        if st.client is None:
+            return None
+        name = "GSTR-9" if kind == "GSTR9" else "GSTR-9C"
+        filt = "GSTR-9 (*.json *.xlsx *.xls *.csv)" if kind == "GSTR9" else "GSTR-9C template (*.xlsx *.xls *.csv)"
+        path = path or QFileDialog.getOpenFileName(self, f"{name} for {st.fy}", "", filt)[0]
+        if not path:
+            return None
+        try:
+            AnnualImportService(st.db).save(st.client.id, st.fy, path, kind, st.user)
+        except (ServiceError, UnsupportedFileError) as exc:
+            QMessageBox.warning(self, name, str(exc))
+            return None
+        dlg = AnnualCompareDialog(self, st, st.fy, kind)
+        if show:
+            dlg.exec()
+        return dlg
 
     def gstr3b_draft(self, show: bool = True):
         if self.state.client is None or not self.from_cb.currentText():

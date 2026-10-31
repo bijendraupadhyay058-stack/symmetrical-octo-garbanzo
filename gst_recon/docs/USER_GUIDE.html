@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.4.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.5.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -279,6 +279,35 @@
    For earlier years (back to 2017-18), choose the year in the <b>Financial year</b> box at the top – it stays when you
    switch clients.</p>
 
+<h2 id="phase17">7g. GST Portal section, TallyPrime GST reports, GSTR-2A / 8A, GSTR-9 and 9C files</h2>
+<h3>GST Portal – download and import with one click</h3>
+<p>Open <b>GST Portal</b> in the left menu. <span class="btn">Log in to GST portal</span> opens the official portal in
+   your browser – you sign in there yourself (FIN TAX PRO never asks for or keeps your portal password). The report
+   buttons (GSTR-1, GSTR-2B, GSTR-2A, GSTR-3B, cash ledger, credit ledger, TDS and TCS credit, GSTR-8A / Table 8A)
+   open the right part of the portal; point at a button to see the menu path. Save the downloads in your
+   <b>Downloads</b> folder (or choose another folder). Each file is recognised – which return, which client (by GSTIN)
+   and which month – and listed. Click <span class="btn">Import all ready</span>, or select files and
+   <span class="btn">Import selected</span>. Returns with invoices (GSTR-1, 2A, 2B, 8A) first show the usual import
+   preview. Files already imported are marked and are not imported twice.</p>
+<p>The <b>electronic cash ledger</b> and <b>electronic credit ledger</b> (portal: Services → Ledgers → save as Excel) are
+   shown at the bottom of the page with the latest balance. Downloading an overlapping period again adds only the new
+   lines.</p>
+<p>Without internet the page says <i>Offline</i>; everything else in the program works as usual, and files already
+   downloaded can still be imported. The header shows <i>● Online</i> or <i>● Offline</i>.</p>
+<h3>Reconcile page</h3>
+<p>Step 4 now has <span class="btn">GSTR-2A</span> and <span class="btn">GSTR-8A</span> next to GSTR-2B. Step 3 has
+   <span class="btn">Tally statutory report…</span>: in TallyPrime open <i>Display More Reports → GST Reports</i>, export
+   the <b>GSTR-1</b> report (imported as the sales register), the <b>GSTR-2A / 2B reconciliation</b> (imported as the
+   purchase register – lines that are only on the portal are left out and listed) or the <b>GSTR-3B</b> report (kept
+   as "GSTR-3B as per books" and compared with the draft in <span class="btn">GSTR-3B draft (one page)…</span>).
+   Step 7 has <span class="btn">Delete reconciliation…</span> to remove the reconciliation shown (your imports stay).</p>
+<h3>GSTR-9 and GSTR-9C prepared elsewhere</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>GSTR-9</b> → <span class="btn">Import GSTR-9 (filed / offline tool)…</span> takes the
+   GSTR-9 JSON from the portal or the offline tool, or an Excel / CSV template with table codes (4A, 6B …). Tab
+   <b>GSTR-9C</b> → <span class="btn">Import GSTR-9C template…</span> takes the offline tool's Excel. Both are compared
+   with the program's working table by table; differences are shown in red. For GSTR-9C you can click
+   <span class="btn">Use the file's audited figures in GSTR-9C</span> to record its Tables 5, 7 and 12 amounts.</p>
+
 <h2 id="more">8. Other features</h2>
 <table>
   <tr><th>Page</th><th>What it does</th></tr>
@@ -309,11 +338,12 @@
 </ol>
 
 <h2 id="updates">9a. Updates</h2>
-<p>Once a day the program checks the download page for a new version (it reads only the latest version number; no
-   client data is sent). When there is one, a blue bar appears at the top: click
-   <span class="btn">Download and install</span>. The installer is downloaded, checked against the fingerprint on the
-   download page, and started when you agree; your data is kept. You can also click
-   <span class="btn">Check for updates now</span> on <b>Settings</b>, or switch the daily check off there.</p>
+<p>The program looks for a new version by itself – by default once a day; on <b>Settings</b> you can choose
+   <i>every time FIN TAX PRO starts</i>, <i>once a day</i>, <i>once a week</i> or <i>never</i>. It reads only the latest
+   version number (no client data is sent) and waits until the computer is online. When there is a new version, a blue
+   bar appears at the top: click <span class="btn">Download and install</span>. The installer is downloaded, checked
+   against the fingerprint on the download page, and started when you agree; your data is kept. You can check at any
+   time with <span class="btn">⟳ Updates</span> at the top of the window.</p>
 
 <h2 id="help">10. If something goes wrong</h2>
 <table>

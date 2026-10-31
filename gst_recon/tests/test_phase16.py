@@ -386,3 +386,63 @@ def test_portal_recognises_downloads_and_ledgers(db, tmp_path, sample_files):
     # removing the import removes its ledger lines
     ImportService(db).remove_import(c.id, _sf.id, user="admin")
     assert len(svc.ledger_rows(c.id, "CASH")) == 3
+
+
+# ------------------------------------------------------------------ GSTR-9 / 9C import (17E)
+def test_gstr9_and_9c_import_compare(db, sample_files, tmp_path):
+    import json
+
+    from openpyxl import Workbook
+
+    from fintax_gst.services.annual_import import AnnualImportService
+    from fintax_gst.services.auth import SETUP_SESSION
+    from fintax_gst.services.gstr3b import Gstr3bService
+    from fintax_gst.services.gstr9 import Gstr9Service
+    from fintax_gst.services.gstr9c import Gstr9cService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = ImportService(db)
+    for key, src in (("sales_april", Source.SALES), ("gstr1_april_json", Source.GSTR1),
+                     ("books_april", Source.BOOKS), ("gstr2b_april_json", Source.GSTR2B)):
+        svc.import_file(c.id, sample_files[key], src)
+    Gstr3bService(db).import_file(c.id, sample_files["gstr3b_april_json"])
+    js, _mp = Gstr9Service(db).draft_json(c.id, "2025-26", tmp_path)
+    data = json.loads(js.read_text(encoding="utf-8"))
+    data["table4"]["b2b"]["camt"] += 100  # the filed return differs in one place
+    js.write_text(json.dumps(data), encoding="utf-8")
+    ann = AnnualImportService(db)
+    af = ann.save(c.id, "2025-26", js, "GSTR9", user="accountant")
+    assert af.values["4B"].taxable > 0
+    rows = {r.code: r for r in ann.compare_9(c.id, "2025-26")}
+    assert rows["4B"].diff == D(100)
+    assert all(r.diff == 0 for code, r in rows.items() if code != "4B" and r.file_tax is not None
+               and r.ours_tax is not None)
+    with pytest.raises(ServiceError, match="not 2024-25"):
+        ann.save(c.id, "2024-25", js, "GSTR9")
+    # GSTR-9C offline-tool style sheet: row letters under the table heading
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pt. II 5,6"
+    ws.append(["Pt. II", "Reconciliation of turnover declared in audited Annual Financial Statement"])
+    ws.append(["5", "Reconciliation of Gross Turnover"])
+    ws.append([None, "Description", "Amount (₹)"])
+    ws.append(["A", "Turnover (including exports) as per audited financial statements", 1250000])
+    ws.append(["B", "Unbilled revenue at the beginning of Financial Year", 15000])
+    ws.append(["H", "Unbilled revenue at the end of Financial Year", 5000])
+    ws2 = wb.create_sheet("Pt. III 12")
+    ws2.append(["12", "Reconciliation of Net Input Tax Credit"])
+    ws2.append([None, "Description", "Amount (₹)"])
+    ws2.append(["A", "ITC availed as per audited Annual Financial Statement", 41000])
+    wb.save(tmp_path / "gstr9c.xlsx")
+    af9c = ann.save(c.id, "2025-26", tmp_path / "gstr9c.xlsx", "GSTR9C", user="accountant")
+    assert af9c.amounts == {"5A": D(1250000), "5B": D(15000), "5H": D(5000), "12A": D(41000)}
+    cmp9c = {r.code: r for r in ann.compare_9c(c.id, "2025-26")}
+    assert cmp9c["5A"].file_tax == D(1250000) and cmp9c["5A"].ours_tax != D(1250000)
+    assert ann.use_9c_amounts(c.id, "2025-26", SETUP_SESSION) == 4
+    assert Gstr9cService(db).inputs(c.id, "2025-26")["5A"][0] == D(1250000)
+    assert all(r.diff == 0 for r in ann.compare_9c(c.id, "2025-26") if r.code in ("5A", "12A"))
+    # a plain CSV template: Table, Taxable value, IGST, CGST, SGST, Cess
+    (tmp_path / "g9.csv").write_text("Table,Taxable value,Integrated Tax,Central Tax,State Tax,Cess\n"
+                                     "4B,1000,0,90,90,0\n6B,,10,20,20,0\n", encoding="utf-8")
+    csv9 = ann.read(tmp_path / "g9.csv", "GSTR9")
+    assert csv9.values["4B"].cgst == D(90) and csv9.values["6B"].igst == D(10)

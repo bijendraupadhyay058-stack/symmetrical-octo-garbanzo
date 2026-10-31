@@ -642,3 +642,32 @@ def test_gst_portal_page(qtbot, db, tmp_path, sample_files, messages, monkeypatc
     assert all(f.status.startswith("Already imported") for f in page.files)
     page.ledger_cb.setCurrentIndex(0)
     assert page.ledger_model.rowCount() == 1 and "1,000" in page.balance_lbl.text()
+
+
+def test_gstr9_and_9c_import_on_returns_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    from openpyxl import Workbook
+
+    from fintax_gst.samples import CLIENT
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    st.set_fy("2025-26")
+    win.go("returns")
+    page = win.pages["returns"]
+    (tmp_path / "g9.csv").write_text("Table,Taxable value,Integrated Tax,Central Tax,State Tax,Cess\n"
+                                     "4B,1000,0,90,90,0\n", encoding="utf-8")
+    dlg = page.import_annual("GSTR9", str(tmp_path / "g9.csv"), show=False)
+    assert dlg is not None and dlg.model.rowCount() >= 1 and "1 differ" in dlg.info.text()
+    assert not dlg.use_btn.isVisibleTo(dlg)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pt. II 5,6"
+    ws.append(["5", "Reconciliation of Gross Turnover"])
+    ws.append(["A", "Turnover as per audited financial statements", 900000])
+    wb.save(tmp_path / "c9.xlsx")
+    d2 = page.import_annual("GSTR9C", str(tmp_path / "c9.xlsx"), show=False)
+    assert d2.use_btn.isVisibleTo(d2) and d2.use_amounts() == 1
+    assert "no differences" in d2.info.text()
+    assert page.import_annual("GSTR9C", str(tmp_path / "g9.csv"), show=False) is None and messages
