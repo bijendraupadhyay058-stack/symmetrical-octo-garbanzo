@@ -273,8 +273,24 @@ class SettingsPage(QWidget):
         about, al = card()
         al.addWidget(QLabel(f"<b>{PRODUCT_FULL_NAME}</b> v{__version__}<br>{TAGLINE}<br>"
                             "All data stays on this computer. No GST portal credentials are used."))
+        from ..updater import auto_check_enabled
+
+        up = QHBoxLayout()
+        self.auto_update = QCheckBox("Check for new versions once a day (only the latest version number is read from "
+                                     "the download page; no client data is sent)")
+        self.auto_update.setChecked(auto_check_enabled(state.qsettings))
+        self.auto_update.toggled.connect(lambda on: state.qsettings.setValue("update_check", "true" if on else "false"))
+        check = QPushButton("Check for updates now")
+        check.clicked.connect(self.check_updates)
+        up.addWidget(self.auto_update, 1)
+        up.addWidget(check)
+        al.addLayout(up)
         lay.addWidget(about)
         lay.addStretch()
+
+    def check_updates(self):
+        bar = getattr(self.window(), "update_bar", None)
+        return bar.check_now(self) if bar is not None else None
 
     def settings(self) -> ReconSettings:
         return ReconSettings(

@@ -32,6 +32,7 @@ from .pages.returns import ImsPage, ReturnsPage
 from .pages.security import SecurityPage
 from .pages.suppliers import SuppliersPage
 from .pages.workflow import WorkflowPage
+from .updater import UpdateBar
 from .state import AppState
 from .theme import NAVY, STYLESHEET, TEAL
 
@@ -80,6 +81,8 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
         root.addWidget(self._header())
+        self.update_bar = UpdateBar(self)
+        root.addWidget(self.update_bar)
         body = QHBoxLayout()
         body.setSpacing(0)
         self.nav = QListWidget()
@@ -231,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
         log.warning("automatic backup failed: %s", exc)
     win = build_window(db, session)
     win.show()
+    if not args.smoke_test:
+        win.update_bar.check_in_background(win.state.qsettings)
     if args.smoke_test:
         for key, _label in NAV:
             win.go(key)

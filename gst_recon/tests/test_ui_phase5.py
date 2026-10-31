@@ -140,3 +140,33 @@ def test_firm_page(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
     page.table.selectRow(0)
     page.open_client()
     assert st.client is not None and win.stack.currentWidget() is win.pages["workflow"]
+
+
+def test_update_bar(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from .test_phase13 import FakeReleasePage
+
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
+    monkeypatch.setenv("no_proxy", "127.0.0.1,localhost")
+    page = FakeReleasePage()
+    try:
+        win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+        bar = win.update_bar
+        bar.factory = page.service
+        q = win.state.qsettings
+        assert not bar.isVisible()
+        t = bar.check_in_background(q)
+        t.join(10)
+        qtbot.waitUntil(bar.isVisible, timeout=5000)
+        assert "99.0.0" in bar.text.text()
+        assert bar.check_in_background(q) is None  # once a day only
+        path = bar.download_and_install(tmp_path / "dl", launch=False)
+        assert path.exists() and path.stat().st_size == page.size
+        win.go("settings")
+        settings = win.pages["settings"]
+        settings.auto_update.setChecked(False)
+        q.setValue("update_last_check", "")
+        assert bar.check_in_background(q) is None  # switched off
+        page.version = "0.0.1"
+        assert settings.check_updates() is None and "latest version" in messages[-1]
+    finally:
+        page.server.shutdown()
