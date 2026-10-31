@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.5.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.6.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -307,6 +307,44 @@
    <b>GSTR-9C</b> → <span class="btn">Import GSTR-9C template…</span> takes the offline tool's Excel. Both are compared
    with the program's working table by table; differences are shown in red. For GSTR-9C you can click
    <span class="btn">Use the file's audited figures in GSTR-9C</span> to record its Tables 5, 7 and 12 amounts.</p>
+
+<h2 id="phase18">7h. E-mail, invoices from PDF, charts and MIS, fees and staff tasks</h2>
+<h3>Sending e-mails from the program</h3>
+<p>First set up your firm's mail account once: <b>Settings</b> → <span class="btn">E-mail account…</span>. Choose your
+   provider (Gmail, Outlook, Zoho …), enter the e-mail address and an <b>app password</b> (for Gmail / Outlook turn on
+   2-step verification and create an app password – not your normal password), then
+   <span class="btn">Test connection</span>. The password is kept encrypted on this computer, or not kept at all if you
+   untick "Remember".</p>
+<p>E-mails are never sent by themselves. These buttons put them in the <b>Outbox</b> (left menu):</p>
+<ul>
+  <li><b>Letters &amp; papers</b> → <span class="btn">E-mail to suppliers…</span> – each mismatch letter as a PDF to the
+      supplier;</li>
+  <li><b>Reminders</b> → <span class="btn">Add all to Outbox</span> – document requests to clients;</li>
+  <li><b>Firm work</b> → <span class="btn">E-mail client reports…</span>, <b>Charts &amp; MIS</b> →
+      <span class="btn">E-mail to client…</span>, and fee invoices on <b>Fees &amp; tasks</b>.</li>
+</ul>
+<p>In the Outbox, click a mail to see it, type a missing address, correct the text, then select mails and
+   <span class="btn">Send selected</span>. Failed mails stay there with the reason and can be sent again.</p>
+<h3>Purchase invoices from PDF</h3>
+<p><b>Reconcile</b> → step 3 → <span class="btn">Invoices from PDF…</span> and choose the PDF invoices (as saved by the
+   supplier's billing software). The program reads the supplier GSTIN, invoice number and date, taxable value and taxes
+   on this computer and shows them in a check screen – yellow rows need a look (double-click the file name to open the
+   PDF and type the right figure). Scanned PDFs (photos) cannot be read and are listed. Then the usual import preview
+   saves them to the purchase register.</p>
+<h3>Charts &amp; MIS</h3>
+<p><b>Charts &amp; MIS</b> shows the client's year: ITC as per books, GSTR-2B and GSTR-3B; sales and cash paid by month;
+   and the suppliers with the most ITC at risk (point at a bar or point to see the amount).
+   <span class="btn">MIS pack (PDF)…</span> and <span class="btn">MIS pack (Excel)…</span> make a two-page summary for the
+   client's management.</p>
+<h3>Fees &amp; tasks</h3>
+<p><b>Staff tasks</b>: <span class="btn">Create return tasks</span> adds "File GSTR-1 / GSTR-3B" for every client for
+   the month, with the due date, assigned to the client's responsible staff. They close by themselves when the filing is
+   recorded on <b>Firm work</b>. Add other work with <span class="btn">Add task…</span>; overdue tasks are red.</p>
+<p><b>Fees</b>: fill the <span class="btn">Firm profile…</span> once (name, address, GSTIN if registered, bank details,
+   invoice prefix). <span class="btn">New fee invoice…</span> makes a numbered invoice (GST added – CGST+SGST in your
+   state, IGST outside; a bill of supply without GST if the firm is not registered). Record payments with
+   <span class="btn">Record receipt…</span> (including TDS the client deducted). <i>Outstanding fees by client</i> shows
+   what is due and for how long. A wrong invoice is cancelled, not deleted, so numbers are never reused.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
