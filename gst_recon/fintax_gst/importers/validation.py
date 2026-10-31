@@ -65,6 +65,34 @@ def _reference_skip(row: dict, source: Source) -> str:
     return ""
 
 
+def _journal_skip(row: dict, source: Source) -> str:
+    """Why a journal voucher of a register is not a supplier's bill ('' if it is one).
+
+    Journal registers also hold depreciation, provisions, TDS and ITC reversal entries; those are listed as
+    not imported with the reason, never rejected as errors."""
+    if source != Source.BOOKS or "journal" not in parse_text(row.get("voucher_type")).lower():
+        return ""
+    raw = []
+    for k in ("igst", "cgst", "sgst", "cess"):
+        v = row.get(k)
+        raw += v if isinstance(v, list) else [v]
+    amounts = []
+    for v in raw:
+        try:
+            amounts.append((v, parse_amount(v)))
+        except AmountParseError:
+            return ""  # let the normal validation report the bad amount
+    taxed = [(v, a) for v, a in amounts if a]
+    if not taxed:
+        return "Journal without GST – not a supplier's bill (e.g. depreciation, provision, TDS)"
+    if any(a < 0 or str(v).strip().lower().endswith("cr") for v, a in taxed):
+        return "Journal credits a GST ledger (ITC reversal or adjustment) – not a supplier's bill"
+    if not normalize_gstin(parse_text(row.get("supplier_gstin"))):
+        return ("Journal without supplier GSTIN (e.g. reverse charge from an unregistered supplier) – not compared "
+                "with GSTR-2B")
+    return ""
+
+
 def _amount(row: dict, name: str, errors: list) -> Decimal | None:
     value = row.get(name)
     values = value if isinstance(value, list) else [value]
@@ -86,7 +114,7 @@ def build_record(row: dict, ctx: RowContext, uid: str) -> RowOutcome:
     warnings: list[str] = []
 
     outward = ctx.source in OUTWARD_SOURCES
-    skip = _reference_skip(row, ctx.source)
+    skip = _reference_skip(row, ctx.source) or _journal_skip(row, ctx.source)
     if skip:
         return RowOutcome(None, ignored=skip)
     gstin = normalize_gstin(parse_text(row.get("supplier_gstin")))

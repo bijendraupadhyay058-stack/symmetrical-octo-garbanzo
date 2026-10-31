@@ -113,17 +113,24 @@ class WorkflowPage(LazyPage):
         self.to_cb.currentIndexChanged.connect(lambda _i: self.lazy(self.refresh_status)())
 
         # 3 / 4 / 5 imports
-        self.s3 = StepCard(3, "Import purchase register",
-                           "TallyPrime purchase register / GST purchase report or any Excel/CSV register. "
-                           "Booking period is taken from the voucher date column when present.")
+        self.s3 = StepCard(3, "Import purchase and journal registers",
+                           "TallyPrime purchase register / GST purchase report or any Excel/CSV register, and the "
+                           "journal register when expenses with GST are booked as journals. Booking period is taken "
+                           "from the voucher date column when present.")
         b3 = self.books_btn = primary("Import purchase register…")
         b3.clicked.connect(lambda: self.import_dialog(Source.BOOKS))
+        self.journal_btn = QPushButton("Import journal register…")
+        self.journal_btn.setToolTip("TallyPrime journal register (columnar, with GSTIN, reference and GST ledgers). "
+                                    "Journals with GST and a supplier GSTIN are read as bills; journals without GST "
+                                    "and ITC reversals are listed in the preview as not imported.")
+        self.journal_btn.clicked.connect(lambda: self.import_dialog(Source.BOOKS))
         self.books_lbl = QLabel()
         self.tally_btn = QPushButton("Import from Tally…")
         self.tally_btn.setToolTip("Fetch the purchase vouchers straight from TallyPrime (XML interface, port 9000)")
         self.tally_btn.clicked.connect(lambda: self.tally_dialog(Source.BOOKS))
         r3 = QHBoxLayout()
         r3.addWidget(b3)
+        r3.addWidget(self.journal_btn)
         r3.addWidget(self.tally_btn)
         r3.addWidget(self.books_lbl, 1)
         self.s3.body.addLayout(r3)
@@ -357,7 +364,7 @@ class WorkflowPage(LazyPage):
             if rows else "No files imported for this period yet.")
         self.s6.set_done(bool(rows), f"{rejected} rejected rows" if rows else "")
         self.start_btn.setEnabled(scope["books"] + scope["gstr2b"] > 0 and st.can("reconcile"))
-        for b in (self.books_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
+        for b in (self.books_btn, self.journal_btn, self.tally_btn, self.g2b_btn, *self.optional_btns):
             b.setEnabled(st.can("import"))
         self.export_btn.setEnabled(st.can("export"))
         self._show_run()

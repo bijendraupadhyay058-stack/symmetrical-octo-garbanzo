@@ -58,7 +58,7 @@ SYNONYMS: dict[str, list[str]] = {
     "invoice_value": [
         "invoice value", "total invoice value", "note value", "gross total", "bill amount", "invoice amount",
         "total amount", "document value", "val", "value", "total inv value", "total invoice amount",
-        "invoice amt",
+        "invoice amt", "credit amount",
     ],
     "taxable_value": [
         "taxable value", "taxable amount", "taxable", "assessable value", "taxable value of supply", "txval",

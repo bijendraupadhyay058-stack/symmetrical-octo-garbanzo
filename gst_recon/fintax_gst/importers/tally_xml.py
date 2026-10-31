@@ -98,8 +98,10 @@ def _amount(text: str) -> Decimal:
 
 
 def voucher_kind(vtype: str) -> str | None:
-    """Which register a voucher type belongs to: 'purchase', 'sales' or None (not imported)."""
+    """Which register a voucher type belongs to: 'purchase', 'sales', 'journal' or None (not imported)."""
     t = vtype.lower()
+    if "journal" in t:
+        return "journal"  # read with the purchase register when it is a supplier's bill (see _journal_row)
     if "purchase" in t or "debit" in t:
         return "purchase"  # a debit note is a purchase return in the buyer's books
     if "sale" in t or "credit" in t:
@@ -139,8 +141,18 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
         number = _t(v, "VOUCHERNUMBER")
         ref = f"{vtype} {number}".strip() or f"voucher {n}"
         kind = voucher_kind(vtype)
+        if kind == "journal" and register == "purchase":
+            if _t(v, "ISCANCELLED").lower() == "yes" or _t(v, "ISOPTIONAL").lower() == "yes":
+                ignored.append((ref, "cancelled or optional voucher"))
+                continue
+            row, reason = _journal_row(v, vtype, number, ref, duty_heads)
+            if row is None:
+                ignored.append((ref, reason))
+            else:
+                rows.append(row)
+            continue
         if kind != register:
-            if kind is None:
+            if kind is None or kind == "journal":
                 ignored.append((ref, f"voucher type '{vtype}' is not a purchase / sales / note voucher"))
             continue
         if _t(v, "ISCANCELLED").lower() == "yes":
@@ -198,6 +210,53 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
             row["_warning"] = "No supplier invoice number (Reference) – the voucher number is used"
         rows.append(row)
     return TallyVoucherRows(rows, ignored, company)
+
+
+def _journal_row(v: ET.Element, vtype: str, number: str, ref: str, duty_heads: dict[str, str]):
+    """A journal voucher booking a supplier's bill (expense and input tax debited, party credited) as a
+    purchase-register row – or None and the reason when it is no bill (no GST, ITC reversal, no GSTIN).
+    In Tally XML a negative amount is a debit."""
+    taxes = {"igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO}
+    taxable, credits, reversal = ZERO, [], False
+    party_name = _t(v, "PARTYLEDGERNAME")
+    party_amount = None
+    for e in _ledger_entries(v):
+        name = _t(e, "LEDGERNAME")
+        amount = _amount(_t(e, "AMOUNT"))
+        head = duty_heads.get(name.lower()) or next((h for h, rx in _TAX if rx.search(name)), None)
+        if head:
+            if amount > 0:
+                reversal = True  # a GST ledger credited
+            taxes[head] += abs(amount)
+        elif _t(e, "ISPARTYLEDGER").lower() == "yes" or (party_name and name == party_name):
+            party_name, party_amount = name, abs(amount)
+        elif _ROUND.search(name):
+            continue
+        elif amount < 0:
+            taxable += -amount
+        else:
+            credits.append((amount, name))
+    if not any(taxes.values()):
+        return None, "journal without GST – not a supplier's bill (e.g. depreciation, provision, TDS)"
+    if reversal:
+        return None, "journal credits a GST ledger (ITC reversal or adjustment) – not a supplier's bill"
+    if party_amount is None and credits:
+        party_amount, party_name = max(credits)
+    gstin = _t(v, "PARTYGSTIN") or _t(v, "GSTIN")
+    if not gstin:
+        return None, ("journal without supplier GSTIN (e.g. reverse charge from an unregistered supplier) – not "
+                      "compared with GSTR-2B")
+    vdate = _date(_t(v, "DATE"))
+    supplier_no = _t(v, "REFERENCE")
+    row = {"supplier_gstin": gstin, "supplier_name": party_name, "invoice_no": supplier_no or number,
+           "invoice_date": (_date(_t(v, "REFERENCEDATE")) if supplier_no else None) or vdate, "voucher_date": vdate,
+           "voucher_type": vtype, "taxable_value": str(taxable),
+           "invoice_value": str(party_amount) if party_amount is not None else None,
+           "place_of_supply": _t(v, "PLACEOFSUPPLY") or None, "description": _t(v, "NARRATION") or None,
+           "_row": ref, **{k: str(val) for k, val in taxes.items()}}
+    if not supplier_no:
+        row["_warning"] = "No supplier invoice number (Reference) – the voucher number is used"
+    return row, ""
 
 
 # --------------------------------------------------------------------------- live

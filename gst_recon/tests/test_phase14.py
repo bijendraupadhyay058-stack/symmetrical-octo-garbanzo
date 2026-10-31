@@ -87,3 +87,55 @@ def test_cli_tax_check(tmp_path, capsys):
     assert main(["--db", dbp, "tax-check", "--client", CLIENT["gstin"], "--from", "2025-04"]) == 0
     out = capsys.readouterr().out
     assert "Wrong tax type" in out and "IG-1" in out and "1 finding(s)" in out
+
+
+# ------------------------------------------------------------------ journal register (14B)
+def test_journal_register_excel(db, sample_files):
+    from fintax_gst.importers.pipeline import preview_file
+
+    pv = preview_file(sample_files["journal_april"], Source.BOOKS)
+    assert pv.layout == "tally"
+    assert [(r.invoice_no, r.taxable, r.cgst, r.igst) for r in pv.records] == [
+        ("SP/RENT/04", D("50000"), D("4500"), D(0)), ("VA/25-26/017", D("20000"), D(0), D("3600"))]
+    ignored = {i.row: i.message for i in pv.issues if i.severity == "ignored"}
+    assert "depreciation" in ignored["8"] and "ITC reversal" in ignored["9"] and "TDS" in ignored["10"]
+    assert not [i for i in pv.issues if i.severity == "error"]  # non-bill journals are never errors
+    c = ClientService(db).create(**CLIENT)
+    sf, _ = ImportService(db).import_file(c.id, sample_files["journal_april"], Source.BOOKS)
+    assert sf.documents_imported == 2 and sf.rows_rejected == 0
+
+
+def test_journal_vouchers_from_tally_xml():
+    from fintax_gst.importers.tally_xml import flatten_vouchers, parse_xml
+
+    xml = f"""<ENVELOPE><BODY><DATA>
+      <VOUCHER><DATE>20250405</DATE><VOUCHERTYPENAME>Journal</VOUCHERTYPENAME><VOUCHERNUMBER>101</VOUCHERNUMBER>
+        <REFERENCE>SP/RENT/04</REFERENCE><REFERENCEDATE>20250401</REFERENCEDATE><PARTYGSTIN>{MH}</PARTYGSTIN>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Rent</LEDGERNAME><AMOUNT>-50000</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST</LEDGERNAME><AMOUNT>-4500</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST</LEDGERNAME><AMOUNT>-4500</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Shree Properties</LEDGERNAME><AMOUNT>59000</AMOUNT>
+        </ALLLEDGERENTRIES.LIST></VOUCHER>
+      <VOUCHER><DATE>20250430</DATE><VOUCHERTYPENAME>Journal</VOUCHERTYPENAME><VOUCHERNUMBER>103</VOUCHERNUMBER>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Depreciation</LEDGERNAME><AMOUNT>-15000</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Machinery</LEDGERNAME><AMOUNT>15000</AMOUNT></ALLLEDGERENTRIES.LIST>
+      </VOUCHER>
+      <VOUCHER><DATE>20250430</DATE><VOUCHERTYPENAME>Journal</VOUCHERTYPENAME><VOUCHERNUMBER>104</VOUCHERNUMBER>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST</LEDGERNAME><AMOUNT>1200</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST</LEDGERNAME><AMOUNT>1200</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>ITC reversed</LEDGERNAME><AMOUNT>-2400</AMOUNT></ALLLEDGERENTRIES.LIST>
+      </VOUCHER>
+      <VOUCHER><DATE>20250415</DATE><VOUCHERTYPENAME>Journal</VOUCHERTYPENAME><VOUCHERNUMBER>106</VOUCHERNUMBER>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Freight (RCM)</LEDGERNAME><AMOUNT>-1000</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input IGST</LEDGERNAME><AMOUNT>-50</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Cash</LEDGERNAME><AMOUNT>1050</AMOUNT></ALLLEDGERENTRIES.LIST>
+      </VOUCHER>
+    </DATA></BODY></ENVELOPE>""".encode()
+    found = flatten_vouchers(parse_xml(xml), "purchase")
+    (row,) = found.rows
+    assert (row["invoice_no"], row["supplier_name"], row["taxable_value"], row["cgst"], row["invoice_value"]) == \
+        ("SP/RENT/04", "Shree Properties", "50000", "4500", "59000")
+    reasons = dict(found.ignored)
+    assert "without GST" in reasons["Journal 103"] and "ITC reversal" in reasons["Journal 104"]
+    assert "without supplier GSTIN" in reasons["Journal 106"]
+    assert flatten_vouchers(parse_xml(xml), "sales").rows == []  # journals never go to the sales register

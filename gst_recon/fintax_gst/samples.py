@@ -533,6 +533,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "expense_ledger": out / "expense_ledger_2025-26.csv",
         "books_itemwise_csv": out / "purchase_register_itemwise_2025-04.csv",
         "books_tally_xml": out / "tally_purchase_vouchers_2025-04.xml",
+        "journal_april": out / "tally_journal_register_2025-04.xlsx",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -547,6 +548,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_gstr8a_json(files["gstr8a_json"], table8a_docs())
     write_expense_ledger(files["expense_ledger"])
     write_itemwise_register(files["books_itemwise_csv"])
+    write_journal_register(files["journal_april"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -674,3 +676,44 @@ def write_tally_xml(path: Path, docs: list[Doc], booking_month: tuple[int, int] 
                "<AMOUNT>50000.00</AMOUNT></ALLLEDGERENTRIES.LIST></VOUCHER>")
     out.append("</TALLYMESSAGE></DATA></BODY></ENVELOPE>")
     path.write_text("\n".join(out), encoding="utf-8")
+
+
+JOURNAL_HEADERS = ["Date", "Particulars", "Voucher Type", "Voucher No.", "Reference No.", "Reference Date",
+                   "GSTIN/UIN", "Debit Amount", "Credit Amount", "Rent", "Professional Fees", "Depreciation",
+                   "Input CGST", "Input SGST", "Input IGST", "TDS Payable"]
+
+
+def journal_rows() -> list[list]:
+    """A month of journal vouchers as in a TallyPrime columnar journal register: two supplier bills booked as
+    journals, and three entries that are no bills (depreciation, ITC reversal, TDS)."""
+    rent_gstin, prof_gstin = gstin("27", "AAKFS2468P"), gstin("29", "AAMPV1357C")
+    return [
+        [date(2025, 4, 5), "Shree Properties", "Journal", 101, "SP/RENT/04", date(2025, 4, 1), rent_gstin,
+         59000, 59000, 50000, None, None, 4500, 4500, None, None],
+        [date(2025, 4, 12), "Venkat & Associates", "Journal", 102, "VA/25-26/017", date(2025, 4, 10), prof_gstin,
+         23600, 23600, None, 20000, None, None, None, 3600, None],
+        [date(2025, 4, 30), "Depreciation on machinery", "Journal", 103, None, None, None, 15000, 15000, None, None,
+         15000, None, None, None, None],
+        [date(2025, 4, 30), "ITC reversal – Rule 42 common credit", "Journal", 104, None, None, None, 2400, 2400,
+         None, None, None, -1200, -1200, None, None],
+        [date(2025, 4, 30), "TDS on professional fees", "Journal", 105, None, None, None, 2000, 2000, None, None,
+         None, None, None, None, 2000],
+    ]
+
+
+def write_journal_register(path: Path) -> None:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Journal Register"
+    for line in (CLIENT["name"], "Journal Register", "1-Apr-2025 to 30-Apr-2025", None):
+        ws.append([line] if line else [])
+    ws.append(JOURNAL_HEADERS)
+    for c in ws[5]:
+        c.font = Font(bold=True)
+    for r in journal_rows():
+        ws.append(r)
+    for row in ws.iter_rows(min_row=6):
+        for c in row:
+            if isinstance(c.value, date):
+                c.number_format = "DD-MMM-YYYY"
+    wb.save(path)
