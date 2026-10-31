@@ -94,7 +94,7 @@ def read_credits(path: str | Path) -> tuple[list[CreditLine], list[str]]:
     suffix = path.suffix.lower()
     if suffix == ".csv":
         tables = [read_csv(path, path.name)]
-    elif suffix in (".xlsx", ".xlsm"):
+    elif suffix in (".xlsx", ".xlsm", ".xls"):
         tables = read_excel(path)
     else:
         raise UnsupportedFileError("Use the Excel (.xlsx) or CSV download of 'TDS and TCS credit received'")

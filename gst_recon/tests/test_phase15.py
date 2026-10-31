@@ -247,3 +247,56 @@ def test_enter_and_correct_by_hand(db, sample_files):
     assert all(d.id != r.invoice_id for d in svc.documents(c.id, Source.BOOKS))
     with pytest.raises(ServiceError, match="not found"):
         svc.update(c.id, 999999, {"cgst": D(1)})
+
+
+# ------------------------------------------------------------------ Tally.ERP 9 (16D)
+def test_tally_erp9_xls_register(sample_files):
+    from pathlib import Path
+
+    from fintax_gst.importers.pipeline import preview_file
+    from fintax_gst.importers.readers import UnsupportedFileError, read_excel
+
+    root = Path(__file__).resolve().parents[1] / "sample_data"
+    erp9 = preview_file(root / "tally_erp9_purchase_register_2025-04.xls", Source.BOOKS)
+    prime = preview_file(sample_files["books_april"], Source.BOOKS)
+
+    def key(r):
+        return (r.supplier_gstin, r.invoice_no_norm, r.doc_type, r.invoice_date, r.taxable, r.igst, r.cgst, r.sgst,
+                r.period)
+
+    assert erp9.layout == "tally" and {key(r) for r in erp9.records} == {key(r) for r in prime.records}
+    fake = Path(__file__).parent / "_fake.xls"
+    fake.write_text("<html><table><tr><td>1</td></tr></table></html>")
+    try:
+        with pytest.raises(UnsupportedFileError, match="save it as"):
+            read_excel(fake)
+    finally:
+        fake.unlink()
+
+
+def test_tally_erp9_gstin_from_the_ledger_master():
+    from fintax_gst.importers.tally_xml import flatten_vouchers, parse_xml
+
+    g = gstin("27", "AABCM1234K")
+    xml = f"""<ENVELOPE><BODY><DATA>
+      <LEDGER NAME="Mahalaxmi Steel"><PARTYGSTIN>{g}</PARTYGSTIN></LEDGER>
+      <LEDGER NAME="Pune Packaging"><LEDGSTREGDETAILS.LIST><GSTIN>{gstin('27', 'AAFFP4321M')}</GSTIN>
+        </LEDGSTREGDETAILS.LIST></LEDGER>
+      <VOUCHER><DATE>20250405</DATE><VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME><VOUCHERNUMBER>1</VOUCHERNUMBER>
+        <REFERENCE>M/1</REFERENCE><PARTYLEDGERNAME>Mahalaxmi Steel</PARTYLEDGERNAME>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Mahalaxmi Steel</LEDGERNAME><ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+          <AMOUNT>1180</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Purchase @18%</LEDGERNAME><AMOUNT>-1000</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST</LEDGERNAME><AMOUNT>-90</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST</LEDGERNAME><AMOUNT>-90</AMOUNT></ALLLEDGERENTRIES.LIST>
+      </VOUCHER>
+      <VOUCHER><DATE>20250406</DATE><VOUCHERTYPENAME>Purchase</VOUCHERTYPENAME><VOUCHERNUMBER>2</VOUCHERNUMBER>
+        <REFERENCE>P/9</REFERENCE><PARTYLEDGERNAME>Pune Packaging</PARTYLEDGERNAME>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Pune Packaging</LEDGERNAME><ISPARTYLEDGER>Yes</ISPARTYLEDGER>
+          <AMOUNT>118</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Purchase @18%</LEDGERNAME><AMOUNT>-100</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST</LEDGERNAME><AMOUNT>-9</AMOUNT></ALLLEDGERENTRIES.LIST>
+        <ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST</LEDGERNAME><AMOUNT>-9</AMOUNT></ALLLEDGERENTRIES.LIST>
+      </VOUCHER></DATA></BODY></ENVELOPE>""".encode()
+    rows = flatten_vouchers(parse_xml(xml), "purchase").rows
+    assert [r["supplier_gstin"] for r in rows] == [g, gstin("27", "AAFFP4321M")]

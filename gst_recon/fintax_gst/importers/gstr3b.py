@@ -213,7 +213,7 @@ def preview_gstr3b(path: str | Path, period: str | None = None) -> Gstr3bPreview
     elif suffix == ".csv":
         preview = Gstr3bPreview(path, "GSTR-3B template (CSV)")
         _from_table(read_csv(path, path.name).rows, period, preview)
-    elif suffix in (".xlsx", ".xlsm"):
+    elif suffix in (".xlsx", ".xlsm", ".xls"):
         preview = Gstr3bPreview(path, "GSTR-3B template (Excel)")
         _from_table(read_excel(path)[0].rows, period, preview)
     else:

@@ -131,10 +131,24 @@ def duty_heads_from(root: ET.Element) -> dict[str, str]:
     return out
 
 
+def party_gstins_from(root: ET.Element) -> dict[str, str]:
+    """GSTIN of each party ledger: Tally.ERP 9 keeps it as PARTYGSTIN on the ledger, TallyPrime 3+ in
+    LEDGSTREGDETAILS.LIST. Used when a voucher carries no GSTIN of its own (older ERP 9 releases)."""
+    out = {}
+    for led in root.iter("LEDGER"):
+        name = (led.get("NAME") or _t(led, "NAME")).strip()
+        g = _t(led, "PARTYGSTIN") or next((_t(d, "GSTIN") for d in led.findall("LEDGSTREGDETAILS.LIST")
+                                           if _t(d, "GSTIN")), "")
+        if name and g:
+            out[name.lower()] = g.strip().upper()
+    return out
+
+
 def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str] | None = None) -> TallyVoucherRows:
     """Rows for the purchase ('purchase') or sales ('sales') register from all ``VOUCHER`` elements."""
     duty_heads = {k.lower(): v for k, v in (duty_heads if duty_heads is not None else duty_heads_from(root)).items()}
     company = next((x.text.strip() for x in root.iter("SVCURRENTCOMPANY") if x.text), "")
+    party_gstins = party_gstins_from(root)
     rows, ignored = [], []
     for n, v in enumerate(root.iter("VOUCHER"), start=1):
         vtype = _t(v, "VOUCHERTYPENAME") or v.get("VCHTYPE", "")
@@ -145,7 +159,7 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
             if _t(v, "ISCANCELLED").lower() == "yes" or _t(v, "ISOPTIONAL").lower() == "yes":
                 ignored.append((ref, "cancelled or optional voucher"))
                 continue
-            row, reason = _journal_row(v, vtype, number, ref, duty_heads)
+            row, reason = _journal_row(v, vtype, number, ref, duty_heads, party_gstins)
             if row is None:
                 ignored.append((ref, reason))
             else:
@@ -191,7 +205,7 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
         vdate = _date(_t(v, "DATE"))
         supplier_no = _t(v, "REFERENCE") if register == "purchase" else ""
         row = {
-            "supplier_gstin": _t(v, "PARTYGSTIN") or _t(v, "GSTIN") or None,
+            "supplier_gstin": _t(v, "PARTYGSTIN") or _t(v, "GSTIN") or party_gstins.get(party.lower()) or None,
             "supplier_name": party,
             "invoice_no": supplier_no or number,
             "invoice_date": (_date(_t(v, "REFERENCEDATE")) if supplier_no else None) or vdate,
@@ -212,7 +226,8 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
     return TallyVoucherRows(rows, ignored, company)
 
 
-def _journal_row(v: ET.Element, vtype: str, number: str, ref: str, duty_heads: dict[str, str]):
+def _journal_row(v: ET.Element, vtype: str, number: str, ref: str, duty_heads: dict[str, str],
+                 party_gstins: dict[str, str] | None = None):
     """A journal voucher booking a supplier's bill (expense and input tax debited, party credited) as a
     purchase-register row – or None and the reason when it is no bill (no GST, ITC reversal, no GSTIN).
     In Tally XML a negative amount is a debit."""
@@ -242,7 +257,7 @@ def _journal_row(v: ET.Element, vtype: str, number: str, ref: str, duty_heads: d
         return None, "journal credits a GST ledger (ITC reversal or adjustment) – not a supplier's bill"
     if party_amount is None and credits:
         party_amount, party_name = max(credits)
-    gstin = _t(v, "PARTYGSTIN") or _t(v, "GSTIN")
+    gstin = _t(v, "PARTYGSTIN") or _t(v, "GSTIN") or (party_gstins or {}).get((party_name or "").lower(), "")
     if not gstin:
         return None, ("journal without supplier GSTIN (e.g. reverse charge from an unregistered supplier) – not "
                       "compared with GSTR-2B")
@@ -324,7 +339,7 @@ class TallyClient:
 
     def _ledger_xml(self, company: str) -> bytes:
         tdl = ('<COLLECTION NAME="FinTaxLedgers" ISMODIFY="No"><TYPE>Ledger</TYPE>'
-               "<FETCH>NAME, TAXTYPE, GSTDUTYHEAD</FETCH></COLLECTION>")
+               "<FETCH>NAME, TAXTYPE, GSTDUTYHEAD, PARTYGSTIN, LEDGSTREGDETAILS.LIST</FETCH></COLLECTION>")
         return self._post(_envelope("FinTaxLedgers", tdl,
                                     f"<SVCURRENTCOMPANY>{_xml_escape(company)}</SVCURRENTCOMPANY>"))
 

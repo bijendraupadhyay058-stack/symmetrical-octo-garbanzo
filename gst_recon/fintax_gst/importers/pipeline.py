@@ -330,7 +330,7 @@ def preview_file(path: str | Path, source: Source | str, period: str | None = No
         raise FileNotFoundError(path)
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
-        raise UnsupportedFileError(f"Unsupported file type '{suffix}'. Use Excel (.xlsx), CSV, JSON, Tally XML or ZIP.")
+        raise UnsupportedFileError(f"Unsupported file type '{suffix}'. Use Excel (.xlsx / .xls), CSV, JSON, Tally XML or ZIP.")
     norm_period = parse_period(period) if period else None
     if period and not norm_period:
         raise ValueError(f"Invalid period '{period}' (use YYYY-MM)")

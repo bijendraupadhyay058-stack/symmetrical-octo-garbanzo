@@ -10,7 +10,7 @@ a = Analysis(  # noqa: F821
     [str(root / "packaging" / "entry_cli.py")],
     pathex=[str(root)],
     datas=collect_data_files("docx"),  # Word letter template
-    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer", "cryptography.fernet"]
+    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer", "xlrd", "cryptography.fernet"]
     + collect_submodules("uvicorn"),
     excludes=["PySide6", "tkinter", "matplotlib", "IPython", "numpy", "pandas"],
 )

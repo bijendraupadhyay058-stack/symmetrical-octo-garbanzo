@@ -35,7 +35,7 @@ def import_payments_dialog(parent, state: AppState, path: str | None = None):
     if state.client is None:
         return None
     path = path or QFileDialog.getOpenFileName(parent, "Payment register", "",
-                                               "Payment register (*.xlsx *.xlsm *.csv *.xml)")[0]
+                                               "Payment register (*.xlsx *.xlsm *.xls *.csv *.xml)")[0]
     if not path:
         return None
     try:

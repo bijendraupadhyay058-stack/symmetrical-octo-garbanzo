@@ -23,7 +23,7 @@ from ..theme import money
 from ..widgets import LazyPage, RowsModel, Table, card, page_header, primary, sortable
 from ..workers import run_task
 
-FILE_FILTER = "Supported files (*.xlsx *.xlsm *.csv *.json *.zip);;All files (*)"
+FILE_FILTER = "Supported files (*.xlsx *.xlsm *.xls *.csv *.json *.zip *.xml);;All files (*)"
 MODES = ["Single month", "Quarter", "Full financial year", "Custom range"]
 
 

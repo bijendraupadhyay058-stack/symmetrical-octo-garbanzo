@@ -68,7 +68,7 @@ def read_expense_ledger(path: str | Path) -> list[ExpenseLine]:
     suffix = path.suffix.lower()
     if suffix == ".csv":
         tables = [read_csv(path, path.name)]
-    elif suffix in (".xlsx", ".xlsm"):
+    elif suffix in (".xlsx", ".xlsm", ".xls"):
         tables = read_excel(path)
     else:
         raise UnsupportedFileError("Use an Excel (.xlsx) or CSV expense ledger")

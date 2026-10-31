@@ -154,7 +154,7 @@ def _xml_rows(data: bytes) -> PaymentFile:
 def read_payments(path: str | Path) -> PaymentFile:
     path = Path(path)
     suffix = path.suffix.lower()
-    if suffix in (".xlsx", ".xlsm"):
+    if suffix in (".xlsx", ".xlsm", ".xls"):
         result = _table_rows(read_excel(path))
     elif suffix == ".csv":
         result = _table_rows([read_csv(path, path.name)])

@@ -10,7 +10,7 @@ a = Analysis(  # noqa: F821
     [str(root / "packaging" / "entry_gui.py")],
     pathex=[str(root)],
     datas=collect_data_files("docx"),  # Word letter template
-    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer",
+    hiddenimports=["sqlalchemy.dialects.sqlite", "rapidfuzz.fuzz", "openpyxl.cell._writer", "xlrd",
                    "PySide6.QtCharts", "cryptography.fernet"]
     + collect_submodules("uvicorn"),  # the desktop can start the web view
     excludes=["tkinter", "matplotlib", "IPython", "numpy", "pandas", "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets",
