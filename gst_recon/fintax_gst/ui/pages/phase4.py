@@ -101,6 +101,11 @@ class OutwardPage(LazyPage):
                   self.compare_cb, self.run_btn, self.open_btn):
             run_row.addWidget(w)
         run_row.addStretch()
+        self.einv_json_btn = QPushButton("e-Invoice / e-way bill JSON…")
+        self.einv_json_btn.setToolTip("Bulk upload files for the e-invoice and e-way bill portals from the sales "
+                                      "register of the 'From' month")
+        self.einv_json_btn.clicked.connect(lambda: self.einvoice_files())
+        run_row.addWidget(self.einv_json_btn)
         run_row.addWidget(self.gstr1_btn)
         lay.addLayout(run_row)
         self.status_lbl = QLabel()
@@ -158,6 +163,16 @@ class OutwardPage(LazyPage):
     def _from_changed(self, _i=None) -> None:
         if self.from_cb.currentText() and self.to_cb.currentText() < self.from_cb.currentText():
             self.to_cb.setCurrentText(self.from_cb.currentText())
+
+    def einvoice_files(self, kind: str = "einv", show: bool = True):
+        if self.state.client is None or not self.from_cb.currentText():
+            return None
+        from ..dialogs.einvoice import EInvoiceDialog
+
+        dlg = EInvoiceDialog(self, self.state, self.from_cb.currentText(), kind)
+        if show:
+            dlg.exec()
+        return dlg
 
     def prepare_gstr1(self, show: bool = True):
         if self.state.client is None or not self.from_cb.currentText():

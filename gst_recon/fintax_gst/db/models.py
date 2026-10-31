@@ -698,4 +698,26 @@ class CapitalGood(Base):
 
 
 V17_TABLES = [CommonCredit, CapitalGood]
+
+
+class PartyAddress(Base):
+    """Address of a customer / party, for e-invoice and e-way bill files (schema v18). ``party_key`` is the
+    GSTIN, or the normalised name of an unregistered party."""
+
+    __tablename__ = "party_addresses"
+    __table_args__ = (UniqueConstraint("client_id", "party_key", name="uq_party_address"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    party_key: Mapped[str] = mapped_column(String(200))
+    gstin: Mapped[str] = mapped_column(String(15), default="")
+    name: Mapped[str] = mapped_column(String(200), default="")
+    address: Mapped[str] = mapped_column(String(200), default="")
+    place: Mapped[str] = mapped_column(String(100), default="")
+    pin: Mapped[str] = mapped_column(String(6), default="")
+    state_code: Mapped[str] = mapped_column(String(2), default="")
+    distance_km: Mapped[int] = mapped_column(Integer, default=0)  # from the client's place (0: portal works it out)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V18_TABLES = [PartyAddress]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

@@ -36,6 +36,7 @@ from ..db.models import (
     AppSetting, Attachment, AuditLog, Client, ClientReminder, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, LetterRecord, SyncAuthorization, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice,
     WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, Vendor, CommonCredit, CapitalGood,
+    PartyAddress,
 )
 from .auth import Session, require
 from .common import ServiceError, audit
@@ -270,6 +271,7 @@ class SecurityService:
                 (SupplierPayment, SupplierPayment.client_id == client_id),
                 (CommonCredit, CommonCredit.client_id == client_id),
                 (CapitalGood, CapitalGood.client_id == client_id),
+                (PartyAddress, PartyAddress.client_id == client_id),
                 (SyncAuthorization, SyncAuthorization.client_id == client_id),
                 (LetterRecord, LetterRecord.client_id == client_id),
                 (WorkingPaper, WorkingPaper.client_id == client_id),

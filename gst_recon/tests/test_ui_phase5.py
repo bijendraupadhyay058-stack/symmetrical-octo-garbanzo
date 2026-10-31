@@ -522,3 +522,28 @@ def test_rule42_tab(qtbot, db, tmp_path, messages):  # noqa: F811
     assert "FY 2025-26" in (tab.show_year() and tab.year_lbl.text())
     dlg = tab.journals(show=False)
     assert dlg.entries and dlg.source.currentData() == "rule42"
+
+
+def test_einvoice_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
+    from .test_phase16 import _setup
+
+    c, _svc = _setup(db, tmp_path)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    st.fy = "2025-26"
+    st.set_client(st.clients.get(c.id))
+    win.go("outward")
+    page = win.pages["outward"]
+    page.from_cb.setCurrentText("2025-04")
+    dlg = page.einvoice_files(show=False)
+    assert "3 e-invoice(s)" in dlg.info.text() and dlg.save_btn.isEnabled()
+    dlg.kind.setCurrentIndex(1)
+    assert "2 e-way bill(s)" in dlg.info.text() and dlg.t_vehicle.isVisibleTo(dlg)
+    assert dlg.save(str(tmp_path / "ewb.json")).exists()
+    book = dlg.party_book(show=False)
+    assert book.model.rowCount() == 2
+    assert book.edit({"name": "Rajlaxmi Retail", "gstin": "27AABCR1122A1Z7", "address": "1 FC Road", "place": "Pune",
+                      "pin": "411004", "distance_km": 5})
+    dlg.kind.setCurrentIndex(0)
+    dlg.refresh()
+    assert "4 e-invoice(s)" in dlg.info.text()  # S/2 now has an address

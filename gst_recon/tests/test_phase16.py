@@ -134,3 +134,73 @@ def test_rule42_service_and_gstr3b(db, tmp_path):
     assert cc.month(1, "2025-06").ratio_from == "2025-04"
     y = cc.year(1, "2025-26")
     assert [x.period for x in y.months] == ["2025-04"]
+
+
+# ------------------------------------------------------------------ e-invoice / e-way bill (16B)
+KA_C, MH_C = gstin("29", "AACCV5566C"), gstin("27", "AABCR1122A")
+SALES = ("GSTIN,Customer Name,Invoice No,Invoice Date,HSN,Quantity,UQC,Taxable Value,IGST,CGST,SGST,Place of Supply,"
+         "Type of Supply\n"
+         f"{KA_C},Venkatesh Traders,S/1,03-04-2025,7318,100,KGS,60000,10800,0,0,29,Regular\n"
+         f"{MH_C},Rajlaxmi Retail,S/2,04-04-2025,7318,10,KGS,40000,0,3600,3600,27,Regular\n"
+         ",Cash sales,CS/1,05-04-2025,7318,1,KGS,80000,0,7200,7200,27,Regular\n"
+         f"{KA_C},Venkatesh Traders,S/3,06-04-2025,998314,1,OTH,90000,16200,0,0,29,Regular\n"
+         f"{KA_C},Venkatesh Traders,S/4,07-04-2025,,,,1000,180,0,0,29,Regular\n"
+         ",Gulf Imports,E/1,08-04-2025,7326,5,NOS,250000,0,0,0,96,Export (LUT)\n")
+
+
+def _setup(db, tmp_path):
+    from fintax_gst.services.einvoice_files import EInvoiceFileService
+
+    c = ClientService(db).create(**CLIENT)
+    sales = tmp_path / "sales.csv"
+    sales.write_text(SALES)
+    ImportService(db).import_file(c.id, sales, Source.SALES)
+    parties = tmp_path / "parties.csv"
+    parties.write_text("Name,GSTIN/UIN,Address,City,Pincode,State\n"
+                       f"Venkatesh Traders,{KA_C},12 MG Road,Bengaluru,560001,Karnataka\n"
+                       "Cash sales,,Market Yard,Pune,411037,Maharashtra\n"
+                       "Bad Party,,Somewhere,X,12345,Goa\n")
+    svc = EInvoiceFileService(db)
+    saved, problems = svc.import_parties(c.id, parties, "accountant")
+    assert saved == 2 and "6 digits" in problems[0]
+    return c, svc
+
+
+def test_einvoice_file(db, tmp_path):
+    c, svc = _setup(db, tmp_path)
+    assert svc.seller(c.id).pin == "411037" and svc.seller(c.id).place == "Pune"  # from the client's address
+    e = svc.einvoices(c.id, "2025-04")
+    by_no = {d["DocDtls"]["No"]: d for d in e.payload}
+    assert set(by_no) == {"S/1", "S/3", "E/1"}  # B2C needs none; S/2 lacks an address; S/4 lacks HSN
+    s1 = by_no["S/1"]
+    assert s1["DocDtls"]["Dt"] == "03/04/2025" and s1["BuyerDtls"]["Pin"] == 560001 and s1["BuyerDtls"]["Pos"] == "29"
+    assert s1["ItemList"][0] | {} == {**s1["ItemList"][0], "GstRt": 18.0, "IgstAmt": 10800.0, "UnitPrice": 600.0}
+    assert by_no["S/3"]["ItemList"][0]["IsServc"] == "Y"
+    exp = by_no["E/1"]
+    assert exp["TranDtls"]["SupTyp"] == "EXPWOP" and exp["BuyerDtls"]["Gstin"] == "URP" and exp["BuyerDtls"]["Pos"] == "96"
+    left = {i.doc.number: i.message for i in e.issues if i.severity == "error"}
+    assert "address" in left["S/2"] and "HSN" in left["S/4"]
+    out = svc.save(c.id, "einvoice_json", e, tmp_path / "einv.json", "accountant")
+    assert out.exists()
+
+
+def test_ewaybill_file(db, tmp_path):
+    from fintax_gst.outward.einvoice_ewb import Transport
+
+    c, svc = _setup(db, tmp_path)
+    w = svc.ewaybills(c.id, "2025-04")
+    bills = {b["docNo"]: b for b in w.payload["billLists"]}
+    # S/1 goods above 50,000; CS/1 B2C goods above 50,000 (cash customer in the book); S/2 below the limit;
+    # S/3 is a service; E/1 export without a dispatch address in the book -> left out
+    assert set(bills) == {"S/1", "CS/1"}
+    assert bills["CS/1"]["toGstin"] == "URP" and bills["S/1"]["igstValue"] == 10800.0
+    assert bills["S/1"]["itemList"][0]["igstRate"] == 18.0 and bills["S/1"]["transDistance"] == "0"
+    assert any("Part A" in i.message for i in w.issues)  # no vehicle / transporter
+    assert any(i.doc and i.doc.number == "E/1" for i in w.issues)
+    w2 = svc.ewaybills(c.id, "2025-04", Transport(vehicle_no="MH12AB1234"))
+    assert all(b["vehicleNo"] == "MH12AB1234" for b in w2.payload["billLists"])
+    assert not any("Part A" in i.message for i in w2.issues)
+    svc.save_seller(c.id, "Plot 4, MIDC", "Chakan", "410501", "accountant")
+    assert svc.ewaybills(c.id, "2025-04").payload["billLists"][0]["fromPincode"] == 410501
+    with pytest.raises(ServiceError, match="6 digits"):
+        svc.save_seller(c.id, "x", "y", "123")

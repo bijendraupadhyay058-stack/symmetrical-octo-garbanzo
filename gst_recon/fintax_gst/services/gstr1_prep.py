@@ -17,7 +17,8 @@ class Gstr1PrepService:
     def __init__(self, db: Database):
         self.db = db
 
-    def draft(self, client_id: int, period: str) -> Gstr1Draft:
+    def docs(self, client_id: int, period: str) -> tuple[list[SaleDoc], str, str]:
+        """The month's sales documents, and the client's GSTIN and state code."""
         p = parse_period(period)
         if not p:
             raise ServiceError(f"Invalid period {period} – use YYYY-MM")
@@ -31,11 +32,14 @@ class Gstr1PrepService:
             gstin, state = client.gstin, client.state_code
         if not rows:
             raise ServiceError(f"No sales register imported for {p} – import it on the Sales & GSTR-1 page first")
-        docs = [SaleDoc(r.id, r.supplier_gstin or "", r.supplier_name, r.doc_type, r.invoice_no, r.invoice_date,
+        return [SaleDoc(r.id, r.supplier_gstin or "", r.supplier_name, r.doc_type, r.invoice_no, r.invoice_date,
                         r.taxable, r.igst, r.cgst, r.sgst, r.cess, r.invoice_value, r.place_of_supply or "",
                         r.supply_type or "", bool(r.reverse_charge),
-                        json.loads(r.hsn_json) if r.hsn_json else []) for r in rows]
-        return build_gstr1(gstin, p, docs, state)
+                        json.loads(r.hsn_json) if r.hsn_json else []) for r in rows], gstin, state
+
+    def draft(self, client_id: int, period: str) -> Gstr1Draft:
+        docs, gstin, state = self.docs(client_id, period)
+        return build_gstr1(gstin, parse_period(period), docs, state)
 
     def save(self, client_id: int, draft: Gstr1Draft, path: str | Path, user: str | None = None) -> Path:
         out = Path(path)
