@@ -27,6 +27,7 @@ from .pages.rule37 import Rule37Page
 from .pages.dashboard import DashboardPage
 from .pages.exceptions import ExceptionsPage
 from .pages.history import HistoryPage, OpenItemsPage
+from .pages.invoices import InvoicesPage
 from .pages.itc import ItcPage
 from .pages.notices import NoticesPage
 from .pages.pan_view import PanViewPage
@@ -47,7 +48,7 @@ NAV = [
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("pan", "▥  PAN view"), ("letters", "✉  Letters & papers"),
     ("notices", "⚖  GST notices"), ("batch", "⧉  Batch"),
     ("suppliers", "⌂  Suppliers"), ("open_items", "⏳  Open items"), ("history", "↺  History"),
-    ("imports", "⇪  Imports"), ("clients", "☰  Clients"), ("security", "🔒  Security"), ("sync", "☁  Sync & web"),
+    ("imports", "⇪  Imports"), ("invoices", "✎  Invoices"), ("clients", "☰  Clients"), ("security", "🔒  Security"), ("sync", "☁  Sync & web"),
     ("settings", "⚙  Settings"),
 ]
 
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
             "notices": NoticesPage(state), "batch": BatchPage(state),
             "sync": SyncPage(state),
             "suppliers": SuppliersPage(state), "open_items": OpenItemsPage(state), "history": HistoryPage(state),
-            "imports": ImportsPage(state), "clients": ClientsPage(state), "security": SecurityPage(state),
+            "imports": ImportsPage(state), "invoices": InvoicesPage(state), "clients": ClientsPage(state), "security": SecurityPage(state),
             "settings": SettingsPage(state),
         }
         for key, label in NAV:

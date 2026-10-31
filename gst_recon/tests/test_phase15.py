@@ -191,3 +191,59 @@ def test_cli_gstr3b_draft(tmp_path, capsys, sample_files):
                  str(tmp_path / "d.pdf")]) == 0
     out = capsys.readouterr().out
     assert "Cash to pay:" in out and (tmp_path / "d.pdf").exists()
+
+
+# ------------------------------------------------------------------ invoices by hand (15C)
+def _bill(**kw):
+    v = {"supplier_gstin": gstin("27", "AABCM1234K"), "supplier_name": "Mahalaxmi Steel Pvt Ltd", "doc_type": "INV",
+         "invoice_no": "MSL/900", "invoice_date": date(2025, 4, 5), "taxable_value": D("10000"), "cgst": D("900"),
+         "sgst": D("900")}
+    return {**v, **kw}
+
+
+def test_enter_and_correct_by_hand(db, sample_files):
+    from sqlalchemy import select
+
+    from fintax_gst.db.models import AuditLog, Invoice, SourceFile
+    from fintax_gst.services.manual_entry import ManualEntryService
+    from fintax_gst.services.reconciliation import ReconciliationService
+
+    c = ClientService(db).create(**CLIENT)
+    svc = ManualEntryService(db)
+    r = svc.add(c.id, Source.BOOKS, _bill(), "accountant")
+    assert r.warnings == [] and r.in_reconciliation == 0
+    with pytest.raises(ServiceError, match="already in the data"):
+        svc.add(c.id, Source.BOOKS, _bill(invoice_no="msl-900"), "accountant")  # same number, written differently
+    with pytest.raises(ServiceError, match="GSTIN"):
+        svc.add(c.id, Source.BOOKS, _bill(supplier_gstin="27ABC", invoice_no="X"))
+    with pytest.raises(ServiceError, match="Invoice number missing"):
+        svc.add(c.id, Source.BOOKS, _bill(invoice_no=""))
+    with pytest.raises(ServiceError, match="Only purchase and sales"):
+        svc.add(c.id, Source.GSTR2B, _bill(invoice_no="Y"))
+    sale = svc.add(c.id, Source.SALES, _bill(supplier_gstin="", supplier_name="Cash sales", invoice_no="CS/1"))
+    docs = svc.documents(c.id, Source.BOOKS)
+    assert [(d.invoice_no, d.period, d.file_name) for d in docs] == [("MSL/900", "2025-04",
+                                                                       "Entered by hand – purchases")]
+    assert svc.documents(c.id, Source.SALES, search="cs/")[0].id == sale.invoice_id
+    # correct: booked in May, CGST typo -> warning
+    upd = svc.update(c.id, r.invoice_id, {"period": "2025-05", "cgst": D("950")}, "accountant")
+    assert any("not equal" in w for w in upd.warnings)
+    with db.session() as s:
+        inv = s.get(Invoice, r.invoice_id)
+        assert (inv.period, inv.cgst) == ("2025-05", D("950"))
+        a = s.scalars(select(AuditLog).where(AuditLog.entity == "invoices", AuditLog.action == "UPDATE")).one()
+        assert '"cgst": "900"' in a.details_json and '"cgst": "950"' in a.details_json
+        sf = s.scalars(select(SourceFile).where(SourceFile.layout == "manual", SourceFile.source_type == "BOOKS")).one()
+        assert sf.documents_imported == 1
+    # an imported document used in a reconciliation: can be corrected (run out of date), not deleted
+    ImportService(db).import_file(c.id, sample_files["books_april"], Source.BOOKS)
+    ImportService(db).import_file(c.id, sample_files["gstr2b_april_json"], Source.GSTR2B)
+    ReconciliationService(db).run(c.id, "2025-04")
+    used = next(d for d in svc.documents(c.id, Source.BOOKS, "2025-04") if d.file_name.endswith(".xlsx"))
+    assert svc.update(c.id, used.id, {"supplier_name": "Corrected name"}).in_reconciliation == 1
+    with pytest.raises(ServiceError, match="used in a reconciliation"):
+        svc.delete(c.id, used.id)
+    svc.delete(c.id, r.invoice_id, "admin")
+    assert all(d.id != r.invoice_id for d in svc.documents(c.id, Source.BOOKS))
+    with pytest.raises(ServiceError, match="not found"):
+        svc.update(c.id, 999999, {"cgst": D(1)})

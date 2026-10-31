@@ -404,3 +404,30 @@ def test_gstr3b_draft_dialog(qtbot, db, tmp_path, sample_files, messages, monkey
     dlg = page.gstr3b_draft(show=False)
     assert "Cash to pay" in dlg.info.text() and dlg.pay_model.rowCount() == 5 and dlg.model.rowCount() >= 15
     assert dlg.save_pdf(str(tmp_path / "d.pdf"), open_file=False).exists()
+
+
+def test_invoices_page(qtbot, db, tmp_path, messages):  # noqa: F811
+    from datetime import date as _date
+    from decimal import Decimal
+
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.ui.pages.invoices import InvoiceDialog
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    win.go("invoices")
+    page = win.pages["invoices"]
+    values = {"supplier_gstin": gstin("27", "AABCM1234K"), "supplier_name": "Mahalaxmi", "doc_type": "INV",
+              "invoice_no": "M-1", "invoice_date": _date(2025, 4, 5), "taxable_value": Decimal("1000"),
+              "cgst": Decimal("90"), "sgst": Decimal("90")}
+    assert page.new(values) and page.model.rowCount() == 1 and "saved" in messages[-1]
+    assert not page.new(values) and "already in the data" in messages[-1]
+    page.table.selectRow(0)
+    assert page.edit({"cgst": Decimal("95")}) and "not equal" in messages[-1]
+    dlg = InvoiceDialog(page, page.source, {**values, "period": "2025-04"})  # the form round-trips the values
+    v = dlg.values()
+    assert v["invoice_no"] == "M-1" and v["taxable_value"] == Decimal("1000") and v["period"] == "2025-04"
+    page.table.selectRow(0)
+    assert page.delete() and page.model.rowCount() == 0
