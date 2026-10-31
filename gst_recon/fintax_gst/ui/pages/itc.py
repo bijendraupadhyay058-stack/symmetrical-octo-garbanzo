@@ -56,6 +56,10 @@ class ItcPage(LazyPage):
         lay.addLayout(grid)
         self.tabs = QTabWidget()
         self.tabs.addTab(self._flags_tab(), "Flags for review")
+        from .claim_plan_tab import ClaimPlanTab
+
+        self.plan_tab = ClaimPlanTab(state)
+        self.tabs.addTab(self.plan_tab, "Claim plan")
         self.tabs.addTab(self._summary_tab(), "ITC summary")
         self.tabs.addTab(self._claims_tab(), "Claim register")
         self.tabs.addTab(self._rules_tab(), "Rules")
