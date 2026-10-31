@@ -465,3 +465,33 @@ def test_earlier_years(qtbot, db, tmp_path, messages):  # noqa: F811
     run = st.recon.run(a.id, "2019-06")
     ctx = st.recon.load(run)
     assert ctx.run.financial_year == "2019-20" and ctx.result.lines[0].category.value == "Fully Matched"
+
+
+def test_replace_import_with_revised_file(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.ui.dialogs.revision import RevisionDialog
+
+    shown = []
+    monkeypatch.setattr(RevisionDialog, "exec", lambda self: shown.append(self) or 1)
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    g = gstin("27", "AABCM1234K")
+    head = "GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST\n"
+    old = tmp_path / "v1.csv"
+    old.write_text(head + f"{g},A-1,02-04-2025,1000,90,90\n{g},A-2,03-04-2025,500,45,45\n")
+    new = tmp_path / "v2.csv"
+    new.write_text(head + f"{g},A-1,02-04-2025,1100,99,99\n{g},A-3,05-04-2025,700,63,63\n")
+    st.imports.import_file(c.id, old, Source.BOOKS, period="2025-04")
+    win.go("imports")
+    page = win.pages["imports"]
+    page.reload()
+    page.table.selectRow(0)
+    sf = page.replace(str(new))
+    assert sf is not None and shown
+    kinds = sorted(r[0] for r in shown[0].model.rows)
+    assert kinds == ["Changed", "New", "No longer in the file"]
+    assert "taxable: 1000 → 1100" in next(r[3] for r in shown[0].model.rows if r[0] == "Changed")
+    assert [f.file_name for f in st.imports.list_files(c.id)] == ["v2.csv"]

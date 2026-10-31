@@ -20,6 +20,24 @@ from .common import ServiceError, audit, dumps
 BATCH = 2000
 
 
+def record_fields(r) -> dict:
+    """The stored columns of an imported document (everything but client, file and register)."""
+    return {
+        "source_rows": r.source_rows[:200], "supplier_gstin": r.supplier_gstin,
+        "supplier_name": r.supplier_name[:200], "doc_type": r.doc_type.value, "invoice_no": r.invoice_no[:100],
+        "invoice_no_norm": r.invoice_no_norm[:100], "invoice_date": r.invoice_date, "period": r.period,
+        "taxable": r.taxable, "igst": r.igst, "cgst": r.cgst, "sgst": r.sgst, "cess": r.cess,
+        "invoice_value": r.invoice_value, "place_of_supply": r.place_of_supply[:60],
+        "reverse_charge": r.reverse_charge, "itc_availability": r.itc_availability,
+        "itc_reason": r.itc_reason, "is_amendment": r.is_amendment,
+        "original_invoice_no": r.original_invoice_no[:100], "original_invoice_date": r.original_invoice_date,
+        "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
+        "description": r.description, "ims_action": r.ims_action, "supply_type": r.supply_type[:40],
+        "hsn_json": json.dumps(r.hsn_lines) if r.hsn_lines else "",
+        "irn": r.irn, "ref_no": r.ref_no, "ref_status": r.ref_status,
+    }
+
+
 class ImportService:
     def __init__(self, db: Database):
         self.db = db
@@ -114,21 +132,8 @@ class ImportService:
             )
             s.add(sf)
             s.flush()
-            rows = [{
-                "client_id": client_id, "source_file_id": sf.id, "source_type": r.source.value,
-                "source_rows": r.source_rows[:200], "supplier_gstin": r.supplier_gstin,
-                "supplier_name": r.supplier_name[:200], "doc_type": r.doc_type.value, "invoice_no": r.invoice_no[:100],
-                "invoice_no_norm": r.invoice_no_norm[:100], "invoice_date": r.invoice_date, "period": r.period,
-                "taxable": r.taxable, "igst": r.igst, "cgst": r.cgst, "sgst": r.sgst, "cess": r.cess,
-                "invoice_value": r.invoice_value, "place_of_supply": r.place_of_supply[:60],
-                "reverse_charge": r.reverse_charge, "itc_availability": r.itc_availability,
-                "itc_reason": r.itc_reason, "is_amendment": r.is_amendment,
-                "original_invoice_no": r.original_invoice_no[:100], "original_invoice_date": r.original_invoice_date,
-                "supplier_period": r.supplier_period[:20], "identity_hash": r.identity_hash(),
-                "description": r.description, "ims_action": r.ims_action, "supply_type": r.supply_type[:40],
-                "hsn_json": json.dumps(r.hsn_lines) if r.hsn_lines else "",
-                "irn": r.irn, "ref_no": r.ref_no, "ref_status": r.ref_status,
-            } for r in new_records]
+            rows = [{"client_id": client_id, "source_file_id": sf.id, "source_type": r.source.value,
+                     **record_fields(r)} for r in new_records]
             for i in range(0, len(rows), BATCH):
                 if cancel:
                     cancel.check()  # raises -> whole transaction rolled back

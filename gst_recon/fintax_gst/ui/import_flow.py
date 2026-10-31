@@ -71,3 +71,46 @@ def _remember(state: AppState, dlg: MappingDialog, source: Source) -> dict:
     if dlg.save_check.isChecked() and dlg.template_name.text().strip():
         state.imports.save_template(dlg.template_name.text().strip(), source, template, state.user)
     return template
+
+
+def replace_interactive(parent: QWidget, state: AppState, old: SourceFile, path: str | Path) -> SourceFile | None:
+    """Read a revised file, show what it changes against import ``old``, and replace it after confirmation."""
+    from ..services.revision import RevisionService
+    from .dialogs.revision import RevisionDialog
+
+    path, source, template = Path(path), Source(old.source_type), None
+    client_id = state.client.id
+    while True:
+        task = run_task(parent, f"Reading {path.name}", _preview, state, client_id, path, source, old.period,
+                        template, cancellable=False)
+        if not task.ok:
+            QMessageBox.warning(parent, "Replace import", task.message)
+            return None
+        if isinstance(task.result_value, MappingRequired):
+            exc = task.result_value
+            mapping = MappingDialog(parent, [c.label for c in exc.columns], exc.mapping.fields, f"sheet '{exc.sheet}'")
+            if mapping.exec() != QDialog.Accepted:
+                return None
+            template = _remember(state, mapping, source)
+            continue
+        break
+    preview: ImportPreview = task.result_value
+    svc = RevisionService(state.db)
+    cmp = run_task(parent, "Comparing the files", svc.compare, client_id, old.id, preview, cancellable=False)
+    if not cmp.ok:
+        QMessageBox.warning(parent, "Replace import", cmp.message)
+        return None
+    diff = cmp.result_value
+    if RevisionDialog(parent, diff).exec() != QDialog.Accepted:
+        return None
+    done = run_task(parent, f"Replacing with {path.name}", svc.replace, client_id, old.id, preview, state.user,
+                    diff.needs_confirmation, cancellable=False)
+    if not done.ok:
+        QMessageBox.warning(parent, "Replace import", done.message)
+        return None
+    sf, _diff = done.result_value
+    if diff.runs_affected and state.run_id in {r.id for r in diff.runs_affected}:
+        state.set_run(None)
+    state.notify()
+    return sf
+

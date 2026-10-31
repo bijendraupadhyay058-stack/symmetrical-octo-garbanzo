@@ -100,6 +100,11 @@ class ImportsPage(LazyPage):
         imp = primary("Import file…")
         imp.setEnabled(state.can("import"))
         imp.clicked.connect(self.import_file)
+        self.replace_btn = QPushButton("Replace with revised file…")
+        self.replace_btn.setToolTip("The client sent a corrected file for the same month: see what changed and "
+                                    "replace the selected import, keeping the review work of unchanged documents")
+        self.replace_btn.clicked.connect(lambda: self.replace())
+        self.replace_btn.setEnabled(state.can("import"))
         self.remove_btn = QPushButton("Remove import…")
         self.remove_btn.setObjectName("Danger")
         self.remove_btn.clicked.connect(self.remove)
@@ -108,6 +113,7 @@ class ImportsPage(LazyPage):
         row.addWidget(self.source_cb)
         row.addWidget(imp)
         row.addStretch()
+        row.addWidget(self.replace_btn)
         row.addWidget(self.remove_btn)
         lay.addLayout(row)
         self.model = RowsModel(["ID", "File", "Source", "Layout", "Period", "Rows read", "Imported", "Rejected",
@@ -170,6 +176,18 @@ class ImportsPage(LazyPage):
             if not ok:
                 return
         import_interactive(self, self.state, path, source, period or None)
+
+    def replace(self, path: str | None = None):
+        f = self._selected()
+        if f is None or self.state.client is None:
+            QMessageBox.information(self, "Replace import", "Select the import to replace first.")
+            return None
+        path = path or QFileDialog.getOpenFileName(self, f"Revised file for {f.file_name}", "", FILE_FILTER)[0]
+        if not path:
+            return None
+        from ..import_flow import replace_interactive
+
+        return replace_interactive(self, self.state, f, path)
 
     def remove(self) -> None:
         f = self._selected()
