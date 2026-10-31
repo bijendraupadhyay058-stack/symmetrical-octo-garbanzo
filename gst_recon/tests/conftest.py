@@ -59,3 +59,9 @@ def db(tmp_path):
 @pytest.fixture(scope="session")
 def sample_files(tmp_path_factory):
     return write_all(tmp_path_factory.mktemp("samples"))
+
+
+@pytest.fixture(autouse=True)
+def _no_internet_probe(monkeypatch):
+    """The window's background connection check never reaches the internet in tests."""
+    monkeypatch.setattr("fintax_gst.services.portal.is_online", lambda *a, **k: True)

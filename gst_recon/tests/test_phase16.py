@@ -315,3 +315,74 @@ def test_tally_reconciliation_and_3b_reports(db, tmp_path, sample_files):
     assert Gstr3bService(db).values(c.id, ["2025-04"]) == {}  # never mixed with the GSTR-3B filed on the portal
     with pytest.raises(ServiceError, match="already imported"):
         svc.import_gstr3b(c.id, sample_files["gstr3b_april_json"])
+
+
+# ------------------------------------------------------------------ GST portal section (17C)
+def _cash_ledger(path, rows, gstin_text=CLIENT["gstin"]):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cash Ledger"
+    ws.append(["Electronic Cash Ledger"])
+    ws.append(["GSTIN", gstin_text])
+    ws.append(["Sr.No.", "Date of Deposit/Debit", "Reference No.", "Tax Period", "Description",
+               "Type of Transaction", "Amount debited/credited", None, None, None, None, None, None, None,
+               "Balance", None, None, None])
+    ws.append([None] * 6 + ["IGST", None, "CGST", None, "SGST", None, "Cess", None, "IGST", "CGST", "SGST", "Cess"])
+    ws.append([None] * 6 + ["Tax", "Total", "Tax", "Total", "Tax", "Total", "Tax", "Total"])
+    for r in rows:
+        ws.append(r)
+    wb.save(path)
+
+
+def test_portal_recognises_downloads_and_ledgers(db, tmp_path, sample_files):
+    import shutil
+
+    from fintax_gst.services.portal import PortalService, recognise
+
+    c = ClientService(db).create(**CLIENT)
+    dl = tmp_path / "Downloads"
+    dl.mkdir()
+    for key in ("gstr2b_april_json", "gstr3b_april_json", "ims_april_json"):
+        shutil.copy(sample_files[key], dl / sample_files[key].name)
+    (dl / "notes.txt").write_text("x")
+    (dl / "random.json").write_text('{"a": 1}')
+    opening = ["", "01-04-2025", "", "", "Opening Balance", "", 0, 0, 0, 0, 0, 0, 0, 0, 100, 200, 200, 0]
+    dep = ["1", "05-04-2025", "CPIN123", "Apr-25", "Deposit", "Credit", 1000, 1000, 500, 500, 500, 500, 0, 0,
+           1100, 700, 700, 0]
+    pay = ["2", "20-04-2025", "DC27", "Mar-25", "Payment towards liability", "Debit", 0, 0, 400, 400, 400, 400, 0,
+           0, 1100, 300, 300, 0]
+    _cash_ledger(dl / "cash_ledger_q1.xlsx", [opening, dep, pay])
+    svc = PortalService(db)
+    found = {f.path.name: f for f in svc.scan(dl, current_client_id=c.id)}
+    assert set(found) == {"gstr2b_2025-04.json", "gstr3b_2025-04.json", "ims_2025-04.json", "cash_ledger_q1.xlsx"}
+    g2b = found["gstr2b_2025-04.json"]
+    assert g2b.kind == "GSTR2B" and g2b.client_id == c.id and g2b.period == "2025-04" and g2b.ready
+    cash = found["cash_ledger_q1.xlsx"]
+    assert cash.kind == "CASH" and cash.client_id == c.id
+    assert "line(s) saved" in svc.import_file(cash, "accountant")
+    rows = svc.ledger_rows(c.id, "CASH")
+    assert [r.txn for r in rows] == ["BAL", "CR", "DR"] and rows[2].cgst == D("-400")
+    as_on, bal = svc.balances(c.id)["CASH"]
+    assert as_on == date(2025, 4, 20) and bal == {"igst": D(1100), "cgst": D(300), "sgst": D(300), "cess": D(0)}
+    # an overlapping later download adds only the new lines
+    more = ["3", "02-05-2025", "CPIN999", "May-25", "Deposit", "Credit", 0, 0, 100, 100, 100, 100, 0, 0,
+            1100, 400, 400, 0]
+    _cash_ledger(dl / "cash_ledger_q1b.xlsx", [opening, dep, pay, more])
+    _sf, _led, repeated = svc.import_ledger(c.id, dl / "cash_ledger_q1b.xlsx", user="accountant")
+    assert repeated == 3 and len(svc.ledger_rows(c.id, "CASH")) == 4
+    assert svc.balances(c.id)["CASH"][1]["cgst"] == D(400)
+    assert svc.inspect(dl / "cash_ledger_q1.xlsx", c.id).status.startswith("Already imported")
+    assert "2025-04" in svc.import_file(found["gstr3b_2025-04.json"])
+    assert "document(s) saved" in svc.import_file(g2b)
+    assert recognise(dl / "random.json")[0] is None
+    # a file for a GSTIN that is not a client is listed but cannot be imported
+    _cash_ledger(dl / "other.xlsx", [dep], gstin_text=gstin("29", "AACCV5566C"))
+    other = svc.inspect(dl / "other.xlsx", c.id)
+    assert other.client_id is None and "No client with GSTIN" in other.status
+    with pytest.raises(ServiceError):
+        svc.import_file(other)
+    # removing the import removes its ledger lines
+    ImportService(db).remove_import(c.id, _sf.id, user="admin")
+    assert len(svc.ledger_rows(c.id, "CASH")) == 3

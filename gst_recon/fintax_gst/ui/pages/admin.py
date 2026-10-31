@@ -291,16 +291,24 @@ class SettingsPage(QWidget):
         about, al = card()
         al.addWidget(QLabel(f"<b>{PRODUCT_FULL_NAME}</b> v{__version__}<br>{TAGLINE}<br>"
                             "All data stays on this computer. No GST portal credentials are used."))
-        from ..updater import auto_check_enabled
+        from ..updater import FREQUENCIES, check_frequency, set_check_frequency
 
         up = QHBoxLayout()
-        self.auto_update = QCheckBox("Check for new versions once a day (only the latest version number is read from "
-                                     "the download page; no client data is sent)")
-        self.auto_update.setChecked(auto_check_enabled(state.qsettings))
-        self.auto_update.toggled.connect(lambda on: state.qsettings.setValue("update_check", "true" if on else "false"))
+        self.update_freq = QComboBox()
+        for key, (label, _every) in FREQUENCIES.items():
+            self.update_freq.addItem(label, key)
+        self.update_freq.setCurrentIndex(list(FREQUENCIES).index(check_frequency(state.qsettings)))
+        self.update_freq.currentIndexChanged.connect(
+            lambda _i: set_check_frequency(state.qsettings, self.update_freq.currentData()))
         check = QPushButton("Check for updates now")
         check.clicked.connect(self.check_updates)
-        up.addWidget(self.auto_update, 1)
+        up.addWidget(QLabel("Look for new versions:"))
+        up.addWidget(self.update_freq)
+        note = QLabel("(only the latest version number is read from the download page; no client data is sent; "
+                      "skipped when there is no internet)")
+        note.setObjectName("Muted")
+        note.setWordWrap(True)
+        up.addWidget(note, 1)
         up.addWidget(check)
         al.addLayout(up)
         lay.addWidget(about)

@@ -163,7 +163,7 @@ def test_update_bar(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
         assert path.exists() and path.stat().st_size == page.size
         win.go("settings")
         settings = win.pages["settings"]
-        settings.auto_update.setChecked(False)
+        settings.update_freq.setCurrentIndex(settings.update_freq.findData("off"))
         q.setValue("update_last_check", "")
         assert bar.check_in_background(q) is None  # switched off
         page.version = "0.0.1"
@@ -603,3 +603,42 @@ def test_tally_statutory_reports_on_reconcile_page(qtbot, db, tmp_path, sample_f
     dlg = Gstr3bDraftDialog(win, st, "2025-04")
     qtbot.addWidget(dlg)
     assert dlg.tally_model.rowCount() > 0 and dlg.tally_table.isVisibleTo(dlg)
+
+
+def test_gst_portal_page(qtbot, db, tmp_path, sample_files, messages, monkeypatch):  # noqa: F811
+    import shutil
+
+    from PySide6.QtGui import QDesktopServices
+
+    from fintax_gst.samples import CLIENT
+
+    from .test_phase16 import _cash_ledger
+
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url.toString()) or True))
+    dl = tmp_path / "dl"
+    dl.mkdir()
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    qtbot.waitUntil(lambda: st.online.online is True, timeout=5000)
+    assert "Online" in win.online_lbl.text()
+    c = st.clients.create(**CLIENT)
+    st.set_client(st.clients.get(c.id))
+    win.go("portal")
+    page = win.pages["portal"]
+    page.choose_folder(str(dl))
+    assert page.model.rowCount() == 0
+    assert page.open_report("GSTR2B") and "return.gst.gov.in" in opened[-1] and "GSTR-2B" in page.hint.text()
+    st.online._set(False)
+    assert "Offline" in page.status_lbl.text() and not page.open_portal("https://www.gst.gov.in/")
+    st.online._set(True)
+    shutil.copy(sample_files["gstr2b_april_json"], dl / "gstr2b.json")
+    row = ["1", "05-04-2025", "CPIN1", "Apr-25", "Deposit", "Credit", 1000, 1000, 0, 0, 0, 0, 0, 0, 1000, 0, 0, 0]
+    _cash_ledger(dl / "cash.xlsx", [row])
+    page.refresh()
+    assert page.model.rowCount() == 2 and "2 ready" in page.found_lbl.text()
+    done = page.import_all()
+    assert len(done) == 2 and page.model.rowCount() == 2
+    assert all(f.status.startswith("Already imported") for f in page.files)
+    page.ledger_cb.setCurrentIndex(0)
+    assert page.ledger_model.rowCount() == 1 and "1,000" in page.balance_lbl.text()

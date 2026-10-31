@@ -741,4 +741,33 @@ class BooksGstr3b(Base):
 
 
 V19_TABLES = [BooksGstr3b]
+
+
+class LedgerEntry(Base):
+    """A line of the electronic cash ledger or the electronic credit ledger downloaded from the GST portal.
+    Amounts are signed: credits (deposits, ITC) positive, debits (payments, set-off) negative. Schema v20."""
+
+    __tablename__ = "ledger_entries"
+    __table_args__ = (Index("ix_ledger_client", "client_id", "ledger"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    ledger: Mapped[str] = mapped_column(String(8))  # CASH / CREDIT
+    entry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    tax_period: Mapped[str] = mapped_column(String(40), default="")
+    description: Mapped[str] = mapped_column(String(300), default="")
+    txn: Mapped[str] = mapped_column(String(4), default="")  # CR / DR / BAL (opening / closing balance line)
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    bal_igst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_cgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_sgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_cess: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V20_TABLES = [LedgerEntry]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

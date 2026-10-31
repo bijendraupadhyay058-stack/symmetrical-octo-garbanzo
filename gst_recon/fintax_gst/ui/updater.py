@@ -20,11 +20,26 @@ from .workers import run_task
 
 log = logging.getLogger(__name__)
 CHECK_EVERY = timedelta(hours=24)
-KEY_ENABLED, KEY_LAST = "update_check", "update_last_check"
+KEY_ENABLED, KEY_LAST, KEY_FREQ = "update_check", "update_last_check", "update_frequency"
+#: how often the program looks for a new version by itself
+FREQUENCIES = {"start": ("Every time FIN TAX PRO starts", timedelta(0)), "daily": ("Once a day", CHECK_EVERY),
+               "weekly": ("Once a week", timedelta(days=7)), "off": ("Never – I check by hand", None)}
+
+
+def check_frequency(qsettings) -> str:
+    v = str(qsettings.value(KEY_FREQ, "") or "")
+    if v in FREQUENCIES:
+        return v
+    return "daily" if str(qsettings.value(KEY_ENABLED, "true")).lower() in ("true", "1") else "off"
+
+
+def set_check_frequency(qsettings, freq: str) -> None:
+    qsettings.setValue(KEY_FREQ, freq)
+    qsettings.setValue(KEY_ENABLED, "false" if freq == "off" else "true")
 
 
 def auto_check_enabled(qsettings) -> bool:
-    return str(qsettings.value(KEY_ENABLED, "true")).lower() in ("true", "1")
+    return check_frequency(qsettings) != "off"
 
 
 def download_folder() -> Path:
@@ -65,14 +80,16 @@ class UpdateBar(QFrame):
 
     # ----------------------------------------------------------------- check
     def check_in_background(self, qsettings) -> threading.Thread | None:
-        """Check at most once a day, without blocking the window. Returns the thread (for tests)."""
-        if not auto_check_enabled(qsettings):
+        """Check as often as the setting says (at start, daily, weekly or never), without blocking the window.
+        Returns the thread (for tests)."""
+        every = FREQUENCIES[check_frequency(qsettings)][1]
+        if every is None:
             return None
         try:
             last = datetime.fromisoformat(str(qsettings.value(KEY_LAST, "")))
         except ValueError:
             last = None
-        if last and datetime.now() - last < CHECK_EVERY:
+        if last and every and datetime.now() - last < every:
             return None
         qsettings.setValue(KEY_LAST, datetime.now().isoformat(timespec="seconds"))
 

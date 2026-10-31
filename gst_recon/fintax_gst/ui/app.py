@@ -6,10 +6,11 @@ from datetime import date
 import logging
 import sys
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QStackedWidget,
+    QApplication, QComboBox, QDialog, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QPushButton,
+    QStackedWidget,
     QVBoxLayout, QWidget,
 )
 
@@ -37,6 +38,7 @@ from .pages.phase4 import CompliancePage, LettersPage, OutwardPage, SyncPage
 from .pages.returns import ImsPage, ReturnsPage
 from .pages.security import SecurityPage
 from .pages.suppliers import SuppliersPage
+from .pages.portal import PortalPage
 from .pages.workflow import WorkflowPage
 from .updater import UpdateBar
 from .state import AppState
@@ -45,7 +47,7 @@ from .theme import NAVY, STYLESHEET, TEAL
 log = logging.getLogger(__name__)
 
 NAV = [
-    ("dashboard", "◧  Dashboard"), ("firm", "▣  Firm work"), ("reminders", "✆  Reminders"), ("workflow", "▶  Reconcile"), ("exceptions", "⚑  Exceptions"),
+    ("dashboard", "◧  Dashboard"), ("firm", "▣  Firm work"), ("reminders", "✆  Reminders"), ("workflow", "▶  Reconcile"), ("portal", "🌐  GST Portal"), ("exceptions", "⚑  Exceptions"),
     ("itc", "✓  ITC review"), ("rule37", "⏱  180-day rule"), ("returns", "▤  GSTR-3B & annual"), ("ims", "⇄  IMS"),
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("pan", "▥  PAN view"), ("letters", "✉  Letters & papers"),
     ("notices", "⚖  GST notices"), ("batch", "⧉  Batch"),
@@ -79,6 +81,11 @@ class MainWindow(QMainWindow):
     def __init__(self, state: AppState):
         super().__init__()
         self.state = state
+        self.auto_update_check = False  # set by run_app; tests never reach the internet
+        if getattr(state, "online", None) is None:
+            from .online import OnlineMonitor
+
+            state.online = OnlineMonitor(parent=self)
         self.setWindowTitle(f"{PRODUCT_NAME} {__version__} – Smart GST Reconciliation & ITC Management")
         self.setWindowIcon(app_icon())
         self.resize(1440, 900)
@@ -96,7 +103,7 @@ class MainWindow(QMainWindow):
         self.nav.setFixedWidth(190)
         self.stack = QStackedWidget()
         self.pages: dict[str, QWidget] = {
-            "dashboard": DashboardPage(state), "firm": FirmPage(state), "reminders": RemindersPage(state), "workflow": WorkflowPage(state), "exceptions": ExceptionsPage(state),
+            "dashboard": DashboardPage(state), "firm": FirmPage(state), "reminders": RemindersPage(state), "workflow": WorkflowPage(state), "portal": PortalPage(state), "exceptions": ExceptionsPage(state),
             "itc": ItcPage(state), "rule37": Rule37Page(state), "returns": ReturnsPage(state), "ims": ImsPage(state),
             "outward": OutwardPage(state), "compliance": CompliancePage(state), "pan": PanViewPage(state), "letters": LettersPage(state),
             "notices": NoticesPage(state), "batch": BatchPage(state),
@@ -119,7 +126,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
         role = ROLES.get(state.session.role, state.session.role)
         self.statusBar().showMessage(f"Database: {state.db.location} · {state.session.full_name or state.user} ({role}) "
-                                     "· offline – no data leaves this computer")
+                                     "· works offline – client data never leaves this computer")
+        state.online.changed.connect(self._online_changed)
+        self._online_changed(state.online.online)
+        QTimer.singleShot(0, state.online.check)
         state.clientChanged.connect(self._sync_header)
         state.dataChanged.connect(self._fill_clients)
         state.runChanged.connect(self._sync_header)
@@ -154,9 +164,27 @@ class MainWindow(QMainWindow):
         self.run_lbl.setObjectName("HeaderLabel")
         user_lbl = QLabel(f"👤 {self.state.session.username}")
         user_lbl.setObjectName("HeaderLabel")
-        for x in (lbl, self.client_cb, fy_lbl, self.fy_cb, self.run_lbl, user_lbl):
+        self.online_lbl = QLabel("● …")
+        self.online_lbl.setObjectName("HeaderLabel")
+        self.online_lbl.setToolTip("Internet connection. FIN TAX PRO works fully offline; the GST portal links and the "
+                                   "update check need the internet.")
+        self.updates_btn = QPushButton("⟳ Updates")
+        self.updates_btn.setToolTip("Check for a new version of FIN TAX PRO now")
+        self.updates_btn.clicked.connect(lambda: self.update_bar.check_now(self))
+        for x in (lbl, self.client_cb, fy_lbl, self.fy_cb, self.run_lbl, self.online_lbl, self.updates_btn, user_lbl):
             lay.addWidget(x)
         return w
+
+    def _online_changed(self, ok) -> None:
+        if ok is None:
+            self.online_lbl.setText("● checking…")
+            return
+        self.online_lbl.setText("<span style='color:#A5D6A7'>● Online</span>" if ok else
+                                "<span style='color:#FFAB91'>● Offline</span>")
+        if ok and self.auto_update_check:
+            # the automatic update check runs once the connection is there (at start, or when it comes back)
+            self.auto_update_check = False
+            self.update_bar.check_in_background(self.state.qsettings)
 
     def go(self, key: str) -> None:
         for i in range(self.nav.count()):
@@ -252,7 +280,9 @@ def main(argv: list[str] | None = None) -> int:
                             f"A report was saved in:\n{crashed}\n\nPlease send that file (and fintaxpro.log in the same "
                             "folder) to your support contact, so the cause can be fixed.")
     if not args.smoke_test:
-        win.update_bar.check_in_background(win.state.qsettings)
+        win.auto_update_check = True
+        if win.state.online.online:
+            win._online_changed(True)
     if args.smoke_test:
         for key, _label in NAV:
             win.go(key)
