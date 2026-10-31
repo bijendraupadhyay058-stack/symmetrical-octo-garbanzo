@@ -15,6 +15,15 @@ def cmd_reminders(db, args) -> None:
         print()
 
 
+def cmd_client_report(db, args) -> None:
+    from .reports.client_report import build_reports
+    from .services.clients import ClientService
+
+    ids = [ClientService(db).resolve(args.client).id] if args.client else None
+    for p in build_reports(db, args.period, args.out, ids, args.firm or ""):
+        print(f"Saved {p}")
+
+
 def cmd_update(db, args) -> None:
     from . import __version__
     from .services.updates import UpdateService
@@ -33,6 +42,13 @@ def add_commands(sub) -> None:
     r.add_argument("--signature", help="name / firm at the end of each message")
     r.set_defaults(func=cmd_reminders)
 
+    c = sub.add_parser("client-report", help="one-page monthly GST summary (PDF) for a client or all clients")
+    c.add_argument("--period", required=True, help="tax period (YYYY-MM)")
+    c.add_argument("--client", help="client id or GSTIN (default: all active clients)")
+    c.add_argument("--out", required=True, help="folder for the PDF(s)")
+    c.add_argument("--firm", help="firm name shown as 'Prepared by'")
+    c.set_defaults(func=cmd_client_report)
+
     u = sub.add_parser("update-check", help="check whether a newer version is on the download page")
     u.set_defaults(func=cmd_update)
 
@@ -40,4 +56,6 @@ def add_commands(sub) -> None:
 def permission_for(args) -> str | None:
     if args.command in ("reminders", "update-check"):
         return "view"
+    if args.command == "client-report":
+        return "export"
     return None

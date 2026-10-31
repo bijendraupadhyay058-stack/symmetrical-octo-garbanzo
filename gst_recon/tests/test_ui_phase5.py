@@ -194,3 +194,24 @@ def test_reminders_page(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F8
     assert page.send("copy").endswith("PS: edited") and QApplication.clipboard().text().endswith("PS: edited")
     assert page.send("whatsapp").startswith("https://wa.me/919820012345") and opened
     assert page.model.rows[0][3] == 2
+
+
+def test_firm_page_client_reports(qtbot, db, tmp_path, messages, monkeypatch):  # noqa: F811
+    from PySide6.QtGui import QDesktopServices
+
+    from fintax_gst.samples import CLIENT, gstin
+
+    opened = []
+    monkeypatch.setattr(QDesktopServices, "openUrl", staticmethod(lambda url: opened.append(url) or True))
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    win.state.clients.create(**CLIENT)
+    win.state.clients.create(gstin("29", "AACCB5678L"), None, name="Bangalore Electronics LLP")
+    win.go("firm")
+    page = win.pages["firm"]
+    page.period.setText("2025-04")
+    page.reload()
+    paths = page.client_reports(str(tmp_path / "all"))
+    assert len(paths) == 2 and not opened
+    page.table.selectRow(0)
+    one = page.client_reports(str(tmp_path / "one"))
+    assert len(one) == 1 and len(opened) == 1

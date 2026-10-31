@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from PySide6.QtCore import QDate, Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import QDate, Qt, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QComboBox, QDateEdit, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QGridLayout, QHBoxLayout,
     QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QSplitter, QVBoxLayout, QWidget,
@@ -101,9 +101,13 @@ class FirmPage(LazyPage):
         self.filing_btn.clicked.connect(self.record_filing)
         self.staff_btn = QPushButton("Set responsible staff…")
         self.staff_btn.clicked.connect(self.set_staff)
+        self.report_btn = QPushButton("Client report (PDF)…")
+        self.report_btn.setToolTip("One-page GST summary of the month for the selected client – or, with no client "
+                                   "selected, for every client in the list")
+        self.report_btn.clicked.connect(lambda: self.client_reports())
         self.info = QLabel()
         self.info.setObjectName("Muted")
-        for w in (self.open_btn, self.filing_btn, self.staff_btn):
+        for w in (self.open_btn, self.filing_btn, self.staff_btn, self.report_btn):
             actions.addWidget(w)
         actions.addWidget(self.info, 1)
         lay.addLayout(actions)
@@ -258,6 +262,32 @@ class FirmPage(LazyPage):
         self.state.notify()
         self.reload()
         return True
+
+    def client_reports(self, out_dir: str | None = None, all_clients: bool | None = None):
+        """One-page PDF per client: the selected one, or all listed clients."""
+        if self.work is None or not self.work.clients:
+            return None
+        c = self._selected()
+        if all_clients is None:
+            all_clients = c is None
+        out_dir = out_dir or QFileDialog.getExistingDirectory(self, "Folder for the client report(s)")
+        if not out_dir:
+            return None
+        from ...reports.client_report import build_reports
+        from ..workers import run_task
+
+        ids = [x.client_id for x in self.work.clients] if all_clients else [c.client_id]
+        firm = str(self.state.qsettings.value("reminder_signature", "")).strip()
+        task = run_task(self, "Preparing client reports", build_reports, self.state.db, self.work.period, out_dir,
+                        ids, firm)
+        if not task.ok:
+            QMessageBox.warning(self, "Client report", task.message)
+            return None
+        paths = task.result_value
+        self.info.setText(f"{len(paths)} client report(s) saved in {out_dir}")
+        if len(paths) == 1:  # a single report opens straight away
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(paths[0])))
+        return paths
 
     def export(self, path: str | None = None):
         if self.work is None:

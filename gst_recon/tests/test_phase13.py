@@ -176,3 +176,46 @@ def test_cli_reminders(tmp_path, capsys):
     assert main(["--db", dbp, "reminders", "--period", "2025-04", "--signature", "CA Office"]) == 0
     out = capsys.readouterr().out
     assert "Purchase register for April 2025" in out and "CA Office" in out
+
+
+# ------------------------------------------------------------------ one-page client report (13C)
+def test_client_report(db, tmp_path):
+    from datetime import date
+
+    from pypdf import PdfReader
+
+    from fintax_gst.reports.client_report import build_client_report, build_reports
+    from fintax_gst.samples import CLIENT, gstin
+    from fintax_gst.services.batch import BatchService, write_example
+    from fintax_gst.services.clients import ClientService
+
+    BatchService(db).run(write_example(tmp_path / "batch"), create_clients=True)
+    empty = ClientService(db).create(gstin("29", "AACCB5678L"), None, name="Bangalore <Electronics> & Co")
+    paths = build_reports(db, "2025-04", tmp_path / "out", firm_name="R. Sharma & Co.", today=date(2025, 5, 15))
+    assert sorted(p.name for p in paths) == [f"{CLIENT['gstin']}_2025-04_GST_summary.pdf",
+                                             "29AACCB5678L1Z2_2025-04_GST_summary.pdf"]
+    full = PdfReader(str(tmp_path / "out" / f"{CLIENT['gstin']}_2025-04_GST_summary.pdf"))
+    assert len(full.pages) == 1  # always one page
+    text = full.pages[0].extract_text()
+    for expected in ("GST summary – April 2025", "ITC as per your purchase register", "ITC claimed in GSTR-3B",
+                     "Suppliers to follow up", "Kovai Textiles", "GSTR-1", "Not filed – overdue",
+                     "Prepared by R. Sharma & Co. on 15-05-2025", "As reported in GSTR-1"):
+        assert expected in text, expected
+    blank = PdfReader(str(build_client_report(db, empty.id, "2025-04", tmp_path / "one", today=date(2025, 5, 15))))
+    t = blank.pages[0].extract_text()
+    assert "Bangalore <Electronics> & Co" in t and "Not reconciled yet" in t and "Purchase register for April" in t
+    with pytest.raises(ServiceError):
+        build_client_report(db, 999, "2025-04", tmp_path)
+    with pytest.raises(ServiceError):
+        build_reports(db, "Apr", tmp_path)
+
+
+def test_cli_client_report(tmp_path, capsys):
+    from fintax_gst.cli import main
+    from fintax_gst.samples import CLIENT
+
+    dbp = str(tmp_path / "cli.db")
+    assert main(["--db", dbp, "client", "add", "--name", CLIENT["name"], "--gstin", CLIENT["gstin"]]) == 0
+    assert main(["--db", dbp, "client-report", "--period", "2025-04", "--client", CLIENT["gstin"], "--out",
+                 str(tmp_path / "r")]) == 0
+    assert "GST_summary.pdf" in capsys.readouterr().out and len(list((tmp_path / "r").iterdir())) == 1
