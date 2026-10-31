@@ -37,3 +37,12 @@ def test_claim_plan_tab(qtbot, db, tmp_path, sample_files, messages):  # noqa: F
     tab.table.selectRow(tab.table.model().mapFromSource(tab.model.index(off_row, 0)).row())
     assert tab.undo() == 1
     assert tab.export(str(tmp_path / "p.xlsx")).exists()
+
+
+def test_year_end_pack_button(qtbot, db, tmp_path, sample_files, messages):  # noqa: F811
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    _load(win, sample_files)
+    win.state.set_fy("2025-26")
+    win.go("returns")
+    pdf, xlsx = win.pages["returns"].year_end_pack(str(tmp_path / "pack"), open_file=False)
+    assert pdf.exists() and xlsx.exists() and "FY2025-26" in pdf.name

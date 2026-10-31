@@ -90,3 +90,39 @@ def test_claim_plan_service(db, sample_files, tmp_path):
     out = svc.export_xlsx(after, c.name, tmp_path / "plan.xlsx")
     wb = load_workbook(out)
     assert wb.sheetnames == ["Summary", "Documents", "Not in books"] and wb["Documents"].max_row == len(after.lines) + 1
+
+
+# ------------------------------------------------------------------ year-end closing pack (19B)
+def test_closing_pack(db, sample_files, tmp_path):
+    from openpyxl import load_workbook
+    from pypdf import PdfReader
+
+    from fintax_gst.services.closing_pack import ClosingPackService
+    from fintax_gst.services.notices import NoticeService
+    from fintax_gst.services.auth import SETUP_SESSION
+
+    from .test_phase4 import _full
+
+    c, _inward, _outward = _full(db, sample_files)
+    NoticeService(db).add(c.id, SETUP_SESSION, form="ASMT-10", reference="ZD270625000001", notice_date=date(2025, 6, 20),
+                          period_from="2025-04", period_to="2025-04", amount=D("12000"),
+                          reply_due=date(2025, 7, 20))
+    pdf, xlsx = ClosingPackService(db).build(c.id, "2025-26", tmp_path / "pack", "Sharma & Co",
+                                             as_of=date(2026, 5, 31), user="manager")
+    reader = PdfReader(str(pdf))
+    text = "\n".join(p.extract_text() for p in reader.pages)
+    for heading in ("Contents", "1. Compliance status by month", "2. GSTR-9 working", "3. GSTR-9C",
+                    "4. ITC as per GSTR-2B", "5. ITC not yet claimed", "6. Interest and late fee",
+                    "7. Open GST notices", "8. Suppliers with ITC at risk"):
+        assert heading in text, heading
+    assert "ZD270625000001" in text and "Page 2" in text
+    first = reader.pages[0].extract_text()
+    assert "2. GSTR-9 working" in first  # the index lists the sections with page numbers
+    wb = load_workbook(xlsx)
+    assert wb.sheetnames[0] == "Index"
+    for name in ("Status by month", "ITC on hold", "Interest & late fee", "Open notices", "Supplier risk"):
+        assert name in wb.sheetnames
+    assert wb["Open notices"].max_row == 2
+    assert any(str(r[0].value).startswith("Status by month") for r in wb["Index"].iter_rows(min_row=5))
+    with pytest.raises(ServiceError):
+        ClosingPackService(db).build(999, "2025-26", tmp_path)

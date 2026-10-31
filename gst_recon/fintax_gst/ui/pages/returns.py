@@ -127,6 +127,11 @@ class ReturnsPage(LazyPage):
         row.addWidget(self.g9_export_btn)
         row.addWidget(self.g9_json_btn)
         row.addWidget(self.g9_import_btn)
+        self.closing_btn = QPushButton("Year-end pack…")
+        self.closing_btn.setToolTip("One indexed PDF and one Excel file for the audit file: status by month, GSTR-9, "
+                                    "GSTR-9C, Table 8, ITC still on hold, interest and late fee, notices, supplier risk")
+        self.closing_btn.clicked.connect(lambda: self.year_end_pack())
+        row.addWidget(self.closing_btn)
         hint = QLabel("Returns = GSTR-1 (Tables 4–5) and GSTR-3B (4G, 6, 7); Books = sales register. "
                       "A working paper for review, not the return as filed.")
         hint.setObjectName("Muted")
@@ -672,6 +677,30 @@ class ReturnsPage(LazyPage):
         for m in (self.int_late_model, self.int_exp_model):  # computed on request (it reads several workings)
             m.set_rows([])
         self.int_lbl.setText("Press Compute for the interest and late fee working of the year.")
+
+    def year_end_pack(self, out_dir: str | None = None, open_file: bool = True):
+        from ...services.closing_pack import ClosingPackService
+        from ..workers import run_task
+
+        st = self.state
+        if st.client is None:
+            return None
+        out_dir = out_dir or QFileDialog.getExistingDirectory(self, f"Folder for the year-end pack {st.fy}")
+        if not out_dir:
+            return None
+        firm = str(st.qsettings.value("reminder_signature", "")).strip()
+        task = run_task(self, f"Preparing the year-end pack {st.fy}", ClosingPackService(st.db).build, st.client.id,
+                        st.fy, out_dir, firm, None, st.user, cancellable=False)
+        if not task.ok:
+            QMessageBox.warning(self, "Year-end pack", task.message)
+            return None
+        pdf, xlsx = task.result_value
+        if open_file:
+            from PySide6.QtCore import QUrl
+            from PySide6.QtGui import QDesktopServices
+
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(pdf)))
+        return pdf, xlsx
 
     def import_annual(self, kind: str, path: str | None = None, show: bool = True):
         """Import a GSTR-9 / GSTR-9C prepared elsewhere for the year in the header and show the comparison."""
