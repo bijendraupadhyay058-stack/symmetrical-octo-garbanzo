@@ -42,23 +42,25 @@ class AppState(QObject):
         self.security = SecurityService(db)
         self.client: Client | None = None
         self.fy: str = fy_of(date.today())
+        self.fy_chosen = False  # a year picked in the header stays when another client is selected
         self.run_id: int | None = None
         self._ctx_cache = None  # (run_id, RunContext) – shared by all pages until data changes
 
     # ------------------------------------------------------------- selection
     def set_client(self, client: Client | None) -> None:
         self.client = client
-        if client is not None and client.financial_year:
+        if client is not None and client.financial_year and not self.fy_chosen:
             self.fy = client.financial_year
         latest = self.tracking.latest_run(client.id, self.fy) if client else None
         self.run_id = latest.id if latest else None
         self.clientChanged.emit()
         self.runChanged.emit()
 
-    def set_fy(self, fy: str) -> None:
+    def set_fy(self, fy: str, chosen: bool = True) -> None:
         if fy == self.fy:
             return
         self.fy = fy
+        self.fy_chosen = chosen
         latest = self.tracking.latest_run(self.client.id, fy) if self.client else None
         self.run_id = latest.id if latest else None
         self.clientChanged.emit()

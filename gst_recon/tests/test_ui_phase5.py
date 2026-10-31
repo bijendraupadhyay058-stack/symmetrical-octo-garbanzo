@@ -431,3 +431,37 @@ def test_invoices_page(qtbot, db, tmp_path, messages):  # noqa: F811
     assert v["invoice_no"] == "M-1" and v["taxable_value"] == Decimal("1000") and v["period"] == "2025-04"
     page.table.selectRow(0)
     assert page.delete() and page.model.rowCount() == 0
+
+
+def test_earlier_years(qtbot, db, tmp_path, messages):  # noqa: F811
+    import json as _json
+
+    from fintax_gst.core.models import Source
+    from fintax_gst.samples import CLIENT, gstin
+
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    st = win.state
+    a = st.clients.create(**CLIENT)
+    b = st.clients.create(gstin("29", "AACCB5678L"), None, name="Other", financial_year="2025-26")
+    st.set_client(st.clients.get(a.id))
+    years = [win.fy_cb.itemText(i) for i in range(win.fy_cb.count())]
+    assert years[0] == "2017-18" and "2019-20" in years  # every year since GST began
+    win.fy_cb.setCurrentText("2019-20")
+    assert st.fy == "2019-20"
+    st.set_client(st.clients.get(b.id))
+    assert st.fy == "2019-20"  # the chosen year stays when another client is selected
+    st.set_client(st.clients.get(a.id))
+    g = gstin("27", "AABCM1234K")
+    books = tmp_path / "b.csv"
+    books.write_text(f"GSTIN,Invoice No,Invoice Date,Taxable Value,CGST,SGST\n{g},OLD-1,05-06-2019,1000,90,90\n")
+    two_b = tmp_path / "2b.json"
+    two_b.write_text(_json.dumps({"data": {"gstin": CLIENT["gstin"], "rtnprd": "062019", "docdata": {"b2b": [
+        {"ctin": g, "trdnm": "M", "inv": [{"inum": "OLD-1", "dt": "05-06-2019", "val": 1180, "typ": "R", "pos": "27",
+                                           "rev": "N", "itcavl": "Y", "rsn": "", "items": [
+                                               {"rt": 18, "txval": 1000, "igst": 0, "cgst": 90, "sgst": 90,
+                                                "cess": 0}]}]}]}}}))
+    st.imports.import_file(a.id, books, Source.BOOKS)
+    st.imports.import_file(a.id, two_b, Source.GSTR2B)
+    run = st.recon.run(a.id, "2019-06")
+    ctx = st.recon.load(run)
+    assert ctx.run.financial_year == "2019-20" and ctx.result.lines[0].category.value == "Fully Matched"

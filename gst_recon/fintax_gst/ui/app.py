@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import logging
 import sys
 
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
 from .. import PRODUCT_NAME, TAGLINE, __version__
 from ..cli import setup_logging
 from ..db.database import Database, default_home, open_database
+from ..core.models import fy_of
 from ..services.auth import ROLES, SETUP_SESSION, AuthService, Session
 from ..services.common import current_user
 from ..services.security import SecurityService
@@ -187,8 +189,9 @@ class MainWindow(QMainWindow):
         self.client_cb.setCurrentIndex(max(idx, 0))
         self.client_cb.blockSignals(False)
         self.fy_cb.blockSignals(True)
-        start = int(st.fy[:4])
-        years = [f"{y}-{str(y + 1)[-2:]}" for y in range(start - 4, start + 2)]
+        # every year since GST began (1 July 2017) – earlier years for GSTR-9 and notices – up to next year
+        last = max(int(st.fy[:4]), int(fy_of(date.today())[:4])) + 1
+        years = [f"{y}-{str(y + 1)[-2:]}" for y in range(2017, last + 1)]
         self.fy_cb.clear()
         self.fy_cb.addItems(years)
         self.fy_cb.setCurrentText(st.fy)
