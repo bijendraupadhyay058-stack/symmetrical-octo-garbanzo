@@ -5,9 +5,7 @@ from datetime import date
 import pytest
 
 from fintax_gst.core.models import Source
-from fintax_gst.samples import CLIENT
 from fintax_gst.services.auth import SETUP_SESSION
-from fintax_gst.services.clients import ClientService
 from fintax_gst.services.common import ServiceError
 from fintax_gst.services.imports import ImportService
 

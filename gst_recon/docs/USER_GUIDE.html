@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.11.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.12.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -454,6 +454,29 @@
    the time limit, missing months, reconciliations older than the latest import, impossible tax). Select an item to see
    examples and click <span class="btn">Go to the page to fix it</span>. <span class="btn">Check all clients</span>
    lists every client with its score, worst first.</p>
+
+<h2 id="returnprep">7n. Return preparation – GSTR-1, GSTR-3B, GSTR-9, GSTR-9C</h2>
+<p><b>Return preparation</b> (left menu, under Reconcile). Choose the return and the period (month for GSTR-1 / 3B, the
+   year for GSTR-9 / 9C) and click <span class="btn">Check</span>.</p>
+<ol>
+  <li><b>Is the data ready?</b> – green ✔ ready, yellow ! to look at, red ✖ must be done first (for example the sales
+      register of the month, or the audited turnover for GSTR-9C).</li>
+  <li><b>Figures of the return</b> – review them.</li>
+  <li><span class="btn">Prepare files…</span> saves the files in a folder, then <span class="btn">Mark as final</span>.
+      If anything is imported or changed later, the return shows <i>data has changed since</i> – prepare it again.</li>
+</ol>
+<table>
+  <tr><th>Return</th><th>File</th><th>On the portal</th></tr>
+  <tr><td>GSTR-1</td><td>JSON (portal format)</td><td>Returns Dashboard → GSTR-1 → Prepare Offline → Upload. Quarterly
+      (QRMP) filers: the quarter's last month covers all three months.</td></tr>
+  <tr><td>GSTR-3B</td><td>Filing sheet (Excel) + one-page PDF</td><td>The portal does <b>not</b> take a GSTR-3B file –
+      enter the figures table by table from the filing sheet.</td></tr>
+  <tr><td>GSTR-9</td><td>JSON + mapping (CSV)</td><td>Open the JSON in the GSTR-9 offline tool, complete the tables the
+      mapping lists, generate the JSON in the tool and upload it.</td></tr>
+  <tr><td>GSTR-9C</td><td>Excel in the offline tool's tables</td><td>Enter / copy into the GSTR-9C offline tool, generate
+      its JSON and upload.</td></tr>
+</table>
+<p>FIN TAX PRO never uploads or files anything – you check the summary on the portal and file with DSC / EVC.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
