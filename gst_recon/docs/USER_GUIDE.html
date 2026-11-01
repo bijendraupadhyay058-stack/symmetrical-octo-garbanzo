@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.8.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.9.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -394,6 +394,30 @@
    statement → Excel / CSV). Every GST payment in the bank is matched with a deposit in the cash ledger (by CPIN, or by
    amount and date). Red rows were <b>debited in the bank but not credited</b> on the portal – check with the bank and,
    if the CIN was not generated, raise a grievance in GST PMT-07.</p>
+
+<h2 id="phase21">7k. Exports, SEZ and refunds; composition and QRMP</h2>
+<h3>Exports and SEZ</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>Exports &amp; refund</b>. Choose the months and click
+   <span class="btn">Check exports</span>; import the shipping bills (ICEGATE / customs broker list with shipping bill
+   no., date, port, invoice no. and IGST) with <span class="btn">Import shipping bills…</span>. Red rows need action:
+   an export with IGST that has no shipping bill (the refund cannot be processed), or goods under LUT not exported
+   within three months of the invoice (IGST payable with interest). Yellow rows are to check: IGST on the shipping
+   bill differs, or a shipping bill is still awaited. Save the year's LUT ARN in the box.</p>
+<h3>Refund of ITC (RFD-01)</h3>
+<p>Choose <i>Export / SEZ without payment – rule 89(4)</i> or <i>Inverted duty structure – rule 89(5)</i>, click
+   <span class="btn">Fill from the registers</span>, correct the figures (for example remove capital goods and input
+   services from net ITC), then <span class="btn">Work out refund</span>. The refund is limited to the credit ledger
+   balance when the credit ledger has been imported. <span class="btn">Export to Excel…</span> saves the export list and
+   the refund working.</p>
+<h3>Composition dealers</h3>
+<p>Tab <b>Composition / QRMP</b>: choose the client's category (trader / manufacturer 1 %, restaurant 5 %, services 6 %)
+   and <span class="btn">Save</span>. <span class="btn">CMP-08 for the quarter</span> works out the tax on the quarter's
+   sales plus reverse-charge tax; <span class="btn">GSTR-4 (year)</span> shows the four quarters and the year's inward
+   supplies.</p>
+<h3>QRMP clients</h3>
+<p>For the first or second month of a quarter, <span class="btn">Work out PMT-06 for the month</span> shows the fixed sum
+   (35 % of the cash paid last quarter – import last quarter's GSTR-3B JSON) and the self-assessed amount (the month's
+   tax less ITC), and the B2B total for the IFF against the ₹50 lakh limit.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
