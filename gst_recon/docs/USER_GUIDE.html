@@ -54,7 +54,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.9.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.10.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -418,6 +418,25 @@
 <p>For the first or second month of a quarter, <span class="btn">Work out PMT-06 for the month</span> shows the fixed sum
    (35 % of the cash paid last quarter – import last quarter's GSTR-3B JSON) and the self-assessed amount (the month's
    tax less ITC), and the B2B total for the IFF against the ₹50 lakh limit.</p>
+
+<h2 id="phase22">7l. Tax audit (clause 44) and litigation</h2>
+<h3>Form 3CD clause 44</h3>
+<p>Choose the year at the top, then <b>GSTR-3B &amp; annual</b> → tab <b>Tax audit (3CD cl. 44)</b>. Type the total
+   expenditure as per the accounts (P&amp;L and capital additions) and click <span class="btn">Save total</span>. The
+   break-up is taken from the purchase register (registered suppliers – exempt, composition, others) and the RCM register
+   (unregistered suppliers), at taxable value. Suppliers who never charged GST are shown as exempt; if they are
+   composition dealers, select them and click <span class="btn">Mark selected as composition</span>. The rest of the
+   total expenditure (salaries, depreciation …) appears as "not in the registers" for you to classify.
+   <span class="btn">Export to Excel…</span> gives the clause 44 table and the supplier list. The lower table compares,
+   month by month, the books with GSTR-3B and GSTR-2B – red cells are differences.</p>
+<h3>Litigation</h3>
+<p><b>Litigation</b> (left menu) keeps every GST dispute. <span class="btn">New case…</span> or
+   <span class="btn">From a notice…</span> (a notice on the GST notices page). Use <span class="btn">Change…</span> as the
+   case moves: order received (enter the date it was communicated, tax, interest, penalty), appeal filed (pre-deposit
+   paid, DRC-03 and APL-01 references), hearing dates. The program shows the last date to appeal (3 months for the first
+   appeal, with the condonable month), the pre-deposit (10 % of the tax in dispute, plus tax admitted), and alerts when a
+   time limit or a hearing is near. <span class="btn">Add to history…</span> records each step;
+   <span class="btn">Make staff tasks</span> puts the coming hearings and time limits on <b>Fees &amp; tasks</b>.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
