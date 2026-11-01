@@ -71,6 +71,10 @@ class SuppliersPage(LazyPage):
         tabs = QTabWidget()
         tabs.addTab(vsplit, "Reconciliation of the run")
         tabs.addTab(self._scores_tab(), "Compliance scores (year)")
+        from .gstin_status_tab import GstinStatusTab
+
+        self.status_tab = GstinStatusTab(state)
+        tabs.addTab(self.status_tab, "GSTIN status")
         lay.addWidget(tabs, 1)
         for sig in (state.runChanged, state.dataChanged, state.clientChanged):
             sig.connect(self.lazy(self.reload))

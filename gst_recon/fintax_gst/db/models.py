@@ -968,4 +968,25 @@ class CaseEvent(Base):
 
 
 V25_TABLES = [LitigationCase, CaseEvent]
+
+
+class GstinStatus(Base):
+    """Registration status of a GSTIN as last checked (portal search / verification list). Shared by all clients:
+    the status of a supplier is the same whoever buys from it. Schema v26."""
+
+    __tablename__ = "gstin_status"
+    gstin: Mapped[str] = mapped_column(String(15), primary_key=True)
+    legal_name: Mapped[str] = mapped_column(String(200), default="")
+    trade_name: Mapped[str] = mapped_column(String(200), default="")
+    status: Mapped[str] = mapped_column(String(20), default="")  # Active / Cancelled / Suspended / Inactive
+    cancelled_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    registered_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    taxpayer_type: Mapped[str] = mapped_column(String(40), default="")  # Regular / Composition / …
+    filing_frequency: Mapped[str] = mapped_column(String(20), default="")  # Monthly / Quarterly
+    checked_on: Mapped[date] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(120), default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+
+
+V26_TABLES = [GstinStatus]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]
