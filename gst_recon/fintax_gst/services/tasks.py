@@ -115,7 +115,10 @@ class TaskService:
         with self.db.session() as s:
             filed = {(f.client_id, f.return_type, f.period) for f in s.scalars(select(ReturnFiling))}
             for t in s.scalars(select(StaffTask).where(StaffTask.status == "open", StaffTask.auto_key.is_not(None))):
-                cid, rtype, period = t.auto_key.split(":", 2)
+                parts = t.auto_key.split(":", 2)
+                if len(parts) != 3 or not parts[0].isdigit():
+                    continue  # tasks created by other parts of the program (e.g. litigation)
+                cid, rtype, period = parts
                 if (int(cid), rtype, period) in filed:
                     t.status, t.done_by, t.done_at = "done", "filing recorded", _now()
                     n += 1

@@ -922,4 +922,50 @@ class ShippingBillRow(Base):
 
 
 V24_TABLES = [ShippingBillRow]
+
+
+class LitigationCase(Base):
+    """A GST dispute from show-cause notice to order, appeal, tribunal or court. Schema v25."""
+
+    __tablename__ = "litigation_cases"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    notice_id: Mapped[int | None] = mapped_column(ForeignKey("gst_notices.id"), nullable=True)
+    title: Mapped[str] = mapped_column(String(200))
+    stage: Mapped[str] = mapped_column(String(20), default="SCN")  # SCN / ORDER / APPEAL / TRIBUNAL / COURT
+    form: Mapped[str] = mapped_column(String(12), default="")  # DRC-01, DRC-07, APL-01, APL-04, APL-05 …
+    reference: Mapped[str] = mapped_column(String(80), default="")  # DIN / order / ARN
+    order_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # date the order was communicated
+    period_from: Mapped[str] = mapped_column(String(7), default="")
+    period_to: Mapped[str] = mapped_column(String(7), default="")
+    tax: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    interest: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    penalty: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    tax_admitted: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    pre_deposit_paid: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    pre_deposit_ref: Mapped[str] = mapped_column(String(80), default="")  # DRC-03 ARN
+    appeal_filed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    appeal_ref: Mapped[str] = mapped_column(String(80), default="")
+    hearing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), default="OPEN")  # OPEN / WON / LOST / SETTLED / WITHDRAWN
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CaseEvent(Base):
+    """A dated step of a case: notice, reply, hearing, order, payment, appeal filed, note. Schema v25."""
+
+    __tablename__ = "case_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("litigation_cases.id"), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    on: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(12), default="note")
+    text: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V25_TABLES = [LitigationCase, CaseEvent]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]

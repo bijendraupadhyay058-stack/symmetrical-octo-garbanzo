@@ -227,6 +227,12 @@ def _migration_24(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V24_TABLES])
 
 
+def _migration_25(conn) -> None:
+    from .models import V25_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V25_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -256,6 +262,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (22, "firm fee invoices, receipts and staff tasks", _migration_22),
     (23, "reverse-charge purchases from unregistered persons; bank statement lines", _migration_23),
     (24, "shipping bills of export invoices", _migration_24),
+    (25, "litigation cases (orders, appeals, pre-deposit, hearings) and their events", _migration_25),
 ]
 
 

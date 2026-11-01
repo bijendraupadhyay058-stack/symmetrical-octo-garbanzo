@@ -65,6 +65,10 @@ class ReturnsPage(LazyPage):
         tabs.addTab(self.exports_tab, "Exports && refund")
         self.scheme_tab = SchemeTab(state)
         tabs.addTab(self.scheme_tab, "Composition / QRMP")
+        from .tax_audit_tab import TaxAuditTab
+
+        self.tax_audit_tab = TaxAuditTab(state)
+        tabs.addTab(self.tax_audit_tab, "Tax audit (3CD cl. 44)")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")

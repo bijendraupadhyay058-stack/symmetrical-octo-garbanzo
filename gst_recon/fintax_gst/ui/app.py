@@ -38,6 +38,7 @@ from .pages.phase4 import CompliancePage, LettersPage, OutwardPage, SyncPage
 from .pages.returns import ImsPage, ReturnsPage
 from .pages.security import SecurityPage
 from .pages.suppliers import SuppliersPage
+from .pages.litigation import LitigationPage
 from .pages.mis import MisPage
 from .pages.outbox import OutboxPage
 from .pages.portal import PortalPage
@@ -53,7 +54,7 @@ NAV = [
     ("dashboard", "◧  Dashboard"), ("firm", "▣  Firm work"), ("reminders", "✆  Reminders"), ("workflow", "▶  Reconcile"), ("portal", "🌐  GST Portal"), ("exceptions", "⚑  Exceptions"),
     ("itc", "✓  ITC review"), ("rule37", "⏱  180-day rule"), ("returns", "▤  GSTR-3B & annual"), ("ims", "⇄  IMS"),
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("mis", "📊  Charts & MIS"), ("pan", "▥  PAN view"), ("letters", "✉  Letters & papers"), ("outbox", "📤  Outbox"),
-    ("notices", "⚖  GST notices"), ("batch", "⧉  Batch"), ("practice", "₹  Fees & tasks"),
+    ("notices", "⚖  GST notices"), ("litigation", "⚖  Litigation"), ("batch", "⧉  Batch"), ("practice", "₹  Fees & tasks"),
     ("suppliers", "⌂  Suppliers"), ("open_items", "⏳  Open items"), ("history", "↺  History"),
     ("imports", "⇪  Imports"), ("invoices", "✎  Invoices"), ("clients", "☰  Clients"), ("security", "🔒  Security"), ("sync", "☁  Sync & web"),
     ("settings", "⚙  Settings"),
@@ -109,7 +110,7 @@ class MainWindow(QMainWindow):
             "dashboard": DashboardPage(state), "firm": FirmPage(state), "reminders": RemindersPage(state), "workflow": WorkflowPage(state), "portal": PortalPage(state), "exceptions": ExceptionsPage(state),
             "itc": ItcPage(state), "rule37": Rule37Page(state), "returns": ReturnsPage(state), "ims": ImsPage(state),
             "outward": OutwardPage(state), "compliance": CompliancePage(state), "mis": MisPage(state), "pan": PanViewPage(state), "letters": LettersPage(state), "outbox": OutboxPage(state),
-            "notices": NoticesPage(state), "batch": BatchPage(state), "practice": PracticePage(state),
+            "notices": NoticesPage(state), "litigation": LitigationPage(state), "batch": BatchPage(state), "practice": PracticePage(state),
             "sync": SyncPage(state),
             "suppliers": SuppliersPage(state), "open_items": OpenItemsPage(state), "history": HistoryPage(state),
             "imports": ImportsPage(state), "invoices": InvoicesPage(state), "clients": ClientsPage(state), "security": SecurityPage(state),

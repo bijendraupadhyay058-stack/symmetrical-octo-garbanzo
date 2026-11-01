@@ -111,6 +111,10 @@ class NoticeService:
                 raise ServiceError(f"Notice #{notice_id} not found")
             audit(s, "NOTICE_DELETE", "gst_notice", notice_id, {"form": n.form, "reference": n.reference},
                   by.username, n.client_id)
+            from ..db.models import LitigationCase
+
+            for case in s.scalars(select(LitigationCase).where(LitigationCase.notice_id == notice_id)):
+                case.notice_id = None  # the case keeps its own record of the notice
             s.delete(n)
 
     # ------------------------------------------------------------- drafting
