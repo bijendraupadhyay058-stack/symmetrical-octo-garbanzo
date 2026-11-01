@@ -58,6 +58,13 @@ class ReturnsPage(LazyPage):
 
         self.rcm_tab = RcmTab(state)
         tabs.addTab(self.rcm_tab, "RCM && ISD")
+        from .exports_tab import ExportsTab
+        from .scheme_tab import SchemeTab
+
+        self.exports_tab = ExportsTab(state)
+        tabs.addTab(self.exports_tab, "Exports && refund")
+        self.scheme_tab = SchemeTab(state)
+        tabs.addTab(self.scheme_tab, "Composition / QRMP")
         tabs.addTab(self._annual_tab(), "GSTR-9 Table 8 (8A–8D)")
         tabs.addTab(self._gstr9_tab(), "GSTR-9 Tables 4–7, 9")
         tabs.addTab(self._gstr9c_tab(), "GSTR-9C")
@@ -650,6 +657,7 @@ class ReturnsPage(LazyPage):
             b.setEnabled(st.can("review") and st.client is not None)
         self.tds_import_btn.setEnabled(st.can("import") and st.client is not None)
         self.rule42_tab.reload()
+        self.scheme_tab.reload()
         self.g9_json_btn.setEnabled(st.can("export") and st.client is not None)
         for b in (self.int_file_btn, self.int_settle_btn):
             b.setEnabled(st.can("review") and st.client is not None)

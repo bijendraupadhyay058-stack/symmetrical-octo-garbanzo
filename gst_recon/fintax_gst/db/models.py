@@ -903,4 +903,23 @@ class BankLine(Base):
 
 
 V23_TABLES = [RcmEntry, BankLine]
+
+
+class ShippingBillRow(Base):
+    """A shipping bill (ICEGATE / customs broker list) for an export invoice. Schema v24."""
+
+    __tablename__ = "shipping_bills"
+    __table_args__ = (Index("ix_sb_client", "client_id", "invoice_no"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    sb_no: Mapped[str] = mapped_column(String(20))
+    sb_date: Mapped[date] = mapped_column(Date)
+    port: Mapped[str] = mapped_column(String(10), default="")
+    invoice_no: Mapped[str] = mapped_column(String(100))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    value: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+
+
+V24_TABLES = [ShippingBillRow]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]
