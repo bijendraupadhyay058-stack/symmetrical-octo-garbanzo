@@ -5,7 +5,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from decimal import Decimal as D  # noqa: E402
 
-import pytest  # noqa: E402
 
 from fintax_gst.core.models import Source  # noqa: E402
 from fintax_gst.samples import CLIENT  # noqa: E402
