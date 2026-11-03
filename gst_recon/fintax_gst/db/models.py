@@ -1,0 +1,992 @@
+"""SQLAlchemy ORM models (SQLite). Money is stored as exact decimal text."""
+from __future__ import annotations
+
+from datetime import date, datetime, timezone
+from decimal import Decimal
+
+from sqlalchemy import (
+    Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, TypeDecorator, UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class DecimalText(TypeDecorator):
+    """Stores Decimal as TEXT so no binary floating point is ever involved."""
+
+    impl = String(40)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return str(Decimal(value))
+
+    def process_result_value(self, value, dialect):
+        return None if value is None else Decimal(value)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class SchemaMigration(Base):
+    __tablename__ = "schema_migrations"
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    applied_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Client(Base):
+    __tablename__ = "clients"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    trade_name: Mapped[str] = mapped_column(String(200), default="")
+    gstin: Mapped[str] = mapped_column(String(15), unique=True, index=True)
+    pan: Mapped[str] = mapped_column(String(10), index=True)
+    state_code: Mapped[str] = mapped_column(String(2))
+    state: Mapped[str] = mapped_column(String(80), default="")
+    address: Mapped[str] = mapped_column(Text, default="")
+    financial_year: Mapped[str] = mapped_column(String(7), default="")
+    registration_type: Mapped[str] = mapped_column(String(40), default="Regular")
+    return_frequency: Mapped[str] = mapped_column(String(20), default="Monthly")
+    contact_person: Mapped[str] = mapped_column(String(120), default="")
+    email: Mapped[str] = mapped_column(String(200), default="")
+    mobile: Mapped[str] = mapped_column(String(20), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    staff: Mapped[str] = mapped_column(String(80), default="")  # schema v14: firm staff responsible for the client
+
+
+class ImportTemplate(Base):
+    __tablename__ = "import_templates"
+    __table_args__ = (UniqueConstraint("name", name="uq_template_name"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    source_type: Mapped[str] = mapped_column(String(10))
+    mapping_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class SourceFile(Base):
+    __tablename__ = "source_files"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    source_type: Mapped[str] = mapped_column(String(10))
+    file_name: Mapped[str] = mapped_column(String(255))
+    file_path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    layout: Mapped[str] = mapped_column(String(40))
+    period: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    rows_read: Mapped[int] = mapped_column(Integer, default=0)
+    documents_imported: Mapped[int] = mapped_column(Integer, default=0)
+    rows_rejected: Mapped[int] = mapped_column(Integer, default=0)
+    documents_skipped_existing: Mapped[int] = mapped_column(Integer, default=0)
+    mapping_json: Mapped[str] = mapped_column(Text, default="{}")
+    warnings_json: Mapped[str] = mapped_column(Text, default="[]")
+    imported_by: Mapped[str] = mapped_column(String(80), default="")
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    client: Mapped[Client] = relationship()
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+    __table_args__ = (
+        Index("ix_inv_client_source_period", "client_id", "source_type", "period"),
+        Index("ix_inv_client_key", "client_id", "supplier_gstin", "invoice_no_norm"),
+        Index("ix_inv_identity", "client_id", "identity_hash"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    source_type: Mapped[str] = mapped_column(String(10))
+    source_rows: Mapped[str] = mapped_column(String(200), default="")
+    supplier_gstin: Mapped[str] = mapped_column(String(15))
+    supplier_name: Mapped[str] = mapped_column(String(200), default="")
+    doc_type: Mapped[str] = mapped_column(String(3))
+    invoice_no: Mapped[str] = mapped_column(String(100))
+    invoice_no_norm: Mapped[str] = mapped_column(String(100))
+    invoice_date: Mapped[date] = mapped_column(Date)
+    period: Mapped[str] = mapped_column(String(7))
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    invoice_value: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    place_of_supply: Mapped[str] = mapped_column(String(60), default="")
+    reverse_charge: Mapped[bool] = mapped_column(Boolean, default=False)
+    itc_availability: Mapped[str] = mapped_column(String(2), default="")
+    itc_reason: Mapped[str] = mapped_column(Text, default="")
+    is_amendment: Mapped[bool] = mapped_column(Boolean, default=False)
+    original_invoice_no: Mapped[str] = mapped_column(String(100), default="")
+    original_invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    supplier_period: Mapped[str] = mapped_column(String(20), default="")
+    identity_hash: Mapped[str] = mapped_column(String(32))
+    description: Mapped[str] = mapped_column(Text, default="")  # schema v3
+    ims_action: Mapped[str] = mapped_column(String(2), default="")  # schema v3
+    supply_type: Mapped[str] = mapped_column(String(40), default="")  # schema v4
+    hsn_json: Mapped[str] = mapped_column(Text, default="")  # schema v8: HSN lines of the document (JSON)
+    irn: Mapped[str] = mapped_column(String(64), default="")  # schema v9: e-invoice IRN
+    ref_no: Mapped[str] = mapped_column(String(30), default="")  # schema v9: e-invoice ack. / e-way bill number
+    ref_status: Mapped[str] = mapped_column(String(20), default="")  # schema v9: ACTIVE / CANCELLED
+    source_file: Mapped[SourceFile] = relationship()
+
+
+class ImportIssue(Base):
+    __tablename__ = "import_issues"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    sheet: Mapped[str] = mapped_column(String(80), default="")
+    row_ref: Mapped[str] = mapped_column(String(200))
+    severity: Mapped[str] = mapped_column(String(12))
+    message: Mapped[str] = mapped_column(Text)
+    raw_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+class ReconRun(Base):
+    __tablename__ = "recon_runs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    financial_year: Mapped[str] = mapped_column(String(7))
+    period_from: Mapped[str] = mapped_column(String(7))
+    period_to: Mapped[str] = mapped_column(String(7))
+    comparison: Mapped[str] = mapped_column(String(20), default="BOOKS_VS_GSTR2B")
+    settings_json: Mapped[str] = mapped_column(Text)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    engine_version: Mapped[str] = mapped_column(String(20))
+    summary_json: Mapped[str] = mapped_column(Text, default="{}")
+    source_file_ids: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(20), default="COMPLETED")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    client: Mapped[Client] = relationship()
+
+
+class ReconLineRow(Base):
+    __tablename__ = "recon_lines"
+    __table_args__ = (
+        UniqueConstraint("run_id", "line_no", name="uq_run_line"),
+        Index("ix_line_books", "books_invoice_id"),
+        Index("ix_line_g2b", "gstr2b_invoice_id"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("recon_runs.id", ondelete="CASCADE"), index=True)
+    line_no: Mapped[int] = mapped_column(Integer)
+    category: Mapped[str] = mapped_column(String(80), index=True)
+    books_invoice_id: Mapped[int | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
+    gstr2b_invoice_id: Mapped[int | None] = mapped_column(ForeignKey("invoices.id"), nullable=True)
+    match_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    flags_json: Mapped[str] = mapped_column(Text, default="[]")
+    reasons_json: Mapped[str] = mapped_column(Text, default="[]")
+    candidates_json: Mapped[str] = mapped_column(Text, default="[]")
+    date_diff_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(40))
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    assigned_to: Mapped[str] = mapped_column(String(80), default="")
+    action_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    #: schema v11: optimistic concurrency – every ORM update checks and increments it, so two
+    #: people saving the same line cannot overwrite each other unnoticed
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_by: Mapped[str] = mapped_column(String(80), default="")  # schema v11
+
+    __mapper_args__ = {"version_id_col": version}
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+    user: Mapped[str] = mapped_column(String(80), default="")
+    client_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(60))
+    entity: Mapped[str] = mapped_column(String(60))
+    entity_id: Mapped[str] = mapped_column(String(60), default="")
+    details_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
+V1_TABLES = [
+    SchemaMigration, Client, ImportTemplate, SourceFile, Invoice, ImportIssue, ReconRun, ReconLineRow, AuditLog,
+]
+
+
+# ------------------------------------------------------------------ schema v2
+class MatchDecision(Base):
+    """A user's manual decision about a books / GSTR-2B pair. Active decisions are
+    re-applied by every later reconciliation run of the client."""
+
+    __tablename__ = "match_decisions"
+    __table_args__ = (Index("ix_decision_client_active", "client_id", "active"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    books_invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    gstr2b_invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    decision: Mapped[str] = mapped_column(String(10))  # MATCH | REJECT
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Vendor(Base):
+    """Supplier contact and follow-up register, per client and supplier GSTIN."""
+
+    __tablename__ = "vendors"
+    __table_args__ = (UniqueConstraint("client_id", "gstin", name="uq_vendor_client_gstin"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    gstin: Mapped[str] = mapped_column(String(15))
+    name: Mapped[str] = mapped_column(String(200), default="")
+    contact_person: Mapped[str] = mapped_column(String(120), default="")
+    email: Mapped[str] = mapped_column(String(200), default="")
+    phone: Mapped[str] = mapped_column(String(20), default="")
+    followup_status: Mapped[str] = mapped_column(String(40), default="")
+    next_followup: Mapped[date | None] = mapped_column(Date, nullable=True)
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class Attachment(Base):
+    """Supporting evidence for an exception. The file is copied into the app's
+    attachment store; the line is identified by the documents it contains so the
+    evidence stays visible when the period is re-run."""
+
+    __tablename__ = "attachments"
+    __table_args__ = (Index("ix_attach_docs", "books_invoice_id", "gstr2b_invoice_id"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    line_no: Mapped[int] = mapped_column(Integer)
+    books_invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    gstr2b_invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    file_name: Mapped[str] = mapped_column(String(255))
+    stored_path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V2_TABLES = [MatchDecision, Vendor, Attachment]
+
+
+# ------------------------------------------------------------------ schema v3
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(60), unique=True)
+    full_name: Mapped[str] = mapped_column(String(120), default="")
+    role: Mapped[str] = mapped_column(String(20))
+    password_hash: Mapped[str] = mapped_column(String(300))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value_json: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcRuleRow(Base):
+    """Configurable ITC review rule. ``client_id`` NULL = applies to every client."""
+
+    __tablename__ = "itc_rules"
+    __table_args__ = (UniqueConstraint("code", "client_id", name="uq_rule_code_client"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(40))
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True)
+    definition_json: Mapped[str] = mapped_column(Text)
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcReview(Base):
+    """Reviewer's decision on a rule flag for one document."""
+
+    __tablename__ = "itc_reviews"
+    __table_args__ = (UniqueConstraint("invoice_id", "rule_code", name="uq_review_doc_rule"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"))
+    rule_code: Mapped[str] = mapped_column(String(40))
+    decision: Mapped[str] = mapped_column(String(12))  # CONFIRMED | DISMISSED
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcClaim(Base):
+    """ITC claim register: CLAIM, REVERSE and RECLAIM actions per books document and GSTR-3B period."""
+
+    __tablename__ = "itc_claims"
+    __table_args__ = (Index("ix_claim_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))  # GSTR-3B period of the action
+    action: Mapped[str] = mapped_column(String(10))  # CLAIM | REVERSE | RECLAIM
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    rule_ref: Mapped[str] = mapped_column(String(80), default="")
+    run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class Gstr3bEntry(Base):
+    """GSTR-3B Table 4 values per period, as imported. Re-imports supersede (never delete) older rows."""
+
+    __tablename__ = "gstr3b_entries"
+    __table_args__ = (Index("ix_3b_client_period", "client_id", "period", "active"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"))
+    period: Mapped[str] = mapped_column(String(7))
+    table_code: Mapped[str] = mapped_column(String(6))  # 4A1..4A5, 4B1, 4B2, 4C, 4D1, 4D2
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # schema v4 (Table 3.1 rows)
+
+
+class OtherItc(Base):
+    """GSTR-2B ITC outside invoice reconciliation: ISD credits and imports (bills of entry)."""
+
+    __tablename__ = "itc_other"
+    __table_args__ = (Index("ix_other_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    section: Mapped[str] = mapped_column(String(10))  # ISD | ISDA | IMPG | IMPGSEZ
+    party: Mapped[str] = mapped_column(String(60), default="")  # ISD GSTIN, SEZ supplier GSTIN or port code
+    doc_type: Mapped[str] = mapped_column(String(10), default="")
+    doc_no: Mapped[str] = mapped_column(String(60))
+    doc_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    itc_availability: Mapped[str] = mapped_column(String(2), default="")
+    identity_hash: Mapped[str] = mapped_column(String(32))
+
+
+V3_TABLES = [User, AppSetting, ItcRuleRow, ItcReview, ItcClaim, Gstr3bEntry, OtherItc]
+
+
+# ------------------------------------------------------------------ schema v4
+class Gstr1Summary(Base):
+    """GSTR-1 section totals per period (B2B, B2CL, B2CS, CDNR, CDNUR, EXP, NIL, amendments)."""
+
+    __tablename__ = "gstr1_summary"
+    __table_args__ = (Index("ix_g1s_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    section: Mapped[str] = mapped_column(String(12))
+    pos: Mapped[str] = mapped_column(String(4), default="")
+    rate: Mapped[str] = mapped_column(String(8), default="")
+    supply: Mapped[str] = mapped_column(String(12), default="")  # INTRA / INTER / WPAY / WOPAY / NIL / EXEMPT / NONGST
+    doc_count: Mapped[int] = mapped_column(Integer, default=0)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+
+
+class SyncAuthorization(Base):
+    """The client's authorisation to keep their data in a synchronised (cloud) location."""
+
+    __tablename__ = "sync_authorizations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    granted_by: Mapped[str] = mapped_column(String(120))  # client's authorised signatory
+    scope: Mapped[str] = mapped_column(Text)
+    granted_on: Mapped[date] = mapped_column(Date)
+    expires_on: Mapped[date] = mapped_column(Date)
+    evidence: Mapped[str] = mapped_column(Text, default="")  # e.g. reference of the signed consent letter
+    recorded_by: Mapped[str] = mapped_column(String(80), default="")
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class SyncState(Base):
+    __tablename__ = "sync_state"
+    client_gstin: Mapped[str] = mapped_column(String(15), primary_key=True)
+    last_export_seq: Mapped[int] = mapped_column(Integer, default=0)
+    last_import_seq: Mapped[int] = mapped_column(Integer, default=0)
+    last_import_origin: Mapped[str] = mapped_column(String(64), default="")
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class LetterRecord(Base):
+    __tablename__ = "letters"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    supplier_gstin: Mapped[str] = mapped_column(String(15))
+    issues: Mapped[int] = mapped_column(Integer, default=0)
+    amount: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    files_json: Mapped[str] = mapped_column(Text, default="[]")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class WorkingPaper(Base):
+    __tablename__ = "working_papers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    run_id: Mapped[int] = mapped_column(Integer)
+    period_from: Mapped[str] = mapped_column(String(7))
+    period_to: Mapped[str] = mapped_column(String(7))
+    prepared_by: Mapped[str] = mapped_column(String(80))
+    prepared_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    reviewed_by: Mapped[str] = mapped_column(String(80), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    review_notes: Mapped[str] = mapped_column(Text, default="")
+    package_path: Mapped[str] = mapped_column(Text)
+    sha256: Mapped[str] = mapped_column(String(64))
+
+
+class DueDateOverride(Base):
+    """A due-date extension notified by CBIC, recorded by the user (never assumed)."""
+
+    __tablename__ = "due_date_overrides"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    return_type: Mapped[str] = mapped_column(String(10))
+    period: Mapped[str] = mapped_column(String(7))
+    due_date: Mapped[date] = mapped_column(Date)
+    reference: Mapped[str] = mapped_column(String(120))
+    state_codes: Mapped[str] = mapped_column(String(200), default="")  # comma separated; empty = all states
+    recorded_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V5_TABLES = [DueDateOverride]
+
+
+class Gstr9cInput(Base):
+    """A figure or explanation for the GSTR-9C reconciliation that comes from the audited financial
+    statements or the preparer (e.g. 5A turnover per AFS, unbilled revenue, reasons for differences)."""
+
+    __tablename__ = "gstr9c_inputs"
+    __table_args__ = (UniqueConstraint("client_id", "financial_year", "item", name="uq_9c_input"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    financial_year: Mapped[str] = mapped_column(String(7))
+    item: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V6_TABLES = [Gstr9cInput]
+
+
+class Gstr1Hsn(Base):
+    """HSN-wise summary of outward supplies as reported in GSTR-1 (Table 12) – feeds GSTR-9 Table 17."""
+
+    __tablename__ = "gstr1_hsn"
+    __table_args__ = (Index("ix_g1hsn_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    hsn: Mapped[str] = mapped_column(String(10))
+    description: Mapped[str] = mapped_column(String(200), default="")
+    uqc: Mapped[str] = mapped_column(String(10), default="")
+    rate: Mapped[str] = mapped_column(String(8), default="")
+    segment: Mapped[str] = mapped_column(String(4), default="")  # B2B / B2C (from 2025) or blank
+    qty: Mapped[Decimal] = mapped_column(DecimalText)
+    taxable: Mapped[Decimal] = mapped_column(DecimalText)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+
+
+V7_TABLES = [Gstr1Hsn]
+
+
+class TdsTcsCredit(Base):
+    """TDS (GSTR-7) or TCS (GSTR-8) credit received by the client, from the portal's
+    *TDS and TCS credit received* download."""
+
+    __tablename__ = "tds_tcs_credits"
+    __table_args__ = (Index("ix_tdstcs_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(3))  # TDS or TCS
+    period: Mapped[str] = mapped_column(String(7))  # tax period of the deductor's GSTR-7 / operator's GSTR-8
+    party_gstin: Mapped[str] = mapped_column(String(15))
+    party_name: Mapped[str] = mapped_column(String(200), default="")
+    value: Mapped[Decimal] = mapped_column(DecimalText)  # taxable value paid (TDS) / net value of supplies (TCS)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    action: Mapped[str] = mapped_column(String(10), default="PENDING")  # ACCEPTED / REJECTED / PENDING
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V10_TABLES = [TdsTcsCredit]
+
+
+class ReturnFiling(Base):
+    """Date a return was filed (entered or imported), for late fees and interest on delay."""
+
+    __tablename__ = "return_filings"
+    __table_args__ = (UniqueConstraint("client_id", "return_type", "period", name="uq_return_filing"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    return_type: Mapped[str] = mapped_column(String(10))  # GSTR-1, GSTR-3B, GSTR-9
+    period: Mapped[str] = mapped_column(String(7))  # YYYY-MM, or the FY (2025-26) for GSTR-9
+    filed_on: Mapped[date] = mapped_column(Date)
+    arn: Mapped[str] = mapped_column(String(30), default="")
+    nil: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class InterestSettlement(Base):
+    """How a possible short payment or excess ITC of a period was dealt with: paid / reversed on a
+    date (DRC-03, a later GSTR-3B), or not payable with the reason."""
+
+    __tablename__ = "interest_settlements"
+    __table_args__ = (UniqueConstraint("client_id", "kind", "period", name="uq_interest_settlement"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # SHORT_PAYMENT or EXCESS_ITC
+    period: Mapped[str] = mapped_column(String(7))
+    status: Mapped[str] = mapped_column(String(12))  # SETTLED or NOT_PAYABLE
+    settled_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reference: Mapped[str] = mapped_column(String(60), default="")  # DRC-03 ARN, return period
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V12_TABLES = [ReturnFiling, InterestSettlement]
+
+
+class GstNotice(Base):
+    """A notice received by a client (DRC-01B, DRC-01C, ASMT-10, …) and the state of its reply."""
+
+    __tablename__ = "gst_notices"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    form: Mapped[str] = mapped_column(String(12))  # DRC-01B, DRC-01C, ASMT-10, OTHER
+    reference: Mapped[str] = mapped_column(String(80), default="")  # notice / DIN / reference number
+    notice_date: Mapped[date] = mapped_column(Date)
+    period_from: Mapped[str] = mapped_column(String(7))
+    period_to: Mapped[str] = mapped_column(String(7))
+    amount: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # difference stated in the notice
+    reply_due: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="OPEN")  # OPEN, REPLIED, CLOSED
+    replied_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    officer: Mapped[str] = mapped_column(String(200), default="")  # designation / jurisdiction of the officer
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V13_TABLES = [GstNotice]
+
+
+class ClientReminder(Base):
+    """A request for documents or clarifications prepared for a client (schema v15). The program never sends
+    it; this records that the message was copied or opened in the e-mail / WhatsApp app."""
+
+    __tablename__ = "client_reminders"
+    __table_args__ = (Index("ix_reminder_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    period: Mapped[str] = mapped_column(String(7))
+    channel: Mapped[str] = mapped_column(String(10))  # copy, email, whatsapp
+    items_json: Mapped[str] = mapped_column(Text, default="[]")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    made_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V15_TABLES = [ClientReminder]
+
+
+class SupplierPayment(Base):
+    """A payment to a supplier (payment register import or entered by hand), for the 180-day rule
+    (CGST Rule 37). Schema v16."""
+
+    __tablename__ = "supplier_payments"
+    __table_args__ = (Index("ix_payment_client", "client_id", "party_key"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    party_name: Mapped[str] = mapped_column(String(200), default="")
+    party_key: Mapped[str] = mapped_column(String(200), default="")  # normalised name, for matching
+    supplier_gstin: Mapped[str] = mapped_column(String(15), default="")
+    pay_date: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(DecimalText)
+    voucher_no: Mapped[str] = mapped_column(String(60), default="")
+    bill_ref: Mapped[str] = mapped_column(String(100), default="")  # bill-wise reference (supplier invoice no)
+    invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # set when marked paid by hand
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V16_TABLES = [SupplierPayment]
+
+
+class CommonCredit(Base):
+    """The user's figures for the Rule 42 working of a month (schema v17). Saving the month applies its
+    reversal in the GSTR-3B draft."""
+
+    __tablename__ = "common_credit"
+    __table_args__ = (UniqueConstraint("client_id", "period", name="uq_common_credit"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    t1: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively non-business
+    t2: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively exempt supplies
+    t4: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))  # exclusively taxable supplies
+    non_business: Mapped[bool] = mapped_column(Boolean, default=False)  # common inputs also for non-business (D2)
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CapitalGood(Base):
+    """A capital good used for both taxable and exempt supplies (Rule 43): its ITC is spread over 60 months."""
+
+    __tablename__ = "capital_goods"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    description: Mapped[str] = mapped_column(String(200))
+    invoice_no: Mapped[str] = mapped_column(String(100), default="")
+    invoice_date: Mapped[date] = mapped_column(Date)
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    disposed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V17_TABLES = [CommonCredit, CapitalGood]
+
+
+class PartyAddress(Base):
+    """Address of a customer / party, for e-invoice and e-way bill files (schema v18). ``party_key`` is the
+    GSTIN, or the normalised name of an unregistered party."""
+
+    __tablename__ = "party_addresses"
+    __table_args__ = (UniqueConstraint("client_id", "party_key", name="uq_party_address"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    party_key: Mapped[str] = mapped_column(String(200))
+    gstin: Mapped[str] = mapped_column(String(15), default="")
+    name: Mapped[str] = mapped_column(String(200), default="")
+    address: Mapped[str] = mapped_column(String(200), default="")
+    place: Mapped[str] = mapped_column(String(100), default="")
+    pin: Mapped[str] = mapped_column(String(6), default="")
+    state_code: Mapped[str] = mapped_column(String(2), default="")
+    distance_km: Mapped[int] = mapped_column(Integer, default=0)  # from the client's place (0: portal works it out)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V18_TABLES = [PartyAddress]
+
+
+class BooksGstr3b(Base):
+    """GSTR-3B as prepared in the books (TallyPrime's GSTR-3B report) – kept apart from the GSTR-3B filed on the
+    portal (Gstr3bEntry). Schema v19."""
+
+    __tablename__ = "books_gstr3b"
+    __table_args__ = (Index("ix_books3b_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    table_code: Mapped[str] = mapped_column(String(6))
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+
+
+V19_TABLES = [BooksGstr3b]
+
+
+class LedgerEntry(Base):
+    """A line of the electronic cash ledger or the electronic credit ledger downloaded from the GST portal.
+    Amounts are signed: credits (deposits, ITC) positive, debits (payments, set-off) negative. Schema v20."""
+
+    __tablename__ = "ledger_entries"
+    __table_args__ = (Index("ix_ledger_client", "client_id", "ledger"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    ledger: Mapped[str] = mapped_column(String(8))  # CASH / CREDIT
+    entry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    tax_period: Mapped[str] = mapped_column(String(40), default="")
+    description: Mapped[str] = mapped_column(String(300), default="")
+    txn: Mapped[str] = mapped_column(String(4), default="")  # CR / DR / BAL (opening / closing balance line)
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    bal_igst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_cgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_sgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    bal_cess: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V20_TABLES = [LedgerEntry]
+
+
+class OutboxMail(Base):
+    """An e-mail prepared by the program (supplier letter, client report, document reminder). It is sent only when
+    a user approves it on the Outbox page, through the firm's own mail account. Schema v21."""
+
+    __tablename__ = "email_outbox"
+    __table_args__ = (Index("ix_outbox_status", "status"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True, index=True)
+    kind: Mapped[str] = mapped_column(String(20))  # supplier_letter / client_report / reminder / other
+    ref: Mapped[str] = mapped_column(String(80), default="")  # e.g. supplier GSTIN or period
+    to_addr: Mapped[str] = mapped_column(String(400), default="")
+    cc_addr: Mapped[str] = mapped_column(String(400), default="")
+    subject: Mapped[str] = mapped_column(String(300), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    attachments_json: Mapped[str] = mapped_column(Text, default="[]")
+    status: Mapped[str] = mapped_column(String(10), default="draft")  # draft / sent / failed / cancelled
+    error: Mapped[str] = mapped_column(String(500), default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    sent_by: Mapped[str] = mapped_column(String(80), default="")
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+V21_TABLES = [OutboxMail]
+
+
+class FeeInvoice(Base):
+    """The firm's own fee invoice to a client (practice billing). Schema v22. A cancelled invoice keeps its number."""
+
+    __tablename__ = "fee_invoices"
+    __table_args__ = (UniqueConstraint("number", name="uq_fee_invoice_number"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    number: Mapped[str] = mapped_column(String(40))
+    invoice_date: Mapped[date] = mapped_column(Date)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    lines_json: Mapped[str] = mapped_column(Text, default="[]")  # [{"text": ..., "amount": "..."}]
+    sac: Mapped[str] = mapped_column(String(10), default="")
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    total: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    status: Mapped[str] = mapped_column(String(10), default="issued")  # issued / cancelled
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class FeeReceipt(Base):
+    """Money received from a client against fees (with TDS deducted by the client). Schema v22."""
+
+    __tablename__ = "fee_receipts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    invoice_id: Mapped[int | None] = mapped_column(ForeignKey("fee_invoices.id"), nullable=True, index=True)
+    received_on: Mapped[date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    tds: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    mode: Mapped[str] = mapped_column(String(20), default="")  # bank / UPI / cheque / cash
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class StaffTask(Base):
+    """A piece of work for a staff member, entered by hand or created from the return due dates. Schema v22."""
+
+    __tablename__ = "staff_tasks"
+    __table_args__ = (Index("ix_task_assignee_status", "assignee", "status"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int | None] = mapped_column(ForeignKey("clients.id"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    assignee: Mapped[str] = mapped_column(String(80), default="")
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(10), default="open")  # open / done
+    auto_key: Mapped[str | None] = mapped_column(String(80), nullable=True, unique=True)  # client:return:period
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    done_by: Mapped[str] = mapped_column(String(80), default="")
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+V22_TABLES = [FeeInvoice, FeeReceipt, StaffTask]
+
+
+class RcmEntry(Base):
+    """A reverse-charge purchase from an unregistered person (no GSTIN, so not in the purchase register that is
+    matched with GSTR-2B): rent, advocate, GTA, director … entered or imported. Schema v23."""
+
+    __tablename__ = "rcm_entries"
+    __table_args__ = (Index("ix_rcm_client_period", "client_id", "period"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    period: Mapped[str] = mapped_column(String(7))
+    entry_date: Mapped[date] = mapped_column(Date)
+    supplier_name: Mapped[str] = mapped_column(String(200), default="")
+    bill_no: Mapped[str] = mapped_column(String(60), default="")
+    supplier_state: Mapped[str] = mapped_column(String(2), default="")
+    description: Mapped[str] = mapped_column(String(300), default="")
+    taxable: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    rate: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    sgst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    cess: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class BankLine(Base):
+    """A line of the client's bank statement (to match GST payments with the electronic cash ledger). Schema v23."""
+
+    __tablename__ = "bank_lines"
+    __table_args__ = (Index("ix_bank_client_date", "client_id", "txn_date"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    txn_date: Mapped[date] = mapped_column(Date)
+    narration: Mapped[str] = mapped_column(String(400), default="")
+    reference: Mapped[str] = mapped_column(String(80), default="")
+    debit: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    credit: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    balance: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    source_row: Mapped[str] = mapped_column(String(80), default="")
+
+
+V23_TABLES = [RcmEntry, BankLine]
+
+
+class ShippingBillRow(Base):
+    """A shipping bill (ICEGATE / customs broker list) for an export invoice. Schema v24."""
+
+    __tablename__ = "shipping_bills"
+    __table_args__ = (Index("ix_sb_client", "client_id", "invoice_no"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    source_file_id: Mapped[int | None] = mapped_column(ForeignKey("source_files.id"), nullable=True, index=True)
+    sb_no: Mapped[str] = mapped_column(String(20))
+    sb_date: Mapped[date] = mapped_column(Date)
+    port: Mapped[str] = mapped_column(String(10), default="")
+    invoice_no: Mapped[str] = mapped_column(String(100))
+    igst: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    value: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+
+
+V24_TABLES = [ShippingBillRow]
+
+
+class LitigationCase(Base):
+    """A GST dispute from show-cause notice to order, appeal, tribunal or court. Schema v25."""
+
+    __tablename__ = "litigation_cases"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    notice_id: Mapped[int | None] = mapped_column(ForeignKey("gst_notices.id"), nullable=True)
+    title: Mapped[str] = mapped_column(String(200))
+    stage: Mapped[str] = mapped_column(String(20), default="SCN")  # SCN / ORDER / APPEAL / TRIBUNAL / COURT
+    form: Mapped[str] = mapped_column(String(12), default="")  # DRC-01, DRC-07, APL-01, APL-04, APL-05 …
+    reference: Mapped[str] = mapped_column(String(80), default="")  # DIN / order / ARN
+    order_date: Mapped[date | None] = mapped_column(Date, nullable=True)  # date the order was communicated
+    period_from: Mapped[str] = mapped_column(String(7), default="")
+    period_to: Mapped[str] = mapped_column(String(7), default="")
+    tax: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    interest: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    penalty: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    tax_admitted: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    pre_deposit_paid: Mapped[Decimal] = mapped_column(DecimalText, default=Decimal(0))
+    pre_deposit_ref: Mapped[str] = mapped_column(String(80), default="")  # DRC-03 ARN
+    appeal_filed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    appeal_ref: Mapped[str] = mapped_column(String(80), default="")
+    hearing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), default="OPEN")  # OPEN / WON / LOST / SETTLED / WITHDRAWN
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CaseEvent(Base):
+    """A dated step of a case: notice, reply, hearing, order, payment, appeal filed, note. Schema v25."""
+
+    __tablename__ = "case_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    case_id: Mapped[int] = mapped_column(ForeignKey("litigation_cases.id"), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    on: Mapped[date] = mapped_column(Date)
+    kind: Mapped[str] = mapped_column(String(12), default="note")
+    text: Mapped[str] = mapped_column(Text, default="")
+    user: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V25_TABLES = [LitigationCase, CaseEvent]
+
+
+class GstinStatus(Base):
+    """Registration status of a GSTIN as last checked (portal search / verification list). Shared by all clients:
+    the status of a supplier is the same whoever buys from it. Schema v26."""
+
+    __tablename__ = "gstin_status"
+    gstin: Mapped[str] = mapped_column(String(15), primary_key=True)
+    legal_name: Mapped[str] = mapped_column(String(200), default="")
+    trade_name: Mapped[str] = mapped_column(String(200), default="")
+    status: Mapped[str] = mapped_column(String(20), default="")  # Active / Cancelled / Suspended / Inactive
+    cancelled_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    registered_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    taxpayer_type: Mapped[str] = mapped_column(String(40), default="")  # Regular / Composition / …
+    filing_frequency: Mapped[str] = mapped_column(String(20), default="")  # Monthly / Quarterly
+    checked_on: Mapped[date] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(120), default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+
+
+V26_TABLES = [GstinStatus]
+V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]
