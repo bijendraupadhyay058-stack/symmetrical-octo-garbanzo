@@ -234,6 +234,11 @@ class ItcService:
 
     # ------------------------------------------------------------------- IMS
     def _docs(self, s, client_id: int, source: Source, periods=None, upto: str | None = None):
+        """Documents of a source; the same request is answered from the cache until the data changes."""
+        key = ("itc_docs", client_id, source.value, tuple(periods) if periods is not None else None, upto)
+        return list(self.db.cached(key, lambda: self._docs_load(s, client_id, source, periods, upto)))
+
+    def _docs_load(self, s, client_id: int, source: Source, periods=None, upto: str | None = None):
         it = Invoice.__table__
         q = select(it).where(it.c.client_id == client_id, it.c.source_type == source.value)
         if periods is not None:
@@ -254,6 +259,11 @@ class ItcService:
 
     # --------------------------------------------------------------- review
     def review_run(self, run_id: int, as_of: date | None = None, ctx=None) -> tuple[list[DocReview], dict]:
+        """Review a run's documents (kept until the data changes)."""
+        as_of = as_of or date.today()
+        return self.db.cached(("review_run", run_id, as_of), lambda: self._review_run(run_id, as_of, ctx))
+
+    def _review_run(self, run_id: int, as_of: date | None = None, ctx=None) -> tuple[list[DocReview], dict]:
         """Review a run's documents; ``ctx`` is the already loaded run (saves loading it again)."""
         ctx = ctx if ctx is not None and ctx.run.id == run_id else self.recon.load(run_id)
         if not ctx.run.comparison.startswith("BOOKS"):
@@ -309,6 +319,13 @@ class ItcService:
 
     def table4(self, client_id: int, periods: list[str], as_of: date | None = None,
                loaded=None) -> list[PeriodWorking]:
+        """GSTR-3B Table 4 working of the months (kept until the data changes)."""
+        as_of = as_of or date.today()
+        return self.db.cached(("table4", client_id, tuple(periods), as_of),
+                              lambda: self._table4(client_id, periods, as_of, loaded))
+
+    def _table4(self, client_id: int, periods: list[str], as_of: date | None = None,
+               loaded=None) -> list[PeriodWorking]:
         """``loaded`` is a run already in memory (the desktop's current run): it is not loaded again."""
         with self.db.session() as s:
             run_for = self._latest_month_runs(s, client_id, periods)
@@ -331,6 +348,12 @@ class ItcService:
 
     # ---------------------------------------------------------------- annual
     def annual(self, client_id: int, fy: str, cutoff: str | None = None,
+               portal_8a: Decimal | None = None) -> Table8:
+        """GSTR-9 Table 8 working (kept until the data changes)."""
+        return self.db.cached(("annual", client_id, fy, cutoff, portal_8a),
+                              lambda: self._annual(client_id, fy, cutoff, portal_8a))
+
+    def _annual(self, client_id: int, fy: str, cutoff: str | None = None,
                portal_8a: Decimal | None = None) -> Table8:
         cutoff = parse_period(cutoff) if cutoff else default_cutoff(fy)
         months = fy_months(fy)

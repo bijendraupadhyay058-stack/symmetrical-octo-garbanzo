@@ -81,6 +81,19 @@ class DashboardPage(LazyPage):
             v.deleteLater()
         self.chart_views = []
 
+    def warm(self):
+        st = self.state
+        if st.client is None or st.run_id is None:
+            return None
+        def job():
+            from ...engine.summary import category_summary, dashboard, month_summary, supplier_summary
+
+            ctx = st.run_context()  # loaded on a worker thread; the summaries are remembered for the redraw
+            if ctx is not None:
+                for fn in (dashboard, month_summary, supplier_summary, category_summary):
+                    fn(ctx.result.lines)
+        return job
+
     def refresh(self) -> None:
         st = self.state
         self._clear_charts()

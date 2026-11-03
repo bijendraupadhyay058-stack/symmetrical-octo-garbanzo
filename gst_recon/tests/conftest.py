@@ -65,3 +65,6 @@ def sample_files(tmp_path_factory):
 def _no_internet_probe(monkeypatch):
     """The window's background connection check never reaches the internet in tests."""
     monkeypatch.setattr("fintax_gst.services.portal.is_online", lambda *a, **k: True)
+
+
+os.environ.setdefault("FINTAX_SYNC_UI", "1")  # page loads run in line in tests (one test covers the async path)

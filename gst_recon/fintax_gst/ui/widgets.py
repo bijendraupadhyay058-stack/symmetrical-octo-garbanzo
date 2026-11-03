@@ -1,14 +1,17 @@
 """Reusable widgets and table models."""
 from __future__ import annotations
 
+import logging
+import os
+import threading
 from collections.abc import Callable, Sequence
 from datetime import date
 from decimal import Decimal
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QSortFilterProxyModel, Qt, Signal
+from PySide6.QtCore import QAbstractTableModel, QModelIndex, QObject, QSortFilterProxyModel, Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QAbstractItemView, QFrame, QHBoxLayout, QHeaderView, QLabel, QPushButton, QSizePolicy, QTableView,
+    QAbstractItemView, QFrame, QHBoxLayout, QHeaderView, QLabel, QMessageBox, QPushButton, QSizePolicy, QTableView,
     QVBoxLayout, QWidget,
 )
 
@@ -58,13 +61,88 @@ def primary(text: str) -> QPushButton:
     return b
 
 
+class _AsyncRelay(QObject):
+    done = Signal(int, object, object)  # sequence, result, error
+
+
+def _sync_loads() -> bool:
+    """Tests set FINTAX_SYNC_UI=1 to run page loads in line (results are checked straight after a reload)."""
+    return os.environ.get("FINTAX_SYNC_UI") == "1"
+
+
 class LazyPage(QWidget):
     """Page that refreshes only while visible; hidden pages refresh when next shown."""
+
+    def run_async(self, compute, apply, on_error=None) -> None:
+        """Run ``compute()`` (no widgets in it) on a worker thread and ``apply(result)`` here when it is done, so
+        the window stays responsive with large data. Only the latest request of a page is applied."""
+        if _sync_loads():
+            try:
+                result = compute()
+            except Exception as exc:  # noqa: BLE001 - shown to the user
+                if on_error is None:
+                    raise
+                on_error(exc)
+                return
+            apply(result)
+            return
+        if not hasattr(self, "_relay"):
+            self._relay = _AsyncRelay()
+            self._relay.done.connect(self._async_done)
+            self._seq = 0
+            self._apply = {}
+        self._seq += 1
+        seq = self._seq
+        self._apply[seq] = (apply, on_error)
+        self.setCursor(Qt.BusyCursor)
+        relay = self._relay
+
+        def work():
+            try:
+                result, error = compute(), None
+            except Exception as exc:  # noqa: BLE001 - passed back to the page
+                result, error = None, exc
+            try:
+                relay.done.emit(seq, result, error)
+            except RuntimeError:  # the page was closed meanwhile
+                pass
+
+        threading.Thread(target=work, name=f"load-{type(self).__name__}", daemon=True).start()
+
+    def _async_done(self, seq: int, result, error) -> None:
+        apply, on_error = self._apply.pop(seq, (None, None))
+        if seq != self._seq or apply is None:
+            return  # a newer load was started – this result is out of date
+        self.unsetCursor()
+        if error is not None:
+            if on_error is not None:
+                on_error(error)
+            else:
+                logging.getLogger(__name__).error("page load failed: %s", error, exc_info=error)
+                QMessageBox.warning(self, "FIN TAX PRO", f"Could not load this page: {error}")
+            return
+        apply(result)
+
+    @property
+    def loading(self) -> bool:
+        return bool(getattr(self, "_apply", None))
+
+    def warm(self):
+        """Pages with slow workings return a function (run on a worker thread, no widgets) that computes them;
+        the page's refresh then finds them ready in the cache. None: nothing slow to prepare."""
+        return None
+
+    def _refresh(self, fn) -> None:
+        job = self.warm()
+        if job is None:
+            fn()
+        else:
+            self.run_async(job, lambda _r: fn())
 
     def lazy(self, fn):
         def slot(*_args):
             if self.isVisible():
-                fn()
+                self._refresh(fn)
             else:
                 self._pending = fn
         return slot
@@ -74,7 +152,7 @@ class LazyPage(QWidget):
         fn = getattr(self, "_pending", None)
         if fn is not None:
             self._pending = None
-            fn()
+            self._refresh(fn)
 
 
 class KpiCard(QFrame):
@@ -110,7 +188,7 @@ class Table(QTableView):
         self.verticalHeader().setDefaultSectionSize(26)
         self.horizontalHeader().setStretchLastSection(stretch_last)
         self.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
-        self.horizontalHeader().setResizeContentsPrecision(150)  # size columns from a sample, not 50k rows
+        self.horizontalHeader().setResizeContentsPrecision(60)  # size columns from a sample, not 50k rows
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.setWordWrap(False)
 
@@ -203,6 +281,21 @@ def line_row(ln: ReconLine, evidence: int = 0) -> list:
             ln.diff("itc"), itc_at_risk(ln), ln.confidence, ln.assigned_to, evidence or None]
 
 
+_ROWS: dict[int, tuple[list, list]] = {}  # id(lines) -> (lines, rows): table rows built once per loaded run
+
+
+def prebuild_rows(lines: list[ReconLine]) -> list:
+    """Table rows of a run's lines (no evidence counts); built on a worker thread by the pages' warm-up."""
+    hit = _ROWS.get(id(lines))
+    if hit is not None and hit[0] is lines:
+        return hit[1]
+    rows = [line_row(ln) for ln in lines]
+    if len(_ROWS) > 4:
+        _ROWS.clear()
+    _ROWS[id(lines)] = (lines, rows)
+    return rows
+
+
 class LinesModel(RowsModel):
     def __init__(self):
         super().__init__(LINE_HEADERS, [], [k if k != "cat" else "text" for k in LINE_KINDS])
@@ -211,13 +304,22 @@ class LinesModel(RowsModel):
     def set_lines(self, lines: list[ReconLine], evidence: dict[int, int] | None = None) -> None:
         evidence = evidence or {}
         self.lines = lines
-        self.set_rows([line_row(ln, evidence.get(ln.line_no, 0)) for ln in lines], payload=lines)
+        base = prebuild_rows(lines)
+        rows = list(base)
+        for i, ln in enumerate(lines):
+            n = evidence.get(ln.line_no)
+            if n:
+                rows[i] = rows[i][:-1] + [n]
+        self.set_rows(rows, payload=lines)
 
     def update_line(self, ln: ReconLine) -> None:
         for i, existing in enumerate(self.lines):
             if existing.line_no == ln.line_no:
                 evidence = self.rows[i][-1] or 0
                 self.rows[i] = line_row(ln, evidence)
+                hit = _ROWS.get(id(self.lines))
+                if hit is not None and hit[0] is self.lines:
+                    hit[1][i] = line_row(ln)  # keep the shared rows in step with the changed line
                 self.dataChanged.emit(self.index(i, 0), self.index(i, self.columnCount() - 1))
                 return
 

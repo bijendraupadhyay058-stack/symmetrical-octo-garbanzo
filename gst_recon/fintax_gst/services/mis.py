@@ -71,6 +71,10 @@ class MisService:
         self.db = db
 
     def build(self, client_id: int, fy: str, today: date | None = None) -> Mis:
+        today = today or date.today()
+        return self.db.cached(("mis", client_id, fy, today), lambda: self._build(client_id, fy, today))
+
+    def _build(self, client_id: int, fy: str, today: date | None = None) -> Mis:
         from .compliance import ComplianceService
         from .gstr3b import Gstr3bService
         from .supplier_score import SupplierScoreService

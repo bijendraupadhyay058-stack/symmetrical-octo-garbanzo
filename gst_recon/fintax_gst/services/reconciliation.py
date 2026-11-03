@@ -331,6 +331,11 @@ class ReconciliationService:
 
     # ------------------------------------------------------------- loading
     def load(self, run_id: int) -> RunContext:
+        """The run with its lines and documents. Loaded once and kept until the data changes – several pages and
+        workings use the same run, and loading a large one takes a second or more."""
+        return self.db.cached(("recon_load", run_id), lambda: self._load(run_id))
+
+    def _load(self, run_id: int) -> RunContext:
         with self.db.session() as s:
             run = s.get(ReconRun, run_id)
             if run is None:

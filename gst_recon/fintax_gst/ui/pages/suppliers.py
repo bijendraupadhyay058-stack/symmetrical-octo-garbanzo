@@ -184,6 +184,20 @@ class SuppliersPage(LazyPage):
         lay.addStretch()
         return frame
 
+    def warm(self):
+        st = self.state
+        if st.client is None or st.run_id is None:
+            return None
+        def job():
+            from ..widgets import prebuild_rows
+
+            ctx = st.run_context()  # the run is loaded on a worker thread, then the page draws from it
+            if ctx is not None:
+                prebuild_rows(ctx.result.lines)
+                supplier_summary(ctx.result.lines, sort_key)
+        sort_key = SORTS[self.sort_cb.currentIndex()][1]
+        return job
+
     def reload(self) -> None:
         st = self.state
         self.score_model.set_rows([])  # recomputed on request (reads the whole year)

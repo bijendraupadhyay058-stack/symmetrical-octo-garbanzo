@@ -71,6 +71,13 @@ class HealthPage(LazyPage):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()
 
+    def warm(self):
+        st = self.state
+        if st.client is None:
+            return None
+        cid, fy = st.client.id, st.fy
+        return lambda: HealthService(st.db).check(cid, fy)
+
     def reload(self) -> None:
         st = self.state
         if st.client is None:

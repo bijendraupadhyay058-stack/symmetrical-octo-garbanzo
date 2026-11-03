@@ -652,6 +652,30 @@ class ReturnsPage(LazyPage):
         return QColor(SEV_COLORS.get(str(self.find_model.rows[row][2]).lower(), "#FFFFFF"))
 
     # ---------------------------------------------------------------- data
+    def warm(self):
+        """Table 4 and Table 8 workings of the year, prepared on a worker thread (the slow part with large data)."""
+        st = self.state
+        if st.client is None:
+            return None
+        cid, fy = st.client.id, st.fy
+        cur_from, cur_to, portal_text = self.from_cb.currentText(), self.to_cb.currentText(), self.portal_8a.text()
+
+        def job():
+            months = fy_months(fy)
+            run = st.run_context()
+            pf, pt = cur_from, cur_to
+            if run is not None and run.run.period_from in months:
+                pf = run.run.period_from
+                pt = run.run.period_to if run.run.period_to in months else pf
+            if pf in months and pt in months:
+                st.itc.table4(cid, months_between(pf, pt), date.today(), run)
+            try:
+                portal = Decimal(portal_text.replace(",", "")) if portal_text.strip() else None
+            except InvalidOperation:
+                portal = None
+            st.itc.annual(cid, fy, default_cutoff(fy), portal)
+        return job
+
     def reload(self) -> None:
         st = self.state
         self.import_btn.setEnabled(st.can("import") and st.client is not None)

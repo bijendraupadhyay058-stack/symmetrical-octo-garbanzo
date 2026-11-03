@@ -187,6 +187,15 @@ class MisPage(LazyPage):
             if w is not None:
                 w.deleteLater()
 
+    def warm(self):
+        from ...services.mis import MisService
+
+        st = self.state
+        if st.client is None:
+            return None
+        cid, fy = st.client.id, st.fy
+        return lambda: MisService(st.db).build(cid, fy)
+
     def reload(self) -> None:
         from ...services.mis import MisService
 

@@ -63,6 +63,33 @@ def is_pending(line: ReconLine) -> bool:
     return line.status not in CLOSED_STATUSES
 
 
+# ------------------------------------------------------------------ memo
+_MEMO: dict = {}
+
+
+def _memo(fn):
+    """Remember a summary for the same list of lines while no line's status, category or documents changed –
+    pages redraw often and a large run has tens of thousands of lines."""
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(lines, *args, **kwargs):
+        if kwargs:
+            return fn(lines, *args, **kwargs)
+        fp = hash(tuple((ln.status, ln.category, id(ln.books), id(ln.gstr2b)) for ln in lines))
+        key = (fn.__name__, id(lines), len(lines), fp, args)
+        hit = _MEMO.get(key)
+        if hit is not None and hit[0] is lines:
+            res = hit[1]
+        else:
+            res = fn(lines, *args)
+            if len(_MEMO) > 32:
+                _MEMO.clear()
+            _MEMO[key] = (lines, res)
+        return list(res) if isinstance(res, list) else (dict(res) if isinstance(res, dict) else res)
+    return wrapper
+
+
 def side_totals(lines: list[ReconLine]) -> tuple[Totals, Totals, Totals]:
     """(current books, GSTR-2B, prior-period books matched in this run)."""
     books, g2b, prior = Totals(), Totals(), Totals()
@@ -87,6 +114,7 @@ class CategoryRow:
         return self.books.itc - self.gstr2b.itc
 
 
+@_memo
 def category_summary(lines: list[ReconLine]) -> list[CategoryRow]:
     rows = {c: CategoryRow(c) for c in CATEGORY_ORDER}
     for ln in lines:
@@ -101,6 +129,7 @@ def category_summary(lines: list[ReconLine]) -> list[CategoryRow]:
     return [rows[c] for c in CATEGORY_ORDER]
 
 
+@_memo
 def dashboard(lines: list[ReconLine]) -> dict:
     books, g2b, prior = side_totals(lines)
     by_cat = defaultdict(int)
@@ -173,6 +202,7 @@ class SupplierRow:
         return self.books.itc - self.gstr2b.itc
 
 
+@_memo
 def supplier_summary(lines: list[ReconLine], sort_by: str = "itc_difference") -> list[SupplierRow]:
     rows: dict[str, SupplierRow] = {}
 
@@ -225,6 +255,7 @@ class MonthRow:
         return self.books.itc - self.gstr2b.itc
 
 
+@_memo
 def month_summary(lines: list[ReconLine]) -> list[MonthRow]:
     """Books grouped by booking period; GSTR-2B grouped by return period."""
     rows: dict[str, MonthRow] = {}

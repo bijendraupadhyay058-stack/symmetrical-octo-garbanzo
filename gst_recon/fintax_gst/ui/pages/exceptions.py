@@ -184,6 +184,18 @@ class ExceptionsPage(LazyPage):
         return scroll
 
     # -------------------------------------------------------------- data
+    def warm(self):
+        st = self.state
+        if st.client is None or st.run_id is None:
+            return None
+        def job():
+            from ..widgets import prebuild_rows
+
+            ctx = st.run_context()  # the run is loaded on a worker thread, then the page draws from it
+            if ctx is not None:
+                prebuild_rows(ctx.result.lines)
+        return job
+
     def reload(self, keep_line: int | None = None) -> None:
         st = self.state
         keep_line = keep_line if isinstance(keep_line, int) and not isinstance(keep_line, bool) else (

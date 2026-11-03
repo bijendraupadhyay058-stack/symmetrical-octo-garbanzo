@@ -141,6 +141,10 @@ class Rule37Service:
     # ---------------------------------------------------------------- tracker
     def track(self, client_id: int, as_of: date | None = None) -> list[BillStatus]:
         as_of = as_of or date.today()
+        return self.db.cached(("rule37_track", client_id, as_of), lambda: self._track(client_id, as_of))
+
+    def _track(self, client_id: int, as_of: date | None = None) -> list[BillStatus]:
+        as_of = as_of or date.today()
         with self.db.session() as s:
             docs = list(s.scalars(select(Invoice).where(Invoice.client_id == client_id, Invoice.source_type == "BOOKS",
                                                         Invoice.reverse_charge.is_(False))

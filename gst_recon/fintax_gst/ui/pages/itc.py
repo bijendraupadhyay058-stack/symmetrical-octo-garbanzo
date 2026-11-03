@@ -245,6 +245,13 @@ class ItcPage(LazyPage):
         sev = self.flag_model.rows[row][4]
         return QColor(SEVERITY_COLORS.get(sev, "#FFFFFF"))
 
+    def warm(self):
+        st = self.state
+        if st.client is None or st.run_id is None:
+            return None
+        run_id, as_of = st.run_id, _d(self.as_of.date())
+        return lambda: st.itc.review_run(run_id, as_of, st.run_context())
+
     def reload(self) -> None:
         st = self.state
         self._apply_permissions()

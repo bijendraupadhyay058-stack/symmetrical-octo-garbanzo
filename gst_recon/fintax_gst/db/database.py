@@ -1,6 +1,9 @@
 """Engine/session creation, versioned migrations and backups."""
 from __future__ import annotations
 
+import threading
+import time
+
 import logging
 import os
 import shutil
@@ -301,6 +304,46 @@ class Database:
             self.engine = create_engine(self.url, echo=echo, future=True, pool_pre_ping=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.Session = sessionmaker(self.engine, expire_on_commit=False, future=True)
+        # Read cache for heavy, repeated loads (a reconciliation, a year of documents). Every committed write
+        # moves the generation on, which empties it; entries also expire, for other users of a shared database.
+        self.generation = 0
+        self._cache: dict = {}
+        self._cache_lock = threading.Lock()
+        event.listen(self.Session, "after_flush", self._mark_write)
+        event.listen(self.Session, "do_orm_execute", self._mark_bulk_write)
+
+    CACHE_SECONDS = 30.0
+
+    @staticmethod
+    def _mark_write(session, _ctx) -> None:
+        if session.new or session.dirty or session.deleted:
+            session.info["wrote"] = True
+
+    @staticmethod
+    def _mark_bulk_write(state) -> None:
+        if state.is_insert or state.is_update or state.is_delete:
+            state.session.info["wrote"] = True
+
+    def cached(self, key, compute):
+        """``compute()`` once per key until the data changes (or the entry is older than CACHE_SECONDS)."""
+        now = time.monotonic()
+        with self._cache_lock:
+            hit = self._cache.get(key)
+            if hit is not None and hit[0] == self.generation and now - hit[1] < self.CACHE_SECONDS:
+                return hit[2]
+            gen = self.generation
+        value = compute()
+        with self._cache_lock:
+            if gen == self.generation:  # not overtaken by a write while computing
+                if len(self._cache) > 64:
+                    self._cache.clear()
+                self._cache[key] = (gen, now, value)
+        return value
+
+    def invalidate(self) -> None:
+        with self._cache_lock:
+            self.generation += 1
+            self._cache.clear()
 
     @property
     def location(self) -> str:
@@ -344,7 +387,11 @@ class Database:
         s = self.Session()
         try:
             yield s
+            s.flush()
+            wrote = s.info.get("wrote", False)
             s.commit()
+            if wrote:
+                self.invalidate()
         except BaseException:
             s.rollback()
             raise
@@ -389,8 +436,10 @@ class Database:
         safety = self.backup(suffix="pre-restore")
         if not self.is_sqlite:
             self._restore_server(backup_file)
+            self.invalidate()
             return safety
         self.engine.dispose()
+        self.invalidate()  # restored data: nothing cached is valid
         for extra in ("-wal", "-shm"):
             Path(str(self.path) + extra).unlink(missing_ok=True)
         shutil.copyfile(backup_file, self.path)

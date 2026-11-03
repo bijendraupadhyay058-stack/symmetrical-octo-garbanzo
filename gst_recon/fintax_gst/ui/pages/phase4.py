@@ -593,6 +593,12 @@ class LettersPage(LazyPage):
         ctx = self.state.run_context()
         return ctx if ctx is not None and ctx.run.comparison.startswith("BOOKS") else None
 
+    def warm(self):
+        st = self.state
+        if st.client is None or st.run_id is None:
+            return None
+        return st.run_context  # the run is loaded on a worker thread, then the page draws from it
+
     def reload(self) -> None:
         from ...services.letters import LetterService
         from ...services.papers import WorkingPaperService

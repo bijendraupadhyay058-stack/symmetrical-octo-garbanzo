@@ -61,6 +61,10 @@ class HealthService:
 
     def check(self, client_id: int, fy: str, today: date | None = None) -> HealthReport:
         today = today or date.today()
+        return self.db.cached(("health", client_id, fy, today), lambda: self._check(client_id, fy, today))
+
+    def _check(self, client_id: int, fy: str, today: date | None = None) -> HealthReport:
+        today = today or date.today()
         months = fy_months(fy)
         current = f"{today:%Y-%m}"
         with self.db.session() as s:

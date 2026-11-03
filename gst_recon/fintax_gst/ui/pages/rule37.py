@@ -140,6 +140,13 @@ class Rule37Page(LazyPage):
     def _color(self, row, col):
         return QColor(COLORS.get(self.model.rows[row][0], "#FFFFFF")) if col == 0 else None
 
+    def warm(self):
+        st = self.state
+        if st.client is None:
+            return None
+        cid, as_of = st.client.id, _pydate(self.as_of)
+        return lambda: self._svc().track(cid, as_of)
+
     def reload(self) -> None:
         st = self.state
         can = st.client is not None and st.can("import")
