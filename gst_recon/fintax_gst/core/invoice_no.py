@@ -11,6 +11,7 @@ Two derived keys are produced; the original text is never modified.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 _SEPARATORS = re.compile(r"[\s\-/\\._,#:'\"|]+")
 _DIGITS = re.compile(r"\d+")
@@ -26,10 +27,12 @@ def clean_raw_invoice_no(value) -> str:
     return str(value).strip()
 
 
+@lru_cache(maxsize=262144)  # pure: the same numbers are normalised again and again
 def normalize_invoice_no(raw: str) -> str:
     return _SEPARATORS.sub("", raw or "").upper()
 
 
+@lru_cache(maxsize=262144)
 def loose_invoice_no(raw: str) -> str:
     return _DIGITS.sub(lambda m: str(int(m.group())), normalize_invoice_no(raw))
 

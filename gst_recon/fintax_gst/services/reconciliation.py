@@ -177,12 +177,17 @@ class ReconciliationService:
             progress(2, "Loading documents")
             file_of: dict[int, int] = {}
 
-            def load(source: Source, prior: bool = False):
-                q = select(Invoice).where(Invoice.client_id == client_id, Invoice.source_type == source.value)
-                q = q.where(Invoice.period < p_from) if prior else q.where(Invoice.period.between(p_from, p_to))
-                q = q.order_by(Invoice.id)  # same input order on every database engine
+            it = Invoice.__table__
+
+            def load(source: Source, prior: bool = False, exclude=None):
+                # Core rows (not ORM objects): several times faster for a year of documents
+                q = select(it).where(it.c.client_id == client_id, it.c.source_type == source.value)
+                q = q.where(it.c.period < p_from) if prior else q.where(it.c.period.between(p_from, p_to))
+                if exclude is not None:  # earlier documents already paired: left to the database to skip
+                    q = q.where(it.c.id.not_in(exclude), it.c.supplier_gstin != "")
+                q = q.order_by(it.c.id)  # same input order on every database engine
                 out = []
-                for r in s.scalars(q):
+                for r in s.execute(q):
                     file_of[r.id] = r.source_file_id
                     out.append(invoice_to_record(r, files.get(r.source_file_id, ""), prior))
                 return out
@@ -202,12 +207,12 @@ class ReconciliationService:
             if not books and not g2b:
                 raise ServiceError(f"No books or {compare_with.value} documents imported for {p_from} to {p_to}")
             # Earlier-period books not yet paired in a reconciliation of an earlier period.
-            consumed = set(s.scalars(
+            consumed = (
                 select(ReconLineRow.books_invoice_id).join(ReconRun, ReconRun.id == ReconLineRow.run_id).where(
                     ReconRun.client_id == client_id, ReconRun.period_to < p_from, ReconRun.comparison == comparison,
                     ReconLineRow.books_invoice_id.is_not(None), ReconLineRow.gstr2b_invoice_id.is_not(None),
-                    ReconLineRow.category.in_([c.value for c in PAIRED_CATEGORIES]))))
-            prior = [r for r in load(left, prior=True) if r.db_id not in consumed and r.supplier_gstin
+                    ReconLineRow.category.in_([c.value for c in PAIRED_CATEGORIES])))
+            prior = [r for r in load(left, prior=True, exclude=consumed) if r.supplier_gstin
                      and (left == Source.BOOKS or sales_code(r) not in ("31C", "31E"))]
 
             def engine_progress(pct, msg):

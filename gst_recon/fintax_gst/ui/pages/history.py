@@ -178,6 +178,13 @@ class OpenItemsPage(LazyPage):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()  # loads when first shown
 
+    def warm(self):
+        st = self.state
+        if st.client is None:
+            return None
+        cid, unrec = st.client.id, self.unrec.isChecked()
+        return lambda: st.tracking.open_items(cid, unrec)
+
     def reload(self) -> None:
         st = self.state
         if st.client is None:

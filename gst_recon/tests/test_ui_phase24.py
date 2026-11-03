@@ -36,3 +36,25 @@ def test_return_prep_page(qtbot, db, tmp_path, sample_files, messages):  # noqa:
     page.period.setText("2025-04")
     page.refresh()
     assert "not ready" in page.status.text()  # _load imports no sales register
+
+
+def test_pages_load_in_the_background(qtbot, db, tmp_path, sample_files, messages, monkeypatch):  # noqa: F811
+    monkeypatch.setenv("FINTAX_SYNC_UI", "0")
+    win = _window(qtbot, db, tmp_path, SETUP_SESSION)
+    monkeypatch.setenv("FINTAX_SYNC_UI", "1")
+    _load(win, sample_files)
+    monkeypatch.setenv("FINTAX_SYNC_UI", "0")
+    win.state.set_fy("2025-26")
+    for key in ("mis", "health", "returns", "itc", "dashboard", "suppliers"):
+        win.go(key)
+        page = win.pages[key]
+        qtbot.waitUntil(lambda page=page: not page.loading, timeout=20000)
+    assert win.pages["mis"].mis is not None and win.pages["health"].report is not None
+    assert win.pages["itc"].reviews
+    # a newer load wins over an older one
+    page = win.pages["health"]
+    results = []
+    page.run_async(lambda: "old", results.append)
+    page.run_async(lambda: "new", results.append)
+    qtbot.waitUntil(lambda: not page.loading, timeout=5000)
+    assert results == ["new"]

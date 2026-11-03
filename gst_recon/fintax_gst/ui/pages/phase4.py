@@ -459,6 +459,12 @@ class CompliancePage(LazyPage):
             CalendarService(self.state.db).delete_override(o.id, self.state.session)
             self.reload()
 
+    def warm(self):
+        from ...services.compliance import ComplianceService
+
+        db, fy = self.state.db, self.state.fy
+        return lambda: ComplianceService(db).annual_dashboard(fy)
+
     def reload(self) -> None:
         from ...services.compliance import ComplianceService
 

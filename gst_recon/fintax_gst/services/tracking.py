@@ -60,6 +60,11 @@ class TrackingService:
         return latest, seen
 
     def open_items(self, client_id: int, include_unreconciled: bool = True) -> list[OpenItem]:
+        """Unresolved documents (kept until the data changes)."""
+        return list(self.db.cached(("open_items", client_id, include_unreconciled),
+                                   lambda: self._open_items(client_id, include_unreconciled)))
+
+    def _open_items(self, client_id: int, include_unreconciled: bool = True) -> list[OpenItem]:
         """Documents not yet resolved, judged by the most recent run that contained them.
 
         A document is closed when its latest line pairs it with a counterpart or the

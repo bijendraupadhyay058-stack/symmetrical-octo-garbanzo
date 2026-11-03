@@ -30,6 +30,12 @@ class ComplianceService:
         self.db = db
 
     def client_summary(self, client_id: int, fy: str, today: date | None = None) -> ClientCompliance:
+        """Month-by-month status of the client's year (kept until the data changes)."""
+        today = today or date.today()
+        return self.db.cached(("client_summary", client_id, fy, today),
+                              lambda: self._client_summary(client_id, fy, today))
+
+    def _client_summary(self, client_id: int, fy: str, today: date | None = None) -> ClientCompliance:
         today = today or date.today()
         months = fy_months(fy)
         with self.db.session() as s:

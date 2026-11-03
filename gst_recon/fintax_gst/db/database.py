@@ -313,6 +313,7 @@ class Database:
         event.listen(self.Session, "do_orm_execute", self._mark_bulk_write)
 
     CACHE_SECONDS = 30.0
+    CACHE_ENTRIES = 16
 
     @staticmethod
     def _mark_write(session, _ctx) -> None:
@@ -335,8 +336,9 @@ class Database:
         value = compute()
         with self._cache_lock:
             if gen == self.generation:  # not overtaken by a write while computing
-                if len(self._cache) > 64:
-                    self._cache.clear()
+                self._cache.pop(key, None)
+                while len(self._cache) >= self.CACHE_ENTRIES:  # the oldest go first: memory stays bounded
+                    self._cache.pop(next(iter(self._cache)))
                 self._cache[key] = (gen, now, value)
         return value
 

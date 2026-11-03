@@ -28,6 +28,10 @@ class OutwardService:
         return out
 
     def sales(self, client_id: int, periods: list[str]):
+        """Sales register documents of the months (kept until the data changes)."""
+        return list(self.db.cached(("sales", client_id, tuple(periods)), lambda: self._sales(client_id, periods)))
+
+    def _sales(self, client_id: int, periods: list[str]):
         it = Invoice.__table__
         with self.db.session() as s:
             rows = s.execute(select(it).where(it.c.client_id == client_id, it.c.source_type == Source.SALES.value,
