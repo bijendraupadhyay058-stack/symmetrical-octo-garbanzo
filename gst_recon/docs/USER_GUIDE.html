@@ -47,6 +47,8 @@
   <a href="#phase14">7d. Tax checks, journals, payments, PAN view</a> ·
   <a href="#phase15">7e. GSTR-1 file, GSTR-3B draft, invoices by hand</a> ·
   <a href="#phase16">7f. Rule 42/43, e-invoice files, revised files, Tally ERP 9, earlier years</a> ·
+  <a href="#returnprep">7n. Return preparation</a> ·
+  <a href="#returncompare">7p. Return comparison</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -54,7 +56,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.12.1.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.13.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -484,6 +486,44 @@
    usable and the mouse pointer shows a busy sign until the page is filled. Figures are worked out once and reused
    until something is imported or changed, so going back to a page is instant. Each month's reconciliation no longer
    re-reads the whole year's purchase register.</p>
+
+<h2 id="returncompare">7p. Return comparison – GSTR-3B vs 2B, GSTR-1 vs 3B, GSTR-2A vs 2B</h2>
+<p><b>Return comparison</b> (left menu, under Return preparation) compares the returns themselves, month by month, for
+   the selected client and year. Quarterly (QRMP) clients are compared quarter by quarter.</p>
+<h3>1. Bring the returns from the GST portal</h3>
+<p>Sign in on the official GST portal yourself (<span class="btn">Open GST portal</span> opens the Returns Dashboard –
+   FIN TAX PRO never asks for or keeps your portal password) and download for each month:</p>
+<table>
+  <tr><th>Return</th><th>Where on the portal</th><th>File</th></tr>
+  <tr><td>GSTR-1</td><td>Returns Dashboard → GSTR-1 → View / Download</td><td>JSON (often in a ZIP)</td></tr>
+  <tr><td>GSTR-3B</td><td>Returns Dashboard → GSTR-3B → Download filed GSTR-3B</td><td>PDF of the filed return (or the
+      JSON)</td></tr>
+  <tr><td>GSTR-2A</td><td>Returns Dashboard → GSTR-2A → Download → Generate JSON / Excel</td><td>JSON / ZIP / Excel</td></tr>
+  <tr><td>GSTR-2B</td><td>Returns Dashboard → GSTR-2B → Download</td><td>JSON / Excel</td></tr>
+</table>
+<p>Click <span class="btn">Import from GST portal…</span> and select all the files at once, or
+   <span class="btn">Pick up from Downloads</span> to take this client's returns saved there in the last 7 days. Each
+   file is recognised by itself; the GSTIN in the file decides the client (a file for another client is saved for that
+   client and you are told). Files already imported are skipped. The tab <b>Returns imported</b> shows, month by month,
+   which of the four returns are in.</p>
+<p><b>GSTR-3B PDF:</b> the figures of Tables 3.1 and 4 are read from the text of the PDF. Check them once against the
+   PDF on the <b>GSTR-3B vs GSTR-2B</b> / <b>GSTR-1 vs GSTR-3B</b> tabs. A scanned (image) PDF cannot be read – use the
+   JSON instead.</p>
+<h3>2. Read the comparison</h3>
+<ul>
+  <li><b>GSTR-3B vs GSTR-2B</b> – ITC availed in GSTR-3B Table 4(A) against the ITC in GSTR-2B (B2B and notes, reverse
+      charge, ISD, imports), per tax head. A <b>positive</b> difference is ITC claimed above GSTR-2B – reverse it or
+      keep proof (section 16(2)(aa); DRC-01C above the rule 88D limit). A negative difference is ITC not yet claimed.</li>
+  <li><b>GSTR-1 vs GSTR-3B</b> – tax in GSTR-1 against GSTR-3B Table 3.1(a)+(b), per head. A <b>positive</b> difference is
+      tax short paid – pay it with interest (DRC-03) or in the next GSTR-3B; DRC-01B is expected above the rule 88C
+      limit. Tax under the wrong head (IGST instead of CGST/SGST) is flagged even when the totals agree.</li>
+  <li><b>GSTR-2A vs GSTR-2B</b> – invoice by invoice: documents the supplier filed that are not in any GSTR-2B (no ITC
+      yet), documents that reached a later month's GSTR-2B (supplier filed after the cut-off – claim in that month),
+      different amounts, and ITC marked not available. Choose <i>All documents</i> to see the matched ones too.</li>
+</ul>
+<p>Click a month to see its breakdown table by table; red rows and red findings need attention. A month whose return is
+   not imported says so – it is never treated as nil. <span class="btn">Export to Excel…</span> saves all three
+   comparisons with their breakdowns, findings and the document list.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

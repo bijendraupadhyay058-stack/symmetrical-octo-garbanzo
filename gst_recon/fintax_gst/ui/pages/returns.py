@@ -846,8 +846,8 @@ class ReturnsPage(LazyPage):
         self.navigate.emit("exceptions")
 
     def import_dialog(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "GSTR-3B (portal JSON or template)", "",
-                                              "GSTR-3B (*.json *.csv *.xlsx);;All files (*)")
+        path, _ = QFileDialog.getOpenFileName(self, "GSTR-3B (portal JSON / filed PDF or template)", "",
+                                              "GSTR-3B (*.json *.pdf *.csv *.xlsx);;All files (*)")
         if path:
             self.import_path(path)
 

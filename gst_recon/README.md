@@ -8,7 +8,7 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 
 ## Download and install (Windows)
 
-1. Download **FinTaxPro-Setup-1.12.1.exe** from the
+1. Download **FinTaxPro-Setup-1.13.0.exe** from the
    [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
 2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
    (the installer is not code-signed yet).
@@ -96,6 +96,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   period-wise working-paper ZIPs with manifest, SHA-256 check and reviewer sign-off.
 * **Sync and web** – encrypted sync packages for a cloud folder, only with the client's
   recorded authorisation; read-only web view with login for Android phones.
+* **Return comparison** – GSTR-3B vs GSTR-2B (ITC), GSTR-1 vs GSTR-3B (output tax) and GSTR-2A vs GSTR-2B
+  (invoice by invoice), month by month, from the files downloaded from the GST portal (JSON, ZIP, Excel or the
+  filed GSTR-3B PDF), imported several at once or picked up from the Downloads folder.
 * **Annual and calendar** – import the portal's Table 8A document details; see returns due
   and overdue across clients, with extensions recorded from CBIC notifications.
 * **Safety** – local SQLite database (or PostgreSQL for a shared office server), exact decimal money, transactional imports and runs

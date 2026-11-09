@@ -4,6 +4,8 @@ Accepted inputs:
 
 * GST portal / offline-tool JSON (``ret_period`` + ``itc_elg`` with ``itc_avl``,
   ``itc_rev``, ``itc_net`` and ``itc_inelg``).
+* The filed GSTR-3B downloaded from the portal as PDF (Tables 3.1 and 4 are read from the text of the form;
+  the preview shows what was read, to be checked against the return before saving).
 * A standard template (CSV or Excel) with the columns
   ``Period, Table, IGST, CGST, SGST, Cess`` (an optional ``Description`` column is
   ignored). One file may hold several periods.
@@ -12,6 +14,7 @@ Table codes follow the GSTR-3B form as amended by Notification 14/2022-CT (see `
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
@@ -201,6 +204,114 @@ def _from_table(rows: list[tuple[int, list]], period: str | None, preview: Gstr3
         table[code] = v
 
 
+# ---------------------------------------------------------------- filed GSTR-3B (PDF)
+_NUM = r"-?\(?[0-9][0-9,]*\.[0-9]{1,2}\)?"
+#: row code -> (label pattern, number of amount columns); searched in this order through the text of the form
+_PDF_ROWS = [
+    ("31A", r"Outward\s+taxable\s+supplies\s*\(\s*other\s+than\s+zero", 5),
+    ("31B", r"Outward\s+taxable\s+supplies\s*\(\s*zero\s+rated", 5),
+    ("31C", r"Other\s+outward\s+supplies\s*\(\s*nil", 5),
+    ("31D", r"Inward\s+supplies\s*\(\s*liable\s+to\s+reverse\s+charge", 5),
+    ("31E", r"Non[-\s]*GST\s+outward\s+supplies", 5),
+    ("4A1", r"Import\s+of\s+goods", 4),
+    ("4A2", r"Import\s+of\s+services", 4),
+    ("4A3", r"Inward\s+supplies\s+liable\s+to\s+reverse\s+charge\s*\(\s*other", 4),
+    ("4A4", r"Inward\s+supplies\s+from\s+ISD", 4),
+    ("4A5", r"All\s+other\s+ITC", 4),
+    ("4B1", r"As\s+per\s+rules?\s*38", 4),
+    ("4B2", r"\(\s*2\s*\)\s*Others", 4),
+    ("4C", r"Net\s+ITC\s+[Aa]vailable", 4),
+    ("4D1", r"ITC\s+reclaimed", 4),
+    ("4D2", r"Ineligible\s+ITC\s+under\s+section\s+16", 4),
+]
+#: text that ends the last row of a table (the next table of the form begins)
+_PDF_STOP = r"3\.1\.1|3\.2\b|Details\s+of\s+inter[-\s]*state|4\.?\s*\bEligible\s+ITC|\bEligible\s+ITC|5\.?\s*Values|Values\s+of\s+exempt|Payment\s+of\s+tax"
+_MONTHS = {m: i for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
+                                         "september", "october", "november", "december"), 1)}
+
+
+def _pdf_num(text: str) -> Decimal:
+    neg = text.startswith("-") or text.startswith("(")
+    v = Decimal(text.strip("-()").replace(",", ""))
+    return -v if neg else v
+
+
+def pdf_period(text: str) -> str | None:
+    """Return period of a filed GSTR-3B: 'Year 2024-25' and 'Period June' (or 'Tax period June 2024')."""
+    year = re.search(r"Year\s*:?\s*(20\d\d)\s*[-–]\s*(\d{2,4})", text)
+    month = re.search(r"Period\s*:?\s*([A-Za-z]{3,9})", text)
+    if month and month.group(1).lower() in _MONTHS and year:
+        mo = _MONTHS[month.group(1).lower()]
+        start = int(year.group(1))
+        return f"{start if mo >= 4 else start + 1}-{mo:02d}"
+    m = re.search(r"(?:Tax\s+)?Period\s*:?\s*([A-Za-z]+[\s\-]+20\d\d)", text)
+    return parse_period(m.group(1)) if m else None
+
+
+def read_gstr3b_pdf_text(path: Path) -> str:
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+
+    try:
+        reader = PdfReader(str(path))
+        if reader.is_encrypted:
+            reader.decrypt("")
+        return "\n".join(page.extract_text() or "" for page in reader.pages[:6])
+    except (PdfReadError, ValueError, OSError) as exc:
+        raise UnsupportedFileError(f"{path.name}: the PDF could not be read ({exc})") from exc
+
+
+def is_gstr3b_text(text: str) -> bool:
+    return bool(re.search(r"GSTR[-\s]*3B", text, re.I)) and bool(re.search(r"Eligible\s+ITC|Outward\s+taxable", text,
+                                                                         re.I))
+
+
+def _from_pdf(path: Path, period: str | None, preview: Gstr3bPreview) -> None:
+    text = read_gstr3b_pdf_text(path)
+    if not is_gstr3b_text(text):
+        raise UnsupportedFileError(f"{path.name} is not a GSTR-3B (the form heading was not found in the PDF)")
+    if not text.strip():
+        raise UnsupportedFileError(f"{path.name}: the PDF has no text (scanned image) – use the JSON or the template")
+    flat = re.sub(r"\s+", " ", text)
+    p = pdf_period(flat) or period
+    if not p:
+        raise ValueError("The period was not found in the GSTR-3B PDF – specify the period (YYYY-MM)")
+    found: list[tuple[int, int, str, int]] = []  # start, end of label, code, columns
+    pos = 0
+    for code, pattern, cols in _PDF_ROWS:
+        m = re.compile(pattern, re.I).search(flat, pos)
+        if m is None:
+            continue
+        found.append((m.start(), m.end(), code, cols))
+        pos = m.end()
+    if not found:
+        raise ValueError("No GSTR-3B table rows (3.1 / 4) were found in the PDF")
+    stop = re.compile(_PDF_STOP, re.I)
+    table: dict[str, Gstr3bValues] = {}
+    for i, (_start, end, code, cols) in enumerate(found):
+        nxt = found[i + 1][0] if i + 1 < len(found) else len(flat)
+        seg = flat[end:nxt]
+        s = stop.search(seg)
+        if s:
+            seg = seg[:s.start()]
+        nums = [_pdf_num(n) for n in re.findall(_NUM, seg)][:cols]
+        if not nums:
+            preview.warnings.append(f"{ALL_TABLES[code][:60]}: no amounts read – taken as nil")
+            nums = [ZERO] * cols
+        if cols == 5:  # taxable value, IGST, CGST, SGST, cess
+            taxable, tax = nums[0], (nums[1:] + [ZERO] * 4)[:4]
+            if len(nums) not in (1, 5):
+                preview.warnings.append(f"{ALL_TABLES[code][:60]}: {len(nums)} amount(s) read, 5 expected – check")
+        else:
+            taxable, tax = ZERO, (nums + [ZERO] * 4)[:4]
+            if len(nums) != 4:
+                preview.warnings.append(f"{ALL_TABLES[code][:60]}: {len(nums)} amount(s) read, 4 expected – check")
+        table[code] = Gstr3bValues(*tax, taxable)
+    preview.entries[p] = table
+    preview.warnings.append("Read from the PDF of the filed return – compare the figures shown with the PDF before "
+                            "saving")
+
+
 def preview_gstr3b(path: str | Path, period: str | None = None) -> Gstr3bPreview:
     path = Path(path)
     if not path.exists():
@@ -210,6 +321,9 @@ def preview_gstr3b(path: str | Path, period: str | None = None) -> Gstr3bPreview
     if suffix == ".json":
         preview = Gstr3bPreview(path, "GSTR-3B JSON")
         _from_json(read_json(path), period, preview)
+    elif suffix == ".pdf":
+        preview = Gstr3bPreview(path, "GSTR-3B filed return (PDF)")
+        _from_pdf(path, period, preview)
     elif suffix == ".csv":
         preview = Gstr3bPreview(path, "GSTR-3B template (CSV)")
         _from_table(read_csv(path, path.name).rows, period, preview)
@@ -217,7 +331,7 @@ def preview_gstr3b(path: str | Path, period: str | None = None) -> Gstr3bPreview
         preview = Gstr3bPreview(path, "GSTR-3B template (Excel)")
         _from_table(read_excel(path)[0].rows, period, preview)
     else:
-        raise UnsupportedFileError("GSTR-3B: use the portal JSON or the CSV/Excel template")
+        raise UnsupportedFileError("GSTR-3B: use the portal JSON or PDF, or the CSV/Excel template")
     if not preview.entries:
         raise ValueError("No GSTR-3B Table 4 values found in the file")
     for p, table in preview.entries.items():

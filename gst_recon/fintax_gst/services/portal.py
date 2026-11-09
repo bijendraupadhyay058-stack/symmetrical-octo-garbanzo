@@ -39,8 +39,8 @@ REPORTS = {
                                              "Generate JSON / Excel"),
     "GSTR2A": ("GSTR-2A", RETURNS_DASHBOARD, "Returns Dashboard → choose the year and month → GSTR-2A → Download "
                                              "→ Generate JSON / Excel"),
-    "GSTR3B": ("GSTR-3B", RETURNS_DASHBOARD, "Returns Dashboard → choose the year and month → GSTR-3B → View → "
-                                             "Download (JSON / Excel)"),
+    "GSTR3B": ("GSTR-3B", RETURNS_DASHBOARD, "Returns Dashboard → choose the year and month → GSTR-3B → Download "
+                                             "filed GSTR-3B (PDF) or the JSON"),
     "CASH": ("Electronic cash ledger", PORTAL_LOGIN, "Services → Ledgers → Electronic Cash Ledger → choose the "
                                                      "dates → Save as Excel"),
     "CREDIT": ("Electronic credit ledger", PORTAL_LOGIN, "Services → Ledgers → Electronic Credit Ledger → choose "
@@ -52,7 +52,7 @@ REPORTS = {
 }
 SOURCE_OF = {"GSTR1": "GSTR1", "GSTR2B": "GSTR2B", "GSTR2A": "GSTR2A", "GSTR8A": "GSTR8A", "IMS": "IMS"}
 LABELS = {**{k: v[0] for k, v in REPORTS.items()}, "IMS": "IMS download"}
-FILE_TYPES = {".json", ".zip", ".xlsx", ".xls", ".xlsm", ".csv"}
+FILE_TYPES = {".json", ".zip", ".xlsx", ".xls", ".xlsm", ".csv", ".pdf"}
 _GSTIN = re.compile(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]")
 _LEDGER_TYPE = {"CASH": "CASHLEDGER", "CREDIT": "CREDITLEDGER"}
 
@@ -108,12 +108,34 @@ def _json_facts(js, name: str) -> tuple[str | None, str, str | None]:
     return kind, gstin, period
 
 
+def _recognise_pdf(path: Path, seen: list[str]) -> tuple[str | None, list[str], str | None]:
+    """A PDF is a portal file only when it is the filed GSTR-3B (other PDFs, e.g. bills, are left alone)."""
+    from pypdf import PdfReader
+    from pypdf.errors import PdfReadError
+
+    from ..importers.gstr3b import is_gstr3b_text, pdf_period
+
+    try:
+        reader = PdfReader(str(path))
+        if reader.is_encrypted:
+            reader.decrypt("")
+        text = "\n".join(page.extract_text() or "" for page in reader.pages[:2])
+    except (PdfReadError, ValueError, OSError, KeyError):
+        return None, seen, None
+    if not is_gstr3b_text(text):
+        return None, seen, None
+    flat = re.sub(r"\s+", " ", text)
+    return "GSTR3B", seen + _GSTIN.findall(flat.upper()), pdf_period(flat)
+
+
 def recognise(path: str | Path) -> tuple[str | None, list[str], str | None]:
     """(kind, GSTINs seen in the file, period) of a file downloaded from the portal; kind None if unknown."""
     path = Path(path)
     suffix = path.suffix.lower()
     seen = _GSTIN.findall(path.name.upper())
     try:
+        if suffix == ".pdf":
+            return _recognise_pdf(path, seen)
         if suffix in (".json", ".zip"):
             if suffix == ".zip":
                 member = next(((n, b) for n, b in zip_members(path) if n.lower().endswith(".json")), None)
