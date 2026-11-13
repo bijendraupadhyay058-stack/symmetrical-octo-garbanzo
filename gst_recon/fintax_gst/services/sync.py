@@ -39,7 +39,7 @@ from ..db.database import Database
 from ..db.models import (
     AppSetting, Attachment, AuditLog, BooksGstr3b, LedgerEntry, RcmEntry, BankLine, ShippingBillRow, LitigationCase, CaseEvent, CapitalGood, Client, ClientReminder, CommonCredit, DecimalText, PartyAddress, SupplierPayment, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice, Invoice, ItcClaim,
     ItcReview, ItcRuleRow, MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SyncAuthorization, SyncState,
-    Vendor,
+    Vendor, TbLedger, LedgerSplit, LedgerMapping,
 )
 from .auth import Session, require
 from .clients import FIELDS as CLIENT_FIELDS
@@ -82,6 +82,9 @@ TABLES = [
     (ShippingBillRow, {"source_file_id": "source_files"}),
     (LitigationCase, {"notice_id": "gst_notices"}),
     (CaseEvent, {"case_id": "litigation_cases"}),
+    (TbLedger, {"source_file_id": "source_files"}),
+    (LedgerSplit, {"ledger_id": "tb_ledgers"}),
+    (LedgerMapping, {}),
 ]
 SYNC_ACTIONS = {"SYNC_EXPORT", "SYNC_IMPORT", "SYNC_AUTHORISE", "SYNC_REVOKE", "EXPORT", "EXPORT_AUDIT", "LOGIN",
                 "LOGIN_FAILED"}

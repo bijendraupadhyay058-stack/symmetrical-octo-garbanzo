@@ -76,7 +76,10 @@ class MappingRow:
     note: str = ""
 
 
-def build_draft(w: Gstr9Working, t8: Table8 | None, gstin: str, fy: str) -> tuple[dict, list[MappingRow]]:
+def build_draft(w: Gstr9Working, t8: Table8 | None, gstin: str, fy: str,
+                split6b: dict[str, dict[str, Decimal]] | None = None) -> tuple[dict, list[MappingRow]]:
+    """``split6b`` – 6B ITC by type (ip / cg / is) from a complete ledger bifurcation that agrees with GSTR-3B
+    4(A)(5); when given, 6B is included split, otherwise it is left to the offline tool."""
     rows: list[MappingRow] = []
 
     def put(section: dict, table: str, key: str, path: str, payload, label: str | None = None, note: str = ""):
@@ -114,6 +117,13 @@ def build_draft(w: Gstr9Working, t8: Table8 | None, gstin: str, fy: str) -> tupl
         r = by_code.get(code)
         if r is not None and r.gstr1 is not None:
             put(t6, code, key, "table6", _tax(r.gstr1, taxable=False), note=r.note)
+    if split6b:
+        t6["supp_non_rchrg"] = [{"itc_typ": typ, **{k: _round(split6b[typ][h]) for k, h in (
+            ("iamt", "igst"), ("camt", "cgst"), ("samt", "sgst"), ("csamt", "cess"))}} for typ in ("ip", "cg", "is")]
+        total = sum((v for d in split6b.values() for v in d.values()), Decimal(0))
+        rows.append(MappingRow("6B", "Inward supplies other than imports and reverse charge – inputs, capital goods "
+                               "and input services", "table6.supp_non_rchrg", f"tax {total:,.2f}", STATUS_INCLUDED,
+                               "split from the approved ledger bifurcation (agrees with GSTR-3B 4(A)(5))"))
     payload["table6"] = t6
     t7: dict = {}
     other = next((r for r in w.table7 if r.code == "7H"), None)
@@ -205,6 +215,8 @@ def build_draft(w: Gstr9Working, t8: Table8 | None, gstin: str, fy: str) -> tupl
         rows.append(MappingRow(code, LABELS.get(code, "Difference (A − (B + C))" if code == "8D" else code), "",
                                "", STATUS_COMPUTED))
     for code, label, why in MANUAL:
+        if code == "6B" and split6b:
+            continue
         rows.append(MappingRow(code, label, "", "", STATUS_MANUAL, why))
     for n in w.notes:
         rows.append(MappingRow("note", n, "", "", "check"))

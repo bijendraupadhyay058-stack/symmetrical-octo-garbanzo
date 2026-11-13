@@ -50,6 +50,7 @@
   <a href="#returnprep">7n. Return preparation</a> ·
   <a href="#returncompare">7p. Return comparison</a> ·
   <a href="#yoy">7q. Year on year</a> ·
+  <a href="#ledgers">7r. Ledger classification</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -57,7 +58,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.14.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.15.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -553,6 +554,56 @@
    purchases in each year, marking new suppliers and those with no purchases this year.
    <span class="btn">Export to Excel…</span> saves it all. Years with no data imported are shown blank, never as
    nil – import the earlier year's registers and returns to fill them.</p>
+
+<h2 id="ledgers">7r. Ledger classification &amp; bifurcation (GSTR-9 Table 6, GSTR-9C Table 14)</h2>
+<p><b>Ledger classification</b> (left menu, under GSTR-3B &amp; annual) classifies every purchase, expense and fixed-asset
+   ledger of the TallyPrime trial balance, whole or split into parts, for the GSTR-9 and GSTR-9C workings. The trial
+   balance itself is never changed.</p>
+<ol>
+  <li><b>Bring the trial balance.</b> In TallyPrime: Display More Reports → Trial Balance → Alt+F5 (detailed) → Alt+E
+      Export → Excel (or XML), and click <span class="btn">Import trial balance…</span>. Or click
+      <span class="btn">From TallyPrime…</span> to read the ledgers and groups directly (TallyPrime open, XML server on
+      port 9000). Debit and credit totals are checked; group headings and totals are not counted as ledgers. Importing a
+      revised trial balance keeps the classification of ledgers that are still there – a changed amount shows as
+      unallocated.</li>
+  <li><b>Suggest.</b> <span class="btn">Suggest classifications</span> proposes an accounting class, a GST class
+      (inputs / input services / capital goods / exempt / no GST), the source (regular, reverse charge, import, ISD), the
+      GSTR-9C Table 14 head and an ITC eligibility, from the ledger name and group, with a confidence: <i>saved</i>
+      (you approved it before for this client), <i>high</i> (name and group agree), <i>medium</i> or <i>low</i>.
+      Suggestions are yellow and count for nothing until you approve them.</li>
+  <li><b>Approve, change or split.</b> Select ledgers and <span class="btn">Approve selected</span>, or
+      <span class="btn">Classify selected…</span> to give several ledgers one classification. Double-click a ledger (or
+      <span class="btn">Split / edit…</span>) to divide it into any number of parts:
+      <ul>
+        <li>type the amount of each part, or <span class="btn">Split by percentage…</span> (amounts only – percentages
+            never move GST);</li>
+        <li><span class="btn">Part from purchase register…</span> takes the taxable value and GST of the invoices you
+            choose (an invoice can be used only once, so GST is never counted twice);</li>
+        <li>or enter the GST from the invoices, or <span class="btn">Apportion GST…</span> – only after you tick that you
+            approve it; the part is marked <i>apportioned, approved by you on …</i>;</li>
+        <li>choose the ITC eligibility of each part: eligible, blocked under section 17(5), reversed under rules 42/43 or
+            37/37A, non-business use, exempt-supply attribution, not availed or reclaimed. GST charged is never taken as
+            eligible by itself.</li>
+      </ul>
+      The parts must add up to the ledger; the rest shows as <b>unallocated</b> in red. For a fixed asset use
+      <span class="btn">Amount to classify…</span> to enter the additions of the year (the closing balance includes the
+      opening). Mark an asset already counted in a purchase ledger as <i>Counted in another ledger</i>.
+      <span class="btn">Reverse</span> removes a classification; every change is in the audit log.</li>
+  <li><b>Check the summary</b> on the right (click a line to see its ledgers) and the <b>GSTR-9 Table 6</b> box: ITC
+      availed by inputs, input services and capital goods for each row (6B regular, 6C/6D reverse charge, 6E/6F imports,
+      6G ISD), and 6B compared with GSTR-3B 4(A)(5). It says <b>Ready</b> only when every ledger is approved, nothing is
+      unallocated, each part has an eligibility, eligible ITC has GST from invoices and 6B agrees with GSTR-3B.</li>
+  <li><b>Use it.</b> <span class="btn">Send to GSTR-9C Table 14</span> fills Table 14 (value, ITC, eligible ITC availed)
+      – Table 14 has been optional in recent years; check the notification for the year. When the working is ready and
+      agrees with GSTR-3B, the draft GSTR-9 JSON (GSTR-3B &amp; annual) carries 6B split into inputs, capital goods and
+      input services. <span class="btn">Workbook (Excel)…</span> gives the 18-sheet workbook (dashboard, original Tally
+      data, trial balance summary, P&amp;L classification, purchase / expense bifurcation, capital goods register, inputs
+      and input services summaries, ITC eligibility, GSTR-2B and GSTR-3B reconciliation, GSTR-9 Table 6, GSTR-9C Table 14,
+      exceptions, audit trail) with live formulas; <span class="btn">Review PDF…</span> a summary for the partner's
+      review.</li>
+</ol>
+<p>Classified values are accounting classifications, not ITC entitlements. FIN TAX PRO prepares working papers – it does
+   not file the returns.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

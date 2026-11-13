@@ -69,7 +69,9 @@ class Gstr9Service:
         client = ClientService(self.db).get(client_id)
         w = self.working(client_id, fy, cutoff)
         t8 = ItcService(self.db).annual(client_id, fy, cutoff)
-        payload, rows = build_draft(w, t8, client.gstin, fy)
+        from .bifurcation import BifurcationService
+
+        payload, rows = build_draft(w, t8, client.gstin, fy, BifurcationService(self.db).table6_split(client_id, fy))
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         stem = f"FINTAXPRO_GSTR9_DRAFT_{client.gstin}_FY{fy}"

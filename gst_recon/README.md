@@ -8,7 +8,7 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 
 ## Download and install (Windows)
 
-1. Download **FinTaxPro-Setup-1.14.0.exe** from the
+1. Download **FinTaxPro-Setup-1.15.0.exe** from the
    [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
 2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
    (the installer is not code-signed yet).
@@ -100,6 +100,11 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   (invoice by invoice), month by month, from the files downloaded from the GST portal (JSON, ZIP, Excel or the
   filed GSTR-3B PDF), imported several at once or picked up from the Downloads folder; from a difference, supplier
   letters, a DRC-01B / DRC-01C reply draft and a DRC-03 working with interest in one click.
+* **Ledger classification & bifurcation** – the TallyPrime trial balance (Excel, CSV, XML or directly from TallyPrime);
+  every purchase, expense and fixed-asset ledger classified whole or split into unlimited parts, with independent
+  accounting and GST classifications, source of supply and ITC eligibility; rule-based suggestions with confidence and
+  remembered approvals; GST only from invoices or an approved apportionment; feeds GSTR-9 Table 6 (inputs / input
+  services / capital goods) and GSTR-9C Table 14, with an 18-sheet workbook and a review PDF.
 * **Year on year** – sales, tax, ITC, ITC at risk and cash paid of up to five years side by side, month by month,
   with the change, like-for-like for a year in progress, the main suppliers and an Excel export.
 * **Annual and calendar** – import the portal's Table 8A document details; see returns due

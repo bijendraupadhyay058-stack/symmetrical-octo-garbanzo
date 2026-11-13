@@ -990,3 +990,79 @@ class GstinStatus(Base):
 
 V26_TABLES = [GstinStatus]
 V4_TABLES = [Gstr1Summary, SyncAuthorization, SyncState, LetterRecord, WorkingPaper]
+
+
+class TbLedger(Base):
+    """A ledger of the trial balance imported from TallyPrime for a financial year. The imported figures are kept
+    exactly as read; classification never changes them (it is held in ledger_splits). Schema v27."""
+
+    __tablename__ = "tb_ledgers"
+    __table_args__ = (UniqueConstraint("client_id", "financial_year", "name", name="uq_tb_ledger"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    financial_year: Mapped[str] = mapped_column(String(7))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    parent: Mapped[str] = mapped_column(String(200), default="")  # group it is under in Tally
+    primary_group: Mapped[str] = mapped_column(String(80), default="")  # Tally primary group (Purchase Accounts …)
+    nature: Mapped[str] = mapped_column(String(12), default="other")  # purchase/expense/asset/income/duties/other
+    opening: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # debit positive
+    debit: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # transactions of the year
+    credit: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    closing: Mapped[Decimal] = mapped_column(DecimalText)  # debit positive, credit negative
+    base: Mapped[Decimal] = mapped_column(DecimalText)  # amount to classify (closing; additions for fixed assets)
+    base_note: Mapped[str] = mapped_column(String(200), default="")
+    status: Mapped[str] = mapped_column(String(12), default="pending")  # pending / suggested / approved
+    confidence: Mapped[str] = mapped_column(String(8), default="")  # saved / high / medium / low (suggestions)
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class LedgerSplit(Base):
+    """One part of a ledger: an accounting classification and a GST classification for an amount. The parts of a
+    ledger must add up to its amount; GST is given only from invoices or an approved apportionment."""
+
+    __tablename__ = "ledger_splits"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    ledger_id: Mapped[int] = mapped_column(ForeignKey("tb_ledgers.id"), index=True)
+    amount: Mapped[Decimal] = mapped_column(DecimalText)
+    acct_class: Mapped[str] = mapped_column(String(60))
+    gst_class: Mapped[str] = mapped_column(String(20))  # inputs / services / capital / exempt / nogst / excluded
+    gst_source: Mapped[str] = mapped_column(String(12), default="regular")  # regular/rcm_reg/rcm_unreg/import_g/…
+    head_9c: Mapped[str] = mapped_column(String(4), default="")  # GSTR-9C Table 14 row (14A … 14Q)
+    eligibility: Mapped[str] = mapped_column(String(16), default="")
+    taxable: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    igst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    cgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    sgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    cess: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    gst_basis: Mapped[str] = mapped_column(String(12), default="")  # invoices / entered / apportioned / ""
+    basis_note: Mapped[str] = mapped_column(String(300), default="")
+    invoice_ids: Mapped[str] = mapped_column(Text, default="[]")  # purchase-register documents behind the GST
+    percent: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # when split by percentage
+    remarks: Mapped[str] = mapped_column(Text, default="")
+    approved: Mapped[bool] = mapped_column(Boolean, default=False)
+    approved_by: Mapped[str] = mapped_column(String(80), default="")
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class LedgerMapping(Base):
+    """A classification the user approved for a ledger name, suggested again for the client's other years."""
+
+    __tablename__ = "ledger_mappings"
+    __table_args__ = (UniqueConstraint("client_id", "ledger_key", name="uq_ledger_mapping"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    ledger_key: Mapped[str] = mapped_column(String(200))
+    acct_class: Mapped[str] = mapped_column(String(60))
+    gst_class: Mapped[str] = mapped_column(String(20))
+    gst_source: Mapped[str] = mapped_column(String(12), default="regular")
+    head_9c: Mapped[str] = mapped_column(String(4), default="")
+    eligibility: Mapped[str] = mapped_column(String(16), default="")
+    approved_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V27_TABLES = [TbLedger, LedgerSplit, LedgerMapping]

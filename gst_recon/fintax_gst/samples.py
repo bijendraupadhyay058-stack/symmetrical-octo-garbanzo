@@ -535,6 +535,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "books_tally_xml": out / "tally_purchase_vouchers_2025-04.xml",
         "journal_april": out / "tally_journal_register_2025-04.xlsx",
         "payments": out / "tally_payment_register_2025-26.xlsx",
+        "trial_balance": out / "tally_trial_balance_2025-26.xlsx",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -551,6 +552,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_itemwise_register(files["books_itemwise_csv"])
     write_journal_register(files["journal_april"])
     write_payment_register(files["payments"])
+    write_trial_balance(files["trial_balance"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -756,4 +758,37 @@ def write_payment_register(path: Path) -> None:
         for c in row:
             if isinstance(c.value, date):
                 c.number_format = "DD-MMM-YYYY"
+    wb.save(path)
+
+
+#: Trial balance of the acceptance test (FY 2025-26): purchases, repairs, professional fees and plant, with the
+#: balancing ledgers; written as a TallyPrime "detailed" trial balance (primary groups as headings).
+TB_ROWS = [
+    ("Capital Account", None, None), ("Proprietor's Capital", None, "500000"),
+    ("Current Liabilities", None, None), ("Sundry Creditors", None, "2500000"),
+    ("Mahalaxmi Steel Pvt Ltd", None, "1500000"), ("Pune Packaging Co", None, "1000000"),
+    ("Duties & Taxes", None, None), ("Input CGST", "300000", None), ("Input SGST", "300000", None),
+    ("Output CGST", None, "450000"), ("Output SGST", None, "450000"),
+    ("Fixed Assets", None, None), ("Plant & Machinery", "500000", None),
+    ("Current Assets", None, None), ("HDFC Bank", "1000000", None),
+    ("Sales Accounts", None, None), ("Sales – Local", None, "2500000"),
+    ("Purchase Accounts", None, None), ("Purchase Account", "3000000", None),
+    ("Direct Expenses", None, None), ("Freight Inward", "100000", None),
+    ("Indirect Expenses", None, None), ("Repairs & Maintenance", "300000", None),
+    ("Professional Fees", "200000", None), ("Salary", "600000", None), ("Electricity Charges", "100000", None),
+    ("Grand Total", "6400000", "6400000"),
+]
+
+
+def write_trial_balance(path: Path) -> None:
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Trial Balance"
+    ws.append(["Shree Ganesh Traders"])
+    ws.append(["Trial Balance", "", "1-Apr-2025 to 31-Mar-2026"])
+    ws.append(["Particulars", "Debit", "Credit"])
+    for name, dr, cr in TB_ROWS:
+        ws.append([name, float(dr) if dr else None, float(cr) if cr else None])
     wb.save(path)
