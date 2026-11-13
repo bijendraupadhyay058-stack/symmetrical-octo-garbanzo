@@ -87,6 +87,12 @@ class MisService:
             for p, taxable in s.execute(select(Invoice.period, Invoice.taxable).where(
                     Invoice.client_id == client_id, Invoice.source_type == "SALES", Invoice.period.in_(months))):
                 sales[p] = sales.get(p, ZERO) + (taxable or ZERO)  # money is added in Python (exact decimals)
+            books: dict[str, Decimal] = {}
+            for p, doc, i, c, sg, cs in s.execute(select(Invoice.period, Invoice.doc_type, Invoice.igst, Invoice.cgst,
+                                                         Invoice.sgst, Invoice.cess).where(
+                    Invoice.client_id == client_id, Invoice.source_type == "BOOKS", Invoice.period.in_(months))):
+                k = -1 if doc == "CRN" else 1
+                books[p] = books.get(p, ZERO) + k * ((i or ZERO) + (c or ZERO) + (sg or ZERO) + (cs or ZERO))
         out = Mis(cc.name, cc.gstin, fy, [])
         estimated = False
         for ms in cc.months:
@@ -96,7 +102,7 @@ class MisService:
                 m.output_tax, m.output_basis = ms.output_3b, "GSTR-3B"
             elif ms.output_sales is not None:
                 m.output_tax, m.output_basis = ms.output_sales, "sales register"
-            m.itc_books = ms.itc_books if ms.purchase_docs else None
+            m.itc_books = (ms.itc_books if ms.inward_run_id else books.get(ms.period)) if ms.purchase_docs else None
             m.itc_2b = ms.itc_2b if ms.gstr2b_docs else None
             m.itc_claimed = ms.itc_3b
             m.itc_at_risk = ms.itc_at_risk if ms.inward_run_id else None

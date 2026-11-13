@@ -238,6 +238,23 @@ class ReturnComparePage(LazyPage):
             self.tabs_by_kind[kind] = t
             self.tabs.addTab(t, title.split(" (")[0])
         lay.addWidget(self.tabs, 1)
+        act = QHBoxLayout()
+        self.act_label = QLabel("Follow-up:")
+        self.letters_btn = QPushButton("Supplier letters…")
+        self.letters_btn.setToolTip("Letters to suppliers whose bills are not in GSTR-2B, for the months where GSTR-3B "
+                                    "claims more ITC than GSTR-2B")
+        self.letters_btn.clicked.connect(lambda: self.supplier_letters())
+        self.reply_btn = QPushButton("Reply draft…")
+        self.reply_btn.clicked.connect(lambda: self.reply_draft())
+        self.drc03_btn = QPushButton("DRC-03 working…")
+        self.drc03_btn.setToolTip("The difference by tax head with interest up to the payment date, for DRC-03")
+        self.drc03_btn.clicked.connect(lambda: self.drc03())
+        for w in (self.act_label, self.letters_btn, self.reply_btn, self.drc03_btn):
+            act.addWidget(w)
+        act.addStretch()
+        lay.addLayout(act)
+        self.tabs.currentChanged.connect(lambda _i: self._actions())
+        self._actions()
         for sig in (state.dataChanged, state.clientChanged):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()
@@ -258,6 +275,7 @@ class ReturnComparePage(LazyPage):
         enabled = st.client is not None
         for b in (self.import_btn, self.pick_btn, self.export_btn):
             b.setEnabled(enabled)
+        self._actions()
         if not enabled:
             self.comps, self.avail = {}, None
             self.status.setText("Select a client.")
@@ -326,6 +344,109 @@ class ReturnComparePage(LazyPage):
             QMessageBox.information(self, "GST portal", "There is no internet connection right now.")
             return False
         return bool(QDesktopServices.openUrl(QUrl(RETURNS_DASHBOARD)))
+
+    # ---------------------------------------------------------- follow-up
+    def current_kind(self) -> str | None:
+        w = self.tabs.currentWidget()
+        return getattr(w, "kind", None)
+
+    def _actions(self) -> None:
+        kind = self.current_kind()
+        ok = self.state.client is not None
+        self.letters_btn.setEnabled(ok and kind == "3B_2B")
+        self.reply_btn.setEnabled(ok and kind in ("1_3B", "3B_2B"))
+        self.drc03_btn.setEnabled(ok and kind in ("1_3B", "3B_2B"))
+        self.reply_btn.setText({"1_3B": "Reply draft DRC-01B…", "3B_2B": "Reply draft DRC-01C…"}.get(kind,
+                                                                                                   "Reply draft…"))
+        self.act_label.setText("Follow-up:" if kind in ("1_3B", "3B_2B") else
+                               "Follow-up: open the GSTR-3B vs 2B or GSTR-1 vs 3B tab")
+
+    def _folder(self, title: str, out_dir) -> str | None:
+        return str(out_dir) if out_dir else (QFileDialog.getExistingDirectory(self, title) or None)
+
+    def _signatory(self) -> str:
+        return str(self.state.qsettings.value("reminder_signature", "")).strip()
+
+    def supplier_letters(self, out_dir=None, open_folder: bool = True):
+        from ...services.compare_actions import CompareActionService
+
+        st = self.state
+        folder = self._folder("Folder for the supplier letters", out_dir)
+        if st.client is None or not folder:
+            return None
+        try:
+            n, files = CompareActionService(st.db).supplier_letters(st.client.id, st.fy, folder, st.user,
+                                                                     self._signatory())
+        except ServiceError as exc:
+            QMessageBox.information(self, "Supplier letters", str(exc))
+            return None
+        st.notify()
+        QMessageBox.information(self, "Supplier letters", f"{n} letter(s) saved (Word and PDF) in {folder}.\nThe "
+                                "suppliers are marked 'Letter issued' on the Suppliers page; to e-mail them, use "
+                                "Letters & papers.")
+        if open_folder and files:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(files[0].parent)))
+        return files
+
+    def reply_draft(self, out_dir=None, reference: str | None = None, open_file: bool = True):
+        from datetime import date
+
+        from PySide6.QtWidgets import QInputDialog
+
+        from ...services.compare_actions import FORM_OF, CompareActionService
+
+        st, kind = self.state, self.current_kind()
+        if st.client is None or kind not in FORM_OF:
+            return None
+        form = FORM_OF[kind]
+        if reference is None:
+            reference, ok = QInputDialog.getText(self, f"Reply to {form}", f"Reference number of the {form} "
+                                                 "intimation (leave blank if not received yet):")
+            if not ok:
+                return None
+        folder = self._folder(f"Folder for the {form} reply", out_dir)
+        if not folder:
+            return None
+        try:
+            path, nid = CompareActionService(st.db).reply_draft(st.client.id, st.fy, kind, folder, st.session,
+                                                                reference=reference, notice_date=date.today(),
+                                                                signatory=self._signatory())
+        except (ServiceError, PermissionError) as exc:
+            QMessageBox.information(self, f"Reply to {form}", str(exc))
+            return None
+        st.notify()
+        QMessageBox.information(self, f"Reply to {form}", f"Draft reply saved: {path.name}\n\nThe intimation is "
+                                f"entered in GST notices (#{nid}) – correct its date there. Complete the yellow parts of "
+                                "the draft before filing the reply on the portal.")
+        if open_file:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
+        return path
+
+    def drc03(self, path: str | None = None, pay_on=None, open_file: bool = True):
+        from datetime import date
+
+        from ...services.compare_actions import EXPOSURE_OF, CompareActionService
+
+        st, kind = self.state, self.current_kind()
+        if st.client is None or kind not in EXPOSURE_OF:
+            return None
+        svc = CompareActionService(st.db)
+        try:
+            w = svc.drc03(st.client.id, st.fy, kind, pay_on or date.today())
+        except ServiceError as exc:
+            QMessageBox.information(self, "DRC-03 working", str(exc))
+            return None
+        path = path or QFileDialog.getSaveFileName(self, "Save DRC-03 working",
+                                                   f"DRC03_working_{w.gstin}_{w.fy}_{kind}.xlsx", "Excel (*.xlsx)")[0]
+        if not path:
+            return None
+        out = svc.export_drc03(w, path)
+        QMessageBox.information(self, "DRC-03 working", f"Tax and interest up to {w.pay_on:%d-%m-%Y}: "
+                                f"₹{fmt_inr(w.total)}\nSaved: {Path(out).name}" + ("\n\n" + "\n".join(w.notes[:2])
+                                                                                   if w.notes else ""))
+        if open_file:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(out)))
+        return out
 
     def export(self, path: str | None = None, open_file: bool = True):
         if not self.comps:

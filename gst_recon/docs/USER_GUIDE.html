@@ -49,6 +49,7 @@
   <a href="#phase16">7f. Rule 42/43, e-invoice files, revised files, Tally ERP 9, earlier years</a> ·
   <a href="#returnprep">7n. Return preparation</a> ·
   <a href="#returncompare">7p. Return comparison</a> ·
+  <a href="#yoy">7q. Year on year</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -56,7 +57,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.13.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.14.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -524,6 +525,34 @@
 <p>Click a month to see its breakdown table by table; red rows and red findings need attention. A month whose return is
    not imported says so – it is never treated as nil. <span class="btn">Export to Excel…</span> saves all three
    comparisons with their breakdowns, findings and the document list.</p>
+
+<h3>3. Follow up a difference</h3>
+<p>Under the tabs, the <b>Follow-up</b> buttons act on the comparison that is open:</p>
+<ul>
+  <li><span class="btn">Supplier letters…</span> (GSTR-3B vs GSTR-2B tab) – for the months where GSTR-3B claims more ITC
+      than GSTR-2B, letters (Word and PDF) to the suppliers whose bills are not in GSTR-2B, taken from the purchase vs
+      GSTR-2B reconciliation of those months (reconcile them first on the Reconcile page). The suppliers are marked
+      <i>Letter issued</i> on the Suppliers page.</li>
+  <li><span class="btn">Reply draft DRC-01B…</span> (GSTR-1 vs GSTR-3B tab) or <span class="btn">Reply draft
+      DRC-01C…</span> (GSTR-3B vs GSTR-2B tab) – type the reference number of the intimation (or leave it blank),
+      choose a folder: the intimation is entered in <b>GST notices</b> (correct its date there) and a Word reply is
+      drafted from the data. Complete the parts marked in yellow before filing the reply on the portal.</li>
+  <li><span class="btn">DRC-03 working…</span> – the difference by tax head with interest at 18% up to today, in Excel,
+      to enter in DRC-03 on the portal. For GSTR-3B vs 2B it works on the net ITC (Table 4(C)), so ITC already reversed
+      reduces it, and the interest is an upper limit. Months recorded as paid on the Interest &amp; late fee tab are left
+      out. FIN TAX PRO never pays or files anything.</li>
+</ul>
+
+<h2 id="yoy">7q. Year on year</h2>
+<p><b>Year on year</b> (left menu, under Charts &amp; MIS) puts the selected year beside the earlier years (choose 2 to 5
+   years): sales, output tax, ITC as per books, ITC in GSTR-2B, ITC claimed in GSTR-3B, ITC at risk and tax paid in
+   cash. The <b>Totals</b> table shows the change in rupees and per cent (green good, red to look at – a rise in ITC
+   at risk or cash paid is red); while a year is in progress, read the <b>like-for-like</b> change, which compares only
+   the months both years have. Click a figure, or choose it in <i>Month by month</i>, for its months and the chart
+   (this year in blue, last year in orange, older years in grey). <b>Main suppliers</b> lists the biggest suppliers'
+   purchases in each year, marking new suppliers and those with no purchases this year.
+   <span class="btn">Export to Excel…</span> saves it all. Years with no data imported are shown blank, never as
+   nil – import the earlier year's registers and returns to fill them.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>
