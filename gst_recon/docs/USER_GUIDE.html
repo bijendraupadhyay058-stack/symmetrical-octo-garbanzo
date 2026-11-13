@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FIN TAX PRO – User Guide</title>
+<style>
+  :root { --navy: #14284b; --teal: #00897b; --amber: #fff3c4; --line: #d9dee7; --text: #1d2433; --muted: #5b6475; }
+  body { margin: 0; background: #f5f7fa; color: var(--text); font: 16px/1.6 "Segoe UI", Calibri, Arial, sans-serif; }
+  header { background: var(--navy); color: #fff; padding: 28px 16px; }
+  header h1 { margin: 0 auto; max-width: 860px; font-size: 28px; }
+  header p { margin: 6px auto 0; max-width: 860px; opacity: .85; }
+  main { max-width: 860px; margin: 0 auto; padding: 8px 16px 48px; }
+  h2 { color: var(--navy); margin-top: 36px; border-bottom: 2px solid var(--teal); padding-bottom: 4px; }
+  h3 { margin-bottom: 4px; }
+  ol li, ul li { margin: 6px 0; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
+  .note { background: var(--amber); border-color: #ecd98a; }
+  .btn { display: inline-block; background: #e8f5f3; border: 1px solid #9fd3cc; border-radius: 4px; padding: 0 6px;
+         font-weight: 600; white-space: nowrap; }
+  code { background: #eef1f6; padding: 1px 5px; border-radius: 3px; }
+  nav a { color: var(--teal); }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  td, th { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef1f6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FIN TAX PRO – User Guide</h1>
+  <p>Smart GST reconciliation on your own computer. No coding needed. Your data never leaves this PC.</p>
+</header>
+<main>
+
+<nav class="box">
+  <b>Contents:</b>
+  <a href="#install">1. Install</a> ·
+  <a href="#start">2. First start</a> ·
+  <a href="#try">3. Try it with sample files</a> ·
+  <a href="#client">4. Add a client</a> ·
+  <a href="#monthly">5. Monthly purchase reconciliation</a> ·
+  <a href="#review">6. Review the differences</a> ·
+  <a href="#sales">7. Sales and GSTR-1</a> ·
+  <a href="#batch">7a. Many clients at once</a> ·
+  <a href="#firm">7b. Firm work dashboard</a> ·
+  <a href="#reminders">7c. Client reminders and reports</a> ·
+  <a href="#phase14">7d. Tax checks, journals, payments, PAN view</a> ·
+  <a href="#phase15">7e. GSTR-1 file, GSTR-3B draft, invoices by hand</a> ·
+  <a href="#phase16">7f. Rule 42/43, e-invoice files, revised files, Tally ERP 9, earlier years</a> ·
+  <a href="#returnprep">7n. Return preparation</a> ·
+  <a href="#returncompare">7p. Return comparison</a> ·
+  <a href="#yoy">7q. Year on year</a> ·
+  <a href="#ledgers">7r. Ledger classification</a> ·
+  <a href="#more">8. Other features</a> ·
+  <a href="#backup">9. Backups</a> ·
+  <a href="#help">10. If something goes wrong</a>
+</nav>
+
+<h2 id="install">1. Install</h2>
+<ol>
+  <li>Download <b>FinTaxPro-Setup-1.15.0.exe</b> from the download page you were given.</li>
+  <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
+      signed with a code-signing certificate. Click <span class="btn">More info</span>, then
+      <span class="btn">Run anyway</span>.</li>
+  <li>Click <span class="btn">Next</span> through the installer. Tick <i>Create a desktop shortcut</i> if you want one.
+      No administrator rights are needed.</li>
+  <li>At the end, leave <i>Start FIN TAX PRO</i> ticked and click <span class="btn">Finish</span>.</li>
+</ol>
+<p>Later, open it from the desktop shortcut or from the Start menu → <b>FIN TAX PRO</b>.</p>
+
+<h2 id="start">2. First start – create your login</h2>
+<ol>
+  <li>The first time, the program asks you to <b>create the administrator</b>: choose a user name and a password
+      of at least 8 characters.</li>
+  <li><b>Write the password down and keep it safe.</b> It protects your clients’ data.</li>
+  <li>Later you can add staff logins on the <b>Security</b> page, with their own roles (accountant, manager,
+      read-only).</li>
+</ol>
+
+<h2 id="try">3. Try it with the sample files (5 minutes)</h2>
+<div class="box">
+  <p>The installer includes demo files for a made-up client. Open them from the Start menu →
+     <b>FIN TAX PRO sample files</b>.</p>
+  <ol>
+    <li>Go to <b>Clients</b> → <span class="btn">New client…</span>. Enter GSTIN <code>27AAPFU0939F1ZV</code>,
+        name <code>Shree Ganesh Traders</code>, and click <span class="btn">Save</span>.</li>
+    <li>Go to <b>Reconcile</b>. Choose financial year <b>2025-26</b> and month <b>2025-04</b>.</li>
+    <li><span class="btn">Import purchase register…</span> → pick <code>tally_purchase_register_2025-04.xlsx</code>
+        → check the preview → <b>Import</b>.</li>
+    <li><span class="btn">Import GSTR-2B…</span> → pick <code>gstr2b_2025-04.json</code> → <b>Import</b>.</li>
+    <li>Click <span class="btn">▶ Start Reconciliation</span>, then <span class="btn">Open exceptions</span>.</li>
+  </ol>
+  <p><code>EXPECTED_RESULTS.md</code> in the same folder lists what each sample case should show.</p>
+</div>
+
+<h2 id="client">4. Add your client</h2>
+<ol>
+  <li><b>Clients</b> → <span class="btn">New client…</span>.</li>
+  <li>Enter the <b>GSTIN</b>. The state and PAN are filled in from it. Then enter the legal name, and choose
+      <i>Monthly</i> or <i>Quarterly (QRMP)</i> filing.</li>
+  <li>Choose the client at the top of the window (<b>Client</b> box) before working on it.</li>
+</ol>
+
+<h2 id="monthly">5. Monthly purchase reconciliation (books vs GSTR-2B)</h2>
+<p>You need two files for the month:</p>
+<table>
+  <tr><th>File</th><th>Where to get it</th></tr>
+  <tr><td><b>Purchase register</b></td>
+      <td>TallyPrime: <i>Display More Reports → Account Books → Purchase Register</i> → export to Excel. Any other
+          Excel/CSV register also works.<br>
+          No Tally? Fill in <code>TEMPLATE_purchase_register.xlsx</code> from the sample files folder
+          (<code>EXAMPLE_purchase_register.xlsx</code> shows filled rows).<br>
+          Or skip the export: click <span class="btn">Import from Tally…</span> while Tally is open with
+          <i>F1 Help → Settings → Connectivity → TallyPrime acts as: Server</i>.</td></tr>
+  <tr><td><b>GSTR-2B</b></td>
+      <td>GST portal: <i>Returns Dashboard → GSTR-2B → Download</i> (JSON or Excel).</td></tr>
+</table>
+<ol>
+  <li>On <b>Reconcile</b>, choose the client, financial year and month.</li>
+  <li><span class="btn">Import purchase register…</span>. A preview shows every row. Rows with problems are shown in
+      colour with the reason; nothing is changed silently. Click <b>Import</b>.</li>
+  <li>If the program cannot recognise the columns of your file, it asks you to match them once (for example,
+      “Bill No” = invoice number). Save the matching as a template, and next month the same file layout is read
+      automatically.</li>
+  <li><span class="btn">Import GSTR-2B…</span> the same way.</li>
+  <li>Click <span class="btn">▶ Start Reconciliation</span>. It takes seconds, even for thousands of invoices.</li>
+</ol>
+
+<h2 id="review">6. Review the differences</h2>
+<ul>
+  <li><b>Dashboard</b> shows the totals: matched, differences, ITC at risk.</li>
+  <li><b>Exceptions</b> lists every invoice that needs attention, for example “Available in Books but Missing in
+      GSTR-2B” or “Matched with Taxable Value Difference”. Click a line to see why, set a status and remarks, and
+      click <span class="btn">Save review</span>.</li>
+  <li>Use <span class="btn">Confirm match</span> or <span class="btn">Manual match</span> when you know two documents
+      are the same invoice. The program remembers this for next month.</li>
+  <li><b>Suppliers</b> shows the position supplier by supplier. <b>Letters &amp; papers</b> writes a letter (Word, PDF
+      or e-mail draft) to each supplier who has not reported invoices.</li>
+  <li><span class="btn">Export reports</span> saves the Excel and PDF reports for the client’s file.</li>
+</ul>
+
+<h2 id="sales">7. Sales register vs GSTR-1, e-invoices and e-way bills</h2>
+<p>On <b>Sales &amp; GSTR-1</b>, import the sales register (or <span class="btn">Sales from Tally…</span>) and the
+   GSTR-1 JSON from the portal. A ready sales register layout is in the sample files folder:
+   <code>TEMPLATE_sales_register.xlsx</code> (with a filled <code>EXAMPLE_sales_register.xlsx</code>). Choose what to compare it with (GSTR-1, e-Invoice or e-Way bill) and click
+   <b>Reconcile</b>. The same page compares GSTR-1 with the tax paid in GSTR-3B.</p>
+
+<h2 id="batch">7a. Many clients at once (Batch)</h2>
+<p>Instead of importing client by client, put all the files in one folder and let the program do the rest.</p>
+<ol>
+  <li>Make one folder for the batch, for example <code>D:\GST April</code>.</li>
+  <li>Inside it, one folder per client. Its name must contain the client’s <b>GSTIN</b>, for example
+      <code>Shree Ganesh Traders 27AAPFU0939F1ZV</code>.</li>
+  <li>Inside each client folder, one folder per month, named like <code>2025-04</code>.</li>
+  <li>Put the month’s files there. The file name says what it is: <code>purchase</code>, <code>sales</code>,
+      <code>gstr2b</code>, <code>gstr1</code>, <code>gstr3b</code>, <code>einvoice</code>, <code>ewb</code>,
+      <code>ims</code> or <code>tds</code> – for example <code>purchase_register.xlsx</code>,
+      <code>gstr2b.json</code>.</li>
+  <li>In the program: <b>Batch</b> → <span class="btn">Choose folder…</span> →
+      <span class="btn">Check folder</span> (shows what will happen, changes nothing) →
+      <span class="btn">▶ Run batch</span>.</li>
+</ol>
+<p>The program imports each new file, reconciles purchases with GSTR-2B and sales with GSTR-1, e-invoices and
+   e-way bills, and saves the Excel reports in a <code>reports</code> folder inside each month folder. The result
+   list (also saved as <code>batch_summary_….csv</code>) shows every file and any problem with its reason. Files
+   already imported are skipped, so you can run the same folder again after adding files.</p>
+<div class="box note">To try it: <span class="btn">Create example folder…</span> makes a ready folder with the demo
+  client. Tick <i>Add clients that do not exist yet</i> to add clients from the folder names. If a register’s
+  columns are not recognised, import it once on the Reconcile page, match the columns and save a template – the
+  batch then uses that template.</div>
+
+<h2 id="firm">7b. Firm work dashboard</h2>
+<p><b>Firm work</b> (second item in the menu) shows every client for one month on a single screen:</p>
+<table>
+  <tr><th>Stage</th><th>Meaning</th></tr>
+  <tr><td>Awaiting data</td><td>Nothing imported for the month yet.</td></tr>
+  <tr><td>Data incomplete</td><td>One side is missing, e.g. purchase register without GSTR-2B.</td></tr>
+  <tr><td>Ready to reconcile</td><td>Both sides are in, but not reconciled – or new files came in after the last
+      reconciliation.</td></tr>
+  <tr><td>Under review</td><td>Exceptions still open, with who they are assigned to.</td></tr>
+  <tr><td>Reviewed – file returns</td><td>Review done; GSTR-1 / GSTR-3B filing not recorded yet.</td></tr>
+  <tr><td>Done</td><td>The month’s returns are filed.</td></tr>
+</table>
+<ul>
+  <li>The <b>Next step</b> column says what to do for each client, and warns when a return is overdue.</li>
+  <li><b>Deadlines</b> lists returns not filed and notice replies, overdue or due in the next 15 days.
+      <b>Staff workload</b> shows each person’s clients and open exception lines.</li>
+  <li><span class="btn">Set responsible staff…</span> assigns a client to a staff member (also on the client form);
+      the <b>Staff</b> box then shows only that person’s clients.</li>
+  <li><span class="btn">Record filing…</span> saves the date (and ARN) a return was filed – the client moves to
+      <i>Done</i>. <span class="btn">Open client</span> (or double-click) goes straight to that client’s work.</li>
+  <li><span class="btn">Export to Excel…</span> saves the whole dashboard, e.g. for the weekly office meeting.</li>
+</ul>
+
+<h2 id="reminders">7c. Client reminders and the one-page client report</h2>
+<ul>
+  <li><b>Reminders</b> lists, for the month, each client who still has to send the purchase (or sales) register,
+      or explain / correct invoices you marked <i>Client Clarification Required</i> or <i>Correction Required in
+      Books</i>. Select a client to see a ready message; edit it if you like, then
+      <span class="btn">Copy message</span>, <span class="btn">Open in e-mail</span> or
+      <span class="btn">Open WhatsApp</span>. The program never sends anything itself – you press Send in your own
+      e-mail or WhatsApp. Each reminder is counted, so you can see who has been reminded and when.</li>
+  <li><b>Firm work</b> → <span class="btn">Client report (PDF)…</span> makes a one-page GST summary of the month for the
+      selected client (or, with no client selected, for every client in the list): ITC as per books, GSTR-2B and
+      GSTR-3B, ITC at risk, output tax, suppliers to follow up, returns filed or due, and what is still needed.
+      The “Signed” name from the Reminders page is shown as “Prepared by”.</li>
+</ul>
+
+<h2 id="phase14">7d. Tax checks, journal and payment registers, 180-day rule, PAN view, Tally journals</h2>
+<h3>Check tax types and rates</h3>
+<p><b>Reconcile</b> → step 6 → <span class="btn">Check tax types and rates…</span> lists purchases and sales where IGST
+   was charged instead of CGST + SGST (or the reverse) for the supplier’s / customer’s state and the place of supply,
+   CGST + SGST of another state (e.g. a hotel elsewhere – not your ITC), and tax that is not the taxable value × a GST
+   rate. Nothing is changed; export the list to Excel and ask the supplier for a corrected invoice.</p>
+<h3>Journal register</h3>
+<p>When expenses with GST (rent, professional fees, repairs…) are booked as journals in Tally: export the
+   <b>Journal Register</b> (columnar, with GSTIN/UIN, Reference No. and the GST ledgers) and click
+   <span class="btn">Import journal register…</span> in step 3. Journals with GST and a supplier GSTIN are read as
+   bills; depreciation, provisions, TDS and ITC reversal journals are listed in the preview as not imported.
+   <span class="btn">Import from Tally…</span> reads such journals automatically. Example:
+   <code>tally_journal_register_2025-04.xlsx</code>.</p>
+<h3>Payment register and the 180-day rule (Rule 37)</h3>
+<ol>
+  <li>Export the <b>Payment Register</b> from Tally (Excel, with bill-wise details if you use them) and click
+      <span class="btn">Import payment register…</span> in step 3 (or on the <b>180-day rule</b> page).</li>
+  <li>The <b>⏱ 180-day rule</b> page lists every purchase bill: <i>Paid in time</i>, <i>Not yet due</i>,
+      <i>Reverse ITC</i> (not fully paid within 180 days of the invoice date – the ITC on the unpaid part, the month in
+      which to reverse it in GSTR-3B 4(B)(2) and an interest estimate) or <i>Paid late – re-claim</i>.</li>
+  <li>Payments that name a bill settle that bill; the rest settle the supplier’s oldest open bills. Import purchase
+      registers from the start of the year so that payments are matched correctly. A bill paid by cheque not in the
+      register: select it and <span class="btn">Mark as paid…</span>.</li>
+  <li>Payments whose party is not found among the suppliers are shown in red (name spelt differently?).</li>
+</ol>
+<h3>PAN view</h3>
+<p><b>▥ PAN view</b> shows a business registered in several states (same PAN) on one screen: each GSTIN’s ITC as per
+   books, GSTR-2B and GSTR-3B, ITC at risk, output tax, returns overdue and notices, with totals – and the suppliers
+   to follow up across all its registrations. Export to Excel for the client.</p>
+<h3>Tally journals</h3>
+<p><span class="btn">Tally journals…</span> (on <b>ITC review</b> → claim register, and on the <b>180-day rule</b> page)
+   makes the month’s ITC reversal and re-claim journal vouchers as a file for TallyPrime: <i>Gateway of Tally → Import
+   → Vouchers</i>. Enter the ledger names exactly as in that client’s Tally company (saved per client). Use one source
+   per month – the claim register <i>or</i> the 180-day rule – so nothing is booked twice.</p>
+
+<h2 id="phase15">7e. GSTR-1 file, GSTR-3B draft and invoices by hand</h2>
+<h3>Prepare GSTR-1</h3>
+<p><b>Sales &amp; GSTR-1</b> → choose the month in <i>From</i> → <span class="btn">Prepare GSTR-1 JSON…</span>. The sales
+   register is placed in the GSTR-1 tables (B2B, B2C large and small, credit / debit notes, exports, nil-rated, HSN
+   summary B2B / B2C and documents issued). Documents that cannot be placed correctly – an invalid customer GSTIN, tax
+   that fits no GST rate – are <b>left out and listed with the reason</b>. Save the file, open it in the GST Offline
+   Tool (or upload it on the portal: GSTR-1 → Prepare offline → Upload), check every table, then file.</p>
+<h3>GSTR-3B draft</h3>
+<p><b>GSTR-3B &amp; annual</b> → choose the month → <span class="btn">GSTR-3B draft (one page)…</span>: the figures for
+   3.1, 3.2, 4 and 5, and Table 6.1 – how the ITC is set off (IGST credit first, as the law requires) and the
+   <b>cash to pay</b>. Save it as a one-page PDF. Interest and late fee are not included.</p>
+<h3>Enter or correct invoices by hand</h3>
+<p><b>✎ Invoices</b> lists a client’s purchase or sales documents. <span class="btn">New document…</span> adds one
+   (e.g. a small client without Excel); select a document and <span class="btn">Correct…</span> to fix a wrong number,
+   date or amount without importing the whole file again. The same checks as an import apply, and every change is
+   kept in the audit log. If the document was already reconciled, click <i>Start Reconciliation</i> again for that
+   month.</p>
+
+<h2 id="phase16">7f. Rule 42/43, e-invoice and e-way bill files, revised files, Tally ERP 9, earlier years</h2>
+<h3>Rule 42/43 – common credit for exempt supplies</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>Rule 42/43</b>. Choose the month and click <span class="btn">Show</span>: the ITC of
+   the month, the exempt share of turnover (from the sales register) and the credit to reverse. Enter, if any, ITC
+   used only for non-business (T1), only for exempt supplies (T2) and only for taxable supplies (T4), tick the 5 % box
+   if common inputs are also used for non-business purposes, and <span class="btn">Save month</span> – the reversal
+   then appears in the GSTR-3B draft at 4(B)(1). Add common capital goods (e.g. a generator) with
+   <span class="btn">Add capital good…</span>: 1/60 of their ITC is apportioned every month for five years. After the
+   year, <span class="btn">Year-end re-calculation</span> shows what to reverse more (with interest) or to claim again in
+   the September return.</p>
+<h3>e-Invoice and e-way bill files</h3>
+<p><b>Sales &amp; GSTR-1</b> → month in <i>From</i> → <span class="btn">e-Invoice / e-way bill JSON…</span>. First fill the
+   <b>party addresses</b> (import a party list from Tally – List of Ledgers with address, PIN and GSTIN – or add
+   parties). The e-invoice file covers registered customers, SEZ and exports; the e-way bill file covers goods invoices
+   above ₹50,000 (enter the vehicle or transporter for the batch). Documents missing an address, PIN or HSN are left
+   out and listed. Upload the file on the e-invoice / e-way bill portal yourself.</p>
+<h3>Client sent a corrected file</h3>
+<p><b>Imports</b> → select the old import → <span class="btn">Replace with revised file…</span>. You see every changed,
+   new and removed invoice before anything is saved. Unchanged invoices keep their review work.</p>
+<h3>Tally ERP 9 and earlier years</h3>
+<p>Registers exported from the old <b>Tally.ERP 9</b> (Excel 97-2003, <code>.xls</code>) import like TallyPrime files.
+   For earlier years (back to 2017-18), choose the year in the <b>Financial year</b> box at the top – it stays when you
+   switch clients.</p>
+
+<h2 id="phase17">7g. GST Portal section, TallyPrime GST reports, GSTR-2A / 8A, GSTR-9 and 9C files</h2>
+<h3>GST Portal – download and import with one click</h3>
+<p>Open <b>GST Portal</b> in the left menu. <span class="btn">Log in to GST portal</span> opens the official portal in
+   your browser – you sign in there yourself (FIN TAX PRO never asks for or keeps your portal password). The report
+   buttons (GSTR-1, GSTR-2B, GSTR-2A, GSTR-3B, cash ledger, credit ledger, TDS and TCS credit, GSTR-8A / Table 8A)
+   open the right part of the portal; point at a button to see the menu path. Save the downloads in your
+   <b>Downloads</b> folder (or choose another folder). Each file is recognised – which return, which client (by GSTIN)
+   and which month – and listed. Click <span class="btn">Import all ready</span>, or select files and
+   <span class="btn">Import selected</span>. Returns with invoices (GSTR-1, 2A, 2B, 8A) first show the usual import
+   preview. Files already imported are marked and are not imported twice.</p>
+<p>The <b>electronic cash ledger</b> and <b>electronic credit ledger</b> (portal: Services → Ledgers → save as Excel) are
+   shown at the bottom of the page with the latest balance. Downloading an overlapping period again adds only the new
+   lines.</p>
+<p>Without internet the page says <i>Offline</i>; everything else in the program works as usual, and files already
+   downloaded can still be imported. The header shows <i>● Online</i> or <i>● Offline</i>.</p>
+<h3>Reconcile page</h3>
+<p>Step 4 now has <span class="btn">GSTR-2A</span> and <span class="btn">GSTR-8A</span> next to GSTR-2B. Step 3 has
+   <span class="btn">Tally statutory report…</span>: in TallyPrime open <i>Display More Reports → GST Reports</i>, export
+   the <b>GSTR-1</b> report (imported as the sales register), the <b>GSTR-2A / 2B reconciliation</b> (imported as the
+   purchase register – lines that are only on the portal are left out and listed) or the <b>GSTR-3B</b> report (kept
+   as "GSTR-3B as per books" and compared with the draft in <span class="btn">GSTR-3B draft (one page)…</span>).
+   Step 7 has <span class="btn">Delete reconciliation…</span> to remove the reconciliation shown (your imports stay).</p>
+<h3>GSTR-9 and GSTR-9C prepared elsewhere</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>GSTR-9</b> → <span class="btn">Import GSTR-9 (filed / offline tool)…</span> takes the
+   GSTR-9 JSON from the portal or the offline tool, or an Excel / CSV template with table codes (4A, 6B …). Tab
+   <b>GSTR-9C</b> → <span class="btn">Import GSTR-9C template…</span> takes the offline tool's Excel. Both are compared
+   with the program's working table by table; differences are shown in red. For GSTR-9C you can click
+   <span class="btn">Use the file's audited figures in GSTR-9C</span> to record its Tables 5, 7 and 12 amounts.</p>
+
+<h2 id="phase18">7h. E-mail, invoices from PDF, charts and MIS, fees and staff tasks</h2>
+<h3>Sending e-mails from the program</h3>
+<p>First set up your firm's mail account once: <b>Settings</b> → <span class="btn">E-mail account…</span>. Choose your
+   provider (Gmail, Outlook, Zoho …), enter the e-mail address and an <b>app password</b> (for Gmail / Outlook turn on
+   2-step verification and create an app password – not your normal password), then
+   <span class="btn">Test connection</span>. The password is kept encrypted on this computer, or not kept at all if you
+   untick "Remember".</p>
+<p>E-mails are never sent by themselves. These buttons put them in the <b>Outbox</b> (left menu):</p>
+<ul>
+  <li><b>Letters &amp; papers</b> → <span class="btn">E-mail to suppliers…</span> – each mismatch letter as a PDF to the
+      supplier;</li>
+  <li><b>Reminders</b> → <span class="btn">Add all to Outbox</span> – document requests to clients;</li>
+  <li><b>Firm work</b> → <span class="btn">E-mail client reports…</span>, <b>Charts &amp; MIS</b> →
+      <span class="btn">E-mail to client…</span>, and fee invoices on <b>Fees &amp; tasks</b>.</li>
+</ul>
+<p>In the Outbox, click a mail to see it, type a missing address, correct the text, then select mails and
+   <span class="btn">Send selected</span>. Failed mails stay there with the reason and can be sent again.</p>
+<h3>Purchase invoices from PDF</h3>
+<p><b>Reconcile</b> → step 3 → <span class="btn">Invoices from PDF…</span> and choose the PDF invoices (as saved by the
+   supplier's billing software). The program reads the supplier GSTIN, invoice number and date, taxable value and taxes
+   on this computer and shows them in a check screen – yellow rows need a look (double-click the file name to open the
+   PDF and type the right figure). Scanned PDFs (photos) cannot be read and are listed. Then the usual import preview
+   saves them to the purchase register.</p>
+<h3>Charts &amp; MIS</h3>
+<p><b>Charts &amp; MIS</b> shows the client's year: ITC as per books, GSTR-2B and GSTR-3B; sales and cash paid by month;
+   and the suppliers with the most ITC at risk (point at a bar or point to see the amount).
+   <span class="btn">MIS pack (PDF)…</span> and <span class="btn">MIS pack (Excel)…</span> make a two-page summary for the
+   client's management.</p>
+<h3>Fees &amp; tasks</h3>
+<p><b>Staff tasks</b>: <span class="btn">Create return tasks</span> adds "File GSTR-1 / GSTR-3B" for every client for
+   the month, with the due date, assigned to the client's responsible staff. They close by themselves when the filing is
+   recorded on <b>Firm work</b>. Add other work with <span class="btn">Add task…</span>; overdue tasks are red.</p>
+<p><b>Fees</b>: fill the <span class="btn">Firm profile…</span> once (name, address, GSTIN if registered, bank details,
+   invoice prefix). <span class="btn">New fee invoice…</span> makes a numbered invoice (GST added – CGST+SGST in your
+   state, IGST outside; a bill of supply without GST if the firm is not registered). Record payments with
+   <span class="btn">Record receipt…</span> (including TDS the client deducted). <i>Outstanding fees by client</i> shows
+   what is due and for how long. A wrong invoice is cancelled, not deleted, so numbers are never reused.</p>
+
+<h2 id="phase19">7i. ITC claim plan and the year-end pack</h2>
+<h3>ITC claim plan – what to claim this month</h3>
+<p><b>ITC review</b> → tab <b>Claim plan</b>. Type the GSTR-3B month (e.g. 2025-06) and click
+   <span class="btn">Prepare plan</span>. Every purchase invoice not yet claimed – including those of earlier months –
+   is looked for in all the GSTR-2Bs imported up to that month, so an April invoice that the supplier reports only in
+   June becomes claimable in June:</p>
+<ul>
+  <li><b>Claim now</b> (green) – in GSTR-2B, amounts agree, no open flag;</li>
+  <li><b>Check first</b> (yellow) – GSTR-2B shows less tax, marks ITC as not available, or a review flag is open;</li>
+  <li><b>Hold</b> (blue) – the supplier has not reported it yet; it is carried to the next month automatically, with
+      the last date to claim (section 16(4)) – follow up when that date is near;</li>
+  <li><b>Time-barred</b> (red) – the last date has passed;</li>
+  <li><b>Written off</b> – you decided not to claim it (select rows → <span class="btn">Do not claim (write off)…</span>
+      and give the reason; <span class="btn">Undo write-off</span> brings it back).</li>
+</ul>
+<p><span class="btn">Record all 'Claim now'</span> (or select rows → <span class="btn">Record claim for selected</span>)
+   enters them in the claim register for the month. The bottom list shows invoices in GSTR-2B that are not in the books –
+   ask the client about them. <span class="btn">Export to Excel…</span> saves the plan.</p>
+<h3>Year-end pack</h3>
+<p>Choose the year in the header, then <b>GSTR-3B &amp; annual</b> → tab <b>GSTR-9</b> →
+   <span class="btn">Year-end pack…</span> and a folder. You get one PDF with a contents page – status by month, GSTR-9,
+   GSTR-9C, Table 8, ITC still on hold, interest and late fee, open notices, supplier risk – and one Excel file with an
+   index sheet. Put both in the audit file.</p>
+
+<h2 id="phase20">7j. Reverse charge, ISD, and bank statement vs cash ledger</h2>
+<h3>Reverse charge (RCM) register</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>RCM &amp; ISD</b>. Type the month and click <span class="btn">Show</span>. You see
+   purchases marked "reverse charge" in the purchase register, and purchases that look like reverse-charge services
+   (freight / GTA, advocate, director, security, rent …) where the supplier charged no GST – marked
+   <i>Possible RCM – check</i>. Purchases from persons <b>without GSTIN</b> (rent to an individual, advocate, local
+   transporter) are not in the purchase register: add them with <span class="btn">Add unregistered purchase…</span> or
+   <span class="btn">Import RCM list…</span> (Excel with date, party and amount; rate and state if known). The tax is
+   worked out, the month's total is compared with GSTR-3B 3.1(d), and it is added to the GSTR-3B draft.
+   <span class="btn">Self-invoices (PDF)…</span> prints the self-invoices you must issue for purchases from unregistered
+   persons – enter the next number of your series.</p>
+<h3>ISD distribution</h3>
+<p>Add the ISD registration and the branches (same PAN) as clients. Select the ISD as the client, import its purchase
+   register (the common input services), and on the <b>RCM &amp; ISD</b> tab click
+   <span class="btn">Work out distribution</span>. The credit is shared by turnover of the previous year from the
+   branches' sales registers – or type the turnover in the grid and work it out again. CGST/SGST go to a branch in the
+   same state as CGST/SGST and to other states as IGST. <span class="btn">Export ISD invoices (Excel)…</span> gives the
+   ISD invoices for GSTR-6.</p>
+<h3>Bank statement vs electronic cash ledger</h3>
+<p>On the <b>GST Portal</b> page, import the client's electronic cash ledger, then click
+   <span class="btn">Bank statement vs cash ledger…</span> → <span class="btn">Import bank statement…</span> (net banking →
+   statement → Excel / CSV). Every GST payment in the bank is matched with a deposit in the cash ledger (by CPIN, or by
+   amount and date). Red rows were <b>debited in the bank but not credited</b> on the portal – check with the bank and,
+   if the CIN was not generated, raise a grievance in GST PMT-07.</p>
+
+<h2 id="phase21">7k. Exports, SEZ and refunds; composition and QRMP</h2>
+<h3>Exports and SEZ</h3>
+<p><b>GSTR-3B &amp; annual</b> → tab <b>Exports &amp; refund</b>. Choose the months and click
+   <span class="btn">Check exports</span>; import the shipping bills (ICEGATE / customs broker list with shipping bill
+   no., date, port, invoice no. and IGST) with <span class="btn">Import shipping bills…</span>. Red rows need action:
+   an export with IGST that has no shipping bill (the refund cannot be processed), or goods under LUT not exported
+   within three months of the invoice (IGST payable with interest). Yellow rows are to check: IGST on the shipping
+   bill differs, or a shipping bill is still awaited. Save the year's LUT ARN in the box.</p>
+<h3>Refund of ITC (RFD-01)</h3>
+<p>Choose <i>Export / SEZ without payment – rule 89(4)</i> or <i>Inverted duty structure – rule 89(5)</i>, click
+   <span class="btn">Fill from the registers</span>, correct the figures (for example remove capital goods and input
+   services from net ITC), then <span class="btn">Work out refund</span>. The refund is limited to the credit ledger
+   balance when the credit ledger has been imported. <span class="btn">Export to Excel…</span> saves the export list and
+   the refund working.</p>
+<h3>Composition dealers</h3>
+<p>Tab <b>Composition / QRMP</b>: choose the client's category (trader / manufacturer 1 %, restaurant 5 %, services 6 %)
+   and <span class="btn">Save</span>. <span class="btn">CMP-08 for the quarter</span> works out the tax on the quarter's
+   sales plus reverse-charge tax; <span class="btn">GSTR-4 (year)</span> shows the four quarters and the year's inward
+   supplies.</p>
+<h3>QRMP clients</h3>
+<p>For the first or second month of a quarter, <span class="btn">Work out PMT-06 for the month</span> shows the fixed sum
+   (35 % of the cash paid last quarter – import last quarter's GSTR-3B JSON) and the self-assessed amount (the month's
+   tax less ITC), and the B2B total for the IFF against the ₹50 lakh limit.</p>
+
+<h2 id="phase22">7l. Tax audit (clause 44) and litigation</h2>
+<h3>Form 3CD clause 44</h3>
+<p>Choose the year at the top, then <b>GSTR-3B &amp; annual</b> → tab <b>Tax audit (3CD cl. 44)</b>. Type the total
+   expenditure as per the accounts (P&amp;L and capital additions) and click <span class="btn">Save total</span>. The
+   break-up is taken from the purchase register (registered suppliers – exempt, composition, others) and the RCM register
+   (unregistered suppliers), at taxable value. Suppliers who never charged GST are shown as exempt; if they are
+   composition dealers, select them and click <span class="btn">Mark selected as composition</span>. The rest of the
+   total expenditure (salaries, depreciation …) appears as "not in the registers" for you to classify.
+   <span class="btn">Export to Excel…</span> gives the clause 44 table and the supplier list. The lower table compares,
+   month by month, the books with GSTR-3B and GSTR-2B – red cells are differences.</p>
+<h3>Litigation</h3>
+<p><b>Litigation</b> (left menu) keeps every GST dispute. <span class="btn">New case…</span> or
+   <span class="btn">From a notice…</span> (a notice on the GST notices page). Use <span class="btn">Change…</span> as the
+   case moves: order received (enter the date it was communicated, tax, interest, penalty), appeal filed (pre-deposit
+   paid, DRC-03 and APL-01 references), hearing dates. The program shows the last date to appeal (3 months for the first
+   appeal, with the condonable month), the pre-deposit (10 % of the tax in dispute, plus tax admitted), and alerts when a
+   time limit or a hearing is near. <span class="btn">Add to history…</span> records each step;
+   <span class="btn">Make staff tasks</span> puts the coming hearings and time limits on <b>Fees &amp; tasks</b>.</p>
+
+<h2 id="phase23">7m. Supplier GSTIN status and data health</h2>
+<h3>Supplier GSTIN status</h3>
+<p><b>Suppliers</b> → tab <b>GSTIN status</b> → <span class="btn">Check suppliers</span>. Suppliers never checked are
+   listed; <span class="btn">List to verify (CSV)…</span> saves their GSTINs. Check them on the GST portal (Search
+   Taxpayer) or with your verification service, fill in the status, date of cancellation and taxpayer type, and
+   <span class="btn">Import status list…</span> (Excel, CSV or the portal's search JSON). You can also set one by hand with
+   <span class="btn">Set status…</span>. Red rows have ITC at stake: bills dated after a cancellation, a suspended
+   registration, or a composition dealer charging GST. A status is shared by all clients, so a supplier checked once
+   is known everywhere; it is asked again after 90 days.</p>
+<h3>Data health</h3>
+<p><b>Data health</b> (left menu, under Dashboard) checks the selected client's year in one click and gives a score
+   out of 100. Red items need fixing now (wrong GSTINs, future dates, months imported but not reconciled, cancelled
+   suppliers with ITC); yellow items to check (the same bill written two ways, bookings before the bill date, bills past
+   the time limit, missing months, reconciliations older than the latest import, impossible tax). Select an item to see
+   examples and click <span class="btn">Go to the page to fix it</span>. <span class="btn">Check all clients</span>
+   lists every client with its score, worst first.</p>
+
+<h2 id="returnprep">7n. Return preparation – GSTR-1, GSTR-3B, GSTR-9, GSTR-9C</h2>
+<p><b>Return preparation</b> (left menu, under Reconcile). Choose the return and the period (month for GSTR-1 / 3B, the
+   year for GSTR-9 / 9C) and click <span class="btn">Check</span>.</p>
+<ol>
+  <li><b>Is the data ready?</b> – green ✔ ready, yellow ! to look at, red ✖ must be done first (for example the sales
+      register of the month, or the audited turnover for GSTR-9C).</li>
+  <li><b>Figures of the return</b> – review them.</li>
+  <li><span class="btn">Prepare files…</span> saves the files in a folder, then <span class="btn">Mark as final</span>.
+      If anything is imported or changed later, the return shows <i>data has changed since</i> – prepare it again.</li>
+</ol>
+<table>
+  <tr><th>Return</th><th>File</th><th>On the portal</th></tr>
+  <tr><td>GSTR-1</td><td>JSON (portal format)</td><td>Returns Dashboard → GSTR-1 → Prepare Offline → Upload. Quarterly
+      (QRMP) filers: the quarter's last month covers all three months.</td></tr>
+  <tr><td>GSTR-3B</td><td>Filing sheet (Excel) + one-page PDF</td><td>The portal does <b>not</b> take a GSTR-3B file –
+      enter the figures table by table from the filing sheet.</td></tr>
+  <tr><td>GSTR-9</td><td>JSON + mapping (CSV)</td><td>Open the JSON in the GSTR-9 offline tool, complete the tables the
+      mapping lists, generate the JSON in the tool and upload it.</td></tr>
+  <tr><td>GSTR-9C</td><td>Excel in the offline tool's tables</td><td>Enter / copy into the GSTR-9C offline tool, generate
+      its JSON and upload.</td></tr>
+</table>
+<p>FIN TAX PRO never uploads or files anything – you check the summary on the portal and file with DSC / EVC.</p>
+
+<h2 id="largedata">7o. Working with large data</h2>
+<p>With large clients (tens of thousands of invoices a year) the heavy pages – Charts &amp; MIS, Data health, GSTR-3B &amp;
+   annual, ITC review, Rule 37, Compliance, Open items – now prepare their figures in the background: the window stays
+   usable and the mouse pointer shows a busy sign until the page is filled. Figures are worked out once and reused
+   until something is imported or changed, so going back to a page is instant. Each month's reconciliation no longer
+   re-reads the whole year's purchase register.</p>
+
+<h2 id="returncompare">7p. Return comparison – GSTR-3B vs 2B, GSTR-1 vs 3B, GSTR-2A vs 2B</h2>
+<p><b>Return comparison</b> (left menu, under Return preparation) compares the returns themselves, month by month, for
+   the selected client and year. Quarterly (QRMP) clients are compared quarter by quarter.</p>
+<h3>1. Bring the returns from the GST portal</h3>
+<p>Sign in on the official GST portal yourself (<span class="btn">Open GST portal</span> opens the Returns Dashboard –
+   FIN TAX PRO never asks for or keeps your portal password) and download for each month:</p>
+<table>
+  <tr><th>Return</th><th>Where on the portal</th><th>File</th></tr>
+  <tr><td>GSTR-1</td><td>Returns Dashboard → GSTR-1 → View / Download</td><td>JSON (often in a ZIP)</td></tr>
+  <tr><td>GSTR-3B</td><td>Returns Dashboard → GSTR-3B → Download filed GSTR-3B</td><td>PDF of the filed return (or the
+      JSON)</td></tr>
+  <tr><td>GSTR-2A</td><td>Returns Dashboard → GSTR-2A → Download → Generate JSON / Excel</td><td>JSON / ZIP / Excel</td></tr>
+  <tr><td>GSTR-2B</td><td>Returns Dashboard → GSTR-2B → Download</td><td>JSON / Excel</td></tr>
+</table>
+<p>Click <span class="btn">Import from GST portal…</span> and select all the files at once, or
+   <span class="btn">Pick up from Downloads</span> to take this client's returns saved there in the last 7 days. Each
+   file is recognised by itself; the GSTIN in the file decides the client (a file for another client is saved for that
+   client and you are told). Files already imported are skipped. The tab <b>Returns imported</b> shows, month by month,
+   which of the four returns are in.</p>
+<p><b>GSTR-3B PDF:</b> the figures of Tables 3.1 and 4 are read from the text of the PDF. Check them once against the
+   PDF on the <b>GSTR-3B vs GSTR-2B</b> / <b>GSTR-1 vs GSTR-3B</b> tabs. A scanned (image) PDF cannot be read – use the
+   JSON instead.</p>
+<h3>2. Read the comparison</h3>
+<ul>
+  <li><b>GSTR-3B vs GSTR-2B</b> – ITC availed in GSTR-3B Table 4(A) against the ITC in GSTR-2B (B2B and notes, reverse
+      charge, ISD, imports), per tax head. A <b>positive</b> difference is ITC claimed above GSTR-2B – reverse it or
+      keep proof (section 16(2)(aa); DRC-01C above the rule 88D limit). A negative difference is ITC not yet claimed.</li>
+  <li><b>GSTR-1 vs GSTR-3B</b> – tax in GSTR-1 against GSTR-3B Table 3.1(a)+(b), per head. A <b>positive</b> difference is
+      tax short paid – pay it with interest (DRC-03) or in the next GSTR-3B; DRC-01B is expected above the rule 88C
+      limit. Tax under the wrong head (IGST instead of CGST/SGST) is flagged even when the totals agree.</li>
+  <li><b>GSTR-2A vs GSTR-2B</b> – invoice by invoice: documents the supplier filed that are not in any GSTR-2B (no ITC
+      yet), documents that reached a later month's GSTR-2B (supplier filed after the cut-off – claim in that month),
+      different amounts, and ITC marked not available. Choose <i>All documents</i> to see the matched ones too.</li>
+</ul>
+<p>Click a month to see its breakdown table by table; red rows and red findings need attention. A month whose return is
+   not imported says so – it is never treated as nil. <span class="btn">Export to Excel…</span> saves all three
+   comparisons with their breakdowns, findings and the document list.</p>
+
+<h3>3. Follow up a difference</h3>
+<p>Under the tabs, the <b>Follow-up</b> buttons act on the comparison that is open:</p>
+<ul>
+  <li><span class="btn">Supplier letters…</span> (GSTR-3B vs GSTR-2B tab) – for the months where GSTR-3B claims more ITC
+      than GSTR-2B, letters (Word and PDF) to the suppliers whose bills are not in GSTR-2B, taken from the purchase vs
+      GSTR-2B reconciliation of those months (reconcile them first on the Reconcile page). The suppliers are marked
+      <i>Letter issued</i> on the Suppliers page.</li>
+  <li><span class="btn">Reply draft DRC-01B…</span> (GSTR-1 vs GSTR-3B tab) or <span class="btn">Reply draft
+      DRC-01C…</span> (GSTR-3B vs GSTR-2B tab) – type the reference number of the intimation (or leave it blank),
+      choose a folder: the intimation is entered in <b>GST notices</b> (correct its date there) and a Word reply is
+      drafted from the data. Complete the parts marked in yellow before filing the reply on the portal.</li>
+  <li><span class="btn">DRC-03 working…</span> – the difference by tax head with interest at 18% up to today, in Excel,
+      to enter in DRC-03 on the portal. For GSTR-3B vs 2B it works on the net ITC (Table 4(C)), so ITC already reversed
+      reduces it, and the interest is an upper limit. Months recorded as paid on the Interest &amp; late fee tab are left
+      out. FIN TAX PRO never pays or files anything.</li>
+</ul>
+
+<h2 id="yoy">7q. Year on year</h2>
+<p><b>Year on year</b> (left menu, under Charts &amp; MIS) puts the selected year beside the earlier years (choose 2 to 5
+   years): sales, output tax, ITC as per books, ITC in GSTR-2B, ITC claimed in GSTR-3B, ITC at risk and tax paid in
+   cash. The <b>Totals</b> table shows the change in rupees and per cent (green good, red to look at – a rise in ITC
+   at risk or cash paid is red); while a year is in progress, read the <b>like-for-like</b> change, which compares only
+   the months both years have. Click a figure, or choose it in <i>Month by month</i>, for its months and the chart
+   (this year in blue, last year in orange, older years in grey). <b>Main suppliers</b> lists the biggest suppliers'
+   purchases in each year, marking new suppliers and those with no purchases this year.
+   <span class="btn">Export to Excel…</span> saves it all. Years with no data imported are shown blank, never as
+   nil – import the earlier year's registers and returns to fill them.</p>
+
+<h2 id="ledgers">7r. Ledger classification &amp; bifurcation (GSTR-9 Table 6, GSTR-9C Table 14)</h2>
+<p><b>Ledger classification</b> (left menu, under GSTR-3B &amp; annual) classifies every purchase, expense and fixed-asset
+   ledger of the TallyPrime trial balance, whole or split into parts, for the GSTR-9 and GSTR-9C workings. The trial
+   balance itself is never changed.</p>
+<ol>
+  <li><b>Bring the trial balance.</b> In TallyPrime: Display More Reports → Trial Balance → Alt+F5 (detailed) → Alt+E
+      Export → Excel (or XML), and click <span class="btn">Import trial balance…</span>. Or click
+      <span class="btn">From TallyPrime…</span> to read the ledgers and groups directly (TallyPrime open, XML server on
+      port 9000). Debit and credit totals are checked; group headings and totals are not counted as ledgers. Importing a
+      revised trial balance keeps the classification of ledgers that are still there – a changed amount shows as
+      unallocated.</li>
+  <li><b>Suggest.</b> <span class="btn">Suggest classifications</span> proposes an accounting class, a GST class
+      (inputs / input services / capital goods / exempt / no GST), the source (regular, reverse charge, import, ISD), the
+      GSTR-9C Table 14 head and an ITC eligibility, from the ledger name and group, with a confidence: <i>saved</i>
+      (you approved it before for this client), <i>high</i> (name and group agree), <i>medium</i> or <i>low</i>.
+      Suggestions are yellow and count for nothing until you approve them.</li>
+  <li><b>Approve, change or split.</b> Select ledgers and <span class="btn">Approve selected</span>, or
+      <span class="btn">Classify selected…</span> to give several ledgers one classification. Double-click a ledger (or
+      <span class="btn">Split / edit…</span>) to divide it into any number of parts:
+      <ul>
+        <li>type the amount of each part, or <span class="btn">Split by percentage…</span> (amounts only – percentages
+            never move GST);</li>
+        <li><span class="btn">Part from purchase register…</span> takes the taxable value and GST of the invoices you
+            choose (an invoice can be used only once, so GST is never counted twice);</li>
+        <li>or enter the GST from the invoices, or <span class="btn">Apportion GST…</span> – only after you tick that you
+            approve it; the part is marked <i>apportioned, approved by you on …</i>;</li>
+        <li>choose the ITC eligibility of each part: eligible, blocked under section 17(5), reversed under rules 42/43 or
+            37/37A, non-business use, exempt-supply attribution, not availed or reclaimed. GST charged is never taken as
+            eligible by itself.</li>
+      </ul>
+      The parts must add up to the ledger; the rest shows as <b>unallocated</b> in red. For a fixed asset use
+      <span class="btn">Amount to classify…</span> to enter the additions of the year (the closing balance includes the
+      opening). Mark an asset already counted in a purchase ledger as <i>Counted in another ledger</i>.
+      <span class="btn">Reverse</span> removes a classification; every change is in the audit log.</li>
+  <li><b>Check the summary</b> on the right (click a line to see its ledgers) and the <b>GSTR-9 Table 6</b> box: ITC
+      availed by inputs, input services and capital goods for each row (6B regular, 6C/6D reverse charge, 6E/6F imports,
+      6G ISD), and 6B compared with GSTR-3B 4(A)(5). It says <b>Ready</b> only when every ledger is approved, nothing is
+      unallocated, each part has an eligibility, eligible ITC has GST from invoices and 6B agrees with GSTR-3B.</li>
+  <li><b>Use it.</b> <span class="btn">Send to GSTR-9C Table 14</span> fills Table 14 (value, ITC, eligible ITC availed)
+      – Table 14 has been optional in recent years; check the notification for the year. When the working is ready and
+      agrees with GSTR-3B, the draft GSTR-9 JSON (GSTR-3B &amp; annual) carries 6B split into inputs, capital goods and
+      input services. <span class="btn">Workbook (Excel)…</span> gives the 18-sheet workbook (dashboard, original Tally
+      data, trial balance summary, P&amp;L classification, purchase / expense bifurcation, capital goods register, inputs
+      and input services summaries, ITC eligibility, GSTR-2B and GSTR-3B reconciliation, GSTR-9 Table 6, GSTR-9C Table 14,
+      exceptions, audit trail) with live formulas; <span class="btn">Review PDF…</span> a summary for the partner's
+      review.</li>
+</ol>
+<p>Classified values are accounting classifications, not ITC entitlements. FIN TAX PRO prepares working papers – it does
+   not file the returns.</p>
+
+<h2 id="more">8. Other features</h2>
+<table>
+  <tr><th>Page</th><th>What it does</th></tr>
+  <tr><td>ITC review</td><td>Flags blocked credit (section 17(5)), the time limit of section 16(4), reverse charge and
+      ITC not available, and keeps the claim register.</td></tr>
+  <tr><td>GSTR-3B &amp; annual</td><td>GSTR-3B Table 4 working, GSTR-9 and GSTR-9C working papers, TDS/TCS credits,
+      interest and late fee calculator, draft GSTR-9 file for the offline tool.</td></tr>
+  <tr><td>IMS</td><td>Compares the IMS actions (accept / reject / pending) with the books and GSTR-2B.</td></tr>
+  <tr><td>Compliance</td><td>Status of all clients month by month, and returns falling due.</td></tr>
+  <tr><td>GST notices</td><td>Register of DRC-01B, DRC-01C and ASMT-10 notices, with draft replies in Word. Yellow text
+      in a draft must be completed or deleted before sending.</td></tr>
+  <tr><td>Open items / History</td><td>Invoices still unresolved from earlier months, and every past reconciliation.</td></tr>
+</table>
+<div class="box note">All figures are working papers for a professional to check. The program never logs in to the GST
+  portal, never files a return and never sends client data anywhere. Download files from the portal yourself, and
+  file returns yourself.</div>
+
+<h2 id="backup">9. Backups – please set this up</h2>
+<ol>
+  <li>On <b>Security</b> → <b>Backups</b>, automatic backups are on by default (every 24 hours, kept on this PC).</li>
+  <li><b>Copy to OneDrive / Google Drive</b> (same tab): <span class="btn">Choose folder and turn on…</span>, pick your
+      OneDrive or Google Drive folder and choose a backup password. After every automatic backup an encrypted copy is
+      saved there, so it is safe even if this computer fails. Write the password down – the copies cannot be opened
+      without it. To restore one: <span class="btn">Restore encrypted backup…</span>.</li>
+  <li>At least once a month, click <span class="btn">Create encrypted backup…</span> and save the file to a pen drive
+      or another PC. Choose a password and keep it safe: without it the backup cannot be opened.</li>
+  <li>Your data is kept in <code>%LOCALAPPDATA%\FinTaxPro</code>. Uninstalling the program does not delete it.</li>
+</ol>
+
+<h2 id="updates">9a. Updates</h2>
+<p>The program looks for a new version by itself – by default once a day; on <b>Settings</b> you can choose
+   <i>every time FIN TAX PRO starts</i>, <i>once a day</i>, <i>once a week</i> or <i>never</i>. It reads only the latest
+   version number (no client data is sent) and waits until the computer is online. When there is a new version, a blue
+   bar appears at the top: click <span class="btn">Download and install</span>. The installer is downloaded, checked
+   against the fingerprint on the download page, and started when you agree; your data is kept. You can check at any
+   time with <span class="btn">⟳ Updates</span> at the top of the window.</p>
+
+<h2 id="help">10. If something goes wrong</h2>
+<table>
+  <tr><th>Message or problem</th><th>What to do</th></tr>
+  <tr><td>“Windows protected your PC”</td><td><b>More info → Run anyway</b> (see step 1).</td></tr>
+  <tr><td>“FIN TAX PRO could not start on this computer”</td><td>Send the file named in the message
+      (<code>%LOCALAPPDATA%\FinTaxPro\startup-error.txt</code>) to your support contact. It describes the PC and
+      the problem; it contains no client data.</td></tr>
+  <tr><td>“Column mapping needed”</td><td>Match the columns once on the screen shown and save a template (step 5.3).</td></tr>
+  <tr><td>“Already imported”</td><td>That exact file is already in. To replace it, remove the old import on the
+      <b>Imports</b> page first.</td></tr>
+  <tr><td>Imported the wrong file</td><td><b>Imports</b> → select the file → <span class="btn">Remove import…</span>.
+      If it was already used in a reconciliation, the program lists that reconciliation and deletes it too, after you
+      confirm. Then import the correct file and click <span class="btn">▶ Start Reconciliation</span> again.</td></tr>
+  <tr><td>Delete a reconciliation</td><td><b>History</b> → select the run →
+      <span class="btn">Delete reconciliation…</span>. The imported files are kept. Administrator login needed.</td></tr>
+  <tr><td>Delete a client (e.g. the sample client)</td><td><b>Security</b> → <b>Data deletion</b> →
+      <span class="btn">Delete current client permanently…</span> and type the client’s GSTIN. Cannot be undone –
+      make an encrypted backup first for a real client.</td></tr>
+  <tr><td>Rows rejected in the preview</td><td>The reason is shown on each row, for example an invalid GSTIN or a missing
+      invoice number. Correct the register and import it again.</td></tr>
+  <tr><td>“Tally did not answer”</td><td>In Tally: <i>F1 Help → Settings → Connectivity → TallyPrime acts as: Server</i>,
+      port 9000, and keep the company open.</td></tr>
+  <tr><td>Forgot the password</td><td>Another administrator can reset it on <b>Security</b>. If you were the only
+      administrator, restore a backup made while you knew the password.</td></tr>
+</table>
+<p style="color: var(--muted)">FIN TAX PRO 1.0 · The detailed technical documents are in the <code>docs</code> folder
+   of the installation.</p>
+</main>
+</body>
+</html>
