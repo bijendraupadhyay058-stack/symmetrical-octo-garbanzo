@@ -34,7 +34,7 @@ def _table(head, rows, widths):
 
 
 def build_pdf(sm, path: Path, firm: str = "") -> Path:
-    from ..services.bifurcation import T6_LABEL, TABLE14_STATUS
+    from ..services.bifurcation import T6_LABEL
 
     st = getSampleStyleSheet()
     h = st["Heading2"]
@@ -80,7 +80,7 @@ def build_pdf(sm, path: Path, firm: str = "") -> Path:
     story.append(_table(["Head", "Value", "GST charged", "Eligible", "Ineligible", "Availed", "Reversed",
                          "Difference"], rows or [["–"] * 8],
                         [80 * mm, 26 * mm, 24 * mm, 24 * mm, 24 * mm, 24 * mm, 22 * mm, 24 * mm]))
-    story.append(Paragraph(_t(TABLE14_STATUS), body))
+    story.append(Paragraph(_t(sm.table14_status), body))
     if sm.exceptions:
         story.append(Paragraph("Differences and exceptions", h))
         story.append(_table(["", "Ledger", "Exception"], [[s.upper(), Paragraph(_t(lg), body), Paragraph(_t(x), body)]

@@ -8,7 +8,7 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 
 ## Download and install (Windows)
 
-1. Download **FinTaxPro-Setup-1.16.0.exe** from the
+1. Download **FinTaxPro-Setup-1.17.0.exe** from the
    [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
 2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
    (the installer is not code-signed yet).
@@ -107,9 +107,12 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   services / capital goods) and GSTR-9C Table 14, with an 18-sheet workbook and a review PDF.
 * **ITC classification & manual mapping** – every inward supply from the purchase register and the Input CGST / SGST /
   IGST / Cess ledgers (consolidated per voucher, never counted twice), classified by nature, GST treatment and ITC
-  status with confidence; bulk and rule-based mapping (ledger, supplier, HSN/SAC, word; every year or one year), exact
+  eligibility with confidence, and – kept apart – the ITC actually claimed in GSTR-3B (Table 6 counts only claims); bulk and rule-based mapping (ledger, supplier, HSN/SAC, word; every year or one year), exact
   splits, undo and history; GSTR-9 Tables 6–8 against GSTR-3B, GSTR-9C Tables 12–14, RCM summary, ten controls,
   finalisation with sign-off, a 19-sheet workbook and a review PDF.
+* **Mapping master** – a permanent ledger mapping per client, filled by approvals and rules, reused every year by
+  both classification screens (a year's own classification always wins); edit, switch off, Excel export / import and
+  copy to a group company.
 * **Year on year** – sales, tax, ITC, ITC at risk and cash paid of up to five years side by side, month by month,
   with the change, like-for-like for a year in progress, the main suppliers and an Excel export.
 * **Annual and calendar** – import the portal's Table 8A document details; see returns due

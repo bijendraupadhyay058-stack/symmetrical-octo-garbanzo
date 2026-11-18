@@ -52,6 +52,7 @@
   <a href="#yoy">7q. Year on year</a> ·
   <a href="#ledgers">7r. Ledger classification</a> ·
   <a href="#itcclass">7s. ITC classification</a> ·
+  <a href="#mapmaster">7t. Mapping master</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -59,7 +60,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.16.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.17.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -610,8 +611,12 @@
 <p><b>ITC classification</b> (left menu, under Ledger classification) lists every inward supply of the year and
    classifies it in three independent ways: <b>nature</b> (trading purchase, raw material, other input goods, input
    services, capital goods, non-GST), <b>GST treatment</b> (FCM, RCM registered / unregistered, import of goods /
-   services, SEZ, ISD, deemed export) and <b>ITC status</b> (eligible, blocked, reversal required, temporarily reversed,
-   reclaimed, not yet claimed, partially eligible, pending). The strip at the top shows the ten steps and which are
+   services, SEZ, ISD, deemed export) and <b>ITC eligibility</b> (eligible, partly eligible, blocked under section 17(5),
+   reversal required under rules 37 / 42 / 43, to verify). Separately again it records the <b>ITC claim</b> – what was
+   actually done in GSTR-3B: claimed (in which month), not claimed, claimed then reversed, temporarily reversed,
+   reclaimed, or not verified. A machine classified as capital goods and eligible is <i>not</i> thereby claimed: the
+   claim comes from the ITC claim register (ITC review) or from <span class="btn">Record claim…</span>, and GSTR-9
+   Table 6 counts only ITC claimed in the year's GSTR-3B. Ineligible ITC that was claimed is a failed control. The strip at the top shows the ten steps and which are
    done.</p>
 <ol>
   <li><b>Import.</b> Import the purchase register (as on the Reconcile page) and, with
@@ -645,8 +650,35 @@
       (formulas) and Tables 7–8, GSTR-9C Tables 12, 13 and 14, rules, history, exceptions and the final summary);
       <span class="btn">Review PDF…</span> a summary.</li>
 </ol>
+<p><b>GSTR-9C Table 14</b> (expense-wise ITC: value, tax, eligible ITC, ITC claimed, eligible but not claimed) is
+   always prepared in full, even for years whose instructions let the table be left blank. The year's position is shown
+   on the workings; <span class="btn">Year's reporting note…</span> records the notification you rely on for the year
+   (for FY 2025-26 onwards the note says Notification No. 05/2026–Central Tax dated 26-10-2026, as you told us – check
+   it against the notification).</p>
 <p>Differences are shown, never adjusted. GSTR-9C book figures from the register are a working – use the audited
    accounts' figure where it differs. FIN TAX PRO does not file returns.</p>
+
+<h2 id="mapmaster">7t. Mapping master – the client's permanent ledger mapping</h2>
+<p><b>Mapping master</b> (left menu, under ITC classification) is one list per client of how each Tally ledger is
+   classified: accounting class, GST classification (inputs / input services / capital goods / exempt / no GST), source of
+   supply, GSTR-9C Table 14 head and ITC eligibility. It fills itself as you work – every ledger approved in Ledger
+   classification, and every ledger rule saved for every year in ITC classification – and you can
+   <span class="btn">Add…</span> or <span class="btn">Edit…</span> entries by hand.</p>
+<ul>
+  <li>Every year, both screens suggest from the master first (confidence <i>saved</i> / <i>high</i>). A ledger or a
+      transaction you classify by hand in a year keeps its own classification – the master is a starting point, never
+      an override.</li>
+  <li><span class="btn">Switch off / on</span> stops an entry being suggested without deleting it; an approval in one year
+      does not switch it back on.</li>
+  <li><span class="btn">Apply to this year</span> re-suggests from the master for the year's pending ledgers and every
+      transaction not classified by hand.</li>
+  <li><span class="btn">Export to Excel…</span> / <span class="btn">Import from Excel…</span> to review or prepare the
+      mapping outside the program; <span class="btn">Copy from another client…</span> to start a group company (same
+      chart of accounts) from an existing client's master – its own entries are kept unless you choose to replace
+      them.</li>
+  <li>The master holds classification and eligibility only. Whether ITC was claimed is a fact of each year's GSTR-3B
+      and is never copied from one year to another.</li>
+</ul>
 
 <h2 id="more">8. Other features</h2>
 <table>

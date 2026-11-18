@@ -1063,6 +1063,9 @@ class LedgerMapping(Base):
     eligibility: Mapped[str] = mapped_column(String(16), default="")
     approved_by: Mapped[str] = mapped_column(String(80), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)  # schema v29: Ledger Mapping Master
+    source: Mapped[str] = mapped_column(String(12), default="approved")  # approved / master / copied / imported
+    note: Mapped[str] = mapped_column(Text, default="")
 
 
 V27_TABLES = [TbLedger, LedgerSplit, LedgerMapping]
@@ -1141,7 +1144,9 @@ class ItcPart(Base):
     cess: Mapped[Decimal] = mapped_column(DecimalText)
     nature: Mapped[str] = mapped_column(String(12), default="unclassified")
     treatment: Mapped[str] = mapped_column(String(12), default="")
-    status: Mapped[str] = mapped_column(String(12), default="pending")
+    status: Mapped[str] = mapped_column(String(12), default="pending")  # ITC eligibility (what the law allows)
+    claim: Mapped[str] = mapped_column(String(12), default="unknown")  # schema v29: what was done in GSTR-3B
+    claim_period: Mapped[str] = mapped_column(String(7), default="")  # GSTR-3B period of the claim
     basis: Mapped[str] = mapped_column(String(8), default="auto")  # auto / rule / manual
     confidence: Mapped[str] = mapped_column(String(8), default="")  # high / medium / low / manual
     rule_id: Mapped[int | None] = mapped_column(Integer, nullable=True)

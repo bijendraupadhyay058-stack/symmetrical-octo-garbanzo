@@ -260,9 +260,7 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     t14.append(["", "Total", *(f"=SUM({c}2:{c}{r})" for c in "CDEFGHI")])
     t14.cell(r + 1, 2).font = Font(bold=True)
     t14.append([])
-    from ..services.bifurcation import TABLE14_STATUS
-
-    t14.append(["", TABLE14_STATUS])
+    t14.append(["", sm.table14_status])
     _finish(t14, "CDEFGHI")
 
     # ---------------- exceptions

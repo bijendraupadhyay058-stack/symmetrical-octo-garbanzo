@@ -254,6 +254,27 @@ def _migration_28(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V28_TABLES])
 
 
+def _migration_29(conn) -> None:
+    """ITC claim kept apart from ITC eligibility; Ledger Mapping Master (active / source / note)."""
+    from sqlalchemy import inspect as sa_inspect
+
+    insp = sa_inspect(conn)
+    for table, column, ddl in (("itc_parts", "claim", "VARCHAR(12) NOT NULL DEFAULT 'unknown'"),
+                               ("itc_parts", "claim_period", "VARCHAR(7) NOT NULL DEFAULT ''"),
+                               ("ledger_mappings", "active", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                               ("ledger_mappings", "source", "VARCHAR(12) NOT NULL DEFAULT 'approved'"),
+                               ("ledger_mappings", "note", "TEXT NOT NULL DEFAULT ''")):
+        if column not in {c["name"] for c in insp.get_columns(table)}:
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    # statuses of 1.16.0 that were really claim facts move to the claim field
+    for old, elig, claim in (("reclaimed", "eligible", "reclaimed"), ("not_claimed", "eligible", "not_claimed"),
+                             ("temp_reversed", "eligible", "temp_reversed"), ("reversal", "reversal_req", "unknown")):
+        conn.exec_driver_sql(f"UPDATE itc_parts SET status = '{elig}', claim = '{claim}' WHERE status = '{old}'")
+    conn.exec_driver_sql("UPDATE itc_map_rules SET status = 'reversal_req' WHERE status = 'reversal'")
+    conn.exec_driver_sql("UPDATE itc_map_rules SET status = 'eligible' WHERE status IN "
+                         "('reclaimed', 'not_claimed', 'temp_reversed')")
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -287,6 +308,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (26, "GSTIN registration status of suppliers", _migration_26),
     (27, "trial balance ledgers, their classification splits and saved ledger mappings", _migration_27),
     (28, "input tax ledger postings, ITC classification register, parts and mapping rules", _migration_28),
+    (29, "ITC claim apart from eligibility; Ledger Mapping Master", _migration_29),
 ]
 
 

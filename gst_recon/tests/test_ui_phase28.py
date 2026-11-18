@@ -33,14 +33,14 @@ def test_itc_classification_page(qtbot, db, tmp_path, sample_files, messages):  
     k = page.select(lambda v: v.txn.gstin == gstin)
     assert page.classify({"nature": "trading", "status": "eligible", "scope": "", "reason": "bulk"}) == k
     page.find.setText(gstin)
-    assert all(r[10] == "Trading purchase" and r[14] == "Manual" for r in page.model.rows)
+    assert all(r[10] == "Trading purchase" and r[15] == "Manual" for r in page.model.rows)
     page.find.setText("")
     # a supplier rule for another supplier's transactions
     other = next(v for v in page.model.payload if v.txn.gstin and v.txn.gstin != gstin)
     page.select(lambda v: v.txn.id == other.txn.id)
     page.classify({"nature": "services", "status": "eligible", "scope": "gstin", "reason": "supplier gives services"})
     page.find.setText(other.txn.gstin)
-    assert all(r[10] == "Input services" for r in page.model.rows) and page.model.rows[0][14] == "Rule"
+    assert all(r[10] == "Input services" for r in page.model.rows) and page.model.rows[0][15] == "Rule"
     page.find.setText("")
     # split one invoice exactly, then undo
     v = next(x for x in page.model.payload if x.txn.taxable and x.txn.cgst and x.txn.taxable > 10000)

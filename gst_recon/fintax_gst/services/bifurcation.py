@@ -47,10 +47,6 @@ T6_LABEL = {"6B": "6B Inward supplies (other than imports and reverse charge)",
 #: GSTR-9 Table 7 row a reversal / ineligible ITC belongs to
 T7_ROW = {"rule37": "7A Rule 37", "rule42": "7C/7D Rules 42 and 43", "blocked": "7E Section 17(5)",
           "nonbusiness": "7H Other reversals", "exempt_attr": "7C/7D Rules 42 and 43"}
-TABLE14_STATUS = ("Table 14 of GSTR-9C (ITC on expenses) has been optional in recent years under the GSTR-9C "
-                  "instructions – check the notification for the year before reporting it. The working is "
-                  "prepared either way.")
-
 
 def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
@@ -210,6 +206,7 @@ class BifurcationSummary:
     exceptions: list[tuple[str, str, str]] = field(default_factory=list)  # (severity, ledger, text)
     tb_debit: Decimal = ZERO
     tb_credit: Decimal = ZERO
+    table14_status: str = ""
 
     @property
     def in_scope(self) -> list[LedgerView]:
@@ -477,8 +474,10 @@ class BifurcationService:
         key = ledger_key(name)[:200]
         m = s.scalar(select(LedgerMapping).where(LedgerMapping.client_id == client_id, LedgerMapping.ledger_key == key))
         if m is None:
-            m = LedgerMapping(client_id=client_id, ledger_key=key)
+            m = LedgerMapping(client_id=client_id, ledger_key=key, source="approved")
             s.add(m)
+        elif not m.active:
+            return  # switched off in the Ledger Mapping Master: an approval for one year does not bring it back
         m.acct_class, m.gst_class, m.gst_source = p.acct_class[:60], p.gst_class, p.gst_source
         m.head_9c, m.eligibility, m.approved_by = p.head_9c, p.eligibility, user[:80]
 
@@ -512,7 +511,8 @@ class BifurcationService:
         with self.db.session() as s:
             saved = {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
                                     "head_9c": m.head_9c, "eligibility": m.eligibility}
-                     for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id))}
+                     for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
+                                                                    LedgerMapping.active.is_(True)))}
         n = 0
         for v in self.views(client_id, fy):
             if not v.in_scope or (ledger_ids is not None and v.ledger.id not in ledger_ids):
@@ -721,8 +721,10 @@ class BifurcationService:
         credit = -sum((v.ledger.closing for v in views if v.ledger.closing < 0), ZERO)
         if views and abs(debit - credit) > Decimal("1"):
             out_exc.insert(0, ("red", "(trial balance)", f"Debit total ₹{debit:,.2f} ≠ credit total ₹{credit:,.2f}"))
+        from .annual_rules import table14_status
+
         return BifurcationSummary(name, gstin, fy, views, by_acct, by_group, by_gst, t6, t7, list(rows14.values()),
-                                  itc_3b, out_exc, debit, credit)
+                                  itc_3b, out_exc, debit, credit, table14_status(self.db, fy))
 
     # --------------------------------------------------------- outputs
     def push_table14(self, client_id: int, fy: str, by: Session) -> int:

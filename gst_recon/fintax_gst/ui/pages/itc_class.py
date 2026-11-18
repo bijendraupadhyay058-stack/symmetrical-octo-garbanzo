@@ -16,14 +16,15 @@ from PySide6.QtWidgets import (
 
 from ...core.models import Source
 from ...core.money import fmt_inr
-from ...ledgers.itc_classes import NATURES, RCM, SCOPES, STATUSES, TREATMENTS
+from ...ledgers.itc_classes import AVAILED, CLAIMS, NATURES, RCM, SCOPES, STATUSES, TREATMENTS
 from ...services.common import ServiceError
 from ...services.itc_register import HEADS, ItcRegisterService, PartIn
 from ..state import AppState
 from ..widgets import LazyPage, RowsModel, Table, page_header, primary, section, sortable
 
 VIEWS = {"all": "All transactions", "review": "To review (unclassified / low confidence)",
-         "unclassified": "Unclassified", "pending": "ITC status pending", "rcm": "RCM / import of services",
+         "unclassified": "Unclassified", "pending": "Eligibility to verify", "unverified": "Claim not verified",
+         "inelig_claimed": "Ineligible but claimed", "rcm": "RCM / import of services",
          "taxledger": "In tax ledger only", "differs": "Tax ledger ≠ purchase register", "adjust": "Set-off / adjustments",
          "manual": "Classified by hand", "reviewed": "Marked reviewed"}
 CONF_COLOURS = {"high": "#C8E6C9", "medium": "#FFF3C4", "low": "#FFE0B2", "manual": "#FFCDD2"}
@@ -69,7 +70,7 @@ class ClassifyDialog(QDialog):
         self.this_year = QCheckBox("Current financial year only")
         self.reason = QLineEdit()
         self.reason.setPlaceholderText("Reason (kept in the history)")
-        for label, w in (("Nature", self.nature), ("GST treatment", self.treatment), ("ITC status", self.status),
+        for label, w in (("Nature", self.nature), ("GST treatment", self.treatment), ("ITC eligibility", self.status),
                          ("Apply to", self.scope), ("Word (for a word rule)", self.word), ("", self.this_year),
                          ("Reason", self.reason)):
             form.addRow(label, w)
@@ -82,7 +83,7 @@ class ClassifyDialog(QDialog):
 
 
 class SplitDialog(QDialog):
-    COLS = ["Taxable value", "IGST", "CGST", "SGST", "Cess", "Nature", "GST treatment", "ITC status"]
+    COLS = ["Taxable value", "IGST", "CGST", "SGST", "Cess", "Nature", "GST treatment", "ITC eligibility"]
 
     def __init__(self, parent, svc: ItcRegisterService, view, user: str):
         super().__init__(parent)
@@ -114,7 +115,8 @@ class SplitDialog(QDialog):
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
         for p in view.parts or []:
-            self.add_row(PartIn(p.igst, p.cgst, p.sgst, p.cess, p.taxable, p.nature, p.treatment, p.status))
+            self.add_row(PartIn(p.igst, p.cgst, p.sgst, p.cess, p.taxable, p.nature, p.treatment, p.status,
+                                p.claim, p.claim_period))
 
     def add_row(self, p: PartIn | None = None) -> int:
         p = p or PartIn(treatment=self.view.parts[0].treatment if self.view.parts else "fcm")
@@ -142,11 +144,14 @@ class SplitDialog(QDialog):
             raise ServiceError(f"'{text}' is not an amount") from None
 
     def parts(self) -> list[PartIn]:
+        """The parts keep the transaction's ITC claim (a split changes the classification, not what was claimed)."""
+        first = self.view.parts[0] if self.view.parts else None
         out = []
         for r in range(self.table.rowCount()):
             out.append(PartIn(*(self._dec(r, c) or Decimal(0) for c in (1, 2, 3, 4)), self._dec(r, 0),
                               self.table.cellWidget(r, 5).currentData(), self.table.cellWidget(r, 6).currentData(),
-                              self.table.cellWidget(r, 7).currentData()))
+                              self.table.cellWidget(r, 7).currentData(), first.claim if first else "unknown",
+                              first.claim_period if first else ""))
         return out
 
     def set_cell(self, r: int, c: int, value) -> None:
@@ -190,7 +195,8 @@ class ItcClassPage(LazyPage):
         lay.setContentsMargins(22, 18, 22, 12)
         lay.addWidget(page_header("ITC classification", "Every inward supply of the year – from the purchase register "
                                                         "and the input tax ledgers – classified by nature, GST treatment "
-                                                        "and ITC status, for GSTR-9 and GSTR-9C."))
+                                                        "and ITC eligibility – and, kept apart, what was claimed in "
+                                                        "GSTR-3B – for GSTR-9 and GSTR-9C."))
         self.steps = QLabel()
         self.steps.setTextFormat(Qt.RichText)
         self.steps.setWordWrap(True)
@@ -211,12 +217,16 @@ class ItcClassPage(LazyPage):
         self.undo_btn.clicked.connect(lambda: self.undo())
         self.hist_btn = QPushButton("History")
         self.hist_btn.clicked.connect(lambda: self.history())
+        self.claim_btn = QPushButton("Record claim…")
+        self.claim_btn.setToolTip("What was done with the ITC in GSTR-3B (claimed in which month, not claimed, reversed "
+                                  "…) – separate from the classification")
+        self.claim_btn.clicked.connect(lambda: self.record_claim())
         self.rules_btn = QPushButton("Rules…")
         self.rules_btn.clicked.connect(lambda: self.rules())
         self.rev_btn = QPushButton("Mark reviewed")
         self.rev_btn.clicked.connect(lambda: self.mark_reviewed())
-        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.split_btn, self.undo_btn,
-                  self.hist_btn, self.rules_btn, self.rev_btn):
+        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.split_btn,
+                  self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn):
             bar.addWidget(b)
         bar.addStretch()
         lay.addLayout(bar)
@@ -225,20 +235,21 @@ class ItcClassPage(LazyPage):
         self.month = QComboBox()
         self.nature_f = _combo(NATURES, "Any nature")
         self.treat_f = _combo(TREATMENTS, "Any treatment")
-        self.status_f = _combo(STATUSES, "Any ITC status")
+        self.status_f = _combo(STATUSES, "Any eligibility")
+        self.claim_f = _combo(CLAIMS, "Any claim")
         self.find = QLineEdit()
         self.find.setPlaceholderText("Search supplier, GSTIN, invoice / voucher no, ledger…")
-        for w in (self.view_cb, self.month, self.nature_f, self.treat_f, self.status_f):
+        for w in (self.view_cb, self.month, self.nature_f, self.treat_f, self.status_f, self.claim_f):
             w.currentIndexChanged.connect(lambda _i: self.show_rows())
         self.find.textChanged.connect(lambda _t: self.show_rows())
-        for w in (self.view_cb, self.month, self.nature_f, self.treat_f, self.status_f, self.find):
+        for w in (self.view_cb, self.month, self.nature_f, self.treat_f, self.status_f, self.claim_f, self.find):
             fbar.addWidget(w)
         lay.addLayout(fbar)
         split = QSplitter(Qt.Horizontal)
         self.model = RowsModel(["Date", "Vch / invoice no", "Supplier", "GSTIN", "Ledger", "Taxable value", "CGST",
-                                "SGST", "IGST", "Cess", "Nature", "GST treatment", "ITC status", "Confidence", "Basis",
-                                "Source", "Reason"],
-                               kinds=["text"] * 5 + ["money"] * 5 + ["text"] * 7, colors=self._colour)
+                                "SGST", "IGST", "Cess", "Nature", "GST treatment", "ITC eligibility", "ITC claim (GSTR-3B)",
+                                "Confidence", "Basis", "Source", "Reason"],
+                               kinds=["text"] * 5 + ["money"] * 5 + ["text"] * 8, colors=self._colour)
         self.proxy = sortable(self.model)
         self.table = Table()
         self.table.setModel(self.proxy)
@@ -277,7 +288,11 @@ class ItcClassPage(LazyPage):
         self.xlsx_btn.clicked.connect(lambda: self.export("xlsx"))
         self.pdf_btn = QPushButton("Review PDF…")
         self.pdf_btn.clicked.connect(lambda: self.export("pdf"))
-        for b in (self.final_btn, self.xlsx_btn, self.pdf_btn):
+        self.note_btn = QPushButton("Year's reporting note…")
+        self.note_btn.setToolTip("Record the notification that governs this year's GSTR-9 / 9C reporting relaxations "
+                                 "(e.g. Table 14 optional) – shown on the workings; Table 14 is prepared either way")
+        self.note_btn.clicked.connect(lambda: self.reporting_note())
+        for b in (self.note_btn, self.final_btn, self.xlsx_btn, self.pdf_btn):
             ob.addWidget(b)
         rl.addLayout(ob)
         split.addWidget(right)
@@ -289,9 +304,13 @@ class ItcClassPage(LazyPage):
 
     # ------------------------------------------------------------ display
     def _colour(self, row, col):
-        if col != 13 or not self.model.payload:
+        if not self.model.payload or col not in (13, 14):
             return None
         v = self.model.payload[row]
+        if col == 13:
+            bad = any(p.status == "blocked" and p.claim in AVAILED for p in v.parts)
+            unknown = any(p.claim == "unknown" for p in v.parts)
+            return QColor("#FFCDD2") if bad else QColor("#ECEFF1") if unknown else QColor("#C8E6C9")
         conf = {p.confidence for p in v.parts}
         worst = next((c for c in ("manual", "low", "medium", "high") if c in conf), None)
         return QColor(CONF_COLOURS[worst]) if worst else None
@@ -306,8 +325,9 @@ class ItcClassPage(LazyPage):
     def reload(self) -> None:
         st = self.state
         on = st.client is not None
-        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.split_btn, self.undo_btn,
-                  self.hist_btn, self.rules_btn, self.rev_btn, self.final_btn, self.xlsx_btn, self.pdf_btn):
+        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.split_btn,
+                  self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn, self.final_btn, self.xlsx_btn,
+                  self.pdf_btn):
             b.setEnabled(on)
         if not on:
             self.work = None
@@ -343,11 +363,19 @@ class ItcClassPage(LazyPage):
             if b.count:
                 rows.append([f"Nature: {NATURES[k]}", str(b.count), b.tax])
                 pay.append(("nature", k))
-        for k in ("eligible", "reclaimed", "partial", "blocked", "reversal", "temp_reversed", "not_claimed", "pending"):
+        for k in STATUSES:
             b = w.by_status[k]
             if b.count:
-                rows.append([f"ITC: {STATUSES[k]}", str(b.count), b.tax])
+                rows.append([f"Eligibility: {STATUSES[k]}", str(b.count), b.tax])
                 pay.append(("status", k))
+        for k in CLAIMS:
+            b = w.by_claim.get(k)
+            if b and b.count:
+                rows.append([f"Claim: {CLAIMS[k]}", str(b.count), b.tax])
+                pay.append(("claim", k))
+        if w.inelig_claimed:
+            rows.append(["Ineligible ITC that was claimed", "", w.inelig_claimed])
+            pay.append(("view", "inelig_claimed"))
         rcm = w.total("treatment", list(RCM))
         rows.append(["RCM (overlay)", str(rcm.count), rcm.tax])
         pay.append(("view", "rcm"))
@@ -375,6 +403,7 @@ class ItcClassPage(LazyPage):
             return
         view, month = self.view_cb.currentData(), self.month.currentData()
         nat, tr, stt = self.nature_f.currentData(), self.treat_f.currentData(), self.status_f.currentData()
+        clm = self.claim_f.currentData()
         text = self.find.text().strip().lower()
         out = []
         for v in w.views:
@@ -389,6 +418,12 @@ class ItcClassPage(LazyPage):
             if view == "unclassified" and not any(p.nature == "unclassified" for p in v.parts):
                 continue
             if view == "pending" and not any(p.status == "pending" for p in v.parts):
+                continue
+            if view == "unverified" and not any(p.claim == "unknown" for p in v.parts):
+                continue
+            if view == "inelig_claimed" and not any(p.status == "blocked" and p.claim in AVAILED for p in v.parts):
+                continue
+            if clm and not any(p.claim == clm for p in v.parts):
                 continue
             if view == "rcm" and not any(p.treatment in RCM or p.treatment == "import_s" for p in v.parts):
                 continue
@@ -414,7 +449,10 @@ class ItcClassPage(LazyPage):
             t = v.txn
             rows.append([t.voucher_date.strftime("%d-%m-%Y") if t.voucher_date else "", t.invoice_no or t.voucher_no,
                          t.party, t.gstin, t.ledger, t.taxable, t.cgst, t.sgst, t.igst, t.cess, v.label("nature"),
-                         v.label("treatment"), v.label("status"), v.label("confidence"), v.label("basis"),
+                         v.label("treatment"), v.label("status"),
+                         v.label("claim") + (f" {v.parts[0].claim_period}" if len({p.claim_period for p in v.parts}) == 1
+                                             and v.parts and v.parts[0].claim_period else ""),
+                         v.label("confidence"), v.label("basis"),
                          {"both": "register + tax ledger", "register": "purchase register", "taxledger": "tax ledger only",
                           "differs": "tax differs", "adjust": "set-off / adjustment"}.get(t.match, t.match),
                          "; ".join(dict.fromkeys(p.reason for p in v.parts if p.reason))])
@@ -425,7 +463,7 @@ class ItcClassPage(LazyPage):
         if not self.o_model.payload or row >= len(self.o_model.payload):
             return
         kind, key = self.o_model.payload[row]
-        for cb in (self.nature_f, self.treat_f, self.status_f):
+        for cb in (self.nature_f, self.treat_f, self.status_f, self.claim_f):
             cb.blockSignals(True)
             cb.setCurrentIndex(0)
             cb.blockSignals(False)
@@ -436,6 +474,8 @@ class ItcClassPage(LazyPage):
             self.nature_f.setCurrentIndex(self.nature_f.findData(key))
         elif kind == "status":
             self.status_f.setCurrentIndex(self.status_f.findData(key))
+        elif kind == "claim":
+            self.claim_f.setCurrentIndex(self.claim_f.findData(key))
         else:
             self.show_rows()
 
@@ -529,6 +569,40 @@ class ItcClassPage(LazyPage):
                 n = sum(1 for v in self.svc.views(st.client.id, st.fy) if any(p.basis == "rule" for p in v.parts))
         except ServiceError as exc:
             QMessageBox.warning(self, "Classify", str(exc))
+            return 0
+        self._changed()
+        return n
+
+    def record_claim(self, claim: str | None = None, period: str = "", reason: str = "") -> int:
+        """Record what was done with the ITC in GSTR-3B – classification and eligibility stay as they are."""
+        sel = [v for v in self.selected() if not v.is_adjustment]
+        if not sel:
+            QMessageBox.information(self, "Record claim", "Select the transactions first.")
+            return 0
+        if claim is None:
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Record ITC claim")
+            form = QFormLayout(dlg)
+            cb = _combo(CLAIMS)
+            per = QLineEdit(sel[0].txn.period)
+            per.setPlaceholderText("YYYY-MM")
+            why = QLineEdit()
+            form.addRow("ITC in GSTR-3B", cb)
+            form.addRow("GSTR-3B period", per)
+            form.addRow("Reason / evidence", why)
+            form.addRow(QLabel("This does not change the nature, treatment or eligibility. Table 6 of GSTR-9 counts "
+                               "only ITC claimed in the year's GSTR-3B."))
+            bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            bb.accepted.connect(dlg.accept)
+            bb.rejected.connect(dlg.reject)
+            form.addRow(bb)
+            if dlg.exec() != QDialog.Accepted:
+                return 0
+            claim, period, reason = cb.currentData(), per.text().strip(), why.text().strip()
+        try:
+            n = self.svc.set_claim([v.txn.id for v in sel], claim, self.state.user, period, reason)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Record claim", str(exc))
             return 0
         self._changed()
         return n
@@ -635,6 +709,21 @@ class ItcClassPage(LazyPage):
             return False
         self._changed()
         return True
+
+    def reporting_note(self, text: str | None = None) -> str:
+        from ...services.annual_rules import set_note, table14_status
+
+        st = self.state
+        if text is None:
+            text, ok = QInputDialog.getMultiLineText(self, f"Reporting note – FY {st.fy}",
+                                                     "What the year's notification says about GSTR-9 / 9C reporting "
+                                                     "(leave empty to go back to the default):",
+                                                     table14_status(st.db, st.fy))
+            if not ok:
+                return table14_status(st.db, st.fy)
+        set_note(st.db, st.fy, text, st.user)
+        self._changed()
+        return table14_status(st.db, st.fy)
 
     def export(self, kind: str, path: str | None = None, open_file: bool = True):
         st = self.state

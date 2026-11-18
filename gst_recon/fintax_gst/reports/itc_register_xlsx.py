@@ -14,7 +14,7 @@ from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from ..ledgers.itc_classes import AVAILED, GOODS, NATURES, RCM, SCOPES, STATUSES, TREATMENTS
+from ..ledgers.itc_classes import AVAILED, CLAIMS, ELIGIBLE, GOODS, NATURES, RCM, SCOPES, STATUSES, TREATMENTS
 
 HEAD_FILL = PatternFill("solid", fgColor="1F3864")
 RED = PatternFill("solid", fgColor="FFCDD2")
@@ -51,7 +51,10 @@ def _finish(ws, money: str = ""):
 def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     from ..services.itc_register import T6_ROWS, TREAT_ROW, _type
 
+    from ..itc.annual import fy_months
+
     w = svc.working(client_id, fy)
+    months = fy_months(fy)
     wb = Workbook()
     summary = wb.active
     summary.title = "Final ITC Summary"
@@ -81,11 +84,11 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     # 2 consolidated register (one row per part)
     reg = _sheet(wb, "Consolidated ITC Register",
                  ["Txn", "Part", "Date", "Period", "Vch type", "Vch no", "Supplier", "GSTIN", "Invoice no",
-                  "Invoice date", "Ledger", "HSN/SAC", "Nature", "GST treatment", "ITC status", "GSTR-9 row", "Type",
-                  "Availed", "Taxable value", "IGST", "CGST", "SGST/UTGST", "Cess", "Total tax", "Basis", "Confidence",
-                  "Source match", "Reason", "Source reference"],
+                  "Invoice date", "Ledger", "HSN/SAC", "Nature", "GST treatment", "ITC eligibility", "GSTR-9 row", "Type",
+                  "Availed in this year's 3B", "Taxable value", "IGST", "CGST", "SGST/UTGST", "Cess", "Total tax",
+                  "Basis", "Confidence", "Source match", "Reason", "Source reference", "ITC claim", "Claim period"],
                  (7, 5, 11, 8, 12, 10, 28, 17, 16, 11, 24, 10, 20, 22, 20, 7, 13, 7, 15, 12, 12, 12, 10, 13, 9, 11,
-                  10, 40, 30))
+                  10, 40, 30, 24, 10))
     for v in w.views:
         if v.is_adjustment:
             continue
@@ -100,8 +103,10 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
             reg.append([t.id, i, t.voucher_date, t.period, t.voucher_type, t.voucher_no, t.party, t.gstin, t.invoice_no,
                         t.invoice_date, t.ledger, t.hsn, NATURES[p.nature], TREATMENTS.get(p.treatment, p.treatment),
                         STATUSES[p.status], TREAT_ROW.get(p.treatment or "fcm", "6B"), TYPE.get(typ, "—"),
-                        "Yes" if p.status in AVAILED else "No", _f(p.taxable), _f(p.igst), _f(p.cgst), _f(p.sgst),
-                        _f(p.cess), f"=SUM(T{r}:W{r})", p.basis, p.confidence, t.match, p.reason, t.source_ref])
+                        ("Reclaimed" if p.claim == "reclaimed" else "Yes") if p.claim in AVAILED and
+                        p.claim_period in months else "No", _f(p.taxable), _f(p.igst), _f(p.cgst), _f(p.sgst),
+                        _f(p.cess), f"=SUM(T{r}:W{r})", p.basis, p.confidence, t.match, p.reason, t.source_ref,
+                        CLAIMS.get(p.claim, p.claim), p.claim_period])
     last = max(reg.max_row, 2)
     reg.conditional_formatting.add(f"M2:M{last}", FormulaRule(formula=['M2="Unclassified – review"'], fill=RED))
     reg.conditional_formatting.add(f"Z2:Z{last}", FormulaRule(formula=['OR(Z2="low",Z2="manual")'], fill=AMBER))
@@ -116,26 +121,28 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     # 3-8 filtered registers
     def filtered(title, keep):
         ws = _sheet(wb, title, ["Date", "Supplier", "GSTIN", "Invoice no", "Ledger", "Nature", "GST treatment",
-                                "ITC status", "Taxable value", "IGST", "CGST", "SGST", "Cess", "Total tax"],
-                    (11, 28, 17, 16, 24, 20, 22, 20, 15, 12, 12, 12, 10, 13))
+                                "ITC eligibility", "ITC claim", "Taxable value", "IGST", "CGST", "SGST", "Cess",
+                                "Total tax"], (11, 28, 17, 16, 24, 20, 22, 20, 22, 15, 12, 12, 12, 10, 13))
         for v in w.txns:
             for p in v.parts:
                 if keep(v, p):
                     r = ws.max_row + 1
                     ws.append([v.txn.voucher_date, v.txn.party, v.txn.gstin, v.txn.invoice_no, v.txn.ledger,
                                NATURES[p.nature], TREATMENTS.get(p.treatment, p.treatment), STATUSES[p.status],
-                               _f(p.taxable), _f(p.igst), _f(p.cgst), _f(p.sgst), _f(p.cess), f"=SUM(J{r}:M{r})"])
+                               CLAIMS.get(p.claim, p.claim) + (f" {p.claim_period}" if p.claim_period else ""),
+                               _f(p.taxable), _f(p.igst), _f(p.cgst), _f(p.sgst), _f(p.cess), f"=SUM(K{r}:N{r})"])
         r = ws.max_row
-        ws.append(["Total", "", "", "", "", "", "", "", *(f"=SUBTOTAL(9,{c}2:{c}{max(r, 2)})" for c in "IJKLMN")])
+        ws.append(["Total", "", "", "", "", "", "", "", "", *(f"=SUBTOTAL(9,{c}2:{c}{max(r, 2)})" for c in "JKLMNO")])
         ws.cell(r + 1, 1).font = Font(bold=True)
-        _finish(ws, "I,J,K,L,M,N")
+        _finish(ws, "J,K,L,M,N,O")
 
     filtered("Trading Purchase ITC", lambda v, p: p.nature == "trading")
     filtered("Raw Material & Other Goods", lambda v, p: p.nature in ("raw", "other_goods"))
     filtered("Input Services", lambda v, p: p.nature == "services")
     filtered("Capital Goods", lambda v, p: p.nature == "capital")
     filtered("RCM Transactions", lambda v, p: p.treatment in RCM or p.treatment == "import_s")
-    filtered("Ineligible & Reversed ITC", lambda v, p: p.status in ("blocked", "reversal", "temp_reversed"))
+    filtered("Ineligible & Reversed ITC", lambda v, p: p.status in ("blocked", "reversal_req")
+             or p.claim in ("reversed", "temp_reversed"))
 
     # 9 GSTR-2B reconciliation (month by month)
     from ..services.return_compare import ReturnCompareService
@@ -182,8 +189,7 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
         for typ in cats:
             r = t6.max_row + 1
             if row == "6H":
-                cells = [f'=SUMIFS({rng(c)},{rng("O")},"{STATUSES["reclaimed"]}",{rng("Q")},"{TYPE[typ]}")'
-                         for c in "STUVW"]
+                cells = [f'=SUMIFS({rng(c)},{rng("R")},"Reclaimed",{rng("Q")},"{TYPE[typ]}")' for c in "STUVW"]
             else:
                 cells = [f'=SUMIFS({rng(c)},{rng("P")},"{row}",{rng("Q")},"{TYPE[typ]}",{rng("R")},"Yes")'
                          for c in "STUVW"]
@@ -192,8 +198,9 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
         t6.append([f"{row} total", "", *(f"=SUM({c}{first}:{c}{r - 1})" for c in "CDEFGH")])
         t6.cell(r, 1).font = Font(bold=True)
     t6.append([])
-    t6.append(["Only parts with ITC status Eligible / Reclaimed / Partially eligible count as availed. Domestic RCM "
-               "is in 6C / 6D (never 6B); import of services in 6F."])
+    t6.append(["Only ITC actually claimed in this year's GSTR-3B counts (column 'Availed') – a classification or an "
+               "eligibility never puts an amount in Table 6. Domestic RCM is in 6C / 6D (never 6B); import of services "
+               "in 6F."])
     _finish(t6, "C,D,E,F,G,H")
 
     # 12 Tables 7 and 8
@@ -226,16 +233,16 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     for label, amount, why in w.table13:
         t13.append([label, _f(amount), why, ""])
     _finish(t13, "B")
-    t14 = _sheet(wb, "GSTR-9C Table 14", ["Row", "Expense head", "Value", "Total tax", "Eligible ITC availed"],
-                 (7, 46, 16, 16, 18))
-    for code, label, val, tax, elig in w.table14:
-        t14.append([code, label, _f(val), _f(tax), _f(elig)])
+    t14 = _sheet(wb, "GSTR-9C Table 14", ["Row", "Expense head", "Value", "Total tax", "Eligible ITC",
+                                          "ITC claimed in GSTR-3B", "Eligible, not claimed"], (7, 46, 16, 16, 16, 20, 18))
+    for code, label, val, tax, elig, claimed in w.table14:
+        r = t14.max_row + 1
+        t14.append([code, label, _f(val), _f(tax), _f(elig), _f(claimed), f"=E{r}-F{r}"])
     r = t14.max_row
-    t14.append(["", "Total", *(f"=SUM({c}2:{c}{max(r, 2)})" for c in "CDE")])
+    t14.append(["", "Total", *(f"=SUM({c}2:{c}{max(r, 2)})" for c in "CDEFG")])
     t14.append([])
-    t14.append(["", "Working prepared even where the year's instructions let Table 14 be left blank – check the "
-                "notification for the year."])
-    _finish(t14, "C,D,E")
+    t14.append(["", "Reporting status: " + w.table14_status])
+    _finish(t14, "C,D,E,F,G")
 
     # 16 rules
     rl = _sheet(wb, "Ledger Mapping Rules", ["Rule", "Applies to", "Value", "and ledger", "Nature", "GST treatment",
@@ -277,7 +284,11 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
             elif p.basis == "auto" and p.confidence in ("low", "manual"):
                 kinds.append(("Low confidence", p.reason))
             if p.status == "pending":
-                kinds.append(("ITC status pending", "verify eligibility / claim"))
+                kinds.append(("Eligibility to verify", "decide the ITC eligibility"))
+            if p.status == "blocked" and p.claim in AVAILED:
+                kinds.append(("Ineligible ITC claimed", f"claimed in {p.claim_period} – reverse it"))
+            if p.claim == "unknown":
+                kinds.append(("Claim not verified", "record the GSTR-3B claim (claim register / Record claim…)"))
         for kind, detail in kinds:
             ex.append([kind, t.voucher_date, t.party, t.invoice_no or t.voucher_no, _f(v.tax), detail])
     for c in w.controls:
@@ -299,11 +310,14 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
                                                                                            "cess")),
                         f"=SUM(B{r}:E{r})"])
     for label, keys, dim in (("ITC as per books (register)", list(STATUSES), "status"),
-                             ("Eligible ITC (eligible / reclaimed / partial)", list(AVAILED), "status"),
-                             ("ITC reversed / reversal required", ["reversal", "temp_reversed"], "status"),
+                             ("Eligible ITC (eligible / partly eligible)", list(ELIGIBLE), "status"),
                              ("Ineligible / blocked", ["blocked"], "status"),
-                             ("Not yet claimed", ["not_claimed"], "status"),
-                             ("Pending verification", ["pending"], "status")):
+                             ("Reversal required (rules 37 / 42 / 43)", ["reversal_req"], "status"),
+                             ("Eligibility to verify", ["pending"], "status"),
+                             ("ITC claimed in GSTR-3B (incl. later reversed)", list(AVAILED), "claim"),
+                             ("ITC reversed after claim", ["reversed", "temp_reversed"], "claim"),
+                             ("ITC not claimed", ["not_claimed"], "claim"),
+                             ("Claim not verified", ["unknown"], "claim")):
         b = w.total(dim, keys)
         r = summary.max_row + 1
         summary.append([label, _f(b.igst), _f(b.cgst), _f(b.sgst), _f(b.cess), f"=SUM(B{r}:E{r})"])

@@ -148,19 +148,26 @@ def test_table6_rcm_imports_and_finalise(db, sample_files, tmp_path):
     gta = next(v for v in w.views if v.txn.match == "taxledger")
     svc.set_class([gta.txn.id], "a", "GTA", nature="services", status="eligible")
     svc.set_class([regular[0].txn.id], "a", "import of service", nature="services", treatment="import_s")
-    svc.set_class([regular[1].txn.id], "a", "not yet", status="not_claimed")
-    svc.set_class([regular[2].txn.id], "a", "reclaimed", status="reclaimed")
+    # classified and eligible, but nothing claimed yet: Table 6 stays empty
+    w = svc.working(c.id, FY)
+    assert all(b.tax == 0 for r in w.table6.values() for b in r.values())
+    assert any(x.code == "C8b" for x in w.controls)
+    ids = [v.txn.id for v in regular if v.txn.id != regular[1].txn.id] + [gta.txn.id]
+    svc.set_claim(ids, "claimed", "a", "2025-04", "GSTR-3B April")
+    svc.set_claim([regular[1].txn.id], "not_claimed", "a")
+    svc.set_claim([regular[2].txn.id], "reclaimed", "a", "2025-06")
     w = svc.working(c.id, FY)
     assert w.table6["6C"]["services"].tax == D(500)  # domestic RCM never in 6B
     assert w.table6["6F"]["services"].tax == regular[0].tax
     assert w.table6["6H"]["inputs"].tax == regular[2].tax
     total_6b = sum(x.tax for x in w.table6["6B"].values())
-    expected = sum(v.tax for v in regular[1:]) - regular[1].tax  # not-yet-claimed is not availed
-    assert total_6b == expected
+    assert total_6b == sum(v.tax for v in regular[3:])  # not claimed / reclaimed / import are not in 6B
     assert w.table6_3b["6B"] is not None and w.table12[0][0] == "12A"
+    assert dict((r[0], r[2]) for r in w.table12)["12C"] == regular[1].tax  # eligible, not claimed
     assert any(r[0] == "Credit notes" for r in w.table13)
     ctl = {x.code: x for x in w.controls}
     assert ctl["C3"].status == "pass" and ctl["C6"].status == "warn"  # RCM ITC without 3.1(d) tax
+    assert "C8b" not in ctl
     rec = svc.finalise(c.id, FY, "partner", "reviewed")
     assert rec["by"] == "partner" and svc.working(c.id, FY).final
     svc.reopen(c.id, FY, "partner")
@@ -169,6 +176,7 @@ def test_table6_rcm_imports_and_finalise(db, sample_files, tmp_path):
     wb = load_workbook(out)
     assert len(wb.sheetnames) == 19 and wb.sheetnames[0] == "Final ITC Summary"
     assert wb["GSTR-9 Table 6 Working"]["D2"].value.startswith("=SUMIFS(")
+    assert wb["Consolidated ITC Register"].cell(1, 30).value == "ITC claim"
     assert svc.export_pdf(c.id, FY, tmp_path / "itc.pdf").stat().st_size > 2000
 
 

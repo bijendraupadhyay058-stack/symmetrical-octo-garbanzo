@@ -53,7 +53,19 @@ def build_pdf(w, path: Path, firm: str = "") -> Path:
     story.append(_table(["Nature", "Transactions", "Taxable", "Tax"],
                         [[NATURES[k], str(b.count), _m(b.taxable), _m(b.tax)] for k, b in w.by_nature.items()],
                         [70 * mm, 30 * mm, 40 * mm, 40 * mm]))
-    story.append(Paragraph("GSTR-9 Table 6 against GSTR-3B", h))
+    from ..ledgers.itc_classes import CLAIMS, STATUSES
+
+    story.append(Paragraph("Eligibility and claim (kept apart)", h))
+    elig, claims = list(STATUSES), list(CLAIMS)
+    rows = []
+    for i in range(max(len(elig), len(claims))):
+        a = elig[i] if i < len(elig) else None
+        b = claims[i] if i < len(claims) else None
+        rows.append([STATUSES[a] if a else "", _m(w.by_status[a].tax) if a else "", "",
+                     CLAIMS[b] if b else "", _m(w.by_claim[b].tax) if b and b in w.by_claim else ""])
+    story.append(_table(["ITC eligibility", "Tax", "", "ITC claim (GSTR-3B)", "Tax"], rows,
+                        [70 * mm, 30 * mm, 8 * mm, 70 * mm, 30 * mm]))
+    story.append(Paragraph("GSTR-9 Table 6 (ITC claimed) against GSTR-3B", h))
     rows = []
     for row, label in T6_ROWS.items():
         ours = sum((b.tax for b in w.table6[row].values()), Decimal(0))
@@ -69,6 +81,7 @@ def build_pdf(w, path: Path, firm: str = "") -> Path:
     story.append(_table(["Row", "Particulars", "Amount", "Source"],
                         [[c, Paragraph(_t(lbl), body), _m(a), s] for c, lbl, a, s in w.table12],
                         [14 * mm, 120 * mm, 34 * mm, 50 * mm]))
+    story.append(Paragraph(_t("GSTR-9C Table 14: " + w.table14_status), body))
     if w.table13:
         story.append(Paragraph("Possible reasons for differences (Table 13)", h))
         story.append(_table(["Reason", "Amount", "Evidence"], [[r, _m(a), e] for r, a, e in w.table13],

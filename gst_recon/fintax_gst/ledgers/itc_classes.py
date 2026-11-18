@@ -21,11 +21,16 @@ TREATMENTS = {"fcm": "FCM (forward charge)", "rcm_reg": "RCM – registered supp
               "import_s": "Import of services", "sez": "SEZ inward supply", "isd": "ISD credit",
               "deemed_exp": "Deemed export inward", "other": "Other / review"}
 RCM = ("rcm_reg", "rcm_unreg")
-STATUSES = {"eligible": "Eligible ITC", "blocked": "Ineligible / blocked", "reversal": "ITC reversal required",
-            "temp_reversed": "Temporarily reversed", "reclaimed": "ITC reclaimed", "not_claimed": "ITC not yet claimed",
-            "partial": "Partially eligible", "pending": "Pending verification"}
-AVAILED = ("eligible", "reclaimed", "partial")
-REVERSED = ("reversal", "temp_reversed")
+#: ITC eligibility – what the law allows on the supply (independent of what was claimed)
+STATUSES = {"eligible": "Eligible", "partial": "Partly eligible", "blocked": "Ineligible / blocked – s.17(5)",
+            "reversal_req": "Reversal required – rules 37 / 42 / 43", "pending": "Eligibility to verify"}
+#: ITC claim – what was actually done in GSTR-3B (independent of classification and eligibility)
+CLAIMS = {"claimed": "Claimed in GSTR-3B", "not_claimed": "Not claimed (yet)", "reversed": "Claimed, then reversed",
+          "temp_reversed": "Claimed, temporarily reversed", "reclaimed": "Reclaimed", "unknown": "Claim not verified"}
+#: claim states whose ITC was availed in GSTR-3B (GSTR-9 Table 6); reversed ones also go to Table 7
+AVAILED = ("claimed", "reversed", "temp_reversed", "reclaimed")
+REVERSED = ("reversed", "temp_reversed")
+ELIGIBLE = ("eligible", "partial")
 CONFIDENCE = {"high": "High", "medium": "Medium", "low": "Low", "manual": "Manual review required"}
 SCOPES = {"gstin_ledger": "Supplier GSTIN + ledger", "gstin": "Supplier GSTIN", "hsn": "HSN / SAC",
           "ledger": "Ledger", "keyword": "Word in ledger / item / narration"}
@@ -34,9 +39,9 @@ SCOPE_ORDER = ("gstin_ledger", "gstin", "hsn", "ledger", "keyword")
 # ledger-bifurcation classes -> nature
 _BIF_NATURE = {"services": "services", "capital": "capital", "exempt": "nongst", "nogst": "nongst",
                "excluded": "unclassified"}
-_BIF_STATUS = {"eligible": "eligible", "blocked": "blocked", "nonbusiness": "blocked", "rule42": "reversal",
-               "rule37": "reversal", "exempt_attr": "reversal", "not_availed": "not_claimed",
-               "reclaimed": "reclaimed"}
+_BIF_STATUS = {"eligible": "eligible", "blocked": "blocked", "nonbusiness": "blocked", "rule42": "reversal_req",
+               "rule37": "reversal_req", "exempt_attr": "reversal_req", "not_availed": "eligible",
+               "reclaimed": "eligible"}
 _BIF_TREAT = {"regular": "fcm", "rcm_reg": "rcm_reg", "rcm_unreg": "rcm_unreg", "import_g": "import_g",
               "import_s": "import_s", "isd": "isd"}
 

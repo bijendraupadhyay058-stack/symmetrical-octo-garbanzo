@@ -33,7 +33,7 @@ from ..importers.pipeline import sha256_of
 from ..importers.tax_ledger import read_tax_ledgers
 from ..itc.annual import fy_months
 from ..ledgers.itc_classes import (
-    AVAILED, GOODS, NATURES, RCM, SCOPES, STATUSES, TREATMENTS, ledger_of, propose,
+    AVAILED, CLAIMS, ELIGIBLE, GOODS, NATURES, RCM, REVERSED, SCOPES, STATUSES, TREATMENTS, ledger_of, propose,
 )
 from .common import ServiceError, audit, dumps
 
@@ -65,7 +65,9 @@ class PartIn:
     taxable: Decimal | None = None
     nature: str = "unclassified"
     treatment: str = "fcm"
-    status: str = "pending"
+    status: str = "pending"  # ITC eligibility
+    claim: str = "unknown"  # what was done in GSTR-3B
+    claim_period: str = ""
 
 
 @dataclass
@@ -79,7 +81,7 @@ class TxnView:
         return t.igst + t.cgst + t.sgst + t.cess
 
     def label(self, dim: str) -> str:
-        names = {"nature": NATURES, "treatment": TREATMENTS, "status": STATUSES, "confidence": {
+        names = {"nature": NATURES, "treatment": TREATMENTS, "status": STATUSES, "claim": CLAIMS, "confidence": {
             "high": "High", "medium": "Medium", "low": "Low", "manual": "Manual review"}, "basis": {
             "auto": "Suggested", "rule": "Rule", "manual": "Manual"}}[dim]
         vals = {getattr(p, dim) for p in self.parts}
@@ -142,13 +144,16 @@ class ItcWorking:
     table8: object | None
     table12: list[tuple[str, str, Decimal | None, str]]
     table13: list[tuple[str, Decimal, str]]
-    table14: list[tuple[str, str, Decimal, Decimal, Decimal]]  # row, label, value, tax, eligible
+    table14: list[tuple[str, str, Decimal, Decimal, Decimal, Decimal]]  # row, label, value, tax, eligible, claimed
     rcm: dict[str, Bucket]
     controls: list[Control]
     postings_total: dict[str, Decimal]
     ledger_balances: dict[str, Decimal]
     final: dict | None = None
     notes: list[str] = field(default_factory=list)
+    by_claim: dict[str, Bucket] = field(default_factory=dict)
+    inelig_claimed: Decimal = ZERO
+    table14_status: str = ""
 
     @property
     def txns(self) -> list[TxnView]:
@@ -167,7 +172,8 @@ class ItcWorking:
 
     def total(self, dim: str, keys) -> Bucket:
         b = Bucket(",".join(keys))
-        src = {"nature": self.by_nature, "treatment": self.by_treatment, "status": self.by_status}[dim]
+        src = {"nature": self.by_nature, "treatment": self.by_treatment, "status": self.by_status,
+               "claim": self.by_claim}[dim]
         for k in keys:
             x = src.get(k)
             if x:
@@ -346,7 +352,8 @@ class ItcRegisterService:
     @staticmethod
     def _pdict(p: ItcPart) -> dict:
         return {"taxable": None if p.taxable is None else str(p.taxable), **{h: str(getattr(p, h)) for h in HEADS},
-                "nature": p.nature, "treatment": p.treatment, "status": p.status, "basis": p.basis,
+                "nature": p.nature, "treatment": p.treatment, "status": p.status, "claim": p.claim,
+                "claim_period": p.claim_period, "basis": p.basis,
                 "confidence": p.confidence, "reason": p.reason}
 
     def _rules(self, s, client_id: int, fy: str) -> list[ItcMapRule]:
@@ -355,14 +362,13 @@ class ItcRegisterService:
                 if not r.financial_year or r.financial_year == fy]
 
     def classify_auto(self, client_id: int, fy: str, txn_ids: list[int] | None = None) -> int:
-        """Propose a classification for every transaction not classified by hand (suggestions and rule results are
-        replaced; manual parts never)."""
+        """Propose nature, treatment and eligibility for every transaction not classified by hand (suggestions and
+        rule results are replaced; manual parts never). The ITC claim is a separate fact: it comes from the ITC
+        claim register (GSTR-3B actions) or the user, never from the classification."""
         n = 0
         with self.db.session() as s:
             rules = self._rules(s, client_id, fy)
-            maps = {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
-                                   "eligibility": m.eligibility}
-                    for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id))}
+            maps = self._maps(s, client_id)
             claimed = self._claims(s, client_id)
             q = select(ItcTxn).where(ItcTxn.client_id == client_id, ItcTxn.financial_year == fy,
                                      ItcTxn.match != "adjust")
@@ -370,21 +376,36 @@ class ItcRegisterService:
                 q = q.where(ItcTxn.id.in_(txn_ids))
             for t in s.scalars(q):
                 parts = list(s.scalars(select(ItcPart).where(ItcPart.txn_id == t.id)))
+                reg = claimed.get(t.invoice_id) if t.invoice_id else None
                 if any(p.basis == "manual" for p in parts):
                     if len(parts) == 1:
                         self._sync_single(parts[0], t)
+                    for p in parts:
+                        if reg and p.claim == "unknown":
+                            p.claim, p.claim_period = reg
                     continue
                 pr = propose(t, rules, maps)
-                if pr.status == "pending" and not pr._status_set and t.invoice_id in claimed:
-                    pr.status = claimed[t.invoice_id]
-                    pr.reason = (pr.reason + "; " if pr.reason else "") + "status from the ITC claim register"
+                claim, period = "unknown", ""
+                if len(parts) == 1 and parts[0].claim != "unknown":
+                    claim, period = parts[0].claim, parts[0].claim_period  # a claim recorded earlier stays
+                if reg and claim == "unknown":
+                    claim, period = reg
                 for p in parts:
                     s.delete(p)
                 s.add(ItcPart(client_id=client_id, txn_id=t.id, taxable=t.taxable, igst=t.igst, cgst=t.cgst,
                               sgst=t.sgst, cess=t.cess, nature=pr.nature, treatment=pr.treatment, status=pr.status,
-                              basis=pr.basis, confidence=pr.confidence, rule_id=pr.rule_id, reason=pr.reason))
+                              claim=claim, claim_period=period, basis=pr.basis, confidence=pr.confidence,
+                              rule_id=pr.rule_id, reason=pr.reason))
                 n += 1
         return n
+
+    @staticmethod
+    def _maps(s, client_id: int) -> dict[str, dict]:
+        """The client's Ledger Mapping Master (active entries)."""
+        return {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
+                               "eligibility": m.eligibility}
+                for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
+                                                               LedgerMapping.active.is_(True)))}
 
     @staticmethod
     def _sync_single(p: ItcPart, t: ItcTxn) -> None:
@@ -394,19 +415,49 @@ class ItcRegisterService:
             setattr(p, h, getattr(t, h))
 
     @staticmethod
-    def _claims(s, client_id: int) -> dict[int, str]:
-        out: dict[int, dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-        for c in s.scalars(select(ItcClaim).where(ItcClaim.client_id == client_id)):
-            out[c.invoice_id][c.action] += c.igst + c.cgst + c.sgst + c.cess
+    def _claims(s, client_id: int) -> dict[int, tuple[str, str]]:
+        """Claim state and GSTR-3B period of each purchase-register document from the ITC claim register."""
+        acts: dict[int, list[ItcClaim]] = defaultdict(list)
+        for c in s.scalars(select(ItcClaim).where(ItcClaim.client_id == client_id).order_by(ItcClaim.period,
+                                                                                             ItcClaim.id)):
+            acts[c.invoice_id].append(c)
         res = {}
-        for inv, a in out.items():
-            if a.get("RECLAIM"):
-                res[inv] = "reclaimed"
-            elif a.get("REVERSE") and a.get("REVERSE", 0) >= a.get("CLAIM", 0):
-                res[inv] = "reversal"
-            elif a.get("CLAIM"):
-                res[inv] = "eligible"
+        for inv, rows in acts.items():
+            tot = defaultdict(Decimal)
+            for c in rows:
+                tot[c.action] += c.igst + c.cgst + c.sgst + c.cess
+            first = next((c.period for c in rows if c.action == "CLAIM"), "")
+            if tot.get("RECLAIM"):
+                res[inv] = ("reclaimed", next(c.period for c in rows if c.action == "RECLAIM"))
+            elif tot.get("REVERSE"):
+                res[inv] = ("reversed", first)
+            elif tot.get("CLAIM"):
+                res[inv] = ("claimed", first)
         return res
+
+    def set_claim(self, txn_ids: list[int], claim: str, user: str, period: str = "", reason: str = "") -> int:
+        """Record what was done with the ITC in GSTR-3B (claimed in which period, not claimed, reversed …). This
+        does not change the nature, treatment or eligibility."""
+        from ..importers.parsing import parse_period
+
+        if claim not in CLAIMS:
+            raise ServiceError(f"Unknown claim state {claim}")
+        if claim in ("claimed", "reversed", "temp_reversed", "reclaimed"):
+            period = parse_period(period) or ""
+            if not period:
+                raise ServiceError("Give the GSTR-3B period (YYYY-MM) in which the ITC was claimed / reclaimed")
+        n = 0
+        with self.db.session() as s:
+            for t in s.scalars(select(ItcTxn).where(ItcTxn.id.in_(txn_ids))):
+                parts = list(s.scalars(select(ItcPart).where(ItcPart.txn_id == t.id)))
+                before = [self._pdict(p) for p in parts]
+                for p in parts:
+                    p.claim, p.claim_period, p.updated_by = claim, period if claim != "not_claimed" else "", user[:80]
+                audit(s, "ITC_CLAIM", "itc_txn", t.id, {"before": before, "after": [self._pdict(p) for p in parts],
+                                                        "reason": reason, "party": t.party,
+                                                        "invoice_no": t.invoice_no}, user, t.client_id)
+                n += 1
+        return n
 
     def set_class(self, txn_ids: list[int], user: str, reason: str = "", nature: str | None = None,
                   treatment: str | None = None, status: str | None = None) -> int:
@@ -475,7 +526,8 @@ class ItcRegisterService:
             for p in parts:
                 x = ItcPart(client_id=t.client_id, txn_id=txn_id, taxable=p.taxable if t.taxable is not None else None,
                             igst=p.igst, cgst=p.cgst, sgst=p.sgst, cess=p.cess, nature=p.nature,
-                            treatment=p.treatment, status=p.status, basis="manual", confidence="high",
+                            treatment=p.treatment, status=p.status, claim=p.claim, claim_period=p.claim_period,
+                            basis="manual", confidence="high",
                             reason=(reason or "split by hand")[:400], updated_by=user[:80])
                 s.add(x)
                 new.append(x)
@@ -510,7 +562,7 @@ class ItcRegisterService:
             if t is None:
                 return False
             last = s.scalar(select(AuditLog).where(AuditLog.entity == "itc_txn", AuditLog.entity_id == str(txn_id),
-                                                   AuditLog.action.in_(["ITC_CLASSIFY", "ITC_SPLIT"]))
+                                                   AuditLog.action.in_(["ITC_CLASSIFY", "ITC_SPLIT", "ITC_CLAIM"]))
                             .order_by(AuditLog.id.desc()).limit(1))
             if last is None:
                 return False
@@ -523,7 +575,8 @@ class ItcRegisterService:
             for b in before:
                 s.add(ItcPart(client_id=t.client_id, txn_id=txn_id, taxable=None if b["taxable"] is None else
                               Decimal(b["taxable"]), **{h: Decimal(b[h]) for h in HEADS}, nature=b["nature"],
-                              treatment=b["treatment"], status=b["status"], basis=b["basis"],
+                              treatment=b["treatment"], status=b["status"], claim=b.get("claim", "unknown"),
+                              claim_period=b.get("claim_period", ""), basis=b["basis"],
                               confidence=b["confidence"], reason=b["reason"], updated_by=user[:80]))
             audit(s, "ITC_UNDO", "itc_txn", txn_id, {"undone": last.id, "before": now, "after": before}, user,
                   t.client_id)
@@ -567,10 +620,39 @@ class ItcRegisterService:
                                                              "nature": nature, "treatment": treatment,
                                                              "status": status, "fy": fy}, user, client_id)
             s.expunge(r)
+        if scope == "ledger" and nature and not fy:
+            self._to_master(client_id, value, nature, treatment, status, user)
         if apply:
             for y in ([fy] if fy else self.years(client_id)):
                 self.classify_auto(client_id, y)
         return r
+
+    def _to_master(self, client_id: int, ledger: str, nature: str, treatment: str, status: str, user: str) -> None:
+        """A ledger rule for every year also goes to the client's Ledger Mapping Master (reused by both screens)."""
+        from .mapping_master import MappingMasterService
+
+        acct, gst = {"trading": ("Trading goods", "inputs"), "raw": ("Raw materials", "inputs"),
+                     "other_goods": ("Other purchases", "inputs"), "services": ("Indirect expenses – other", "services"),
+                     "capital": ("Other fixed assets", "capital"), "nongst": ("Non-GST expenses", "nogst"),
+                     "unclassified": (None, None)}[nature]
+        if acct is None:
+            return
+        source = {"fcm": "regular", "rcm_reg": "rcm_reg", "rcm_unreg": "rcm_unreg", "import_g": "import_g",
+                  "sez": "import_g", "import_s": "import_s", "isd": "isd"}.get(treatment, "regular")
+        elig = {"eligible": "eligible", "partial": "eligible", "blocked": "blocked", "reversal_req": "rule42"}.get(
+            status, "")
+        from ..ledgers.classify import ledger_key
+        from ..ledgers.itc_classes import nature_from_bifurcation
+
+        with self.db.session() as s:
+            old = s.scalar(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
+                                                       LedgerMapping.ledger_key == ledger_key(ledger)))
+            if old is not None and nature_from_bifurcation(old.acct_class, old.gst_class) == nature:
+                acct = old.acct_class  # keep the more precise accounting class already in the master
+            if old is not None and not old.active:
+                return
+        MappingMasterService(self.db).save(client_id, ledger, acct, gst, user, source, "", elig,
+                                           "from a ledger rule in ITC classification", source="approved")
 
     def rules(self, client_id: int) -> list[ItcMapRule]:
         with self.db.session() as s:
@@ -639,9 +721,9 @@ class ItcRegisterService:
         by_n = {k: Bucket(v) for k, v in NATURES.items()}
         by_t = {k: Bucket(v) for k, v in TREATMENTS.items()}
         by_s = {k: Bucket(v) for k, v in STATUSES.items()}
+        by_c = {k: Bucket(v) for k, v in CLAIMS.items()}
         t6 = {r: {k: Bucket(k) for k in ("inputs", "services", "capital")} for r in T6_ROWS}
-        t7 = {"reversal": Bucket("ITC reversal required"), "temp_reversed": Bucket("Temporarily reversed"),
-              "blocked": Bucket("Ineligible / blocked (not to be availed)")}
+        t7 = {"reversed": Bucket("Claimed, then reversed"), "temp_reversed": Bucket("Claimed, temporarily reversed")}
         rcm = {k: Bucket(v) for k, v in (("goods", "RCM on input goods"), ("services", "RCM on input services"),
                                          ("capital", "RCM on capital goods"), ("rcm_reg", "RCM – registered suppliers"),
                                          ("rcm_unreg", "RCM – unregistered suppliers"),
@@ -650,6 +732,9 @@ class ItcRegisterService:
         from ..gstr9.expenses import TABLE14, row_for
 
         labels14 = dict(TABLE14)
+        later = ZERO  # ITC of this year's invoices claimed after the year / not yet claimed (12C, 8C)
+        earlier = ZERO  # earlier years' invoices claimed in this year (12B)
+        start = date(int(fy[:4]), 4, 1)
         for v in views:
             if v.is_adjustment:
                 continue
@@ -657,30 +742,40 @@ class ItcRegisterService:
                 by_n[p.nature].add(p)
                 by_t.setdefault(p.treatment or "other", Bucket(p.treatment)).add(p)
                 by_s[p.status].add(p)
+                by_c.setdefault(p.claim or "unknown", Bucket(p.claim)).add(p)
                 typ = _type(p.nature)
-                if p.status in AVAILED and typ in ("inputs", "services", "capital"):
-                    row = TREAT_ROW.get(p.treatment or "fcm", "6B")
-                    t6[row][typ].add(p)
-                    if p.status == "reclaimed":
+                tax = p.igst + p.cgst + p.sgst + p.cess
+                in_year = p.claim_period in months
+                # GSTR-9 Table 6: only ITC actually availed in this year's GSTR-3B – classification and eligibility
+                # alone never put an amount there
+                if p.claim in AVAILED and in_year and typ in ("inputs", "services", "capital"):
+                    if p.claim == "reclaimed":
                         t6["6H"][typ].add(p)
-                if p.status in t7:
-                    t7[p.status].add(p)
+                    else:
+                        t6[TREAT_ROW.get(p.treatment or "fcm", "6B")][typ].add(p)
+                if p.claim in REVERSED and in_year:
+                    t7[p.claim].add(p)
+                if p.status in ELIGIBLE and (p.claim == "not_claimed" or (p.claim in AVAILED and p.claim_period
+                                                                        and p.claim_period > months[-1])):
+                    later += tax
+                if p.claim in AVAILED and in_year and v.txn.invoice_date and v.txn.invoice_date < start:
+                    earlier += tax
                 if p.treatment in RCM or p.treatment == "import_s":
                     rcm[p.treatment].add(p)
                     rcm["goods" if typ == "inputs" else typ if typ in ("services", "capital") else "goods"].add(p)
-                if True:  # every part has a Table 14 head (non-GST ones carry no tax)
-                    head = "14O" if p.nature == "capital" else "14A" if p.nature in GOODS and not v.txn.ledger \
-                        else row_for(v.txn.ledger or v.txn.description or "")
-                    if p.nature in GOODS and head == "14N":
-                        head = "14A"
-                    if p.treatment == "import_g":
-                        head = "14D"
-                    r = t14.setdefault(head, [ZERO, ZERO, ZERO])
-                    r[0] += p.taxable or ZERO
-                    tax = p.igst + p.cgst + p.sgst + p.cess
-                    r[1] += tax
-                    if p.status in AVAILED:
-                        r[2] += tax
+                head = "14O" if p.nature == "capital" else "14A" if p.nature in GOODS and not v.txn.ledger \
+                    else row_for(v.txn.ledger or v.txn.description or "")
+                if p.nature in GOODS and head == "14N":
+                    head = "14A"
+                if p.treatment == "import_g":
+                    head = "14D"
+                r = t14.setdefault(head, [ZERO, ZERO, ZERO, ZERO])
+                r[0] += p.taxable or ZERO
+                r[1] += tax
+                if p.status in ELIGIBLE:
+                    r[2] += tax  # eligible ITC
+                if p.claim in AVAILED and in_year:
+                    r[3] += tax  # ITC actually claimed
         filed = Gstr3bService(self.db).values(client_id, months)
         has3b = any(set(t) & {"4A1", "4A2", "4A3", "4A4", "4A5"} for t in filed.values())
         t6_3b: dict[str, dict | None] = {}
@@ -700,14 +795,12 @@ class ItcRegisterService:
         except ServiceError:
             t8 = None
         # GSTR-9C Table 12
-        start = date(int(fy[:4]), 4, 1)
         books = sum((b.tax for k, b in by_s.items() if k != "blocked"), ZERO)
-        b12 = sum((x.igst + x.cgst + x.sgst + x.cess for x in claims if x.action == "CLAIM" and x.period in months
-                   and inv_dates.get(x.invoice_id) and inv_dates[x.invoice_id] < start), ZERO)
-        claimed_in_fy = {x.invoice_id for x in claims if x.action == "CLAIM" and x.period in months}
-        c12 = sum((v.tax for v in views if not v.is_adjustment and v.txn.invoice_id
-                   and v.txn.invoice_id not in claimed_in_fy and any(p.status == "not_claimed" for p in v.parts)),
-                  ZERO)
+        b12 = earlier + sum((x.igst + x.cgst + x.sgst + x.cess for x in claims if x.action == "CLAIM"
+                             and x.period in months and inv_dates.get(x.invoice_id)
+                             and inv_dates[x.invoice_id] < start
+                             and x.invoice_id not in {v.txn.invoice_id for v in views}), ZERO)
+        c12 = later
         d12 = books + b12 - c12
         e12 = None
         try:
@@ -717,24 +810,29 @@ class ItcRegisterService:
             e12 = next((ln.amount for ln in st.table12 if ln.code == "12E"), None)
         except (ServiceError, ArithmeticError, AttributeError, KeyError):
             e12 = None
-        table12 = [("12A", "ITC availed as per books (register, excluding ineligible)", books, "register"),
-                   ("12B", "ITC booked in earlier years claimed in this year", b12, "claim register"),
-                   ("12C", "ITC booked this year to be claimed in later years", c12, "status 'not yet claimed'"),
+        table12 = [("12A", "ITC as per books (register, excluding ineligible)", books, "register"),
+                   ("12B", "ITC booked in earlier years claimed in this year", b12, "claim period / claim register"),
+                   ("12C", "ITC booked this year to be claimed in later years", c12,
+                    "eligible ITC not claimed, or claimed after the year"),
                    ("12D", "ITC as per books (A + B − C)", d12, "computed"),
                    ("12E", "ITC claimed in GSTR-9", e12, "GSTR-9 working (7J)"),
                    ("12F", "Un-reconciled ITC (E − D)", None if e12 is None else e12 - d12, "computed")]
         # Table 13 – possible reasons
+        inelig_claimed = sum((p.igst + p.cgst + p.sgst + p.cess for v in views if not v.is_adjustment
+                              for p in v.parts if p.status == "blocked" and p.claim in AVAILED), ZERO)
         t13 = []
         for label, amount, why in (
-                ("ITC to be claimed in a later year (timing)", c12, "status 'not yet claimed'"),
-                ("Earlier-year ITC claimed this year", b12, "claim register"),
-                ("Ineligible / blocked ITC in the books", by_s["blocked"].tax, "status 'blocked'"),
-                ("ITC reversals", by_s["reversal"].tax + by_s["temp_reversed"].tax, "reversal statuses"),
+                ("ITC to be claimed in a later year (timing)", c12, "eligible, not claimed / claimed after the year"),
+                ("Earlier-year ITC claimed this year", b12, "claim period"),
+                ("Ineligible / blocked ITC in the books", by_s["blocked"].tax, "eligibility 'blocked'"),
+                ("Ineligible ITC that was claimed – to be reversed", inelig_claimed, "blocked but claimed"),
+                ("ITC reversals", by_c["reversed"].tax + by_c["temp_reversed"].tax, "claim reversed"),
                 ("Credit notes", sum((v.tax for v in views if v.txn.doc_type == "CRN" and not v.is_adjustment), ZERO),
                  "debit / credit notes"),
                 ("RCM ITC", sum((b.tax for k, b in by_t.items() if k in RCM), ZERO), "RCM transactions"),
                 ("Tax-ledger postings not in the purchase register",
                  sum((v.tax for v in views if v.txn.match == "taxledger"), ZERO), "unrecorded invoices / wrong posting"),
+                ("Claim not verified", by_c["unknown"].tax, "claim state not recorded"),
                 ("Unclassified transactions", by_n["unclassified"].tax, "classification pending")):
             if amount:
                 t13.append((label, amount, why))
@@ -749,6 +847,11 @@ class ItcRegisterService:
                     balances[f"{kind}:{h}"] = sum(vals, ZERO)
         w = ItcWorking(name, gstin, fy, views, by_n, by_t, by_s, t6, t6_3b, t7, t8, table12, t13, t14_rows, rcm, [],
                        post_tot, balances, final)
+        w.by_claim = by_c
+        w.inelig_claimed = inelig_claimed
+        from .annual_rules import table14_status
+
+        w.table14_status = table14_status(self.db, fy)
         w.controls = self._controls(w, posts, filed)
         return w
 
@@ -838,11 +941,25 @@ class ItcRegisterService:
         else:
             out.append(Control("C7", "Capital goods appear in the fixed asset register", "pass",
                                "capital goods and fixed-asset ledgers both present" if cg else "no capital goods"))
-        # 8. ineligible
+        # 8. ineligible – classification and eligibility are not the claim: blocked ITC that was claimed is a risk
         blocked = w.by_status["blocked"].count
-        out.append(Control("C8", "Blocked credits (section 17(5)) reviewed", "pass" if not w.to_review else "warn",
-                           f"{blocked} transaction(s) blocked; {w.to_review} suggestion(s) of low confidence still to "
-                           "review"))
+        if w.inelig_claimed:
+            out.append(Control("C8", "No ineligible ITC claimed", "fail",
+                               f"₹{w.inelig_claimed:,.2f} of ITC marked ineligible / blocked was claimed in GSTR-3B – "
+                               "reverse it (DRC-03 / next GSTR-3B) or correct the eligibility", True))
+        else:
+            out.append(Control("C8", "No ineligible ITC claimed", "pass" if not w.to_review else "warn",
+                               f"{blocked} transaction(s) blocked, none claimed; {w.to_review} suggestion(s) of low "
+                               "confidence still to review"))
+        unknown = w.by_claim.get("unknown")
+        if unknown and unknown.count:
+            out.append(Control("C8b", "ITC claim verified for every transaction", "warn",
+                               f"{unknown.count} transaction(s) with the GSTR-3B claim not recorded – Table 6 counts only "
+                               "verified claims (claim register, or 'Record claim…')"))
+        req = sum(1 for v in txns for p in v.parts if p.status == "reversal_req" and p.claim in ("claimed",))
+        if req:
+            out.append(Control("C8c", "Reversals required have been made", "warn",
+                               f"{req} transaction(s) needing reversal (rules 37 / 42 / 43) claimed but not reversed"))
         # 9. cut-off
         other_fy = [v for v in txns if v.txn.invoice_date and _fy_of(v.txn.invoice_date) != w.fy]
         out.append(Control("C9", "Financial-year cut-off checked", "warn" if other_fy else "pass",
