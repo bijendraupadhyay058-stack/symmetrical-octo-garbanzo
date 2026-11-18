@@ -71,6 +71,18 @@ class PartIn:
 
 
 @dataclass
+class ClaimProposal:
+    txn_id: int
+    party: str
+    invoice_no: str
+    tax: Decimal
+    claim: str
+    period: str
+    why: str
+    usable: bool = True
+
+
+@dataclass
 class TxnView:
     txn: ItcTxn
     parts: list[ItcPart]
@@ -196,6 +208,20 @@ T6_3B = {"6B": ("4A5",), "6C": ("4A3",), "6D": ("4A3",), "6E": ("4A1",), "6F": (
          "6H": ("4D1",)}
 TREAT_ROW = {"fcm": "6B", "rcm_unreg": "6C", "rcm_reg": "6D", "import_g": "6E", "sez": "6E", "import_s": "6F",
              "isd": "6G", "deemed_exp": "6B", "other": "6B"}
+
+
+def master_maps(s, client_id: int) -> dict[str, dict]:
+    """Active ledger mappings for a client: the firm template, overridden by the client's own master."""
+    from ..db.models import FirmMapping
+
+    out = {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
+                          "head_9c": m.head_9c, "eligibility": m.eligibility, "firm": True}
+           for m in s.scalars(select(FirmMapping).where(FirmMapping.active.is_(True)))}
+    out.update({m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
+                               "head_9c": m.head_9c, "eligibility": m.eligibility}
+                for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
+                                                               LedgerMapping.active.is_(True)))})
+    return out
 
 
 def _type(nature: str) -> str:
@@ -401,11 +427,8 @@ class ItcRegisterService:
 
     @staticmethod
     def _maps(s, client_id: int) -> dict[str, dict]:
-        """The client's Ledger Mapping Master (active entries)."""
-        return {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
-                               "eligibility": m.eligibility}
-                for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
-                                                               LedgerMapping.active.is_(True)))}
+        """The client's Ledger Mapping Master (active entries), over the firm's mapping template."""
+        return master_maps(s, client_id)
 
     @staticmethod
     def _sync_single(p: ItcPart, t: ItcTxn) -> None:
@@ -434,6 +457,96 @@ class ItcRegisterService:
             elif tot.get("CLAIM"):
                 res[inv] = ("claimed", first)
         return res
+
+    def propose_claims(self, client_id: int, fy: str) -> list[ClaimProposal]:
+        """Claims for the transactions whose claim is not verified, from the evidence – never saved until the user
+        confirms them:
+
+        * the document was matched to GSTR-2B in the month's books vs GSTR-2B reconciliation and that month's
+          GSTR-3B is imported → claimed in that month (ITC is availed in the GSTR-3B of the GSTR-2B month);
+        * it is in the reconciliation but not in GSTR-2B, and the GSTR-3B is imported → not claimed;
+        * eligibility blocked → not claimed (ineligible ITC is not availed).
+        Each month's proposed claims are compared with GSTR-3B Table 4(A) so a difference shows before confirming."""
+        from ..core.models import PAIRED_CATEGORIES, Category
+        from .gstr3b import Gstr3bService
+        from .itc import ItcService
+        from .reconciliation import ReconciliationService
+
+        months = fy_months(fy)
+        views = [v for v in self.views(client_id, fy) if not v.is_adjustment and v.parts
+                 and any(p.claim == "unknown" for p in v.parts)]
+        if not views:
+            return []
+        filed = Gstr3bService(self.db).values(client_id, months)
+        has3b = {m for m, t in filed.items() if set(t) & {"4A1", "4A2", "4A3", "4A4", "4A5"}}
+        with self.db.session() as s:
+            runs = ItcService(self.db)._latest_month_runs(s, client_id, months)
+        matched: dict[int, str] = {}
+        missing: dict[int, str] = {}
+        recon = ReconciliationService(self.db)
+        for month, run_id in runs.items():
+            for ln in recon.load(run_id).result.lines:
+                b = ln.books
+                if b is None or not b.db_id:
+                    continue
+                if ln.category in PAIRED_CATEGORIES and ln.gstr2b is not None:
+                    matched.setdefault(b.db_id, ln.gstr2b.period or month)
+                elif ln.category == Category.MISSING_IN_2B:
+                    missing.setdefault(b.db_id, month)
+        out = []
+        for v in views:
+            t = v.txn
+            if any(p.status == "blocked" for p in v.parts):
+                out.append(ClaimProposal(t.id, t.party, t.invoice_no, v.tax, "not_claimed", "",
+                                         "eligibility blocked – ineligible ITC is not availed"))
+            elif t.invoice_id in matched:
+                m = matched[t.invoice_id]
+                if m in has3b:
+                    out.append(ClaimProposal(t.id, t.party, t.invoice_no, v.tax, "claimed", m,
+                                             f"matched to GSTR-2B of {m}; GSTR-3B {m} imported"))
+                else:
+                    out.append(ClaimProposal(t.id, t.party, t.invoice_no, v.tax, "unknown", m,
+                                             f"matched to GSTR-2B of {m} but GSTR-3B {m} not imported", False))
+            elif t.invoice_id in missing and missing[t.invoice_id] in has3b:
+                out.append(ClaimProposal(t.id, t.party, t.invoice_no, v.tax, "not_claimed", "",
+                                         f"not in GSTR-2B of {missing[t.invoice_id]} – ITC not available"))
+            else:
+                out.append(ClaimProposal(t.id, t.party, t.invoice_no, v.tax, "unknown", "",
+                                         "not reconciled with GSTR-2B (or tax ledger only) – record by hand", False))
+        return out
+
+    def claim_check(self, client_id: int, fy: str, proposals: list[ClaimProposal]) -> list[tuple]:
+        """Month by month: ITC already recorded as claimed + proposed claims, against GSTR-3B Table 4(A)."""
+        from .gstr3b import Gstr3bService
+
+        months = fy_months(fy)
+        filed = Gstr3bService(self.db).values(client_id, months)
+        rec: dict[str, Decimal] = defaultdict(Decimal)
+        for v in self.views(client_id, fy):
+            for p in v.parts:
+                if p.claim in AVAILED and p.claim_period:
+                    rec[p.claim_period] += p.igst + p.cgst + p.sgst + p.cess
+        prop: dict[str, Decimal] = defaultdict(Decimal)
+        for x in proposals:
+            if x.usable and x.claim == "claimed":
+                prop[x.period] += x.tax
+        out = []
+        for m in months:
+            t = filed.get(m)
+            b3 = sum((t[c].total for c in ("4A1", "4A2", "4A3", "4A4", "4A5") if c in t), ZERO) if t else None
+            if not (rec.get(m) or prop.get(m) or b3):
+                continue
+            total = rec.get(m, ZERO) + prop.get(m, ZERO)
+            out.append((m, rec.get(m, ZERO), prop.get(m, ZERO), b3, None if b3 is None else total - b3))
+        return out
+
+    def apply_claims(self, proposals: list[ClaimProposal], user: str) -> int:
+        n = 0
+        for x in proposals:
+            if not x.usable or x.claim == "unknown":
+                continue
+            n += self.set_claim([x.txn_id], x.claim, user, x.period, "confirmed proposal: " + x.why)
+        return n
 
     def set_claim(self, txn_ids: list[int], claim: str, user: str, period: str = "", reason: str = "") -> int:
         """Record what was done with the ITC in GSTR-3B (claimed in which period, not claimed, reversed …). This

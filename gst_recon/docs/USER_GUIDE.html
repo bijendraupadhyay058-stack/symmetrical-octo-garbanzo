@@ -53,6 +53,8 @@
   <a href="#ledgers">7r. Ledger classification</a> ·
   <a href="#itcclass">7s. ITC classification</a> ·
   <a href="#mapmaster">7t. Mapping master</a> ·
+  <a href="#annualpack">7u. Annual return pack</a> ·
+  <a href="#webclass">7v. Classification on the web</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -60,7 +62,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.17.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.18.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -650,6 +652,12 @@
       (formulas) and Tables 7–8, GSTR-9C Tables 12, 13 and 14, rules, history, exceptions and the final summary);
       <span class="btn">Review PDF…</span> a summary.</li>
 </ol>
+<p><b>Propose claims from GSTR-3B…</b> saves recording claims one by one: for every transaction whose claim is not
+   verified it proposes <i>claimed in month M</i> when the bill matched GSTR-2B of month M in that month's
+   reconciliation and GSTR-3B of M is imported; <i>not claimed</i> when it was not in GSTR-2B, or when its eligibility is
+   blocked. The list and a month-by-month check (recorded + proposed claims against GSTR-3B Table 4(A)) are shown first;
+   nothing is saved until you click <span class="btn">Record the proposed claims</span>. Bills not reconciled with
+   GSTR-2B, or only in the tax ledger, still need <span class="btn">Record claim…</span>.</p>
 <p><b>GSTR-9C Table 14</b> (expense-wise ITC: value, tax, eligible ITC, ITC claimed, eligible but not claimed) is
    always prepared in full, even for years whose instructions let the table be left blank. The year's position is shown
    on the workings; <span class="btn">Year's reporting note…</span> records the notification you rely on for the year
@@ -676,9 +684,29 @@
       mapping outside the program; <span class="btn">Copy from another client…</span> to start a group company (same
       chart of accounts) from an existing client's master – its own entries are kept unless you choose to replace
       them.</li>
+  <li><b>Firm template</b> – choose <i>Firm template (all clients)</i> at the top to keep the usual classification of
+      ledger names common to many clients (Audit Fees, Freight, Rent, Salary …). It is suggested for every client
+      (confidence <i>medium</i>) after the client's own master; <span class="btn">Add selected to firm template</span>
+      copies a client's entries into it.</li>
   <li>The master holds classification and eligibility only. Whether ITC was claimed is a fact of each year's GSTR-3B
       and is never copied from one year to another.</li>
 </ul>
+
+<h2 id="annualpack">7u. Annual return pack for many clients</h2>
+<p><b>Annual return pack</b> (left menu, under Batch): tick the clients, choose the year and a folder, and click
+   <span class="btn">Make the packs</span>. For each client the ITC register is rebuilt (your classifications and claims
+   stay), suggestions are refreshed from its master and the firm template, and these are saved in a folder per client:
+   the ITC classification workbook and review PDF, the ledger bifurcation workbook and PDF (when a trial balance is
+   imported) and the draft GSTR-9 JSON with its mapping. Claims that could be proposed are counted, not recorded. The
+   summary workbook lists each client as <i>Final</i>, <i>Ready to review</i>, <i>Pending</i> (with what is pending) or
+   <i>Error</i>. Nothing is approved or filed for you.</p>
+
+<h2 id="webclass">7v. Classification from a browser or phone</h2>
+<p>In the web interface (Settings → Sync &amp; web), each client's page now has <b>Ledger classification</b> and
+   <b>ITC classification</b>. On a phone or another office computer you can see what is pending, suggest and approve
+   ledger classifications, classify a whole ledger, classify a transaction (nature, treatment, eligibility) and record
+   its GSTR-3B claim. The same logins and roles apply: viewers only see; changing a claim needs the claim permission;
+   every change is recorded with the user's name. Splitting a ledger or an invoice is done in the desktop program.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

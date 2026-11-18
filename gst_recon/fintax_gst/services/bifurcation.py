@@ -509,10 +509,9 @@ class BifurcationService:
     def suggest_all(self, client_id: int, fy: str, user: str, ledger_ids: list[int] | None = None) -> int:
         """Suggest a classification for pending ledgers (never overwrites an approved or partial one)."""
         with self.db.session() as s:
-            saved = {m.ledger_key: {"acct_class": m.acct_class, "gst_class": m.gst_class, "gst_source": m.gst_source,
-                                    "head_9c": m.head_9c, "eligibility": m.eligibility}
-                     for m in s.scalars(select(LedgerMapping).where(LedgerMapping.client_id == client_id,
-                                                                    LedgerMapping.active.is_(True)))}
+            from .itc_register import master_maps
+
+            saved = master_maps(s, client_id)
         n = 0
         for v in self.views(client_id, fy):
             if not v.in_scope or (ledger_ids is not None and v.ledger.id not in ledger_ids):

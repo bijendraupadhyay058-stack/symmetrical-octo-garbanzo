@@ -174,9 +174,11 @@ def ledger_key(name: str) -> str:
 def suggest(name: str, parent: str, nature: str, saved: dict | None = None) -> Suggestion | None:
     """A suggestion for a ledger, or None when nothing can be said (then it stays pending)."""
     if saved:
+        firm = saved.get("firm")
         return Suggestion(saved["acct_class"], saved["gst_class"], saved.get("gst_source", "regular"),
-                          saved.get("head_9c", ""), saved.get("eligibility", ""), "saved",
-                          "approved earlier for this client")
+                          saved.get("head_9c", ""), saved.get("eligibility", ""), "medium" if firm else "saved",
+                          "the firm's mapping template – check for this client" if firm
+                          else "approved earlier for this client")
     text = f"{name}"
     for rx, acct, gst, source, head, elig, note in _COMPILED:
         if rx.search(text):

@@ -115,8 +115,10 @@ def propose(txn, rules: list, ledger_maps: dict[str, dict]) -> Proposal:
     if m and not nature_set:
         p.nature = nature_from_bifurcation(m["acct_class"], m["gst_class"])
         nature_set = True
-        p.confidence = "high" if p.basis != "rule" else p.confidence
-        reasons.append(f"ledger '{txn.ledger}' approved as {m['acct_class']}")
+        if p.basis != "rule":
+            p.confidence = "medium" if m.get("firm") else "high"
+        reasons.append(f"ledger '{txn.ledger}' " + ("in the firm's mapping template as " if m.get("firm") else
+                                                    "approved as ") + m["acct_class"])
         if not getattr(p, "_status_set", False) and m.get("eligibility") in _BIF_STATUS:
             p.status = _BIF_STATUS[m["eligibility"]]
             p._status_set = True

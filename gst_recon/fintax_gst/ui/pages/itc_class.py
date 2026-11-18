@@ -221,12 +221,16 @@ class ItcClassPage(LazyPage):
         self.claim_btn.setToolTip("What was done with the ITC in GSTR-3B (claimed in which month, not claimed, reversed "
                                   "…) – separate from the classification")
         self.claim_btn.clicked.connect(lambda: self.record_claim())
+        self.propose_btn = QPushButton("Propose claims from GSTR-3B…")
+        self.propose_btn.setToolTip("Claims for transactions not verified, from the GSTR-2B reconciliation and the "
+                                    "month's GSTR-3B – shown for your confirmation")
+        self.propose_btn.clicked.connect(lambda: self.propose_claims())
         self.rules_btn = QPushButton("Rules…")
         self.rules_btn.clicked.connect(lambda: self.rules())
         self.rev_btn = QPushButton("Mark reviewed")
         self.rev_btn.clicked.connect(lambda: self.mark_reviewed())
-        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.split_btn,
-                  self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn):
+        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.propose_btn,
+                  self.split_btn, self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn):
             bar.addWidget(b)
         bar.addStretch()
         lay.addLayout(bar)
@@ -325,9 +329,9 @@ class ItcClassPage(LazyPage):
     def reload(self) -> None:
         st = self.state
         on = st.client is not None
-        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.split_btn,
-                  self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn, self.final_btn, self.xlsx_btn,
-                  self.pdf_btn):
+        for b in (self.tl_btn, self.pr_btn, self.build_btn, self.class_btn, self.claim_btn, self.propose_btn,
+                  self.split_btn, self.undo_btn, self.hist_btn, self.rules_btn, self.rev_btn, self.final_btn,
+                  self.xlsx_btn, self.pdf_btn):
             b.setEnabled(on)
         if not on:
             self.work = None
@@ -604,6 +608,51 @@ class ItcClassPage(LazyPage):
         except ServiceError as exc:
             QMessageBox.warning(self, "Record claim", str(exc))
             return 0
+        self._changed()
+        return n
+
+    def propose_claims(self, confirm: bool | None = None):
+        """Show the proposed claims and the month-by-month check against GSTR-3B; record them only on confirmation."""
+        st = self.state
+        props = self.svc.propose_claims(st.client.id, st.fy)
+        if not props:
+            QMessageBox.information(self, "Propose claims", "Every transaction's claim is already recorded.")
+            return 0
+        usable = [p for p in props if p.usable and p.claim != "unknown"]
+        check = self.svc.claim_check(st.client.id, st.fy, props)
+        if confirm is None:
+            dlg = QDialog(self)
+            dlg.setWindowTitle("Proposed ITC claims – confirm")
+            dlg.resize(1000, 560)
+            lay = QVBoxLayout(dlg)
+            lay.addWidget(QLabel(f"{len(usable)} claim(s) can be proposed; {len(props) - len(usable)} need recording "
+                                 "by hand. Nothing is saved until you confirm."))
+            pt = QTableWidget(len(props), 6)
+            pt.setHorizontalHeaderLabels(["Supplier", "Invoice", "Tax", "Proposed", "Period", "Why"])
+            for r, p in enumerate(props):
+                for c, val in enumerate((p.party, p.invoice_no, f"{p.tax:,.2f}", CLAIMS.get(p.claim, p.claim),
+                                         p.period, p.why)):
+                    pt.setItem(r, c, QTableWidgetItem(str(val)))
+            pt.resizeColumnsToContents()
+            lay.addWidget(pt, 2)
+            lay.addWidget(QLabel("Month by month against GSTR-3B Table 4(A):"))
+            ct = QTableWidget(len(check), 5)
+            ct.setHorizontalHeaderLabels(["Month", "Already recorded", "Proposed", "GSTR-3B 4(A)", "Difference"])
+            for r, row in enumerate(check):
+                for c, val in enumerate(row):
+                    ct.setItem(r, c, QTableWidgetItem("" if val is None else (f"{val:,.2f}" if c else str(val))))
+            ct.resizeColumnsToContents()
+            lay.addWidget(ct, 1)
+            bb = QDialogButtonBox()
+            bb.addButton("Record the proposed claims", QDialogButtonBox.AcceptRole)
+            bb.addButton(QDialogButtonBox.Cancel)
+            bb.accepted.connect(dlg.accept)
+            bb.rejected.connect(dlg.reject)
+            lay.addWidget(bb)
+            confirm = dlg.exec() == QDialog.Accepted
+        if not confirm:
+            return 0
+        n = self.svc.apply_claims(props, st.user)
         self._changed()
         return n
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
-    QDialog, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
+    QComboBox, QDialog, QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout,
 )
 
 from ...ledgers.classify import ELIGIBILITY, GST_CLASSES, GST_SOURCES
@@ -52,6 +52,20 @@ class MappingMasterPage(LazyPage):
             bar.addWidget(b)
         bar.addStretch()
         lay.addLayout(bar)
+        top = QHBoxLayout()
+        self.scope = QComboBox()
+        self.scope.addItem("This client's master", "client")
+        self.scope.addItem("Firm template (all clients)", "firm")
+        self.scope.setToolTip("The firm template holds the usual classification of common ledger names; a client's own "
+                              "master always comes first")
+        self.scope.currentIndexChanged.connect(lambda _i: self.reload())
+        self.firm_btn = QPushButton("Add selected to firm template")
+        self.firm_btn.clicked.connect(lambda: self.to_firm())
+        top.addWidget(QLabel("Show"))
+        top.addWidget(self.scope)
+        top.addWidget(self.firm_btn)
+        top.addStretch()
+        lay.addLayout(top)
         self.find = QLineEdit()
         self.find.setPlaceholderText("Search ledger or classification…")
         self.find.textChanged.connect(lambda _t: self.show_rows())
@@ -75,13 +89,26 @@ class MappingMasterPage(LazyPage):
             sig.connect(self.lazy(self.reload))
         self.lazy(self.reload)()
 
+    @property
+    def firm(self) -> bool:
+        return self.scope.currentData() == "firm"
+
+    @property
+    def target(self):
+        """The client whose master is shown, or None for the firm template."""
+        return None if self.firm else (self.state.client.id if self.state.client else None)
+
     def reload(self) -> None:
-        on = self.state.client is not None
-        for b in (self.add_btn, self.edit_btn, self.off_btn, self.apply_btn, self.exp_btn, self.imp_btn, self.copy_btn):
+        on = self.state.client is not None or self.firm
+        for b in (self.add_btn, self.edit_btn, self.off_btn, self.exp_btn, self.imp_btn):
             b.setEnabled(on)
-        self.entries = self.svc.entries(self.state.client.id) if on else []
+        for b in (self.apply_btn, self.copy_btn, self.firm_btn):
+            b.setEnabled(self.state.client is not None and not self.firm)
+        self.entries = self.svc.entries(self.target) if on else []
         active = sum(1 for e in self.entries if e.m.active)
-        self.info.setText(f"{len(self.entries)} ledger mapping(s), {active} active." if on else "Select a client.")
+        what = "firm template entr(ies) – used for every client after the client's own master" if self.firm else \
+            "ledger mapping(s) of this client"
+        self.info.setText(f"{len(self.entries)} {what}, {active} active." if on else "Select a client.")
         self.show_rows()
 
     def show_rows(self) -> None:
@@ -135,7 +162,7 @@ class MappingMasterPage(LazyPage):
             return False
         name, acct, gst, src, head, elig, note = values
         try:
-            self.svc.save(self.state.client.id, name, acct, gst, self.state.user, src, head, elig, note)
+            self.svc.save(self.target, name, acct, gst, self.state.user, src, head, elig, note)
         except ServiceError as exc:
             QMessageBox.warning(self, "Mapping master", str(exc))
             return False
@@ -160,7 +187,7 @@ class MappingMasterPage(LazyPage):
         sel = self.selected()
         if not sel:
             return 0
-        n = self.svc.set_active([e.m.id for e in sel], not sel[0].m.active, self.state.user)
+        n = self.svc.set_active([e.m.id for e in sel], not sel[0].m.active, self.state.user, firm=self.firm)
         self._changed()
         return n
 
@@ -175,11 +202,11 @@ class MappingMasterPage(LazyPage):
 
     def export(self, path: str | None = None, open_file: bool = True):
         st = self.state
-        path = path or QFileDialog.getSaveFileName(self, "Export mapping master",
-                                                   f"Ledger_mapping_{st.client.gstin}.xlsx", "Excel (*.xlsx)")[0]
+        name = "Firm_mapping_template.xlsx" if self.firm else f"Ledger_mapping_{st.client.gstin}.xlsx"
+        path = path or QFileDialog.getSaveFileName(self, "Export mapping", name, "Excel (*.xlsx)")[0]
         if not path:
             return None
-        out = self.svc.export_xlsx(st.client.id, path)
+        out = self.svc.export_xlsx(self.target, path)
         if open_file:
             QDesktopServices.openUrl(QUrl.fromLocalFile(str(Path(out))))
         return out
@@ -191,7 +218,7 @@ class MappingMasterPage(LazyPage):
 
     def import_path(self, path) -> tuple[int, list[str]]:
         try:
-            n, errors = self.svc.import_xlsx(self.state.client.id, path, self.state.user)
+            n, errors = self.svc.import_xlsx(self.target, path, self.state.user)
         except ServiceError as exc:
             QMessageBox.warning(self, "Mapping master", str(exc))
             return 0, [str(exc)]
@@ -199,6 +226,17 @@ class MappingMasterPage(LazyPage):
         QMessageBox.information(self, "Mapping master", f"{n} mapping(s) saved." + (
             "\n\nNot saved:\n" + "\n".join(errors[:15]) if errors else ""))
         return n, errors
+
+    def to_firm(self) -> int:
+        sel = self.selected()
+        if not sel or self.firm:
+            QMessageBox.information(self, "Firm template", "Select this client's mappings to add to the firm template.")
+            return 0
+        n = self.svc.to_firm(self.state.client.id, [e.m.id for e in sel], self.state.user)
+        self._changed()
+        QMessageBox.information(self, "Firm template", f"{n} mapping(s) added to the firm template – suggested for "
+                                "every client that has no mapping of its own for the ledger.")
+        return n
 
     def copy_from(self, from_client_id: int | None = None, overwrite: bool = False) -> tuple[int, int]:
         st = self.state

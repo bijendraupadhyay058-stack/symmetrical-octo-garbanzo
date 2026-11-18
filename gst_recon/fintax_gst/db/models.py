@@ -1176,3 +1176,25 @@ class ItcMapRule(Base):
 
 
 V28_TABLES = [TaxPosting, ItcTxn, ItcPart, ItcMapRule]
+
+
+class FirmMapping(Base):
+    """The firm's mapping template: how a ledger name is usually classified, for every client (each client's own
+    Ledger Mapping Master comes first). Schema v30."""
+
+    __tablename__ = "firm_mappings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ledger_key: Mapped[str] = mapped_column(String(200), unique=True)
+    acct_class: Mapped[str] = mapped_column(String(60))
+    gst_class: Mapped[str] = mapped_column(String(20))
+    gst_source: Mapped[str] = mapped_column(String(12), default="regular")
+    head_9c: Mapped[str] = mapped_column(String(4), default="")
+    eligibility: Mapped[str] = mapped_column(String(16), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    source: Mapped[str] = mapped_column(String(12), default="firm")
+    note: Mapped[str] = mapped_column(Text, default="")
+    approved_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V30_TABLES = [FirmMapping]

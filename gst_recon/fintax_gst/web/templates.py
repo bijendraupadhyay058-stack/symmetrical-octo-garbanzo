@@ -48,8 +48,8 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:24px 16px}
 <span class="sp"></span>{% if user %}<span class="who">{{ user.full_name or user.username }} · {{ role }}</span>
 {% if can_upload %}<a href="/upload">Upload</a>{% endif %}<a href="/logout">Log out</a>{% endif %}</header>
 <main>{% block body %}{% endblock %}</main>
-<footer>{% if can_upload %}Uploads are previewed before saving{% else %}Read-only view{% endif %} · data stays on
-the firm's computer · no portal access</footer>
+<footer>{% if can_upload %}Uploads are previewed before saving · {% endif %}every change is recorded with your
+name · data stays on the firm's computer · no portal access</footer>
 </body></html>"""
 
 LOGIN = """{% extends "base" %}{% block title %}Log in · FIN TAX PRO{% endblock %}{% block body %}
@@ -87,7 +87,9 @@ CLIENT = """{% extends "base" %}{% block title %}{{ c.name }} · FIN TAX PRO{% e
 <div class="row"><div style="flex:1"><h1>{{ c.name }}</h1><div class="muted">GSTIN {{ c.gstin }} · FY {{ c.fy }}</div>
 </div><span class="pill {{ c.rag }}">{{ rag[c.rag] }}</span>
 {% if can_export %}<a class="btn" href="/client/{{ c.client_id }}/compliance.pdf?fy={{ c.fy }}">Compliance PDF</a>
-<a class="btn alt" href="/client/{{ c.client_id }}/gstr9.xlsx?fy={{ c.fy }}">GSTR-9 working</a>{% endif %}</div>
+<a class="btn alt" href="/client/{{ c.client_id }}/gstr9.xlsx?fy={{ c.fy }}">GSTR-9 working</a>{% endif %}
+<a class="btn alt" href="/client/{{ c.client_id }}/ledgers?fy={{ c.fy }}">Ledger classification</a>
+<a class="btn alt" href="/client/{{ c.client_id }}/itc?fy={{ c.fy }}">ITC classification</a></div>
 <div class="cards" style="margin-top:12px">
 <div class="card"><div class="k">Months with data</div><div class="v">{{ c.months_with_data }}</div></div>
 <div class="card"><div class="k">Pending exceptions</div><div class="v">{{ c.pending }}</div></div>
@@ -193,7 +195,83 @@ DONE = """{% extends "base" %}{% block title %}Saved · FIN TAX PRO{% endblock %
 <h1>{{ title }}</h1><p>{{ message }}</p><p><a class="btn" href="/client/{{ client_id }}">Open client</a>
 <a class="btn alt" href="/upload">Upload another file</a></p>{% endblock %}"""
 
-TEMPLATES = {"mapping": MAPPING, "upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
+LEDGERS = """{% extends "base" %}{% block title %}Ledgers · {{ cname }}{% endblock %}{% block body %}
+<div class="row"><div style="flex:1"><h1>Ledger classification</h1><div class="muted"><a href="/client/{{ client_id }}?fy=
+{{ fy }}">{{ cname }}</a> · {{ gstin }} · FY {{ fy }}</div></div>
+<form class="inline" method="get"><input type="hidden" name="fy" value="{{ fy }}"><select name="show">
+<option value="todo" {% if show == "todo" %}selected{% endif %}>To do</option><option value="all"
+{% if show == "all" %}selected{% endif %}>All ledgers</option></select><button class="btn alt">Show</button></form>
+{% if can_edit %}<form method="post" action="/client/{{ client_id }}/ledgers/action"><input type="hidden" name="csrf"
+value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy }}"><input type="hidden" name="show" value="{{ show }}">
+<button class="btn" name="action" value="suggest">Suggest classifications</button></form>{% endif %}</div>
+{% if msg %}<p class="card">{{ msg }}</p>{% endif %}
+<p><span class="pill {{ 'green' if ok else 'amber' }}">{{ "Ready for GSTR-9 / 9C" if ok else "Not ready" }}</span>
+<span class="muted">{{ reasons|join("; ") }}</span></p>
+<div class="cards"><div class="card"><div class="k">Ledgers to classify</div><div class="v">{{ sm.in_scope|length }}
+</div></div><div class="card"><div class="k">Approved</div><div class="v">{{ sm.count("Approved") }}</div></div>
+<div class="card"><div class="k">Suggested</div><div class="v">{{ sm.count("Suggested") }}</div></div>
+<div class="card"><div class="k">Unallocated</div><div class="v">₹{{ money(sm.unallocated) }}</div></div></div>
+<h2>{{ total }} ledger(s)</h2><div class="list">{% for v in views %}<div class="card">
+<div class="row"><b style="flex:1">{{ v.ledger.name }}</b><span class="pill {{ 'green' if v.state == 'Approved' else
+'amber' if v.state.startswith('Suggested') else 'red' }}">{{ v.state }}</span></div>
+<div class="muted">{{ v.ledger.parent or v.ledger.primary_group }} · ₹{{ money(v.ledger.base) }}
+{% if v.splits %} · {{ v.label("acct_class") }} · {{ v.label("gst_class") }} · {{ v.label("eligibility") }}{% endif %}
+{% for w in v.warnings %}<br>⚠ {{ w }}{% endfor %}</div>
+{% if can_edit %}<form class="inline" method="post" action="/client/{{ client_id }}/ledgers/action" style="margin-top:8px">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy }}">
+<input type="hidden" name="show" value="{{ show }}"><input type="hidden" name="ledger_id" value="{{ v.ledger.id }}">
+{% if v.state.startswith("Suggested") %}<button class="btn" name="action" value="approve">Approve</button>{% endif %}
+<select name="acct_class">{% for a in acct_classes %}<option {% if v.splits and v.splits[0].acct_class == a %}selected
+{% endif %}>{{ a }}</option>{% endfor %}</select><select name="gst_class">{% for k, l in gst_classes.items() %}<option
+value="{{ k }}" {% if v.splits and v.splits[0].gst_class == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+<select name="eligibility"><option value="">(eligibility)</option>{% for k, l in eligibility.items() %}<option
+value="{{ k }}" {% if v.splits and v.splits[0].eligibility == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+</select><button class="btn alt" name="action" value="classify">Classify whole</button></form>
+<div class="muted">Splitting a ledger into parts is done in the desktop program.</div>{% endif %}</div>
+{% else %}<p class="muted">Nothing to do{% if not sm.views %} – no trial balance imported for {{ fy }}{% endif %}.</p>
+{% endfor %}</div>{% endblock %}"""
+
+ITC = """{% extends "base" %}{% block title %}ITC · {{ cname }}{% endblock %}{% block body %}
+<div class="row"><div style="flex:1"><h1>ITC classification</h1><div class="muted"><a href="/client/{{ client_id }}?fy=
+{{ fy }}">{{ cname }}</a> · {{ gstin }} · FY {{ fy }}</div></div>
+<form class="inline" method="get"><input type="hidden" name="fy" value="{{ fy }}"><select name="show">
+<option value="review" {% if show == "review" %}selected{% endif %}>To review</option>
+<option value="unverified" {% if show == "unverified" %}selected{% endif %}>Claim not verified</option>
+<option value="all" {% if show == "all" %}selected{% endif %}>All</option></select><input name="q" value="{{ q }}"
+placeholder="Supplier, GSTIN, invoice"><button class="btn alt">Show</button></form></div>
+{% if msg %}<p class="card">{{ msg }}</p>{% endif %}
+<div class="cards"><div class="card"><div class="k">Transactions</div><div class="v">{{ w.txns|length }}</div></div>
+<div class="card"><div class="k">Unclassified</div><div class="v">{{ w.unclassified }}</div></div>
+<div class="card"><div class="k">To review</div><div class="v">{{ w.to_review }}</div></div>
+<div class="card"><div class="k">Claim not verified</div><div class="v">{{ w.by_claim.get("unknown").count if
+w.by_claim.get("unknown") else 0 }}</div></div></div>
+<p class="muted">Classification and eligibility are not the claim: record what was done in GSTR-3B separately.</p>
+<h2>{{ total }} transaction(s){% if total > views|length %} – first {{ views|length }}{% endif %}</h2>
+<div class="list">{% for v in views %}{% set p = v.parts[0] %}<div class="card">
+<div class="row"><b style="flex:1">{{ v.txn.party }}</b><span class="muted">₹{{ money(v.tax) }}</span></div>
+<div class="muted">{{ v.txn.invoice_no or v.txn.voucher_no }} · {{ v.txn.voucher_date.strftime("%d-%m-%Y") if
+v.txn.voucher_date else "" }} · {{ v.txn.gstin }}{% if v.txn.ledger %} · {{ v.txn.ledger }}{% endif %}<br>
+{{ v.label("nature") }} · {{ v.label("treatment") }} · {{ v.label("status") }} · <b>{{ v.label("claim") }}
+{{ p.claim_period if p else "" }}</b> · {{ v.label("confidence") }}</div>
+{% if can_edit and v.parts|length == 1 %}<form class="inline" method="post" action="/client/{{ client_id }}/itc/action"
+style="margin-top:8px"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy
+}}"><input type="hidden" name="show" value="{{ show }}"><input type="hidden" name="txn_id" value="{{ v.txn.id }}">
+<select name="nature">{% for k, l in natures.items() %}<option value="{{ k }}" {% if p.nature == k %}selected{% endif %}>
+{{ l }}</option>{% endfor %}</select><select name="treatment">{% for k, l in treatments.items() %}<option value="{{ k }}"
+{% if p.treatment == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select><select name="status">{% for k, l in
+statuses.items() %}<option value="{{ k }}" {% if p.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+</select><button class="btn alt" name="action" value="classify">Save classification</button></form>{% endif %}
+{% if can_claim %}<form class="inline" method="post" action="/client/{{ client_id }}/itc/action" style="margin-top:6px">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy }}"><input type="hidden"
+name="show" value="{{ show }}"><input type="hidden" name="txn_id" value="{{ v.txn.id }}"><select name="claim">{% for k, l
+in claims.items() %}<option value="{{ k }}" {% if p and p.claim == k %}selected{% endif %}>{{ l }}</option>{% endfor %}
+</select><input name="period" value="{{ p.claim_period if p and p.claim_period else v.txn.period }}" size="8"
+placeholder="YYYY-MM"><button class="btn alt" name="action" value="claim">Record claim</button></form>{% endif %}
+</div>{% else %}<p class="muted">Nothing to show{% if not w.views %} – build the register in the desktop program
+first{% endif %}.</p>{% endfor %}</div>{% endblock %}"""
+
+
+TEMPLATES = {"ledgers": LEDGERS, "itc": ITC, "mapping": MAPPING, "upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
 
 ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14"
 fill="#1F3864"/><rect x="10" y="46" width="44" height="6" fill="#00897B"/><text x="32" y="38" font-family="Arial"

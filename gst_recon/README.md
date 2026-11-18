@@ -8,7 +8,7 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 
 ## Download and install (Windows)
 
-1. Download **FinTaxPro-Setup-1.17.0.exe** from the
+1. Download **FinTaxPro-Setup-1.18.0.exe** from the
    [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
 2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
    (the installer is not code-signed yet).
@@ -113,6 +113,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
 * **Mapping master** – a permanent ledger mapping per client, filled by approvals and rules, reused every year by
   both classification screens (a year's own classification always wins); edit, switch off, Excel export / import and
   copy to a group company.
+* **Claims proposed from GSTR-3B, firm template, annual packs, web** – ITC claims proposed from the GSTR-2B
+  reconciliation and GSTR-3B (confirmed by the user); a firm-wide mapping template behind each client's master; an
+  annual return pack (workbooks, PDFs, draft GSTR-9 JSON and a pending list) for many clients in one run; ledger and
+  ITC classification from a browser or phone on the office network.
 * **Year on year** – sales, tax, ITC, ITC at risk and cash paid of up to five years side by side, month by month,
   with the change, like-for-like for a year in progress, the main suppliers and an Excel export.
 * **Annual and calendar** – import the portal's Table 8A document details; see returns due

@@ -275,6 +275,12 @@ def _migration_29(conn) -> None:
                          "('reclaimed', 'not_claimed', 'temp_reversed')")
 
 
+def _migration_30(conn) -> None:
+    from .models import V30_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V30_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -309,6 +315,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (27, "trial balance ledgers, their classification splits and saved ledger mappings", _migration_27),
     (28, "input tax ledger postings, ITC classification register, parts and mapping rules", _migration_28),
     (29, "ITC claim apart from eligibility; Ledger Mapping Master", _migration_29),
+    (30, "firm-wide ledger mapping template", _migration_30),
 ]
 
 

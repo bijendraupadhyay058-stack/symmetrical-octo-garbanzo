@@ -533,6 +533,134 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
     def icon():
         return Response(ICON, media_type="image/svg+xml")
 
+    # ------------------------------------------------- classification (phone / browser)
+    def _fy(fy: str | None) -> str:
+        return fy or fy_of(date.today())
+
+    def _client_name(client_id: int):
+        from ..db.models import Client
+
+        with db.session() as s:
+            c = s.get(Client, client_id)
+            return (c.name, c.gstin) if c else (None, None)
+
+    @app.get("/client/{client_id}/ledgers", response_class=HTMLResponse)
+    def ledgers_page(request: Request, client_id: int, fy: str | None = None, show: str = "todo", msg: str = ""):
+        from ..ledgers.classify import ACCT_CLASSES, ELIGIBILITY, GST_CLASSES
+        from ..services.bifurcation import BifurcationService
+
+        user, denied = guard(request)
+        if denied:
+            return denied
+        name, gstin = _client_name(client_id)
+        if name is None:
+            return HTMLResponse("Client not found", status_code=404)
+        fy = _fy(fy)
+        sm = BifurcationService(db).summary(client_id, fy)
+        views = [v for v in sm.in_scope if show == "all" or v.state != "Approved"]
+        ok, reasons = sm.ready
+        return page("ledgers", request, user, cname=name, gstin=gstin, client_id=client_id, fy=fy, show=show,
+                    views=views[:300], total=len(views), sm=sm, ok=ok, reasons=reasons, msg=msg,
+                    acct_classes=list(ACCT_CLASSES), gst_classes=GST_CLASSES, eligibility=ELIGIBILITY,
+                    can_edit=user.can("review"), csrf=csrf_of(request))
+
+    def _back(client_id: int, what: str, fy: str, show: str, msg: str) -> RedirectResponse:
+        from urllib.parse import quote
+
+        return RedirectResponse(f"/client/{client_id}/{what}?fy={fy}&show={show}&msg={quote(msg)}", status_code=303)
+
+    @app.post("/client/{client_id}/ledgers/action")
+    def ledgers_action(request: Request, client_id: int, csrf: str = Form(""), fy: str = Form(...),
+                       show: str = Form("todo"), action: str = Form(...), ledger_id: int = Form(0),
+                       acct_class: str = Form(""), gst_class: str = Form(""), eligibility: str = Form("")):
+        from ..services.bifurcation import BifurcationService
+
+        user, denied = guard(request, "review")
+        if denied:
+            return denied
+        if not csrf_ok(request, csrf):
+            return HTMLResponse("Form expired – reload the page", status_code=400)
+        svc = BifurcationService(db)
+        try:
+            lg = svc.view(ledger_id).ledger if ledger_id else None
+            if lg is not None and lg.client_id != client_id:
+                return HTMLResponse("Not this client's ledger", status_code=404)
+            if action == "suggest":
+                msg = f"{svc.suggest_all(client_id, fy, user.username)} ledger(s) given a suggestion"
+            elif action == "approve" and lg is not None:
+                svc.approve([ledger_id], user.username)
+                msg = f"Approved: {lg.name}"
+            elif action == "classify" and lg is not None:
+                svc.classify_whole([ledger_id], acct_class, gst_class, user.username, eligibility=eligibility)
+                msg = f"Classified: {lg.name}"
+            else:
+                return HTMLResponse("Unknown action", status_code=400)
+        except ServiceError as exc:
+            msg = f"Not saved: {exc}"
+        return _back(client_id, "ledgers", fy, show, msg)
+
+    @app.get("/client/{client_id}/itc", response_class=HTMLResponse)
+    def itc_page(request: Request, client_id: int, fy: str | None = None, show: str = "review", msg: str = "",
+                 q: str = ""):
+        from ..ledgers.itc_classes import CLAIMS, NATURES, STATUSES, TREATMENTS
+        from ..services.itc_register import ItcRegisterService
+
+        user, denied = guard(request)
+        if denied:
+            return denied
+        name, gstin = _client_name(client_id)
+        if name is None:
+            return HTMLResponse("Client not found", status_code=404)
+        fy = _fy(fy)
+        w = ItcRegisterService(db).working(client_id, fy)
+        txt = q.strip().lower()
+
+        def keep(v):
+            if show == "review" and not any(p.nature == "unclassified" or (p.basis == "auto" and p.confidence in (
+                    "low", "manual")) for p in v.parts):
+                return False
+            if show == "unverified" and not any(p.claim == "unknown" for p in v.parts):
+                return False
+            if txt and txt not in f"{v.txn.party} {v.txn.gstin} {v.txn.invoice_no} {v.txn.ledger}".lower():
+                return False
+            return True
+
+        views = [v for v in w.txns if keep(v)]
+        return page("itc", request, user, cname=name, gstin=gstin, client_id=client_id, fy=fy, show=show, q=q,
+                    views=views[:150], total=len(views), w=w, msg=msg, natures=NATURES, treatments=TREATMENTS,
+                    statuses=STATUSES, claims=CLAIMS, can_edit=user.can("review"), can_claim=user.can("claim"),
+                    csrf=csrf_of(request))
+
+    @app.post("/client/{client_id}/itc/action")
+    def itc_action(request: Request, client_id: int, csrf: str = Form(""), fy: str = Form(...),
+                   show: str = Form("review"), action: str = Form(...), txn_id: int = Form(...),
+                   nature: str = Form(""), treatment: str = Form(""), status: str = Form(""), claim: str = Form(""),
+                   period: str = Form(""), reason: str = Form("")):
+        from ..services.itc_register import ItcRegisterService
+
+        user, denied = guard(request, "claim" if action == "claim" else "review")
+        if denied:
+            return denied
+        if not csrf_ok(request, csrf):
+            return HTMLResponse("Form expired – reload the page", status_code=400)
+        svc = ItcRegisterService(db)
+        try:
+            t = svc.view(txn_id).txn
+            if t.client_id != client_id:
+                return HTMLResponse("Not this client's transaction", status_code=404)
+            if action == "classify":
+                svc.set_class([txn_id], user.username, reason or "classified on the web", nature=nature or None,
+                              treatment=treatment or None, status=status or None)
+                msg = f"Classified: {t.party} {t.invoice_no}"
+            elif action == "claim":
+                svc.set_claim([txn_id], claim, user.username, period, reason or "recorded on the web")
+                msg = f"Claim recorded: {t.party} {t.invoice_no}"
+            else:
+                return HTMLResponse("Unknown action", status_code=400)
+        except ServiceError as exc:
+            msg = f"Not saved: {exc}"
+        return _back(client_id, "itc", fy, show, msg)
+
     @app.get("/healthz")
     def health():
         return {"ok": True, "version": __version__}
