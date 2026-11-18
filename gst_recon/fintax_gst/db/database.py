@@ -259,13 +259,15 @@ def _migration_29(conn) -> None:
     from sqlalchemy import inspect as sa_inspect
 
     insp = sa_inspect(conn)
-    for table, column, ddl in (("itc_parts", "claim", "VARCHAR(12) NOT NULL DEFAULT 'unknown'"),
+    for table, column, ddl in (("itc_parts", "claim", "VARCHAR(20) NOT NULL DEFAULT 'unknown'"),
                                ("itc_parts", "claim_period", "VARCHAR(7) NOT NULL DEFAULT ''"),
                                ("ledger_mappings", "active", "BOOLEAN NOT NULL DEFAULT TRUE"),
                                ("ledger_mappings", "source", "VARCHAR(12) NOT NULL DEFAULT 'approved'"),
                                ("ledger_mappings", "note", "TEXT NOT NULL DEFAULT ''")):
         if column not in {c["name"] for c in insp.get_columns(table)}:
             conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    if conn.dialect.name == "postgresql":  # a claim column made by migration 28 with the first (too short) length
+        conn.exec_driver_sql("ALTER TABLE itc_parts ALTER COLUMN claim TYPE VARCHAR(20)")
     # statuses of 1.16.0 that were really claim facts move to the claim field
     for old, elig, claim in (("reclaimed", "eligible", "reclaimed"), ("not_claimed", "eligible", "not_claimed"),
                              ("temp_reversed", "eligible", "temp_reversed"), ("reversal", "reversal_req", "unknown")):

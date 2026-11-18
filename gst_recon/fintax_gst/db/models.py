@@ -1146,7 +1146,7 @@ class ItcPart(Base):
     nature: Mapped[str] = mapped_column(String(12), default="unclassified")
     treatment: Mapped[str] = mapped_column(String(12), default="")
     status: Mapped[str] = mapped_column(String(12), default="pending")  # ITC eligibility (what the law allows)
-    claim: Mapped[str] = mapped_column(String(12), default="unknown")  # schema v29: what was done in GSTR-3B
+    claim: Mapped[str] = mapped_column(String(20), default="unknown")  # schema v29: what was done in GSTR-3B
     claim_period: Mapped[str] = mapped_column(String(7), default="")  # GSTR-3B period of the claim
     basis: Mapped[str] = mapped_column(String(8), default="auto")  # auto / rule / manual
     confidence: Mapped[str] = mapped_column(String(8), default="")  # high / medium / low / manual
