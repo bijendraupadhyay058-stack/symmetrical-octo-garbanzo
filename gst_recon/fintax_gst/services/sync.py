@@ -39,7 +39,7 @@ from ..db.database import Database
 from ..db.models import (
     AppSetting, Attachment, AuditLog, BooksGstr3b, LedgerEntry, RcmEntry, BankLine, ShippingBillRow, LitigationCase, CaseEvent, CapitalGood, Client, ClientReminder, CommonCredit, DecimalText, PartyAddress, SupplierPayment, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice, Invoice, ItcClaim,
     ItcReview, ItcRuleRow, MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SyncAuthorization, SyncState,
-    Vendor, TbLedger, LedgerSplit, LedgerMapping,
+    Vendor, TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule,
 )
 from .auth import Session, require
 from .clients import FIELDS as CLIENT_FIELDS
@@ -85,6 +85,10 @@ TABLES = [
     (TbLedger, {"source_file_id": "source_files"}),
     (LedgerSplit, {"ledger_id": "tb_ledgers"}),
     (LedgerMapping, {}),
+    (TaxPosting, {"source_file_id": "source_files"}),
+    (ItcTxn, {"invoice_id": "invoices"}),
+    (ItcPart, {"txn_id": "itc_txns"}),
+    (ItcMapRule, {}),
 ]
 SYNC_ACTIONS = {"SYNC_EXPORT", "SYNC_IMPORT", "SYNC_AUTHORISE", "SYNC_REVOKE", "EXPORT", "EXPORT_AUDIT", "LOGIN",
                 "LOGIN_FAILED"}
@@ -333,6 +337,10 @@ class SyncService:
                         vals["source_file_ids"] = json.dumps(
                             [id_map["source_files"][i] for i in json.loads(vals.get("source_file_ids") or "[]")
                              if i in id_map["source_files"]])
+                    if model is ItcTxn:
+                        vals["posting_ids"] = json.dumps(
+                            [id_map["tax_postings"][i] for i in json.loads(vals.get("posting_ids") or "[]")
+                             if i in id_map.get("tax_postings", {})])
                     if model is Attachment:
                         content = data["files"].get(vals["sha256"])
                         target = self.attachments_root / str(cid) / vals["sha256"][:2] / \

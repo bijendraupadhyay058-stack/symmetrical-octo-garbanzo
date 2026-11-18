@@ -11,7 +11,7 @@ from ..db.database import Database
 from ..db.models import (
     Gstr1Hsn, Gstr1Summary, TdsTcsCredit, Gstr3bEntry, ImportIssue, ImportTemplate, Invoice, ItcClaim, ItcReview,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, BooksGstr3b, LedgerEntry, RcmEntry, BankLine, ShippingBillRow,
-    TbLedger, LedgerSplit,
+    TbLedger, LedgerSplit, TaxPosting,
 )
 from ..importers.parsing import parse_date
 from ..engine.matcher import CancelToken
@@ -269,6 +269,7 @@ class ImportService:
             s.execute(delete(RcmEntry).where(RcmEntry.source_file_id == file_id))
             s.execute(delete(BankLine).where(BankLine.source_file_id == file_id))
             s.execute(delete(ShippingBillRow).where(ShippingBillRow.source_file_id == file_id))
+            s.execute(delete(TaxPosting).where(TaxPosting.source_file_id == file_id))  # register rebuilt later
             tb_ids = select(TbLedger.id).where(TbLedger.source_file_id == file_id)
             s.execute(delete(LedgerSplit).where(LedgerSplit.ledger_id.in_(tb_ids)))
             s.execute(delete(TbLedger).where(TbLedger.source_file_id == file_id))

@@ -536,6 +536,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "journal_april": out / "tally_journal_register_2025-04.xlsx",
         "payments": out / "tally_payment_register_2025-26.xlsx",
         "trial_balance": out / "tally_trial_balance_2025-26.xlsx",
+        "tax_ledgers": out / "tally_input_tax_ledgers_2025-04.xlsx",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -553,6 +554,7 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_journal_register(files["journal_april"])
     write_payment_register(files["payments"])
     write_trial_balance(files["trial_balance"])
+    write_tax_ledgers(files["tax_ledgers"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -791,4 +793,41 @@ def write_trial_balance(path: Path) -> None:
     ws.append(["Particulars", "Debit", "Credit"])
     for name, dr, cr in TB_ROWS:
         ws.append([name, float(dr) if dr else None, float(cr) if cr else None])
+    wb.save(path)
+
+
+#: tax-ledger voucher found in no purchase register (RCM on GTA booked by journal) and a set-off of output tax
+TAX_LEDGER_EXTRA = [("Journal", "J-41", "Shree Roadways (GTA) – RCM", D("250"), D("250"), D("0")),
+                    ("Journal", "J-58", "Output CGST / SGST set-off", D("-5000"), D("-5000"), D("0"))]
+
+
+def write_tax_ledgers(path: Path) -> None:
+    """April 2025 input tax ledgers (TallyPrime 'Ledger Vouchers' export): Input CGST, Input SGST and Input IGST,
+    one sheet each, for the April purchase register vouchers (voucher numbers are Tally's own) and two journals."""
+    wb = Workbook()
+    wb.remove(wb.active)
+    rows = []
+    for n, d in enumerate(books_docs(), start=1):
+        sign = -1 if d.doc == "CRN" else 1
+        vtype = {"INV": "Purchase", "CRN": "Debit Note", "DBN": "Credit Note"}[d.doc]
+        booking = d.dt if (d.dt.year, d.dt.month) == (2025, 4) else date(2025, 4, min(max(d.dt.day, 1), 28))
+        rows.append((booking, SUPPLIERS[d.sup][1], vtype, str(n), D(d.cgst) * sign, D(d.sgst) * sign,
+                     D(d.igst) * sign))
+    for vtype, no, part, cg, sg, ig in TAX_LEDGER_EXTRA:
+        rows.append((date(2025, 4, 30), part, vtype, no, cg, sg, ig))
+    for title, col in (("Input CGST", 4), ("Input SGST", 5), ("Input IGST", 6)):
+        ws = wb.create_sheet(title)
+        ws.append([CLIENT["name"]])
+        ws.append([f"{title} – Ledger Account", "", "1-Apr-2025 to 30-Apr-2025"])
+        ws.append(["Date", "Particulars", "Vch Type", "Vch No.", "Debit", "Credit"])
+        ws.append([None, "Opening Balance", None, None, None, None])
+        total = D(0)
+        for r in rows:
+            amt = r[col]
+            if not amt:
+                continue
+            total += amt
+            ws.append([r[0], r[1], r[2], r[3], float(amt) if amt > 0 else None, float(-amt) if amt < 0 else None])
+        ws.append([None, "Closing Balance", None, None, float(total) if total > 0 else None,
+                   float(-total) if total < 0 else None])
     wb.save(path)

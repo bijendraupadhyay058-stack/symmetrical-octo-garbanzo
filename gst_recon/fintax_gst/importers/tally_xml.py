@@ -178,6 +178,7 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
         party = _t(v, "PARTYLEDGERNAME")
         taxes = {"igst": ZERO, "cgst": ZERO, "sgst": ZERO, "cess": ZERO}
         taxable, invoice_value = ZERO, None
+        books_ledgers: list[str] = []  # purchase / expense ledgers of the voucher (for the ITC classification)
         for e in _ledger_entries(v):
             name = _t(e, "LEDGERNAME")
             amount = abs(_amount(_t(e, "AMOUNT")))
@@ -189,6 +190,7 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
                 taxes[head] += amount
             elif not _ROUND.search(name):
                 taxable += amount
+                books_ledgers.append(name)
         # Invoice-mode vouchers carry the purchase / sales ledger in the inventory entries' accounting
         # allocations (not in the ledger list); an entry without allocations counts at its own amount.
         hsn_lines = []
@@ -197,6 +199,7 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
             if allocations:
                 taxable += sum((abs(_amount(_t(a, "AMOUNT"))) for a in allocations
                                 if not _ROUND.search(_t(a, "LEDGERNAME"))), ZERO)
+                books_ledgers += [_t(a, "LEDGERNAME") for a in allocations if not _ROUND.search(_t(a, "LEDGERNAME"))]
             else:
                 taxable += abs(_amount(_t(inv, "AMOUNT")))
             hsn = _t(inv, "GSTHSNNAME") or _t(inv, "HSNCODE")
@@ -214,7 +217,9 @@ def flatten_vouchers(root: ET.Element, register: str, duty_heads: dict[str, str]
             "taxable_value": str(taxable),
             "invoice_value": str(invoice_value) if invoice_value is not None else None,
             "place_of_supply": _t(v, "PLACEOFSUPPLY") or None,
-            "description": _t(v, "NARRATION") or None,
+            "description": " · ".join(x for x in (
+                ("Ledger: " + ", ".join(dict.fromkeys(n for n in books_ledgers if n))) if any(books_ledgers) else "",
+                _t(v, "NARRATION")) if x) or None,
             "_row": ref,
             **{k: str(val) for k, val in taxes.items()},
         }

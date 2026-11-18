@@ -248,6 +248,12 @@ def _migration_27(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V27_TABLES])
 
 
+def _migration_28(conn) -> None:
+    from .models import V28_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V28_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -280,6 +286,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (25, "litigation cases (orders, appeals, pre-deposit, hearings) and their events", _migration_25),
     (26, "GSTIN registration status of suppliers", _migration_26),
     (27, "trial balance ledgers, their classification splits and saved ledger mappings", _migration_27),
+    (28, "input tax ledger postings, ITC classification register, parts and mapping rules", _migration_28),
 ]
 
 

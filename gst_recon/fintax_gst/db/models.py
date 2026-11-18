@@ -1066,3 +1066,108 @@ class LedgerMapping(Base):
 
 
 V27_TABLES = [TbLedger, LedgerSplit, LedgerMapping]
+
+
+class TaxPosting(Base):
+    """A line of an input tax ledger (Input CGST / SGST / IGST / Cess) exported from TallyPrime, kept exactly as
+    read. Debit positive, credit negative. Schema v28."""
+
+    __tablename__ = "tax_postings"
+    __table_args__ = (Index("ix_taxpost_client_fy", "client_id", "financial_year"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    financial_year: Mapped[str] = mapped_column(String(7))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    ledger: Mapped[str] = mapped_column(String(200))  # tax ledger name
+    head: Mapped[str] = mapped_column(String(5))  # igst / cgst / sgst / cess
+    kind: Mapped[str] = mapped_column(String(10), default="txn")  # txn / opening / closing
+    entry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    voucher_type: Mapped[str] = mapped_column(String(60), default="")
+    voucher_no: Mapped[str] = mapped_column(String(100), default="")
+    particulars: Mapped[str] = mapped_column(String(300), default="")
+    amount: Mapped[Decimal] = mapped_column(DecimalText)
+    row_ref: Mapped[str] = mapped_column(String(80), default="")
+
+
+class ItcTxn(Base):
+    """One inward supply in the ITC classification register: a purchase-register document, its input tax ledger
+    postings consolidated (CGST and SGST of one voucher are one transaction), or a tax-ledger voucher found in no
+    register. The source figures are a snapshot; classification is in itc_parts."""
+
+    __tablename__ = "itc_txns"
+    __table_args__ = (Index("ix_itctxn_client_fy", "client_id", "financial_year"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    financial_year: Mapped[str] = mapped_column(String(7))
+    invoice_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # no FK: rebuilt
+    voucher_key: Mapped[str] = mapped_column(String(200), default="")  # date|type|number of the tax postings
+    voucher_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    voucher_type: Mapped[str] = mapped_column(String(60), default="")
+    voucher_no: Mapped[str] = mapped_column(String(100), default="")
+    period: Mapped[str] = mapped_column(String(7), default="")
+    party: Mapped[str] = mapped_column(String(200), default="")
+    gstin: Mapped[str] = mapped_column(String(15), default="")
+    invoice_no: Mapped[str] = mapped_column(String(100), default="")
+    invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ledger: Mapped[str] = mapped_column(String(300), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    hsn: Mapped[str] = mapped_column(String(60), default="")
+    doc_type: Mapped[str] = mapped_column(String(3), default="INV")
+    reverse_charge: Mapped[bool] = mapped_column(Boolean, default=False)
+    taxable: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    ledger_tax_json: Mapped[str] = mapped_column(Text, default="")  # tax per head as posted in the tax ledgers
+    match: Mapped[str] = mapped_column(String(12), default="register")  # both / register / taxledger / differs
+    source_ref: Mapped[str] = mapped_column(String(300), default="")
+    posting_ids: Mapped[str] = mapped_column(Text, default="[]")
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ItcPart(Base):
+    """The classification of a transaction (or of one part of a split transaction) in three independent
+    dimensions: nature of supply, GST treatment and ITC status."""
+
+    __tablename__ = "itc_parts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    txn_id: Mapped[int] = mapped_column(ForeignKey("itc_txns.id"), index=True)
+    taxable: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    igst: Mapped[Decimal] = mapped_column(DecimalText)
+    cgst: Mapped[Decimal] = mapped_column(DecimalText)
+    sgst: Mapped[Decimal] = mapped_column(DecimalText)
+    cess: Mapped[Decimal] = mapped_column(DecimalText)
+    nature: Mapped[str] = mapped_column(String(12), default="unclassified")
+    treatment: Mapped[str] = mapped_column(String(12), default="")
+    status: Mapped[str] = mapped_column(String(12), default="pending")
+    basis: Mapped[str] = mapped_column(String(8), default="auto")  # auto / rule / manual
+    confidence: Mapped[str] = mapped_column(String(8), default="")  # high / medium / low / manual
+    rule_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str] = mapped_column(String(400), default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class ItcMapRule(Base):
+    """A saved mapping rule: transactions of a supplier GSTIN, ledger, HSN/SAC or containing a word get a nature,
+    GST treatment and / or ITC status. Manual classification of a transaction always wins over a rule."""
+
+    __tablename__ = "itc_map_rules"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    scope: Mapped[str] = mapped_column(String(12))  # gstin_ledger / gstin / hsn / ledger / keyword
+    value: Mapped[str] = mapped_column(String(300))
+    value2: Mapped[str] = mapped_column(String(300), default="")
+    nature: Mapped[str] = mapped_column(String(12), default="")
+    treatment: Mapped[str] = mapped_column(String(12), default="")
+    status: Mapped[str] = mapped_column(String(12), default="")
+    financial_year: Mapped[str] = mapped_column(String(7), default="")  # "" = every year
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    note: Mapped[str] = mapped_column(String(300), default="")
+    created_by: Mapped[str] = mapped_column(String(80), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+V28_TABLES = [TaxPosting, ItcTxn, ItcPart, ItcMapRule]

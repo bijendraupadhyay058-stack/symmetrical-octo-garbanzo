@@ -51,6 +51,7 @@
   <a href="#returncompare">7p. Return comparison</a> ·
   <a href="#yoy">7q. Year on year</a> ·
   <a href="#ledgers">7r. Ledger classification</a> ·
+  <a href="#itcclass">7s. ITC classification</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -58,7 +59,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.15.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.16.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -604,6 +605,48 @@
 </ol>
 <p>Classified values are accounting classifications, not ITC entitlements. FIN TAX PRO prepares working papers – it does
    not file the returns.</p>
+
+<h2 id="itcclass">7s. ITC classification &amp; manual mapping (transaction level)</h2>
+<p><b>ITC classification</b> (left menu, under Ledger classification) lists every inward supply of the year and
+   classifies it in three independent ways: <b>nature</b> (trading purchase, raw material, other input goods, input
+   services, capital goods, non-GST), <b>GST treatment</b> (FCM, RCM registered / unregistered, import of goods /
+   services, SEZ, ISD, deemed export) and <b>ITC status</b> (eligible, blocked, reversal required, temporarily reversed,
+   reclaimed, not yet claimed, partially eligible, pending). The strip at the top shows the ten steps and which are
+   done.</p>
+<ol>
+  <li><b>Import.</b> Import the purchase register (as on the Reconcile page) and, with
+      <span class="btn">Import tax ledgers…</span>, the Input CGST / SGST / IGST / Cess ledgers from TallyPrime (Display →
+      Account Books → Ledger → choose the ledger → Alt+E → Excel; several files at once, or one workbook with a sheet per
+      ledger).</li>
+  <li><span class="btn">Build / refresh register</span> consolidates the tax-ledger lines by voucher – the CGST and SGST
+      of one bill become one transaction, never two – and matches them to the purchase-register document. A voucher found
+      only in the tax ledger is listed as such; set-off journals (output tax paid from the credit ledger) are kept apart.
+      Rebuild after every new import: your classifications stay.</li>
+  <li><b>Check the suggestions.</b> Each transaction gets a nature, treatment and status with a confidence (high,
+      medium, low, manual review). Evidence is used in this order: your manual classification, saved rules, the
+      ledger's classification approved in Ledger classification, HSN/SAC, the words of the ledger / item / narration.
+      Nothing is made a trading purchase just because it was booked as a purchase, and RCM is taken only from the
+      voucher's reverse-charge mark or a rule.</li>
+  <li><b>Classify.</b> Select transactions (filters: month, nature, treatment, status, to review, tax ledger only, …)
+      and <span class="btn">Classify selected…</span>. Apply it to the selected transactions only, or save it as a rule for
+      the ledger, the supplier GSTIN, supplier + ledger, HSN/SAC or a word – for every year or this year only. A
+      transaction you classify by hand always keeps its classification. <span class="btn">Split…</span> divides an
+      invoice between natures; the parts must equal the invoice exactly (taxable value and each tax head) – for an
+      invoice at one GST rate use <i>Divide tax by taxable value</i>. <span class="btn">Undo</span> and
+      <span class="btn">History</span> show and reverse every change, with its reason.</li>
+  <li><b>Read the workings.</b> On the right: the overview (click a line to see its transactions), <b>GSTR-9 Table 6</b>
+      by row – 6B (inputs / input services / capital goods), 6C/6D RCM, 6E/6F imports, 6G ISD, 6H reclaimed – against
+      GSTR-3B Table 4, and the ten <b>controls</b> (tax ledgers reconcile to their balances, splits keep the tax, every
+      supply classified, no posting counted twice, Table 6 vs GSTR-3B, RCM vs 3.1(d), capital goods vs fixed assets,
+      blocked credits reviewed, year cut-off, approval).</li>
+  <li><span class="btn">Finalise…</span> records who finalised and when; if a critical control fails you must give the
+      reason. <span class="btn">Workbook (Excel)…</span> gives 19 sheets (original tax-ledger lines, consolidated register,
+      trading / goods / services / capital / RCM / ineligible registers, GSTR-2B and GSTR-3B reconciliation, GSTR-9 Table 6
+      (formulas) and Tables 7–8, GSTR-9C Tables 12, 13 and 14, rules, history, exceptions and the final summary);
+      <span class="btn">Review PDF…</span> a summary.</li>
+</ol>
+<p>Differences are shown, never adjusted. GSTR-9C book figures from the register are a working – use the audited
+   accounts' figure where it differs. FIN TAX PRO does not file returns.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

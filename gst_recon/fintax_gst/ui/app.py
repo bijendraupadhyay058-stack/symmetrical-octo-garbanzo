@@ -46,6 +46,7 @@ from .pages.portal import PortalPage
 from .pages.return_compare import ReturnComparePage
 from .pages.yoy import YoyPage
 from .pages.bifurcation import BifurcationPage
+from .pages.itc_class import ItcClassPage
 from .pages.return_prep import ReturnPrepPage
 from .pages.practice import PracticePage
 from .pages.workflow import WorkflowPage
@@ -57,7 +58,7 @@ log = logging.getLogger(__name__)
 
 NAV = [
     ("dashboard", "◧  Dashboard"), ("health", "🩺  Data health"), ("firm", "▣  Firm work"), ("reminders", "✆  Reminders"), ("workflow", "▶  Reconcile"), ("returnprep", "📝  Return preparation"), ("returncompare", "⚖  Return comparison"), ("portal", "🌐  GST Portal"), ("exceptions", "⚑  Exceptions"),
-    ("itc", "✓  ITC review"), ("rule37", "⏱  180-day rule"), ("returns", "▤  GSTR-3B & annual"), ("ledgers", "🗂  Ledger classification"), ("ims", "⇄  IMS"),
+    ("itc", "✓  ITC review"), ("rule37", "⏱  180-day rule"), ("returns", "▤  GSTR-3B & annual"), ("ledgers", "🗂  Ledger classification"), ("itcclass", "🧾  ITC classification"), ("ims", "⇄  IMS"),
     ("outward", "⇅  Sales & GSTR-1"), ("compliance", "▦  Compliance"), ("mis", "📊  Charts & MIS"), ("yoy", "📈  Year on year"), ("pan", "▥  PAN view"), ("letters", "✉  Letters & papers"), ("outbox", "📤  Outbox"),
     ("notices", "⚖  GST notices"), ("litigation", "⚖  Litigation"), ("batch", "⧉  Batch"), ("practice", "₹  Fees & tasks"),
     ("suppliers", "⌂  Suppliers"), ("open_items", "⏳  Open items"), ("history", "↺  History"),
@@ -113,7 +114,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.pages: dict[str, QWidget] = {
             "dashboard": DashboardPage(state), "health": HealthPage(state), "firm": FirmPage(state), "reminders": RemindersPage(state), "workflow": WorkflowPage(state), "returnprep": ReturnPrepPage(state), "returncompare": ReturnComparePage(state), "portal": PortalPage(state), "exceptions": ExceptionsPage(state),
-            "itc": ItcPage(state), "rule37": Rule37Page(state), "returns": ReturnsPage(state), "ledgers": BifurcationPage(state), "ims": ImsPage(state),
+            "itc": ItcPage(state), "rule37": Rule37Page(state), "returns": ReturnsPage(state), "ledgers": BifurcationPage(state), "itcclass": ItcClassPage(state), "ims": ImsPage(state),
             "outward": OutwardPage(state), "compliance": CompliancePage(state), "mis": MisPage(state), "yoy": YoyPage(state), "pan": PanViewPage(state), "letters": LettersPage(state), "outbox": OutboxPage(state),
             "notices": NoticesPage(state), "litigation": LitigationPage(state), "batch": BatchPage(state), "practice": PracticePage(state),
             "sync": SyncPage(state),
