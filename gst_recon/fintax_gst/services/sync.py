@@ -39,7 +39,7 @@ from ..db.database import Database
 from ..db.models import (
     AppSetting, Attachment, AuditLog, BooksGstr3b, LedgerEntry, RcmEntry, BankLine, ShippingBillRow, LitigationCase, CaseEvent, CapitalGood, Client, ClientReminder, CommonCredit, DecimalText, PartyAddress, SupplierPayment, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice, Invoice, ItcClaim,
     ItcReview, ItcRuleRow, MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SyncAuthorization, SyncState,
-    Vendor, TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule,
+    Vendor, TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule, VoucherLine,
 )
 from .auth import Session, require
 from .clients import FIELDS as CLIENT_FIELDS
@@ -83,6 +83,7 @@ TABLES = [
     (LitigationCase, {"notice_id": "gst_notices"}),
     (CaseEvent, {"case_id": "litigation_cases"}),
     (TbLedger, {"source_file_id": "source_files"}),
+    (VoucherLine, {"source_file_id": "source_files"}),
     (LedgerSplit, {"ledger_id": "tb_ledgers"}),
     (LedgerMapping, {}),
     (TaxPosting, {"source_file_id": "source_files"}),
@@ -337,6 +338,10 @@ class SyncService:
                         vals["source_file_ids"] = json.dumps(
                             [id_map["source_files"][i] for i in json.loads(vals.get("source_file_ids") or "[]")
                              if i in id_map["source_files"]])
+                    if model is LedgerSplit:
+                        for col, ref in (("voucher_ids", "voucher_lines"), ("invoice_ids", "invoices")):
+                            vals[col] = json.dumps([id_map.get(ref, {})[i] for i in json.loads(vals.get(col) or "[]")
+                                                    if i in id_map.get(ref, {})])
                     if model is ItcTxn:
                         vals["posting_ids"] = json.dumps(
                             [id_map["tax_postings"][i] for i in json.loads(vals.get("posting_ids") or "[]")

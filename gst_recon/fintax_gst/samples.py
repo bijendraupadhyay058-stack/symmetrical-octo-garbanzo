@@ -537,6 +537,8 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
         "payments": out / "tally_payment_register_2025-26.xlsx",
         "trial_balance": out / "tally_trial_balance_2025-26.xlsx",
         "tax_ledgers": out / "tally_input_tax_ledgers_2025-04.xlsx",
+        "daybook_xml": out / "tally_daybook_2025-26.xml",
+        "ledger_vouchers": out / "tally_ledger_vouchers_professional_fees.xlsx",
     }
     write_tally_register(files["books_april"], books_docs(), "1-Apr-2025 to 30-Apr-2025", (2025, 4), True)
     write_tally_register(files["books_march"], PRIOR_BOOKS + PRIOR_ONLY_BOOKS, "1-Mar-2025 to 31-Mar-2025",
@@ -555,6 +557,8 @@ def write_all(out_dir: str | Path) -> dict[str, Path]:
     write_payment_register(files["payments"])
     write_trial_balance(files["trial_balance"])
     write_tax_ledgers(files["tax_ledgers"])
+    write_daybook_xml(files["daybook_xml"])
+    write_ledger_vouchers_excel(files["ledger_vouchers"])
     from .samples_outward import write_outward
 
     files.update(write_outward(out))
@@ -830,4 +834,59 @@ def write_tax_ledgers(path: Path) -> None:
             ws.append([r[0], r[1], r[2], r[3], float(amt) if amt > 0 else None, float(-amt) if amt < 0 else None])
         ws.append([None, "Closing Balance", None, None, float(total) if total > 0 else None,
                    float(-total) if total < 0 else None])
+    wb.save(path)
+
+
+#: Day Book of FY 2025-26 (Tally XML) for the voucher-wise split of the acceptance test's ledgers:
+#: Repairs & Maintenance ₹3,00,000 = two repair service bills, one spare parts bill and a voucher with two ledgers.
+REPAIR_VOUCHERS = [
+    # (date, vtype, no, party, gstin key, [(ledger, amount)], cgst, sgst, narration)
+    ("20250510", "Purchase", "P-101", "Om Sai Logistics", "OSL", [("Repairs & Maintenance", "120000")], "10800",
+     "10800", "AMC – machine servicing"),
+    ("20250712", "Purchase", "P-188", "Pune Packaging Co", "PPK", [("Repairs & Maintenance", "60000")], "5400", "5400",
+     "Repair of conveyor"),
+    ("20250903", "Purchase", "P-240", "Mahalaxmi Steel Pvt Ltd", "MSL", [("Repairs & Maintenance", "100000")], "9000",
+     "9000", "Spare parts – gearbox"),
+    ("20251115", "Journal", "J-77", "Om Sai Logistics", "OSL",
+     [("Repairs & Maintenance", "20000"), ("Freight Inward", "10000")], "2700", "2700", "Repair and freight"),
+]
+
+
+def write_daybook_xml(path: Path) -> None:
+    from xml.sax.saxutils import escape
+
+    gst = {k: SUPPLIERS[k][0] for k in ("OSL", "PPK", "MSL")}
+    out = ['<ENVELOPE><HEADER><TALLYREQUEST>Export Data</TALLYREQUEST></HEADER><BODY><DATA><TALLYMESSAGE>']
+    for dt, vtype, no, party, key, ledgers, cg, sg, narr in REPAIR_VOUCHERS:
+        total = sum(D(a) for _l, a in ledgers) + D(cg) + D(sg)
+        entries = [f"<ALLLEDGERENTRIES.LIST><LEDGERNAME>{escape(party)}</LEDGERNAME><ISPARTYLEDGER>Yes</ISPARTYLEDGER>"
+                   f"<AMOUNT>{total}</AMOUNT></ALLLEDGERENTRIES.LIST>"]
+        entries += [f"<ALLLEDGERENTRIES.LIST><LEDGERNAME>{escape(n)}</LEDGERNAME><AMOUNT>-{a}</AMOUNT>"
+                    "</ALLLEDGERENTRIES.LIST>" for n, a in ledgers]
+        entries += [f"<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input CGST</LEDGERNAME><AMOUNT>-{cg}</AMOUNT>"
+                    "</ALLLEDGERENTRIES.LIST>",
+                    f"<ALLLEDGERENTRIES.LIST><LEDGERNAME>Input SGST</LEDGERNAME><AMOUNT>-{sg}</AMOUNT>"
+                    "</ALLLEDGERENTRIES.LIST>"]
+        out.append(f'<VOUCHER VCHTYPE="{vtype}"><DATE>{dt}</DATE><VOUCHERTYPENAME>{vtype}</VOUCHERTYPENAME>'
+                   f"<VOUCHERNUMBER>{no}</VOUCHERNUMBER><PARTYLEDGERNAME>{escape(party)}</PARTYLEDGERNAME>"
+                   f"<PARTYGSTIN>{gst.get(key, '')}</PARTYGSTIN><NARRATION>{escape(narr)}</NARRATION>"
+                   + "".join(entries) + "</VOUCHER>")
+    out.append("</TALLYMESSAGE></DATA></BODY></ENVELOPE>")
+    path.write_text("".join(out), encoding="utf-8")
+
+
+def write_ledger_vouchers_excel(path: Path) -> None:
+    """Professional Fees – Ledger Vouchers (TallyPrime Excel export), ₹2,00,000 in three vouchers."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Professional Fees"
+    ws.append([CLIENT["name"]])
+    ws.append(["Professional Fees – Ledger Account", "", "1-Apr-2025 to 31-Mar-2026"])
+    ws.append(["Date", "Particulars", "Vch Type", "Vch No.", "Debit", "Credit"])
+    ws.append([None, "Opening Balance", None, None, None, None])
+    for d, part, vt, no, amt in ((date(2025, 6, 30), "Kulkarni & Co (audit)", "Journal", "J-12", 100000),
+                                 (date(2025, 9, 30), "Rao Legal Associates", "Journal", "J-31", 50000),
+                                 (date(2026, 1, 31), "Tax Consultants LLP", "Journal", "J-90", 50000)):
+        ws.append([d, part, vt, no, amt, None])
+    ws.append([None, "Closing Balance", None, None, 200000, None])
     wb.save(path)

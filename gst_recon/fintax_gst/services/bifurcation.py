@@ -81,12 +81,22 @@ class SplitIn:
     invoice_ids: list[int] = field(default_factory=list)
     percent: Decimal | None = None
     remarks: str = ""
+    voucher_ids: list[int] = field(default_factory=list)
 
 
 @dataclass
 class LedgerView:
     ledger: TbLedger
     splits: list[LedgerSplit]
+    vouchers: tuple[int, Decimal] | None = None  # (count, total) of the ledger's imported voucher lines
+
+    @property
+    def voucher_difference(self) -> Decimal | None:
+        """Imported vouchers less the ledger's movement in the year (closing − opening)."""
+        if self.vouchers is None:
+            return None
+        movement = self.ledger.closing - (self.ledger.opening or ZERO)
+        return self.vouchers[1] - movement
 
     @property
     def classified(self) -> Decimal:
@@ -134,6 +144,10 @@ class LedgerView:
                 out.append(f"GST of '{s.acct_class}' apportioned ({s.basis_note})")
         if self.ledger.nature == "asset" and self.ledger.debit is None and not self.ledger.base_note:
             out.append("closing balance used – enter the additions of the year")
+        d = self.voucher_difference
+        if d is not None and abs(d) > Decimal("1"):
+            out.append(f"vouchers imported ₹{self.vouchers[1]:,.2f} differ from the ledger's movement by ₹{d:,.2f} "
+                       "– some vouchers are missing from the import")
         return out
 
     @property
@@ -372,8 +386,17 @@ class BifurcationService:
             if ids:
                 for sp in s.scalars(select(LedgerSplit).where(LedgerSplit.ledger_id.in_(ids)).order_by(LedgerSplit.id)):
                     splits[sp.ledger_id].append(sp)
+            from ..db.models import VoucherLine
+
+            vt: dict[str, list] = {}
+            for key, amount in s.execute(select(VoucherLine.ledger_key, VoucherLine.amount).where(
+                    VoucherLine.client_id == client_id, VoucherLine.financial_year == fy)):
+                x = vt.setdefault(key, [0, ZERO])
+                x[0] += 1
+                x[1] += amount
             s.expunge_all()
-        return [LedgerView(lg, splits.get(lg.id, [])) for lg in ledgers]
+        return [LedgerView(lg, splits.get(lg.id, []), tuple(vt[ledger_key(lg.name)]) if ledger_key(lg.name) in vt
+                           else None) for lg in ledgers]
 
     def view(self, ledger_id: int) -> LedgerView:
         with self.db.session() as s:
@@ -395,7 +418,7 @@ class BifurcationService:
             ("amount", x.amount), ("acct_class", x.acct_class), ("gst_class", x.gst_class), ("gst_source", x.gst_source),
             ("head_9c", x.head_9c), ("eligibility", x.eligibility), ("taxable", x.taxable), ("igst", x.igst),
             ("cgst", x.cgst), ("sgst", x.sgst), ("cess", x.cess), ("gst_basis", x.gst_basis),
-            ("basis_note", x.basis_note), ("approved", x.approved))}
+            ("basis_note", x.basis_note), ("voucher_ids", x.voucher_ids), ("approved", x.approved))}
 
     @staticmethod
     def _validate(sp: SplitIn) -> None:
@@ -408,7 +431,7 @@ class BifurcationService:
         if sp.eligibility and sp.eligibility not in ELIGIBILITY:
             raise ServiceError(f"Unknown ITC eligibility '{sp.eligibility}'")
         has_gst = any(getattr(sp, h) not in (None, ZERO) for h in HEADS)
-        if has_gst and sp.gst_basis not in ("invoices", "entered", "apportioned"):
+        if has_gst and sp.gst_basis not in ("invoices", "vouchers", "entered", "apportioned"):
             raise ServiceError("Say where the GST of each part comes from (invoices, entered from invoices, or an "
                                "apportionment you approve)")
         if sp.gst_basis == "apportioned" and not sp.basis_note.strip():
@@ -439,6 +462,22 @@ class BifurcationService:
                     if i in mine:
                         raise ServiceError(f"Invoice #{i} is used in two parts of this ledger")
                     mine.add(i)
+            vused = self._used_vouchers(s, lg.client_id, exclude_ledger=ledger_id)
+            vmine: set[int] = set()
+            wanted = {i for p in parts for i in p.voucher_ids}
+            if wanted:
+                from ..db.models import VoucherLine
+
+                own = {v.id for v in s.scalars(select(VoucherLine).where(
+                    VoucherLine.id.in_(list(wanted)), VoucherLine.client_id == lg.client_id,
+                    VoucherLine.financial_year == lg.financial_year, VoucherLine.ledger_key == ledger_key(lg.name)))}
+                if wanted - own:
+                    raise ServiceError("Some of the chosen vouchers are not this ledger's")
+            for p in parts:
+                for i in p.voucher_ids:
+                    if i in vused or i in vmine:
+                        raise ServiceError(f"Voucher line #{i} is already used in another part")
+                    vmine.add(i)
             old = list(s.scalars(select(LedgerSplit).where(LedgerSplit.ledger_id == ledger_id)))
             before = [self._split_dict(x) for x in old]
             for x in old:
@@ -454,6 +493,7 @@ class BifurcationService:
                                   taxable=_dec(p.taxable), igst=_dec(p.igst), cgst=_dec(p.cgst), sgst=_dec(p.sgst),
                                   cess=_dec(p.cess), gst_basis=p.gst_basis, basis_note=p.basis_note[:300],
                                   invoice_ids=json.dumps(sorted(p.invoice_ids)), percent=_dec(p.percent),
+                                  voucher_ids=json.dumps(sorted(p.voucher_ids)),
                                   remarks=p.remarks, approved=approve, approved_by=user[:80] if approve else "",
                                   approved_at=now if approve else None))
             lg.status = ("approved" if abs(lg.base - total) <= TOLERANCE else "partial") if approve and parts else \
@@ -480,6 +520,116 @@ class BifurcationService:
             return  # switched off in the Ledger Mapping Master: an approval for one year does not bring it back
         m.acct_class, m.gst_class, m.gst_source = p.acct_class[:60], p.gst_class, p.gst_source
         m.head_9c, m.eligibility, m.approved_by = p.head_9c, p.eligibility, user[:80]
+
+    @staticmethod
+    def _used_vouchers(s, client_id: int, exclude_ledger: int | None = None) -> set[int]:
+        q = select(LedgerSplit.voucher_ids).where(LedgerSplit.client_id == client_id, LedgerSplit.voucher_ids != "[]")
+        if exclude_ledger is not None:
+            q = q.where(LedgerSplit.ledger_id != exclude_ledger)
+        return {int(i) for (ids,) in s.execute(q) for i in json.loads(ids or "[]")}
+
+    # ------------------------------------------------------- voucher-wise
+    def import_vouchers(self, client_id: int, fy: str, path: str | Path, user: str | None = None, vf=None) -> tuple:
+        """Save the vouchers of ledgers (Day Book XML or ledger voucher lists) for the year; lines outside the year
+        and lines already imported are left out (counted)."""
+        from ..db.models import VoucherLine
+        from ..importers.vouchers import read_vouchers
+        from ..itc.annual import fy_months
+
+        path = Path(path)
+        vf = vf or read_vouchers(path)
+        months = set(fy_months(fy))
+        digest = sha256_of(path)
+        with self.db.session() as s:
+            if s.get(Client, client_id) is None:
+                raise ServiceError(f"Client {client_id} not found")
+            dup = s.scalar(select(SourceFile.id).where(SourceFile.client_id == client_id, SourceFile.sha256 == digest,
+                                                       SourceFile.source_type == "VOUCHERS"))
+            if dup:
+                raise ServiceError(f"{path.name} was already imported (import #{dup})")
+            have = {(v.ledger_key, v.entry_date, v.voucher_type, v.voucher_no, v.amount) for v in s.scalars(
+                select(VoucherLine).where(VoucherLine.client_id == client_id, VoucherLine.financial_year == fy))}
+            keep, outside, repeated = [], 0, 0
+            for ln in vf.lines:
+                if ln.entry_date and f"{ln.entry_date:%Y-%m}" not in months:
+                    outside += 1
+                    continue
+                k = (ledger_key(ln.ledger), ln.entry_date, ln.voucher_type, ln.voucher_no, ln.amount)
+                if k in have:
+                    repeated += 1
+                    continue
+                have.add(k)
+                keep.append(ln)
+            sf = SourceFile(client_id=client_id, source_type="VOUCHERS", file_name=path.name,
+                            file_path=str(path.resolve()), sha256=digest, layout=vf.layout[:40], period=None,
+                            rows_read=len(vf.lines), documents_imported=len(keep), documents_skipped_existing=repeated,
+                            warnings_json=dumps(vf.skipped[:200]), imported_by=user or "",
+                            mapping_json=dumps({"financial_year": fy}))
+            s.add(sf)
+            s.flush()
+            for ln in keep:
+                t = ln.tax or {}
+                s.add(VoucherLine(client_id=client_id, financial_year=fy, source_file_id=sf.id, ledger=ln.ledger[:200],
+                                  ledger_key=ledger_key(ln.ledger)[:200], entry_date=ln.entry_date,
+                                  voucher_type=ln.voucher_type[:60], voucher_no=ln.voucher_no[:100],
+                                  party=ln.party[:200], gstin=(ln.gstin or "")[:15], reference=ln.reference[:100],
+                                  narration=ln.narration or "", amount=ln.amount,
+                                  igst=t.get("igst") if ln.tax is not None else None,
+                                  cgst=t.get("cgst") if ln.tax is not None else None,
+                                  sgst=t.get("sgst") if ln.tax is not None else None,
+                                  cess=t.get("cess") if ln.tax is not None else None, tax_note=ln.tax_note[:200],
+                                  row_ref=ln.row[:120]))
+            audit(s, "IMPORT", "vouchers", sf.id, {"file": path.name, "fy": fy, "lines": len(keep),
+                                                    "outside_year": outside, "repeated": repeated,
+                                                    "ledgers": len(vf.ledgers)}, user, client_id)
+            s.expunge(sf)
+        return sf, vf, {"saved": len(keep), "outside_year": outside, "repeated": repeated}
+
+    def fetch_vouchers_from_tally(self, client_id: int, fy: str, company: str, out_dir: str | Path, url: str = "",
+                                  user: str | None = None, progress=None, cancel=None):
+        from ..importers.tally_xml import DEFAULT_URL, TallyClient
+
+        start, end = date(int(fy[:4]), 4, 1), date(int(fy[:4]) + 1, 3, 31)
+        data = TallyClient(url or DEFAULT_URL).fetch(company, start, end, progress, cancel)
+        out = Path(out_dir) / f"Tally_vouchers_{''.join(c if c.isalnum() else '_' for c in company)}_{fy}.xml"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(data)
+        return self.import_vouchers(client_id, fy, out, user)
+
+    def voucher_lines(self, ledger_id: int, unused_only: bool = True) -> list:
+        """The ledger's voucher lines of the year (those used by another ledger's parts are never offered)."""
+        from ..db.models import VoucherLine
+
+        with self.db.session() as s:
+            lg = s.get(TbLedger, ledger_id)
+            if lg is None:
+                raise ServiceError(f"Ledger #{ledger_id} not found")
+            used = self._used_vouchers(s, lg.client_id, exclude_ledger=ledger_id) if unused_only else set()
+            rows = [v for v in s.scalars(select(VoucherLine).where(
+                VoucherLine.client_id == lg.client_id, VoucherLine.financial_year == lg.financial_year,
+                VoucherLine.ledger_key == ledger_key(lg.name)).order_by(VoucherLine.entry_date, VoucherLine.id))
+                if v.id not in used]
+            s.expunge_all()
+        return rows
+
+    def part_from_vouchers(self, ledger_id: int, voucher_ids: list[int], acct_class: str, gst_class: str,
+                           **kw) -> SplitIn:
+        """A part made of the chosen vouchers: their amount; their GST when every voucher's GST is known."""
+        if not voucher_ids:
+            raise ServiceError("Choose at least one voucher")
+        lines = {v.id: v for v in self.voucher_lines(ledger_id, unused_only=False)}
+        chosen = [lines[i] for i in voucher_ids if i in lines]
+        if len(chosen) != len(set(voucher_ids)):
+            raise ServiceError("Some of the chosen vouchers are not this ledger's")
+        amount = sum((v.amount for v in chosen), ZERO)
+        exact = all(v.igst is not None for v in chosen)
+        tax = {h: sum((getattr(v, h) or ZERO for v in chosen), ZERO) for h in HEADS} if exact else {}
+        has_tax = exact and any(tax.values())
+        note = f"{len(chosen)} voucher(s)" + ("" if exact else " – GST not known for every voucher (enter it from the "
+                                                                 "bills)")
+        return SplitIn(amount, acct_class, gst_class, taxable=amount if exact else None,
+                       **({h: tax[h] for h in HEADS} if has_tax else {}),
+                       gst_basis="vouchers" if has_tax else "", basis_note=note, voucher_ids=sorted(voucher_ids), **kw)
 
     @staticmethod
     def _used_invoices(s, client_id: int, exclude_ledger: int | None = None) -> dict[int, str]:

@@ -62,7 +62,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.18.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.19.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -608,6 +608,20 @@
 </ol>
 <p>Classified values are accounting classifications, not ITC entitlements. FIN TAX PRO prepares working papers – it does
    not file the returns.</p>
+
+<h3>Voucher-wise split</h3>
+<p>To split a ledger by its actual vouchers (for example the repair bills that were spare parts or a capital
+   improvement), bring the vouchers in: <span class="btn">Import vouchers…</span> takes the Day Book exported from
+   TallyPrime as XML (Display More Reports → Day Book → Alt+E → XML), or a ledger's voucher list as Excel (Ledger →
+   Alt+E → Excel); <span class="btn">Vouchers from TallyPrime…</span> reads them directly. The <b>Vouchers</b> column
+   shows how many vouchers each ledger has; if they do not add up to the ledger's movement in the year, the ledger says
+   so (a voucher is missing from the import).</p>
+<p>Then open <span class="btn">Split / edit…</span> and click <span class="btn">Part from vouchers…</span>: tick the
+   vouchers of one part (search by party, number or narration) – the part gets their amount and, where the voucher
+   shows it, their exact GST (basis <i>From Tally vouchers</i>). A voucher with two or more expense ledgers cannot give
+   its GST per ledger; that part's GST is left for you to enter from the bill. A voucher is used in one part only – it
+   is not offered again. The workbook has a <b>Voucher Lines</b> sheet showing which part each voucher went to, and the
+   ones not allocated.</p>
 
 <h2 id="itcclass">7s. ITC classification &amp; manual mapping (transaction level)</h2>
 <p><b>ITC classification</b> (left menu, under Ledger classification) lists every inward supply of the year and

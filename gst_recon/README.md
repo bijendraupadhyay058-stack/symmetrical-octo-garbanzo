@@ -8,7 +8,7 @@ differences and ITC exposure, and download an audit-ready Excel workbook.
 
 ## Download and install (Windows)
 
-1. Download **FinTaxPro-Setup-1.18.0.exe** from the
+1. Download **FinTaxPro-Setup-1.19.0.exe** from the
    [download page](https://github.com/bijendraupadhyay058-stack/symmetrical-octo-garbanzo/releases/tag/fintaxpro-latest).
 2. Double-click it. If Windows says *“Windows protected your PC”*, click **More info → Run anyway**
    (the installer is not code-signed yet).
@@ -104,7 +104,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for what comes next.
   every purchase, expense and fixed-asset ledger classified whole or split into unlimited parts, with independent
   accounting and GST classifications, source of supply and ITC eligibility; rule-based suggestions with confidence and
   remembered approvals; GST only from invoices or an approved apportionment; feeds GSTR-9 Table 6 (inputs / input
-  services / capital goods) and GSTR-9C Table 14, with an 18-sheet workbook and a review PDF.
+  services / capital goods) and GSTR-9C Table 14, with an 18-sheet workbook and a review PDF. Ledgers can be split
+  voucher by voucher from the Tally Day Book (XML) or ledger voucher lists, with each voucher's own GST.
 * **ITC classification & manual mapping** – every inward supply from the purchase register and the Input CGST / SGST /
   IGST / Cess ledgers (consolidated per voucher, never counted twice), classified by nature, GST treatment and ITC
   eligibility with confidence, and – kept apart – the ITC actually claimed in GSTR-3B (Table 6 counts only claims); bulk and rule-based mapping (ledger, supplier, HSN/SAC, word; every year or one year), exact

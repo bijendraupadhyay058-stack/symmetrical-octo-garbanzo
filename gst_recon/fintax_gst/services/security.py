@@ -37,7 +37,7 @@ from ..db.models import (
     WorkingPaper, ImportIssue, Invoice, ItcClaim, ItcReview, ItcRuleRow,
     MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SupplierPayment, Vendor, CommonCredit, CapitalGood,
     PartyAddress, BooksGstr3b, LedgerEntry, OutboxMail, FeeInvoice, FeeReceipt, StaffTask, RcmEntry, BankLine, ShippingBillRow, LitigationCase, CaseEvent,
-    TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule,
+    TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule, VoucherLine,
 )
 from .auth import Session, require
 from .common import ServiceError, audit
@@ -293,6 +293,7 @@ class SecurityService:
                 (ItcMapRule, ItcMapRule.client_id == client_id),
                 (TaxPosting, TaxPosting.client_id == client_id),
                 (LedgerSplit, LedgerSplit.client_id == client_id),
+                (VoucherLine, VoucherLine.client_id == client_id),
                 (TbLedger, TbLedger.client_id == client_id),
                 (LedgerMapping, LedgerMapping.client_id == client_id),
                 (ImportIssue, ImportIssue.source_file_id.in_(file_ids)), (Invoice, Invoice.client_id == client_id),

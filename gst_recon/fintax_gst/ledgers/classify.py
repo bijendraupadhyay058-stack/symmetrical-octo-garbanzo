@@ -62,7 +62,8 @@ ELIGIBILITY = {"eligible": "Eligible", "blocked": "Blocked – section 17(5)", "
 AVAILED = ("eligible", "reclaimed")
 REVERSED = ("rule42", "rule37", "exempt_attr")
 INELIGIBLE = ("blocked", "nonbusiness")
-GST_BASIS = {"invoices": "From purchase-register invoices", "entered": "Entered from invoices",
+GST_BASIS = {"invoices": "From purchase-register invoices", "vouchers": "From Tally vouchers",
+             "entered": "Entered from invoices",
              "apportioned": "Apportioned – approved by the user", "": "GST not given"}
 CONFIDENCE = ("saved", "high", "medium", "low")
 

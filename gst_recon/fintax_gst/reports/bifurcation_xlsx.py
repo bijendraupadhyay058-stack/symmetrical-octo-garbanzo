@@ -75,6 +75,31 @@ def build_workbook(svc, client_id: int, fy: str, path: Path) -> Path:
     def rng(col):
         return f"Parts!${col}$2:${col}${last}"
 
+    # ---------------- voucher lines (voucher-wise split)
+    from sqlalchemy import select
+
+    from ..db.models import VoucherLine
+
+    with svc.db.session() as s:
+        vlines = list(s.scalars(select(VoucherLine).where(VoucherLine.client_id == client_id,
+                                                          VoucherLine.financial_year == fy)
+                                .order_by(VoucherLine.ledger_key, VoucherLine.entry_date)))
+        s.expunge_all()
+    if vlines:
+        used = {}
+        for v in sm.views:
+            for sp in v.splits:
+                for i in json.loads(getattr(sp, "voucher_ids", "[]") or "[]"):
+                    used[int(i)] = sp.acct_class
+        vs = _sheet(wb, "Voucher Lines", ["Ledger", "Date", "Voucher", "Party", "Amount", "IGST", "CGST", "SGST", "Cess",
+                                          "In part", "Narration", "Note"],
+                    [30, 11, 16, 28, 15, 12, 12, 12, 10, 28, 36, 40])
+        for v in vlines:
+            vs.append([v.ledger, v.entry_date, f"{v.voucher_type} {v.voucher_no}", v.party, _f(v.amount), _f(v.igst),
+                       _f(v.cgst), _f(v.sgst), _f(v.cess), used.get(v.id, "(not allocated)"), v.narration, v.tax_note])
+        vs.conditional_formatting.add(f"J2:J{vs.max_row}", FormulaRule(formula=['J2="(not allocated)"'], fill=AMBER))
+        _finish(vs, "EFGHI")
+
     # ---------------- original data
     orig = _sheet(wb, "Original TallyPrime data", ["Ledger", "Group (under)", "Primary group", "Opening balance",
                                                    "Debit (year)", "Credit (year)", "Closing balance (Dr +, Cr −)"],

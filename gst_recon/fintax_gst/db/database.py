@@ -281,6 +281,16 @@ def _migration_30(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V30_TABLES])
 
 
+def _migration_31(conn) -> None:
+    from sqlalchemy import inspect as sa_inspect
+
+    from .models import V31_TABLES, Base
+
+    if "voucher_ids" not in {c["name"] for c in sa_inspect(conn).get_columns("ledger_splits")}:
+        conn.exec_driver_sql("ALTER TABLE ledger_splits ADD COLUMN voucher_ids TEXT NOT NULL DEFAULT '[]'")
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V31_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -316,6 +326,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (28, "input tax ledger postings, ITC classification register, parts and mapping rules", _migration_28),
     (29, "ITC claim apart from eligibility; Ledger Mapping Master", _migration_29),
     (30, "firm-wide ledger mapping template", _migration_30),
+    (31, "voucher lines of ledgers (voucher-wise ledger split)", _migration_31),
 ]
 
 

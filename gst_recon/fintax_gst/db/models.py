@@ -1041,6 +1041,7 @@ class LedgerSplit(Base):
     gst_basis: Mapped[str] = mapped_column(String(12), default="")  # invoices / entered / apportioned / ""
     basis_note: Mapped[str] = mapped_column(String(300), default="")
     invoice_ids: Mapped[str] = mapped_column(Text, default="[]")  # purchase-register documents behind the GST
+    voucher_ids: Mapped[str] = mapped_column(Text, default="[]")  # schema v31: Tally vouchers of the part
     percent: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)  # when split by percentage
     remarks: Mapped[str] = mapped_column(Text, default="")
     approved: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -1198,3 +1199,35 @@ class FirmMapping(Base):
 
 
 V30_TABLES = [FirmMapping]
+
+
+class VoucherLine(Base):
+    """One voucher's amount in a ledger (from TallyPrime's Day Book / vouchers, or the ledger's voucher list), used to
+    split a trial-balance ledger voucher by voucher. GST is the voucher's own where it can be told exactly (the
+    voucher has this one non-tax ledger), else left blank. Schema v31."""
+
+    __tablename__ = "voucher_lines"
+    __table_args__ = (Index("ix_vline_client_fy_ledger", "client_id", "financial_year", "ledger_key"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"))
+    financial_year: Mapped[str] = mapped_column(String(7))
+    source_file_id: Mapped[int] = mapped_column(ForeignKey("source_files.id"), index=True)
+    ledger: Mapped[str] = mapped_column(String(200))
+    ledger_key: Mapped[str] = mapped_column(String(200))
+    entry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    voucher_type: Mapped[str] = mapped_column(String(60), default="")
+    voucher_no: Mapped[str] = mapped_column(String(100), default="")
+    party: Mapped[str] = mapped_column(String(200), default="")
+    gstin: Mapped[str] = mapped_column(String(15), default="")
+    reference: Mapped[str] = mapped_column(String(100), default="")  # supplier bill number
+    narration: Mapped[str] = mapped_column(Text, default="")
+    amount: Mapped[Decimal] = mapped_column(DecimalText)  # debit positive
+    igst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    cgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    sgst: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    cess: Mapped[Decimal | None] = mapped_column(DecimalText, nullable=True)
+    tax_note: Mapped[str] = mapped_column(String(200), default="")
+    row_ref: Mapped[str] = mapped_column(String(120), default="")
+
+
+V31_TABLES = [VoucherLine]

@@ -82,6 +82,12 @@ class BifurcationPage(LazyPage):
         self.tally_btn.setToolTip("Reads the ledgers and groups directly from TallyPrime (it must be open, with the "
                                   "XML server on port 9000)")
         self.tally_btn.clicked.connect(lambda: self.from_tally())
+        self.vch_btn = QPushButton("Import vouchers…")
+        self.vch_btn.setToolTip("Day Book / vouchers as Tally XML, or a ledger's vouchers (Excel) – to split a ledger "
+                                "voucher by voucher")
+        self.vch_btn.clicked.connect(lambda: self.import_vouchers_dialog())
+        self.vtally_btn = QPushButton("Vouchers from TallyPrime…")
+        self.vtally_btn.clicked.connect(lambda: self.vouchers_from_tally())
         self.suggest_btn = QPushButton("Suggest classifications")
         self.suggest_btn.clicked.connect(lambda: self.suggest())
         self.approve_btn = QPushButton("Approve selected")
@@ -96,8 +102,8 @@ class BifurcationPage(LazyPage):
         self.base_btn = QPushButton("Amount to classify…")
         self.base_btn.setToolTip("For a fixed asset: the additions of the year instead of the closing balance")
         self.base_btn.clicked.connect(lambda: self.set_base())
-        for b in (self.import_btn, self.tally_btn, self.suggest_btn, self.approve_btn, self.bulk_btn, self.split_btn,
-                  self.clear_btn, self.base_btn):
+        for b in (self.import_btn, self.tally_btn, self.vch_btn, self.vtally_btn, self.suggest_btn, self.approve_btn,
+                  self.bulk_btn, self.split_btn, self.clear_btn, self.base_btn):
             bar.addWidget(b)
         bar.addStretch()
         lay.addLayout(bar)
@@ -119,9 +125,9 @@ class BifurcationPage(LazyPage):
         split = QSplitter(Qt.Horizontal)
         self.model = RowsModel(["Ledger", "Parent group", "Ledger amount", "Accounting classification",
                                 "GST ITC classification", "9C head", "Taxable value", "IGST", "CGST", "SGST/UTGST",
-                                "Cess", "ITC eligibility", "Classified", "Unallocated", "Status", "Remarks"],
+                                "Cess", "ITC eligibility", "Classified", "Unallocated", "Status", "Remarks", "Vouchers"],
                                kinds=["text", "text", "money", "text", "text", "text"] + ["money"] * 5 +
-                               ["text", "money", "money", "text", "text"],
+                               ["text", "money", "money", "text", "text", "text"],
                                colors=self._colour)
         self.proxy = sortable(self.model)
         self.table = Table()
@@ -187,8 +193,9 @@ class BifurcationPage(LazyPage):
     def reload(self) -> None:
         st = self.state
         enabled = st.client is not None
-        for b in (self.import_btn, self.tally_btn, self.suggest_btn, self.approve_btn, self.bulk_btn, self.split_btn,
-                  self.clear_btn, self.base_btn, self.xlsx_btn, self.pdf_btn, self.t14_btn):
+        for b in (self.import_btn, self.tally_btn, self.vch_btn, self.vtally_btn, self.suggest_btn, self.approve_btn,
+                  self.bulk_btn, self.split_btn, self.clear_btn, self.base_btn, self.xlsx_btn, self.pdf_btn,
+                  self.t14_btn):
             b.setEnabled(enabled)
         if not enabled:
             self.summary = None
@@ -271,7 +278,8 @@ class BifurcationPage(LazyPage):
                          v.label("eligibility"), v.classified if v.splits else None,
                          v.unallocated if v.in_scope else None, v.state,
                          "; ".join(([lg.base_note] if lg.base_note else []) + v.warnings + ([lg.remarks] if lg.remarks
-                                                                                            else []))])
+                                                                                            else [])),
+                         f"{v.vouchers[0]} · ₹{fmt_inr(v.vouchers[1])}" if v.vouchers else ""])
         self.model.set_rows(rows, out)
         self.table.fit(260)
         n = len(sm.in_scope)
@@ -349,6 +357,53 @@ class BifurcationPage(LazyPage):
         self._changed()
         QMessageBox.information(self, "From TallyPrime", f"{len(tb.rows)} ledger(s) read from {company}. New "
                                 f"{stats['new']}, updated {stats['updated']}, removed {stats['removed']}.")
+        return True
+
+    def import_vouchers_dialog(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(self, "Day Book (Tally XML) or ledger vouchers (Excel)", "",
+                                                "Vouchers (*.xml *.xlsx *.xls *.csv);;All files (*)")
+        for p in paths:
+            self.import_vouchers_path(p)
+
+    def import_vouchers_path(self, path) -> bool:
+        st = self.state
+        try:
+            _sf, vf, stats = self.svc.import_vouchers(st.client.id, st.fy, path, st.user)
+        except (ServiceError, ValueError, OSError) as exc:
+            QMessageBox.warning(self, "Vouchers", str(exc))
+            return False
+        self._changed()
+        QMessageBox.information(self, "Vouchers", f"{stats['saved']} voucher line(s) of {len(vf.ledgers)} ledger(s) "
+                                f"saved ({vf.layout})" + (f"; {stats['repeated']} already imported" if stats["repeated"]
+                                                         else "") +
+                                (f"; {stats['outside_year']} outside {st.fy} left out" if stats["outside_year"] else "") +
+                                ". Open a ledger's 'Split / edit' and use 'Part from vouchers…'.")
+        return True
+
+    def vouchers_from_tally(self, company: str | None = None) -> bool:
+        from ...importers.tally_xml import TallyClient
+        from ..workers import run_task
+
+        st = self.state
+        url = str(st.qsettings.value("tally_url", "")) or ""
+        try:
+            if company is None:
+                names = TallyClient(url or "http://localhost:9000").companies()
+                company, ok = QInputDialog.getItem(self, "Vouchers from TallyPrime", "Company:", names, 0, False)
+                if not ok:
+                    return False
+        except (ConnectionError, ValueError) as exc:
+            QMessageBox.warning(self, "Vouchers from TallyPrime", str(exc))
+            return False
+        task = run_task(self, "Fetching vouchers from TallyPrime", self.svc.fetch_vouchers_from_tally, st.client.id,
+                        st.fy, company, Path(st.db.data_dir) / "tally", url, st.user)
+        if not task.ok:
+            QMessageBox.warning(self, "Vouchers from TallyPrime", task.message)
+            return False
+        self._changed()
+        _sf, vf, stats = task.result_value
+        QMessageBox.information(self, "Vouchers from TallyPrime", f"{stats['saved']} voucher line(s) of "
+                                f"{len(vf.ledgers)} ledger(s) read from {company}.")
         return True
 
     def suggest(self) -> int:

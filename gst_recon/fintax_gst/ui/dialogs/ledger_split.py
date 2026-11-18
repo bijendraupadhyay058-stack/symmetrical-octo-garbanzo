@@ -94,6 +94,56 @@ class InvoicePicker(QDialog):
         return [self.rows[i.row()]["id"] for i in self.table.selectionModel().selectedRows()]
 
 
+class VoucherPicker(QDialog):
+    """Choose the ledger's vouchers that make one part."""
+
+    def __init__(self, parent, lines):
+        super().__init__(parent)
+        self.setWindowTitle("Vouchers of the ledger")
+        self.resize(950, 520)
+        self.lines = lines
+        lay = QVBoxLayout(self)
+        self.find = QLineEdit()
+        self.find.setPlaceholderText("Search party, voucher no, narration…")
+        self.find.textChanged.connect(self._filter)
+        lay.addWidget(self.find)
+        self.table = QTableWidget(len(lines), 7)
+        self.table.setHorizontalHeaderLabels(["Date", "Voucher", "Party", "Amount", "GST", "Narration", "Note"])
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        for r, v in enumerate(lines):
+            gst = None if v.igst is None else (v.igst or 0) + (v.cgst or 0) + (v.sgst or 0) + (v.cess or 0)
+            for c, val in enumerate([v.entry_date.strftime("%d-%m-%Y") if v.entry_date else "",
+                                     f"{v.voucher_type} {v.voucher_no}", v.party, fmt_inr(v.amount),
+                                     "" if gst is None else fmt_inr(gst), v.narration, v.tax_note]):
+                item = QTableWidgetItem(str(val))
+                if c in (3, 4):
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.table.setItem(r, c, item)
+        self.table.resizeColumnsToContents()
+        lay.addWidget(self.table, 1)
+        self.total = QLabel("Select the vouchers of this part (Ctrl / Shift for several).")
+        self.table.itemSelectionChanged.connect(self._sum)
+        lay.addWidget(self.total)
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        lay.addWidget(bb)
+
+    def _filter(self, text: str) -> None:
+        t = text.lower()
+        for r, v in enumerate(self.lines):
+            self.table.setRowHidden(r, bool(t) and t not in f"{v.party} {v.voucher_no} {v.narration}".lower())
+
+    def _sum(self) -> None:
+        ids = set(self.selected())
+        tot = sum((v.amount for v in self.lines if v.id in ids), Decimal(0))
+        self.total.setText(f"{len(ids)} voucher(s) selected · ₹{fmt_inr(tot)}")
+
+    def selected(self) -> list[int]:
+        return [self.lines[i.row()].id for i in self.table.selectionModel().selectedRows()]
+
+
 class LedgerSplitDialog(QDialog):
     def __init__(self, parent, svc, view, client_id: int, fy: str, user: str):
         super().__init__(parent)
@@ -103,6 +153,7 @@ class LedgerSplitDialog(QDialog):
         self.setWindowTitle(f"Classify / split – {lg.name}")
         self.resize(1400, 520)
         self.invoice_ids: dict[int, list[int]] = {}  # row -> invoice ids
+        self.voucher_ids: dict[int, list[int]] = {}  # row -> voucher line ids
         lay = QVBoxLayout(self)
         head = QLabel(f"<b>{lg.name}</b> · {lg.parent or lg.primary_group} · amount to classify "
                       f"<b>₹{fmt_inr(lg.base)}</b>" + (f" ({lg.base_note})" if lg.base_note else "") +
@@ -111,6 +162,7 @@ class LedgerSplitDialog(QDialog):
         lay.addWidget(head)
         bar = QHBoxLayout()
         for text, fn in (("Add part", lambda: self.add_row()), ("Remove part", self.remove_row),
+                         ("Part from vouchers…", self.from_vouchers),
                          ("Part from purchase register…", self.from_invoices), ("Split by percentage…", self.by_percent),
                          ("Apportion GST…", self.apportion), ("Remaining to last part", self.fill_last)):
             b = QPushButton(text)
@@ -138,7 +190,9 @@ class LedgerSplitDialog(QDialog):
             self.add_row(SplitIn(sp.amount, sp.acct_class, sp.gst_class, sp.gst_source, sp.head_9c, sp.eligibility,
                                  sp.taxable, sp.igst, sp.cgst, sp.sgst, sp.cess, sp.gst_basis, sp.basis_note,
                                  __import__("json").loads(sp.invoice_ids or "[]"), sp.percent,
-                                 "" if sp.remarks.startswith("Suggested") and not sp.approved else sp.remarks))
+                                 "" if sp.remarks.startswith("Suggested") and not sp.approved else sp.remarks,
+                                 __import__("json").loads(getattr(sp, "voucher_ids", "[]") or "[]")))
+        self._fresh = not view.splits  # the one starting row of an unclassified ledger
         if not view.splits:
             self.add_row(SplitIn(lg.base, "", "inputs" if lg.nature == "purchase" else
                                  "capital" if lg.nature == "asset" else "services"))
@@ -169,6 +223,7 @@ class LedgerSplitDialog(QDialog):
                 item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table.setItem(r, c, item)
         self.invoice_ids[r] = list(p.invoice_ids)
+        self.voucher_ids[r] = list(p.voucher_ids)
         self.table.blockSignals(False)
         self.table.resizeColumnsToContents()
         self.table.setColumnWidth(C_ACCT, 230)
@@ -181,6 +236,7 @@ class LedgerSplitDialog(QDialog):
             return
         self.table.removeRow(r)
         self.invoice_ids = {(k if k < r else k - 1): v for k, v in self.invoice_ids.items() if k != r}
+        self.voucher_ids = {(k if k < r else k - 1): v for k, v in self.voucher_ids.items() if k != r}
         self._totals()
 
     def _text(self, r: int, c: int) -> str:
@@ -208,7 +264,7 @@ class LedgerSplitDialog(QDialog):
                                self._text(r, C_GST), self._text(r, C_SRC), self._text(r, C_HEAD),
                                self._text(r, C_ELIG), *(_dec(self._text(r, c)) for c in (C_TXB, *TAX_COLS)),
                                self._text(r, C_BASIS), self._text(r, C_NOTE).strip(), self.invoice_ids.get(r, []),
-                               _dec(self._text(r, C_PCT)), self._text(r, C_REM).strip()))
+                               _dec(self._text(r, C_PCT)), self._text(r, C_REM).strip(), self.voucher_ids.get(r, [])))
         return out
 
     def _totals(self) -> None:
@@ -242,6 +298,34 @@ class LedgerSplitDialog(QDialog):
         except ServiceError as exc:
             QMessageBox.warning(self, "Purchase register", str(exc))
             return None
+        return self.add_row(p)
+
+    def from_vouchers(self, ids: list[int] | None = None, acct_class: str = "", gst_class: str | None = None) -> int | None:
+        """A part made of the ledger's own vouchers (their amount, and their GST where the voucher shows it)."""
+        lines = self.svc.voucher_lines(self.view.ledger.id)
+        mine = {i for v in self.voucher_ids.values() for i in v}
+        free = [v for v in lines if v.id not in mine]
+        if ids is None:
+            if not free:
+                QMessageBox.information(self, "Vouchers", "No vouchers of this ledger are free to use – import the Day "
+                                        "Book (Tally XML) or the ledger's vouchers first (Import vouchers…).")
+                return None
+            dlg = VoucherPicker(self, free)
+            if dlg.exec() != QDialog.Accepted or not dlg.selected():
+                return None
+            ids = dlg.selected()
+        gst = gst_class or ("inputs" if self.view.ledger.nature == "purchase" else
+                            "capital" if self.view.ledger.nature == "asset" else "services")
+        try:
+            p = self.svc.part_from_vouchers(self.view.ledger.id, ids, acct_class or "", gst, eligibility="")
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Vouchers", str(exc))
+            return None
+        # a single empty starting row is replaced by the first voucher part
+        if self._fresh and self.table.rowCount() == 1 and not self.voucher_ids.get(0) and not self.invoice_ids.get(0):
+            self.table.removeRow(0)
+            self.invoice_ids, self.voucher_ids = {}, {}
+        self._fresh = False
         return self.add_row(p)
 
     def by_percent(self, percents: list[Decimal] | None = None) -> None:
