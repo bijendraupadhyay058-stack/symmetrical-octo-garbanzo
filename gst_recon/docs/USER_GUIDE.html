@@ -55,6 +55,7 @@
   <a href="#mapmaster">7t. Mapping master</a> ·
   <a href="#annualpack">7u. Annual return pack</a> ·
   <a href="#webclass">7v. Classification on the web</a> ·
+  <a href="#docchecks">7w. Duplicates &amp; credit / debit notes</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -62,7 +63,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.19.1.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.20.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -721,6 +722,44 @@
    ledger classifications, classify a whole ledger, classify a transaction (nature, treatment, eligibility) and record
    its GSTR-3B claim. The same logins and roles apply: viewers only see; changing a claim needs the claim permission;
    every change is recorded with the user's name. Splitting a ledger or an invoice is done in the desktop program.</p>
+
+<h2 id="docchecks">7w. Duplicate invoices and credit / debit note checks</h2>
+<p>Open <b>Duplicates &amp; notes</b> (below Data health). It checks the purchase and sales registers of the selected
+   year. Nothing is deleted or changed: each finding is for you to review.</p>
+<ul>
+  <li><b>Duplicate invoices</b>. It looks for:
+    <ul>
+      <li>the same number entered twice in a month;</li>
+      <li>the same bill booked in two months, possibly in different years (ITC claimed twice);</li>
+      <li>the same number written two ways, e.g. <i>TS/12</i> and <i>TS-012</i>;</li>
+      <li>the same party, date and value under different numbers, which may be two genuine bills.</li>
+    </ul>
+    The <i>Tax at stake</i> column shows the ITC or output tax that would be counted again if it is one document.</li>
+  <li><b>Credit / debit notes</b>. Each note is linked to its original invoice using the note's original invoice
+    number. A note is flagged when:
+    <ul>
+      <li>no original invoice is recorded on it, or the invoice is not in the data;</li>
+      <li>it is dated before its invoice;</li>
+      <li>the credit notes add up to more than the invoice;</li>
+      <li>it was issued after the <b>section 34</b> time limit: 30 November after the end of the financial year of
+        the supply, or the annual return date if earlier. On a sales credit note this means output tax cannot be
+        reduced;</li>
+      <li>it is a supplier debit note booked after its own <b>section 16(4)</b> time limit, which runs from the
+        debit note's date;</li>
+      <li>it is a supplier credit note shown in GSTR-2B that is not in your books.</li>
+    </ul></li>
+  <li><b>ITC to reverse</b> shows, month by month, the tax on supplier credit notes: those booked, and those in
+    GSTR-2B but not booked. Reduce ITC by this amount in GSTR-3B Table 4B.</li>
+</ul>
+<p>Select a finding to see its documents, then click one of:</p>
+<ul>
+  <li><b>Confirm (fix in Tally)</b>: correct the entry in Tally and re-import.</li>
+  <li><b>Not an issue…</b>: a reason is required.</li>
+  <li><b>Back to 'to check'</b>: returns the finding to the list still to review.</li>
+</ul>
+<p>Each mark keeps your name and note, and stays in place if you import the same data again. <b>Hide reviewed</b>
+   shows only what is left to check. <b>Export to Excel…</b> saves all three lists with your review marks for the
+   file.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

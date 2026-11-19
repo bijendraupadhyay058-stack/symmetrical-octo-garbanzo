@@ -108,7 +108,7 @@ class HealthService:
         if dups:
             add(HealthItem("amber", "Duplicates", f"{len(dups)} bill(s) appear twice with the number written "
                            "differently", "e.g. INV-12 and INV/012 from the same supplier – if it is one bill, remove "
-                           "the extra entry so the ITC is not counted twice.", len(dups), "invoices",
+                           "the extra entry so the ITC is not counted twice (Duplicates & notes page).", len(dups), "docchecks",
                            [" / ".join(sorted(v)) for _k, v in dups[:5]]))
 
         # 3. dates

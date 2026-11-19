@@ -39,7 +39,7 @@ from ..db.database import Database
 from ..db.models import (
     AppSetting, Attachment, AuditLog, BooksGstr3b, LedgerEntry, RcmEntry, BankLine, ShippingBillRow, LitigationCase, CaseEvent, CapitalGood, Client, ClientReminder, CommonCredit, DecimalText, PartyAddress, SupplierPayment, Gstr1Hsn, Gstr1Summary, Gstr9cInput, Gstr3bEntry, ImportIssue, TdsTcsCredit, ReturnFiling, InterestSettlement, GstNotice, Invoice, ItcClaim,
     ItcReview, ItcRuleRow, MatchDecision, OtherItc, ReconLineRow, ReconRun, SourceFile, SyncAuthorization, SyncState,
-    Vendor, TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule, VoucherLine,
+    Vendor, TbLedger, LedgerSplit, LedgerMapping, TaxPosting, ItcTxn, ItcPart, ItcMapRule, VoucherLine, ReviewMark,
 )
 from .auth import Session, require
 from .clients import FIELDS as CLIENT_FIELDS
@@ -84,6 +84,7 @@ TABLES = [
     (CaseEvent, {"case_id": "litigation_cases"}),
     (TbLedger, {"source_file_id": "source_files"}),
     (VoucherLine, {"source_file_id": "source_files"}),
+    (ReviewMark, {}),
     (LedgerSplit, {"ledger_id": "tb_ledgers"}),
     (LedgerMapping, {}),
     (TaxPosting, {"source_file_id": "source_files"}),

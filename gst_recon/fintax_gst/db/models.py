@@ -1231,3 +1231,23 @@ class VoucherLine(Base):
 
 
 V31_TABLES = [VoucherLine]
+
+
+class ReviewMark(Base):
+    """A reviewer's decision on a finding of the duplicate or credit / debit note checks: confirmed, not an
+    issue, or still to check, with a note. A finding is identified by a stable key built from the documents it is
+    about, so the mark survives a re-import of the same data. Nothing is deleted or changed in the data. Schema v32."""
+
+    __tablename__ = "review_marks"
+    __table_args__ = (UniqueConstraint("client_id", "area", "key", name="uq_review_mark"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    area: Mapped[str] = mapped_column(String(12))  # duplicate / note
+    key: Mapped[str] = mapped_column(String(400))
+    decision: Mapped[str] = mapped_column(String(16), default="pending")
+    note: Mapped[str] = mapped_column(Text, default="")
+    marked_by: Mapped[str] = mapped_column(String(80), default="")
+    marked_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+V32_TABLES = [ReviewMark]
