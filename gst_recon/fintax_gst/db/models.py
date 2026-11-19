@@ -1251,3 +1251,60 @@ class ReviewMark(Base):
 
 
 V32_TABLES = [ReviewMark]
+
+
+class SupplierFiling(Base):
+    """Whether a supplier furnished its GSTR-3B for a tax period, and when (GSTR-2A 'GSTR-3B filing status', the
+    portal's return-filing view, or entered by a user). Shared by all clients, like the GSTIN status. Used for the
+    Rule 37A reversal. Schema v33."""
+
+    __tablename__ = "supplier_filings"
+    __table_args__ = (UniqueConstraint("gstin", "period", name="uq_supplier_filing"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    gstin: Mapped[str] = mapped_column(String(15), index=True)
+    period: Mapped[str] = mapped_column(String(7))  # supplier's tax period YYYY-MM (quarter: its last month)
+    gstr3b_filed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)  # None: not known
+    filed_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    checked_on: Mapped[date] = mapped_column(Date)
+    source: Mapped[str] = mapped_column(String(120), default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+
+
+class Rule37aAction(Base):
+    """What was done about the Rule 37A reversal of one supplier's ITC of one tax period: reversed in a GSTR-3B
+    (Table 4B(2)) and, after the supplier files, re-availed (Table 4A(5)). Schema v33."""
+
+    __tablename__ = "rule37a_actions"
+    __table_args__ = (UniqueConstraint("client_id", "gstin", "period", name="uq_rule37a_action"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    gstin: Mapped[str] = mapped_column(String(15))
+    period: Mapped[str] = mapped_column(String(7))
+    reversed_in: Mapped[str] = mapped_column(String(7), default="")  # GSTR-3B month of the reversal
+    reclaimed_in: Mapped[str] = mapped_column(String(7), default="")
+    note: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str] = mapped_column(String(80), default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class SignOff(Base):
+    """Preparer and reviewer sign-off of one working paper of a client's year, with a fingerprint of the data it
+    was signed on: when the data changes afterwards the sign-off shows as out of date. Schema v33."""
+
+    __tablename__ = "sign_offs"
+    __table_args__ = (UniqueConstraint("client_id", "fy", "area", name="uq_sign_off"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), index=True)
+    fy: Mapped[str] = mapped_column(String(7))
+    area: Mapped[str] = mapped_column(String(20))
+    prepared_by: Mapped[str] = mapped_column(String(80), default="")
+    prepared_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    prepared_note: Mapped[str] = mapped_column(Text, default="")
+    prepared_print: Mapped[str] = mapped_column(String(64), default="")
+    reviewed_by: Mapped[str] = mapped_column(String(80), default="")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    review_note: Mapped[str] = mapped_column(Text, default="")
+    reviewed_print: Mapped[str] = mapped_column(String(64), default="")
+
+
+V33_TABLES = [SupplierFiling, Rule37aAction, SignOff]

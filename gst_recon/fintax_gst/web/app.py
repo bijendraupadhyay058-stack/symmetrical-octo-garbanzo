@@ -661,6 +661,66 @@ def create_app(db: Database, secret: bytes | None = None, https: bool = False) -
             msg = f"Not saved: {exc}"
         return _back(client_id, "itc", fy, show, msg)
 
+    @app.get("/client/{client_id}/checks", response_class=HTMLResponse)
+    def checks_page(request: Request, client_id: int, fy: str | None = None, show: str = "todo", msg: str = ""):
+        from ..services.doc_checks import DECISIONS, SOURCES, DocCheckService
+
+        user, denied = guard(request)
+        if denied:
+            return denied
+        name, gstin = _client_name(client_id)
+        if name is None:
+            return HTMLResponse("Client not found", status_code=404)
+        fy = _fy(fy)
+        svc = DocCheckService(db)
+        rep = svc.check(client_id, fy)
+
+        def keep(items):
+            return [f for f in items if show == "all" or f.decision == "pending"][:150]
+
+        sections = [("duplicate", "Duplicate invoices", keep(rep.duplicates)),
+                    ("note", "Credit / debit notes", keep(rep.notes))]
+        return page("checks", request, user, cname=name, gstin=gstin, client_id=client_id, fy=fy, show=show,
+                    rep=rep, sections=sections, msg=msg, decisions=DECISIONS, registers=SOURCES,
+                    reverse_total=sum((r["total"] for r in rep.reverse), 0),
+                    letters=len(svc.letter_items(client_id, fy)), can_edit=user.can("review"),
+                    can_letters=user.can("letters"), csrf=csrf_of(request))
+
+    @app.post("/client/{client_id}/checks/action")
+    def checks_action(request: Request, client_id: int, csrf: str = Form(""), fy: str = Form(...),
+                      show: str = Form("todo"), action: str = Form(...), area: str = Form(""), key: str = Form(""),
+                      note: str = Form("")):
+        from ..services.doc_checks import DECISIONS, DocCheckService
+
+        user, denied = guard(request, "letters" if action == "letters" else "review")
+        if denied:
+            return denied
+        if not csrf_ok(request, csrf):
+            return HTMLResponse("Form expired – reload the page", status_code=400)
+        if _client_name(client_id)[0] is None:
+            return HTMLResponse("Client not found", status_code=404)
+        svc = DocCheckService(db)
+        try:
+            if action == "letters":
+                made, skipped, no_mail = svc.note_letters(client_id, fy, user.username)
+                msg = f"{made} letter(s) added to the Outbox for approval"
+                if skipped:
+                    msg += f"; {skipped} already waiting there"
+                if no_mail:
+                    msg += f"; no e-mail address for {len(no_mail)} supplier(s)"
+            elif action in DECISIONS:
+                rep = svc.check(client_id, fy)
+                f = next((x for x in rep.duplicates + rep.notes if x.area == area and x.key == key), None)
+                if f is None:
+                    return HTMLResponse("Finding not found – the data may have changed; reload", status_code=404)
+                svc.mark(client_id, f, action, note, user.username)
+                msg = f"{DECISIONS[action]}: {f.title}"
+            else:
+                return HTMLResponse("Unknown action", status_code=400)
+        except ServiceError as exc:
+            msg = f"Not saved: {exc}"
+        return _back(client_id, "checks", fy, show, msg)
+
     @app.get("/healthz")
     def health():
         return {"ok": True, "version": __version__}

@@ -45,9 +45,15 @@ class DocChecksPage(LazyPage):
         self.hide_done.toggled.connect(lambda _on: self.fill())
         self.export_btn = QPushButton("Export to Excel…")
         self.export_btn.clicked.connect(lambda: self.export())
+        self.letters_btn = QPushButton("Letters to suppliers (to Outbox)…")
+        self.letters_btn.setToolTip("E-mail drafts to suppliers about their credit / debit notes (missing original "
+                                    "invoice, late credit notes, credit notes in GSTR-2B not received). They wait in "
+                                    "the Outbox for approval – nothing is sent from here.")
+        self.letters_btn.clicked.connect(lambda: self.letters())
         for w in (run, self.src, self.hide_done):
             bar.addWidget(w)
         bar.addStretch()
+        bar.addWidget(self.letters_btn)
         bar.addWidget(self.export_btn)
         lay.addLayout(bar)
         self.summary = QLabel()
@@ -211,6 +217,33 @@ class DocChecksPage(LazyPage):
         if row < self.models[area].rowCount():
             self.select(area, row)
         return True
+
+    def letters(self, confirm: bool = True) -> int | None:
+        st = self.state
+        if st.client is None:
+            return None
+        try:
+            items = self.svc.letter_items(st.client.id, st.fy)
+            if not items:
+                raise ServiceError("No supplier credit / debit note findings that need a letter (findings marked "
+                                   "'not an issue' are left out).")
+            if confirm and QMessageBox.question(
+                    self, "Letters to suppliers", f"Prepare e-mail drafts to {len(items)} supplier(s) about "
+                    f"{sum(len(v) for v in items.values())} credit / debit note(s)?\n\nThey go to the Outbox and are "
+                    "sent only after you approve them there.") != QMessageBox.Yes:
+                return None
+            made, skipped, no_mail = self.svc.note_letters(st.client.id, st.fy, st.user)
+        except ServiceError as exc:
+            QMessageBox.warning(self, "Letters to suppliers", str(exc))
+            return None
+        msg = f"{made} draft(s) added to the Outbox."
+        if skipped:
+            msg += f" {skipped} supplier(s) already have a draft waiting there."
+        if no_mail:
+            msg += ("\n\nNo e-mail address for: " + ", ".join(no_mail[:10])
+                    + " – add it on the Suppliers page or in the draft before sending.")
+        QMessageBox.information(self, "Letters to suppliers", msg)
+        return made
 
     def export(self, path: str | None = None, open_file: bool = True):
         st = self.state

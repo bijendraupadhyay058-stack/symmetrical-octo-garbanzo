@@ -299,6 +299,12 @@ def _migration_32(conn) -> None:
     Base.metadata.create_all(conn, tables=[t.__table__ for t in V32_TABLES])
 
 
+def _migration_33(conn) -> None:
+    from .models import V33_TABLES, Base
+
+    Base.metadata.create_all(conn, tables=[t.__table__ for t in V33_TABLES])
+
+
 #: Ordered schema migrations. Never edit an applied migration – append a new one
 #: (e.g. ``conn.exec_driver_sql("ALTER TABLE invoices ADD COLUMN ...")``).
 MIGRATIONS: list[tuple[int, str, Callable]] = [
@@ -336,6 +342,7 @@ MIGRATIONS: list[tuple[int, str, Callable]] = [
     (30, "firm-wide ledger mapping template", _migration_30),
     (31, "voucher lines of ledgers (voucher-wise ledger split)", _migration_31),
     (32, "review marks of duplicate and credit / debit note findings", _migration_32),
+    (33, "supplier GSTR-3B filing status, Rule 37A actions, working paper sign-offs", _migration_33),
 ]
 
 

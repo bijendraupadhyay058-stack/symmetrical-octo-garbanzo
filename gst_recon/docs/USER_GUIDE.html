@@ -56,6 +56,8 @@
   <a href="#annualpack">7u. Annual return pack</a> ·
   <a href="#webclass">7v. Classification on the web</a> ·
   <a href="#docchecks">7w. Duplicates &amp; credit / debit notes</a> ·
+  <a href="#rule37a">7x. Rule 37A reversal</a> ·
+  <a href="#signoff">7y. Sign-off</a> ·
   <a href="#more">8. Other features</a> ·
   <a href="#backup">9. Backups</a> ·
   <a href="#help">10. If something goes wrong</a>
@@ -63,7 +65,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.20.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.21.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -760,6 +762,66 @@
 <p>Each mark keeps your name and note, and stays in place if you import the same data again. <b>Hide reviewed</b>
    shows only what is left to check. <b>Export to Excel…</b> saves all three lists with your review marks for the
    file.</p>
+<p><b>Letters to suppliers (to Outbox)…</b> prepares one e-mail per supplier about its credit / debit notes. The e-mail
+   asks for the original invoice details, a confirmation for a late credit note, or a copy of a credit note that is in
+   GSTR-2B but not received. The drafts wait in the <b>Outbox</b>; nothing is sent until you approve them there. If a
+   supplier has no e-mail address you are told, and you can add it on the Suppliers page or in the draft. Findings
+   marked <i>not an issue</i> get no letter. A supplier that already has a draft waiting does not get a second one.</p>
+<p>The same review is in the <b>web interface</b>: the client's page has <b>Duplicates &amp; notes</b>, where you can
+   confirm a finding, mark it not an issue (with a reason) or prepare the letters, from a phone or another office
+   computer. Viewers can only look.</p>
+
+<h2 id="rule37a">7x. Rule 37A reversal (supplier did not file GSTR-3B)</h2>
+<p>Under Rule 37A, ITC must be reversed when the supplier has not furnished its GSTR-3B for the period by
+   <b>30 September</b> after the end of the year. The reversal goes in a GSTR-3B filed by <b>30 November</b>
+   (Table 4B(2)). When the supplier files later, the ITC can be re-availed (Table 4A(5)).</p>
+<ol>
+  <li>Open <b>Rule 37A reversal</b>, below the 180-day rule. The page lists the ITC in GSTR-2B for each supplier and
+    tax period of the year.</li>
+  <li>Click <b>Import filing status (GSTR-2A / list)…</b> and choose one of:
+    <ul>
+      <li>the GSTR-2A download (JSON or Excel), which shows each supplier's GSTR-3B filing status;</li>
+      <li>your own list with the columns GSTIN, Tax period, GSTR-3B filed (Y/N) and Date of filing.</li>
+    </ul>
+    You can also select rows and use <b>Set filing status…</b>. A status that isn't known is shown as
+    <i>not known</i>; nothing is assumed.</li>
+  <li>Each line shows what to do:
+    <ul>
+      <li><i>Not filed – reverse</i>;</li>
+      <li><i>Filed after 30 Sep – reverse, then re-avail</i>;</li>
+      <li><i>Filed in time</i>: no action.</li>
+    </ul></li>
+  <li>After filing GSTR-3B, select the lines and click <b>Record reversal…</b> (or <b>Record re-availment…</b>) and
+    give the GSTR-3B month. The program never files anything.</li>
+</ol>
+<p>Before 30 September the working is marked <i>provisional</i>, because suppliers can still file.
+   <b>Export to Excel…</b> saves the working with totals: to reverse, not yet reversed, can be re-availed now, and
+   status not known.</p>
+
+<h2 id="signoff">7y. Preparer – reviewer sign-off</h2>
+<p><b>Sign-off</b>, below the Annual return pack, lists the working papers of the client's year:</p>
+<ul>
+  <li>purchase vs GSTR-2B;</li>
+  <li>sales vs GSTR-1;</li>
+  <li>ITC classification;</li>
+  <li>ledger bifurcation;</li>
+  <li>Table 14;</li>
+  <li>GSTR-9;</li>
+  <li>GSTR-9C;</li>
+  <li>duplicates &amp; notes;</li>
+  <li>Rule 37A.</li>
+</ul>
+<p>To sign off a working paper:</p>
+<ol>
+  <li>The person who prepared it selects it and clicks <b>Mark prepared…</b>, with an optional note.</li>
+  <li>A partner or manager who is a different person clicks <b>Mark reviewed…</b>. The preparer cannot review their
+    own work.</li>
+</ol>
+<p>The program remembers the data each sign-off was made on: imports, decisions, classifications and review marks. If
+   anything changes afterwards, the line turns red as <i>Out of date</i> and must be prepared and reviewed again. The
+   data itself is never locked.</p>
+<p><b>Reopen…</b> clears a sign-off and needs a reason, which is kept in the audit log. Only a partner or manager can
+   reopen a reviewed working. <b>Export to Excel…</b> gives a sign-off sheet for the file.</p>
 
 <h2 id="more">8. Other features</h2>
 <table>

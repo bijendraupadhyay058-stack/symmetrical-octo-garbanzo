@@ -329,6 +329,74 @@ class DocCheckService:
                   client_id=client_id)
             s.commit()
 
+    # ---------------------------------------------------------------- letters
+    LETTER_KINDS = {
+        "no_original": "please give the original invoice number and date against which this note is issued",
+        "original_missing": "the original invoice quoted is not in our records – please confirm its number and date",
+        "before_original": "the note is dated before the invoice it refers to – please check the dates",
+        "late_credit": "this credit note is after the section 34 time limit – please confirm whether it is a "
+                       "financial / commercial credit note (without GST) and whether GST has been reduced",
+        "not_booked": "this credit note appears in our GSTR-2B but we have not received it – please send a copy",
+    }
+
+    def letter_items(self, client_id: int, fy: str, today: date | None = None) -> dict[str, list[Finding]]:
+        """Supplier-side note findings that need the supplier's reply, by supplier GSTIN (not those marked
+        'not an issue')."""
+        rep = self.check(client_id, fy, today)
+        out: dict[str, list[Finding]] = defaultdict(list)
+        for f in rep.notes:
+            if f.source in ("BOOKS", "GSTR2B") and f.kind in self.LETTER_KINDS and f.decision != "not_issue" \
+                    and f.gstin:
+                out[f.gstin].append(f)
+        return dict(out)
+
+    def note_letters(self, client_id: int, fy: str, user: str = "", signatory: str = "",
+                     gstins: set[str] | None = None, today: date | None = None) -> tuple[int, int, list[str]]:
+        """E-mail drafts in the Outbox (never sent here) to suppliers about their credit / debit notes.
+        Returns (drafts made, already in the Outbox, suppliers without an e-mail address)."""
+        from .followup import VendorService
+        from .mailer import MailService
+
+        items = self.letter_items(client_id, fy, today)
+        if gstins is not None:
+            items = {g: v for g, v in items.items() if g in gstins}
+        if not items:
+            raise ServiceError("No supplier credit / debit note findings that need a letter")
+        with self.db.session() as s:
+            c = s.get(Client, client_id)
+            cname, cgstin = c.name, c.gstin
+        mail = MailService(self.db)
+        existing = {m.ref for m in mail.drafts("draft", client_id)}
+        vendors = VendorService(self.db).all(client_id)
+        made = skipped = 0
+        no_mail = []
+        for g, fs in sorted(items.items()):
+            ref = f"notes {fy} {g}"
+            if ref in existing:
+                skipped += 1
+                continue
+            lines = []
+            for i, f in enumerate(fs, start=1):
+                d = f.docs[-1]
+                lines.append(f"{i}. {DOC.get(d.doc_type, d.doc_type)} {d.number} dated {d.date:%d-%m-%Y}, taxable "
+                             f"Rs {d.taxable:,.2f}, GST Rs {d.tax:,.2f}"
+                             + (f" (original invoice {d.original_no})" if d.original_no else "")
+                             + f": {self.LETTER_KINDS[f.kind]}.")
+            v = vendors.get(g)
+            name = (v.name if v and v.name else "") or fs[0].party
+            body = (f"Dear Sir/Madam,\n\nWe are reviewing the credit and debit notes issued by {name} (GSTIN {g}) "
+                    f"to {cname} (GSTIN {cgstin}) for the financial year {fy}. We request your help with the "
+                    "following:\n\n" + "\n".join(lines)
+                    + "\n\nKindly reply within 15 days so that our GST returns and annual return are correct.\n\n"
+                    f"Regards,\n{signatory or cname}\n{cname}")
+            to = (v.email if v else "") or ""
+            if not to:
+                no_mail.append(name or g)
+            mail.add_draft("supplier_letter", to, f"Credit / debit notes FY {fy} – {cname} ({cgstin})", body,
+                           client_id=client_id, ref=ref, user=user)
+            made += 1
+        return made, skipped, no_mail
+
     # ---------------------------------------------------------------- export
     def export_xlsx(self, client_id: int, fy: str, path: str | Path, today: date | None = None) -> Path:
         from openpyxl import Workbook

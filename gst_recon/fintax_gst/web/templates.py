@@ -89,7 +89,8 @@ CLIENT = """{% extends "base" %}{% block title %}{{ c.name }} · FIN TAX PRO{% e
 {% if can_export %}<a class="btn" href="/client/{{ c.client_id }}/compliance.pdf?fy={{ c.fy }}">Compliance PDF</a>
 <a class="btn alt" href="/client/{{ c.client_id }}/gstr9.xlsx?fy={{ c.fy }}">GSTR-9 working</a>{% endif %}
 <a class="btn alt" href="/client/{{ c.client_id }}/ledgers?fy={{ c.fy }}">Ledger classification</a>
-<a class="btn alt" href="/client/{{ c.client_id }}/itc?fy={{ c.fy }}">ITC classification</a></div>
+<a class="btn alt" href="/client/{{ c.client_id }}/itc?fy={{ c.fy }}">ITC classification</a>
+<a class="btn alt" href="/client/{{ c.client_id }}/checks?fy={{ c.fy }}">Duplicates &amp; notes</a></div>
 <div class="cards" style="margin-top:12px">
 <div class="card"><div class="k">Months with data</div><div class="v">{{ c.months_with_data }}</div></div>
 <div class="card"><div class="k">Pending exceptions</div><div class="v">{{ c.pending }}</div></div>
@@ -271,7 +272,40 @@ placeholder="YYYY-MM"><button class="btn alt" name="action" value="claim">Record
 first{% endif %}.</p>{% endfor %}</div>{% endblock %}"""
 
 
-TEMPLATES = {"ledgers": LEDGERS, "itc": ITC, "mapping": MAPPING, "upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
+CHECKS = """{% extends "base" %}{% block title %}Checks · {{ cname }}{% endblock %}{% block body %}
+<div class="row"><div style="flex:1"><h1>Duplicates &amp; notes</h1><div class="muted"><a href="/client/{{ client_id }}?fy=
+{{ fy }}">{{ cname }}</a> · {{ gstin }} · FY {{ fy }}</div></div>
+<form class="inline" method="get"><input type="hidden" name="fy" value="{{ fy }}"><select name="show">
+<option value="todo" {% if show == "todo" %}selected{% endif %}>To check</option><option value="all"
+{% if show == "all" %}selected{% endif %}>All findings</option></select><button class="btn alt">Show</button></form>
+{% if can_letters and letters %}<form method="post" action="/client/{{ client_id }}/checks/action"><input type="hidden"
+name="csrf" value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy }}"><input type="hidden" name="show"
+value="{{ show }}"><button class="btn" name="action" value="letters">Letters to {{ letters }} supplier(s) → Outbox
+</button></form>{% endif %}</div>
+{% if msg %}<p class="card">{{ msg }}</p>{% endif %}
+<div class="cards"><div class="card"><div class="k">Duplicates to check</div><div class="v">{{ rep.open("duplicate")|length
+}} / {{ rep.duplicates|length }}</div></div><div class="card"><div class="k">Note findings to check</div><div class="v">
+{{ rep.open("note")|length }} / {{ rep.notes|length }}</div></div><div class="card"><div class="k">ITC to reduce on credit
+notes</div><div class="v">₹{{ money(reverse_total) }}</div></div></div>
+<p class="muted">Nothing is deleted or changed here: correct the entry in Tally and import it again. Letters wait in the
+Outbox until approved.</p>
+{% for area, title, items in sections %}<h2>{{ title }} ({{ items|length }})</h2><div class="list">{% for f in items %}
+<div class="card"><div class="row"><b style="flex:1">{{ f.title }}</b><span class="pill {{ 'green' if f.decision !=
+'pending' else 'red' if f.severity == 'red' else 'amber' }}">{{ decisions[f.decision] }}</span></div>
+<div class="muted">{{ f.party }} · {{ f.gstin }} · {{ registers.get(f.source, "GSTR-2B") }}{% if f.tax %} · tax ₹{{
+money(f.tax) }}{% endif %}<br>{{ f.detail }}{% for d in f.docs %}<br>· {{ d.text() }}{% endfor %}
+{% if f.note %}<br><i>{{ f.marked_by }}: {{ f.note }}</i>{% endif %}</div>
+{% if can_edit %}<form class="inline" method="post" action="/client/{{ client_id }}/checks/action" style="margin-top:8px">
+<input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="fy" value="{{ fy }}"><input type="hidden"
+name="show" value="{{ show }}"><input type="hidden" name="area" value="{{ area }}"><input type="hidden" name="key"
+value="{{ f.key }}"><input name="note" value="{{ f.note }}" placeholder="Note (needed for 'not an issue')" size="30">
+<button class="btn alt" name="action" value="confirmed">Confirm</button><button class="btn alt" name="action"
+value="not_issue">Not an issue</button>{% if f.decision != "pending" %}<button class="btn alt" name="action"
+value="pending">To check</button>{% endif %}</form>{% endif %}</div>
+{% else %}<p class="muted">Nothing to check.</p>{% endfor %}</div>{% endfor %}{% endblock %}"""
+
+
+TEMPLATES = {"checks": CHECKS, "ledgers": LEDGERS, "itc": ITC, "mapping": MAPPING, "upload": UPLOAD, "upload_preview": UPLOAD_PREVIEW, "done": DONE, "base": BASE, "login": LOGIN, "dashboard": DASHBOARD, "client": CLIENT, "run": RUN}
 
 ICON = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14"
 fill="#1F3864"/><rect x="10" y="46" width="44" height="6" fill="#00897B"/><text x="32" y="38" font-family="Arial"
