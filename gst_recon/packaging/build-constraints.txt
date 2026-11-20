@@ -1,0 +1,4 @@
+# Constraints for the Windows desktop build (pip install -r requirements.txt -c this file).
+# numpy and pandas are deliberately NOT used by FIN TAX PRO: numpy builds failed to load on an office PC
+# ("DLL load failed while importing _multiarray_umath"), so CSV files are read with Python's csv module and the
+# PyInstaller specs exclude both packages. Do not add them back without testing the installer on older PCs.

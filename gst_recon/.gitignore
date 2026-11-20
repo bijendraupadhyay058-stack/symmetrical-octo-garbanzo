@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv*/
+build/
+dist/
+*.egg-info/
+demo_output/
+.ruff_cache/
+# report output in the project folder only – not the fintax_gst/reports package
+/reports/
+*.db
+*.db-wal
+*.db-shm
