@@ -28,7 +28,7 @@ object DocxReader {
         fun note(what: String) { unsupported[what] = (unsupported[what] ?: 0) + 1 }
     }
 
-    private data class StyleInfo(val name: String, val basedOn: String?, val bold: Boolean?, val italic: Boolean?, val sizePt: Float?, val heading: Int, val align: Align?)
+    private data class StyleInfo(val name: String, val basedOn: String?, val bold: Boolean?, val italic: Boolean?, val sizePt: Float?, val heading: Int, val align: Align?, val numId: String? = null, val numLevel: Int = 0)
 
     fun read(input: InputStream): DocDocument {
         val pkg = OoxmlPackage.read(input)
@@ -76,7 +76,7 @@ object DocxReader {
                 "p" -> readParagraph(el, ctx, out)
                 "tbl" -> out.add(readTable(el, ctx))
                 "sdt" -> el.child("sdtContent")?.let { out.addAll(readBlocks(it, ctx)) }
-                "sectPr", "bookmarkStart", "bookmarkEnd", "proofErr" -> Unit
+                "sectPr", "bookmarkStart", "bookmarkEnd", "proofErr", "tcPr", "trPr", "tblPr", "tblGrid", "customXml", "permStart", "permEnd" -> Unit
                 else -> ctx.note("Other content (${el.localName})")
             }
         }
@@ -102,11 +102,10 @@ object DocxReader {
 
         var listLabel: String? = null
         var listLevel = 0
-        ppr?.child("numPr")?.let { np ->
-            val numId = np.child("numId")?.attr("val")
-            listLevel = np.child("ilvl")?.attr("val")?.toIntOrNull() ?: 0
-            if (numId != null && numId != "0") listLabel = listLabel(numId, listLevel, ctx)
-        }
+        val np = ppr?.child("numPr")
+        val numId = np?.child("numId")?.attr("val") ?: style?.numId
+        listLevel = np?.child("ilvl")?.attr("val")?.toIntOrNull() ?: style?.numLevel ?: 0
+        if (numId != null && numId != "0") listLabel = listLabel(numId, listLevel, ctx)
 
         val runs = mutableListOf<DocRun>()
         val images = mutableListOf<DocBlock.Image>()
@@ -255,7 +254,8 @@ object DocxReader {
         val s = ctx.styles[id] ?: return null
         if (s.basedOn == null || depth > 8) return s
         val parent = resolveStyle(s.basedOn, ctx, depth + 1) ?: return s
-        return StyleInfo(s.name, null, s.bold ?: parent.bold, s.italic ?: parent.italic, s.sizePt ?: parent.sizePt, if (s.heading != 0) s.heading else parent.heading, s.align ?: parent.align)
+        return StyleInfo(s.name, null, s.bold ?: parent.bold, s.italic ?: parent.italic, s.sizePt ?: parent.sizePt, if (s.heading != 0) s.heading else parent.heading, s.align ?: parent.align,
+            s.numId ?: parent.numId, if (s.numId != null) s.numLevel else parent.numLevel)
     }
 
     private fun readStyles(pkg: OoxmlPackage): Pair<Map<String, StyleInfo>, Float> {
@@ -276,7 +276,10 @@ object DocxReader {
                 else -> 0
             }
             val align = when (s.child("pPr")?.child("jc")?.attr("val")) { "center" -> Align.CENTER; "right" -> Align.RIGHT; "both" -> Align.JUSTIFY; else -> null }
-            map[id] = StyleInfo(name, s.child("basedOn")?.attr("val"), flag("b"), flag("i"), rpr?.child("sz")?.attr("val")?.toFloatOrNull()?.div(2f), heading, align)
+            // List styles ("List Bullet", "List Number") carry their numbering in the style itself.
+            val styleNum = s.child("pPr")?.child("numPr")
+            map[id] = StyleInfo(name, s.child("basedOn")?.attr("val"), flag("b"), flag("i"), rpr?.child("sz")?.attr("val")?.toFloatOrNull()?.div(2f), heading, align,
+                styleNum?.child("numId")?.attr("val"), styleNum?.child("ilvl")?.attr("val")?.toIntOrNull() ?: 0)
         }
         return map to defaultSize
     }

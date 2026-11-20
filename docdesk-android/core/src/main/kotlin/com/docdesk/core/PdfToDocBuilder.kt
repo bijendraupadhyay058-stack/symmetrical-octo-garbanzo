@@ -151,6 +151,8 @@ object PdfToDocBuilder {
             val align = if (cur.size <= 2 && abs(center - pageW / 2) < pageW * 0.05f && first.x > leftMargin + 20) Align.CENTER else Align.LEFT
             val indent = ((first.x - leftMargin).coerceAtLeast(0f)).let { if (it < 6f) 0f else it }
             when {
+                // A clearly larger font wins over a "1." label: "1. Summary" in 13pt is a heading.
+                heading in 1..3 -> out.add(DocBlock.Paragraph(runs(words, bodySize), headingLevel = heading, align = align))
                 isBullet -> out.add(DocBlock.Paragraph(runs(words.drop(1), bodySize), listLabel = "•", listLevel = if (indent > 30) 1 else 0))
                 isNumbered -> out.add(DocBlock.Paragraph(runs(words.drop(1), bodySize), listLabel = firstWord, indentLeftPt = 18f + indent, firstLineIndentPt = -18f))
                 heading != 0 -> out.add(DocBlock.Paragraph(runs(words, bodySize).map { it.copy(bold = it.bold || heading == 4) }, headingLevel = heading, align = align))
@@ -164,16 +166,21 @@ object PdfToDocBuilder {
             }
             cur = mutableListOf()
         }
+        // Typical gap between consecutive lines of the same size on this page. Text heights from
+        // PDFs are cap-height based, so absolute thresholds misjudge normal line spacing.
+        val gaps = lines.zipWithNext().filter { (a, b) -> abs(a.fontSize - b.fontSize) < 0.8f }.map { (a, b) -> b.top - a.bottom }.filter { it > 0 }.sorted()
+        val typicalGap = if (gaps.isEmpty()) 0f else gaps[gaps.size / 2]
         for ((i, l) in lines.withIndex()) {
             if (cur.isEmpty()) { cur.add(l); continue }
             val prev = lines[i - 1]
             val gap = l.top - prev.bottom
+            val closeEnough = gap <= maxOf(typicalGap * 1.35f, prev.fontSize * 0.5f) && gap < prev.fontSize * 1.6f
             val sameSize = abs(l.fontSize - prev.fontSize) < 0.8f
             val startsList = l.words.first().text.let { it in bulletChars || numberedLabel.matches(it) }
             val prevEndsSentence = prev.text.trimEnd().let { it.endsWith('.') || it.endsWith(':') || it.endsWith('?') || it.endsWith('!') }
             val prevShort = prev.right < (lines.maxOf { it.right }) * 0.75f
             val aligned = abs(l.x - prev.x) < 4f || (cur.size == 1 && l.x < prev.x) || abs(l.x - cur.last().x) < 4f
-            val continuation = gap < prev.height * 0.9f && sameSize && !startsList && aligned && !(prevEndsSentence && prevShort) && prev.allBold == l.allBold
+            val continuation = closeEnough && sameSize && !startsList && aligned && !(prevEndsSentence && prevShort) && prev.allBold == l.allBold
             if (continuation) cur.add(l) else { emit(); cur.add(l) }
         }
         emit()

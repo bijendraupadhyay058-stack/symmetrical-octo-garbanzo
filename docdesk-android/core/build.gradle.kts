@@ -16,4 +16,5 @@ kotlin {
 
 dependencies {
     testImplementation(libs.junit)
+    testImplementation("org.apache.pdfbox:pdfbox:2.0.32")
 }

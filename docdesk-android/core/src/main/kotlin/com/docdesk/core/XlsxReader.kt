@@ -134,7 +134,7 @@ object XlsxReader {
                         "str" -> v ?: ""
                         "b" -> if (v == "1") "TRUE" else "FALSE"
                         "e" -> v ?: "#ERROR"
-                        else -> if (v == null) "" else {
+                        else -> if (v.isNullOrEmpty()) "" else {
                             val d = v.toDoubleOrNull()
                             if (d == null) v else {
                                 numeric = true
@@ -143,7 +143,7 @@ object XlsxReader {
                             }
                         }
                     }
-                    if (hasFormula && v == null) formulasWithoutValue++
+                    if (hasFormula && v.isNullOrEmpty()) formulasWithoutValue++
                     val font = xf?.let { styles.fonts.getOrNull(it.fontId) }
                     val border = xf?.let { styles.borders.getOrNull(it.borderId) }
                     if (display.isNotEmpty() || (xf != null && (xf.fillId > 1 || (xf.borderId > 0 && border != null && (border.l || border.r || border.t || border.b))))) {
