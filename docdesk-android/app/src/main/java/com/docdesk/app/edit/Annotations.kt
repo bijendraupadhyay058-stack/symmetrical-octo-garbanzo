@@ -7,7 +7,8 @@ package com.docdesk.app.edit
 enum class Tool(val label: String) {
     SELECT("Select / move"), HIGHLIGHT("Highlight"), UNDERLINE("Underline"), STRIKE("Strikethrough"),
     PEN("Draw"), RECT("Rectangle"), ELLIPSE("Ellipse"), LINE("Line"), ARROW("Arrow"),
-    TEXT("Text box"), NOTE("Sticky note"), IMAGE("Image"), SIGNATURE("Signature"), WHITEOUT("Cover (white-out)"),
+    TEXT("Text box"), EDIT_TEXT("Edit text"), NOTE("Sticky note"), STAMP("Stamp"), IMAGE("Image"), SIGNATURE("Signature"),
+    WHITEOUT("Cover (white-out)"), REDACT("Redact (secure)"),
 }
 
 data class NPoint(val x: Float, val y: Float)
@@ -30,7 +31,7 @@ sealed class Annot {
     abstract fun bounds(): NRect
     abstract fun moved(dx: Float, dy: Float): Annot
 
-    enum class BoxKind { HIGHLIGHT, UNDERLINE, STRIKE, RECT, ELLIPSE, WHITEOUT }
+    enum class BoxKind { HIGHLIGHT, UNDERLINE, STRIKE, RECT, ELLIPSE, WHITEOUT, REDACT }
 
     data class Box(override val id: Long, override val page: Int, val kind: BoxKind, val rect: NRect, override val color: Int, val strokePt: Float) : Annot() {
         override fun bounds() = rect
@@ -48,7 +49,7 @@ sealed class Annot {
     }
 
     /** Text drawn on the page. [origin] is the top-left of the first line. */
-    data class TextBox(override val id: Long, override val page: Int, val origin: NPoint, val text: String, val sizePt: Float, override val color: Int) : Annot() {
+    data class TextBox(override val id: Long, override val page: Int, val origin: NPoint, val text: String, val sizePt: Float, override val color: Int, val bold: Boolean = false) : Annot() {
         override fun bounds() = NRect(origin.x, origin.y, origin.x + 0.05f + text.lines().maxOf { it.length } * sizePt * 0.0009f, origin.y + text.lines().size * sizePt * 0.0016f)
         override fun moved(dx: Float, dy: Float) = copy(origin = NPoint(origin.x + dx, origin.y + dy))
     }
@@ -57,6 +58,12 @@ sealed class Annot {
     data class Note(override val id: Long, override val page: Int, val at: NPoint, val text: String, override val color: Int) : Annot() {
         override fun bounds() = NRect(at.x, at.y, at.x + 0.05f, at.y + 0.035f)
         override fun moved(dx: Float, dy: Float) = copy(at = NPoint(at.x + dx, at.y + dy))
+    }
+
+    /** A business stamp such as PAID or APPROVED, optionally with a date line. */
+    data class Stamp(override val id: Long, override val page: Int, val rect: NRect, val label: String, val dateText: String?, override val color: Int) : Annot() {
+        override fun bounds() = rect
+        override fun moved(dx: Float, dy: Float) = copy(rect = rect.offset(dx, dy))
     }
 
     data class Picture(override val id: Long, override val page: Int, val rect: NRect, val path: String, val signature: Boolean) : Annot() {

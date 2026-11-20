@@ -77,6 +77,18 @@ object PdfOps {
     }
 
     /**
+     * Same policy as [keepProtectionForSave] for a document rebuilt from an unencrypted
+     * intermediate copy: [original] is the source's access permission (null if it was not encrypted).
+     */
+    fun reapplyProtection(original: AccessPermission?, target: PDDocument, enteredPassword: String?): String? {
+        if (original == null) return null
+        if (original.isOwnerPermission) return "The original was password-protected and you opened it with full (owner) rights, so the new file is not protected. Use Files › Add password if needed."
+        val policy = StandardProtectionPolicy(java.util.UUID.randomUUID().toString(), enteredPassword ?: "", AccessPermission(original.permissionBytes)).apply { encryptionKeyLength = 256 }
+        target.protect(policy)
+        return "The new file keeps the original's password and permissions (now encrypted with AES-256)."
+    }
+
+    /**
      * Adds password protection with AES-256 (PDF 2.0 / Acrobat X+ standard). Readers older than
      * Acrobat X (2010) may not open AES-256 files.
      */

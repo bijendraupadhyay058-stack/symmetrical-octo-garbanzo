@@ -11,6 +11,15 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import com.docdesk.app.pdf.PdfTextExtractor
+import com.docdesk.core.PageText
+import com.docdesk.core.TextSelection
+import com.docdesk.app.ui.components.SwitchRow
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,6 +88,7 @@ import com.docdesk.app.convert.Preview
 import com.docdesk.app.data.FileRepository
 import com.docdesk.app.edit.Annot
 import com.docdesk.app.edit.AnnotationWriter
+import com.docdesk.app.edit.RedactionApplier
 import com.docdesk.app.edit.NPoint
 import com.docdesk.app.edit.NRect
 import com.docdesk.app.edit.Tool
@@ -133,6 +143,13 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
     var showEditInfo by remember { mutableStateOf(false) }
     var outName by remember { mutableStateOf("") }
     var currentPageSize by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var pageWords by remember { mutableStateOf<PageText?>(null) }
+    var editableMarkups by remember { mutableStateOf(true) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    var editLine by remember { mutableStateOf<com.docdesk.core.TextLine?>(null) }
+    var stampAt by remember { mutableStateOf<NPoint?>(null) }
+    var goTo by remember { mutableStateOf(false) }
     LaunchedEffect(holder.doc) { holder.doc?.let { outName = FileRepository.baseName(it.name) + " (edited)" } }
 
     fun commit(change: () -> Unit) { undo.add(annots.toList()); if (undo.size > 60) undo.removeAt(0); redo.clear(); change() }
@@ -156,6 +173,15 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
 
     val r = holder.renderer
     val info = holder.info
+    // Text positions of the current page: used to snap markups to words and for "Edit text".
+    LaunchedEffect(holder.doc, info, page) {
+        pageWords = null
+        val d = holder.doc ?: return@LaunchedEffect
+        if (info == null) return@LaunchedEffect
+        pageWords = withContext(Dispatchers.IO) {
+            runCatching { PdfDocs.open(app, d.uri, holder.password).use { PdfTextExtractor.extract(it, page) } }.getOrNull()
+        }
+    }
     ToolScaffold("Edit PDF", nav::back, actions = {
         IconButton(onClick = { redo.add(annots.toList()); val prev = undo.removeAt(undo.lastIndex); annots.clear(); annots.addAll(prev) }, enabled = undo.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, "Undo") }
         IconButton(onClick = { undo.add(annots.toList()); val n = redo.removeAt(redo.lastIndex); annots.clear(); annots.addAll(n) }, enabled = redo.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, "Redo") }
@@ -170,7 +196,7 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Tool.entries.forEach { t -> FilterChip(selected = tool == t, onClick = { tool = t; selectedId = null }, label = { Text(t.label) }) }
         }
-        if (tool != Tool.WHITEOUT && tool != Tool.IMAGE && tool != Tool.SIGNATURE && tool != Tool.SELECT) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (tool !in setOf(Tool.WHITEOUT, Tool.IMAGE, Tool.SIGNATURE, Tool.SELECT, Tool.REDACT, Tool.EDIT_TEXT, Tool.STAMP)) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             palette.forEach { c ->
                 Surface(shape = CircleShape, color = Color(c), border = BorderStroke(if (c == color) 3.dp else 1.dp, if (c == color) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline),
                     onClick = { color = c }, modifier = Modifier.size(36.dp).semantics { contentDescription = "Colour ${colorName(c)}" + if (c == color) ", selected" else "" }) {}
@@ -190,8 +216,24 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
         LaunchedEffect(pageSize) { currentPageSize = pageSize }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         var draft by remember { mutableStateOf<Annot?>(null) }
-        Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(4.dp)) {
-            PageImage(r, page, 1400, description = "Page ${page + 1} of ${r.pageCount}")
+        // Two fingers zoom and pan; one finger uses the selected tool.
+        Box(Modifier.fillMaxWidth().clipToBounds().background(MaterialTheme.colorScheme.surfaceContainerHigh).pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                do {
+                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                    if (ev.changes.count { it.pressed } >= 2) {
+                        zoom = (zoom * ev.calculateZoom()).coerceIn(1f, 5f)
+                        val p = pan + ev.calculatePan()
+                        val mx = size.width * (zoom - 1f) / 2f; val my = size.height * (zoom - 1f) / 2f
+                        pan = if (zoom <= 1.01f) Offset.Zero else Offset(p.x.coerceIn(-mx, mx), p.y.coerceIn(-my, my))
+                        ev.changes.forEach { it.consume() }
+                    }
+                } while (ev.changes.any { it.pressed })
+            }
+        }) {
+        Box(Modifier.fillMaxWidth().graphicsLayer { scaleX = zoom; scaleY = zoom; translationX = pan.x; translationY = pan.y }.padding(4.dp)) {
+            PageImage(r, page, if (zoom > 1.6f) 2200 else 1400, description = "Page ${page + 1} of ${r.pageCount}")
             val ptToPx = pageSize?.let { canvasSize.width.toFloat() / it.first } ?: 1f
             val pictureCache = remember { HashMap<String, androidx.compose.ui.graphics.ImageBitmap?>() }
             Canvas(Modifier.matchParentSize()
@@ -203,23 +245,28 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
                         fun n(o: Offset) = NPoint((o.x / w).coerceIn(0f, 1f), (o.y / h).coerceIn(0f, 1f))
                         val start = n(down.position)
                         val pts = mutableListOf(start)
+                        var lastP = start
                         var moved = false
                         val selected = annots.firstOrNull { it.id == selectedId }
-                        val resizing = tool == Tool.SELECT && selected != null && (selected is Annot.Picture || selected is Annot.Box) &&
+                        val resizing = tool == Tool.SELECT && selected != null && (selected is Annot.Picture || selected is Annot.Box || selected is Annot.Stamp) &&
                             hypot((start.x - selected.bounds().right) * w, (start.y - selected.bounds().bottom) * h) < 48f
                         var moveBase: Annot? = null
                         if (tool == Tool.SELECT && selected != null && selected.bounds().contains(start, 0.02f)) moveBase = selected
+                        var pinched = false
                         do {
                             val ev = awaitPointerEvent()
+                            if (ev.changes.any { it.isConsumed } && !moved || ev.changes.size > 1) { pinched = true; draft = null; break }
                             val c = ev.changes.firstOrNull() ?: break
                             val p = n(c.position)
                             if (hypot((p.x - start.x) * w, (p.y - start.y) * h) > 12f) moved = true
                             if (moved) {
                                 c.consume()
+                                lastP = p
                                 when (tool) {
                                     Tool.PEN -> { pts.add(p); draft = Annot.Ink(0, page, pts.toList(), color, stroke) }
                                     Tool.LINE, Tool.ARROW -> draft = Annot.Line(0, page, start, p, tool == Tool.ARROW, color, stroke)
-                                    Tool.HIGHLIGHT, Tool.UNDERLINE, Tool.STRIKE, Tool.RECT, Tool.ELLIPSE, Tool.WHITEOUT -> draft = Annot.Box(0, page, boxKind(tool), NRect.of(start, p), if (tool == Tool.WHITEOUT) android.graphics.Color.WHITE else color, stroke)
+                                    Tool.HIGHLIGHT, Tool.UNDERLINE, Tool.STRIKE, Tool.RECT, Tool.ELLIPSE, Tool.WHITEOUT, Tool.REDACT -> draft = Annot.Box(0, page, boxKind(tool), NRect.of(start, p),
+                                        when (tool) { Tool.WHITEOUT -> android.graphics.Color.WHITE; Tool.REDACT -> android.graphics.Color.BLACK; else -> color }, stroke)
                                     Tool.SELECT -> moveBase?.let { base ->
                                         val idx = annots.indexOfFirst { it.id == base.id }
                                         if (idx >= 0) annots[idx] = if (resizing) resize(base, p) else base.moved(p.x - start.x, p.y - start.y)
@@ -229,6 +276,18 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
                             }
                         } while (ev.changes.any { it.pressed })
                         val d = draft; draft = null
+                        if (pinched) return@awaitEachGesture
+                        val words = pageWords
+                        if (moved && d is Annot.Box && d.kind in setOf(Annot.BoxKind.HIGHLIGHT, Annot.BoxKind.UNDERLINE, Annot.BoxKind.STRIKE) && words != null && words.words.isNotEmpty()) {
+                            // Snap to the words between the start and end of the drag (one box per line).
+                            val end = lastP
+                            val sel = TextSelection.select(words.words, start.x * words.width, start.y * words.height, end.x * words.width, end.y * words.height)
+                            if (sel.isNotEmpty()) {
+                                val boxes = sel.map { lr -> Annot.Box(nextId++, page, d.kind, NRect(lr.x / words.width, lr.top / words.height, lr.right / words.width, lr.bottom / words.height), d.color, d.strokePt) }
+                                commit { annots.addAll(boxes) }
+                                return@awaitEachGesture
+                            }
+                        }
                         if (moved) {
                             when (tool) {
                                 Tool.SELECT -> moveBase?.let { base ->
@@ -247,6 +306,13 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
                                 Tool.TEXT, Tool.NOTE -> pendingText = start to tool
                                 Tool.IMAGE -> { pendingPicture = start to false; imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                                 Tool.SIGNATURE -> signatureAt = start
+                                Tool.STAMP -> stampAt = start
+                                Tool.EDIT_TEXT -> {
+                                    val wds = pageWords
+                                    val line = wds?.let { TextSelection.lineAt(it.words, start.x * it.width, start.y * it.height) }
+                                    if (line == null) error = if (wds == null || wds.words.isEmpty()) "This page has no editable text (it may be a scanned image). Use Cover + Text box instead." else "No text line found there. Tap directly on the text you want to change."
+                                    else editLine = line
+                                }
                                 Tool.SELECT -> selectedId = annots.lastOrNull { it.page == page && it.bounds().contains(start, 0.015f) }?.id
                                 else -> Unit
                             }
@@ -257,9 +323,11 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
                 draft?.let { drawAnnot(it, ptToPx, false, pictureCache) }
             }
         }
+        }
+        if (zoom > 1.01f) androidx.compose.material3.TextButton(onClick = { zoom = 1f; pan = Offset.Zero }) { Text("Reset zoom (${(zoom * 100).toInt()}%)") }
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { page--; selectedId = null }, enabled = page > 0) { Icon(Icons.Default.ChevronLeft, "Previous page") }
-            Text("Page ${page + 1} of ${r.pageCount}", Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            androidx.compose.material3.TextButton(onClick = { goTo = true }, modifier = Modifier.weight(1f)) { Text("Page ${page + 1} of ${r.pageCount}", style = MaterialTheme.typography.bodyLarge) }
             if (selectedId != null) IconButton(onClick = { val id = selectedId; commit { annots.removeAll { it.id == id } }; selectedId = null }) { Icon(Icons.Default.Delete, "Delete selected item") }
             IconButton(onClick = { page++; selectedId = null }, enabled = page < r.pageCount - 1) { Icon(Icons.Default.ChevronRight, "Next page") }
         }
@@ -272,21 +340,46 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
             }
             if (showEditInfo) Text(EDIT_EXISTING, style = MaterialTheme.typography.bodySmall)
         }
+        SwitchRow("Keep markups editable in Acrobat", editableMarkups, "Highlights, underlines, strikethroughs, shapes and lines are saved as real PDF annotations that other PDF apps can edit or delete. Turn off to make them permanent.") { editableMarkups = it }
+        if (annots.any { it is Annot.Box && it.kind == Annot.BoxKind.REDACT }) Notice("Redacted pages will be converted to images so the hidden text is permanently removed. Those pages will no longer be searchable.", NoteKind.WARNING)
         OutlinedTextField(outName, { outName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Save as new file") }, suffix = { Text(".pdf") })
         job?.let { JobProgressCard(it) { app.jobs.cancel() } }
         PrimaryAction("Save as new PDF", enabled = annots.isNotEmpty() && job == null, icon = Icons.Default.Save) {
             val d = holder.doc!!; val pw = holder.password; val list = annots.toList(); val name = outName.ifBlank { "Edited" } + ".pdf"
+            val editable = editableMarkups
             Operations.run("Edit PDF", onError = { error = it }, onResult = nav.resultCallback()) { p ->
                 val out = app.files.newOutputFile(name)
                 var protectionNote: String? = null
+                val redactPages = list.filter { it is Annot.Box && it.kind == Annot.BoxKind.REDACT }.map { it.page }.toSet()
                 val stats = PdfDocs.open(app, d.uri, pw).use { doc ->
                     PdfDocs.require(doc, PdfAction.MODIFY)
-                    protectionNote = com.docdesk.app.pdf.PdfOps.keepProtectionForSave(doc, pw)
-                    AnnotationWriter.write(doc, list, out, p)
+                    if (redactPages.isEmpty()) {
+                        protectionNote = com.docdesk.app.pdf.PdfOps.keepProtectionForSave(doc, pw)
+                        AnnotationWriter.write(doc, list, out, p, editable)
+                    } else {
+                        val origPermission = if (doc.isEncrypted) doc.currentAccessPermission else null
+                        // 1) draw everything (black boxes included) into a private temporary file …
+                        val st = AnnotationWriter.apply(doc, list, editable, p)
+                        val tmp = app.files.newWorkFile(".pdf")
+                        try {
+                            doc.isAllSecurityToBeRemoved = true
+                            doc.save(tmp)
+                            // 2) … then replace redacted pages by images of themselves.
+                            PdfDocs.open(tmp).use { red ->
+                                RedactionApplier.apply(red, tmp, redactPages, p)
+                                protectionNote = com.docdesk.app.pdf.PdfOps.reapplyProtection(origPermission, red, pw)
+                                p.step("Saving…", 0.95f)
+                                com.docdesk.app.pdf.PdfOps.saveAtomically(red, out)
+                            }
+                        } finally { tmp.delete() }
+                        st
+                    }
                 }
                 val notes = mutableListOf("Saved as a new file; the original was not changed.",
                     "Drawings, shapes, highlights, text boxes, images and signatures are now part of the page. Sticky notes are PDF comments that other PDF apps can show and edit.")
                 protectionNote?.let { notes.add(it) }
+                if (stats.editableAnnotations > 0) notes.add("${stats.editableAnnotations} markup(s) were saved as editable PDF annotations.")
+                if (redactPages.isNotEmpty()) notes.add("Secure redaction applied on page(s) ${redactPages.sorted().joinToString { "${it + 1}" }}: the covered content was permanently removed and those pages are now images (not searchable). Check the result before sharing.")
                 if (stats.textAsImage > 0) notes.add("${stats.textAsImage} text box(es) contain characters outside the basic Latin set (e.g. Hindi) and were added as images, so they are not searchable.")
                 OperationResult(OperationReport("Edit PDF", listOf(d.name), Outcome.SUCCESS, pagesSelected = list.map { it.page }.distinct().size, pagesProcessed = list.map { it.page }.distinct().size, notes = notes),
                     listOf(OutputFile(out)), Preview.Pdf(out))
@@ -300,6 +393,32 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
             pendingText = null
         }, onDismiss = { pendingText = null })
     }
+    editLine?.let { line ->
+        val pw = pageWords
+        EditTextDialog(line.text, line.fontSize, line.allBold, onDismiss = { editLine = null }) { text, size, bold ->
+            editLine = null
+            if (pw != null) {
+                val pad = 1.5f
+                val cover = Annot.Box(nextId++, page, Annot.BoxKind.WHITEOUT, NRect((line.x - pad) / pw.width, (line.top - pad) / pw.height, (line.right + pad) / pw.width, (line.bottom + pad) / pw.height), android.graphics.Color.WHITE, 1f)
+                // Text box positioned so its baseline matches the original line.
+                val topV = (line.bottom - size * 1.08f) / pw.height
+                val newText = Annot.TextBox(nextId++, page, NPoint(line.x / pw.width, topV), text, size, android.graphics.Color.BLACK, bold)
+                commit { annots.add(cover); if (text.isNotBlank()) annots.add(newText) }
+            }
+        }
+    }
+    stampAt?.let { at ->
+        StampDialog(onDismiss = { stampAt = null }) { label, dateText, c ->
+            stampAt = null
+            val w = 0.34f; val h = if (dateText != null) 0.075f else 0.06f
+            val left = (at.x - w / 2).coerceIn(0f, 1f - w); val top = (at.y - h / 2).coerceIn(0f, 1f - h)
+            commit { annots.add(Annot.Stamp(nextId++, page, NRect(left, top, left + w, top + h), label, dateText, c)) }
+        }
+    }
+    if (goTo && r != null) TextInputDialog("Go to page", "${page + 1}", "Page (1–${r.pageCount})", confirm = "Go", onConfirm = { v ->
+        v.trim().toIntOrNull()?.takeIf { it in 1..r.pageCount }?.let { page = it - 1; selectedId = null; zoom = 1f; pan = Offset.Zero } ?: run { error = "Enter a page number between 1 and ${r.pageCount}." }
+        goTo = false
+    }, onDismiss = { goTo = false })
     signatureAt?.let { at ->
         SignatureDialog(onPicked = { f ->
             signatureAt = null
@@ -323,7 +442,7 @@ private fun addPicture(f: File, w: Int, h: Int, at: NPoint, signature: Boolean, 
 
 private fun boxKind(t: Tool) = when (t) {
     Tool.HIGHLIGHT -> Annot.BoxKind.HIGHLIGHT; Tool.UNDERLINE -> Annot.BoxKind.UNDERLINE; Tool.STRIKE -> Annot.BoxKind.STRIKE
-    Tool.ELLIPSE -> Annot.BoxKind.ELLIPSE; Tool.WHITEOUT -> Annot.BoxKind.WHITEOUT; else -> Annot.BoxKind.RECT
+    Tool.ELLIPSE -> Annot.BoxKind.ELLIPSE; Tool.WHITEOUT -> Annot.BoxKind.WHITEOUT; Tool.REDACT -> Annot.BoxKind.REDACT; else -> Annot.BoxKind.RECT
 }
 
 private fun resize(a: Annot, p: NPoint): Annot = when (a) {
@@ -334,6 +453,11 @@ private fun resize(a: Annot, p: NPoint): Annot = when (a) {
         a.copy(rect = NRect(a.rect.left, a.rect.top, a.rect.left + nw, a.rect.top + nw * ratio))
     }
     is Annot.Box -> a.copy(rect = NRect(a.rect.left, a.rect.top, p.x.coerceAtLeast(a.rect.left + 0.01f), p.y.coerceAtLeast(a.rect.top + 0.005f)))
+    is Annot.Stamp -> {
+        val ratio = a.rect.height / a.rect.width
+        val nw = (p.x - a.rect.left).coerceAtLeast(0.08f)
+        a.copy(rect = NRect(a.rect.left, a.rect.top, a.rect.left + nw, a.rect.top + nw * ratio))
+    }
     else -> a
 }
 
@@ -348,6 +472,7 @@ private fun DrawScope.drawAnnot(a: Annot, ptToPx: Float, selected: Boolean, cach
             when (a.kind) {
                 Annot.BoxKind.HIGHLIGHT -> drawRect(col.copy(alpha = 0.35f), tl, sz)
                 Annot.BoxKind.WHITEOUT -> { drawRect(Color.White, tl, sz); drawRect(Color.Gray, tl, sz, style = Stroke(1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))) }
+                Annot.BoxKind.REDACT -> { drawRect(Color.Black, tl, sz); drawRect(Color.Red, tl, sz, style = Stroke(2f)) }
                 Annot.BoxKind.UNDERLINE -> drawLine(col, Offset(tl.x, tl.y + sz.height), Offset(tl.x + sz.width, tl.y + sz.height), sw)
                 Annot.BoxKind.STRIKE -> drawLine(col, Offset(tl.x, tl.y + sz.height / 2), Offset(tl.x + sz.width, tl.y + sz.height / 2), sw)
                 Annot.BoxKind.RECT -> drawRect(col, tl, sz, style = Stroke(sw))
@@ -374,7 +499,7 @@ private fun DrawScope.drawAnnot(a: Annot, ptToPx: Float, selected: Boolean, cach
             drawPath(path, col, style = Stroke(a.strokePt * ptToPx, cap = StrokeCap.Round))
         }
         is Annot.TextBox -> {
-            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = a.color; textSize = a.sizePt * ptToPx }
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = a.color; textSize = a.sizePt * ptToPx; isFakeBoldText = a.bold; typeface = android.graphics.Typeface.SANS_SERIF }
             a.text.lines().forEachIndexed { i, line -> drawContext.canvas.nativeCanvas.drawText(line, a.origin.x * w, a.origin.y * h + paint.textSize * (i + 1) * 1.0f + paint.textSize * 0.2f * i, paint) }
         }
         is Annot.Note -> {
@@ -382,6 +507,18 @@ private fun DrawScope.drawAnnot(a: Annot, ptToPx: Float, selected: Boolean, cach
             drawRect(Color(0xFFFFE082), tl, Size(s, s)); drawRect(Color(0xFF8D6E00), tl, Size(s, s), style = Stroke(2f))
             drawLine(Color(0xFF8D6E00), Offset(tl.x + s * 0.2f, tl.y + s * 0.4f), Offset(tl.x + s * 0.8f, tl.y + s * 0.4f), 2f)
             drawLine(Color(0xFF8D6E00), Offset(tl.x + s * 0.2f, tl.y + s * 0.65f), Offset(tl.x + s * 0.7f, tl.y + s * 0.65f), 2f)
+        }
+        is Annot.Stamp -> {
+            val tl = Offset(a.rect.left * w, a.rect.top * h); val sz = Size(a.rect.width * w, a.rect.height * h)
+            val c = Color(a.color).copy(alpha = 0.9f)
+            val lw = (sz.height * 0.06f).coerceIn(2f, 8f)
+            drawRect(c, Offset(tl.x + lw / 2, tl.y + lw / 2), Size(sz.width - lw, sz.height - lw), style = Stroke(lw))
+            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = c.toArgb(); isFakeBoldText = true; textAlign = android.graphics.Paint.Align.CENTER }
+            val hasDate = !a.dateText.isNullOrBlank()
+            paint.textSize = sz.height * (if (hasDate) 0.42f else 0.55f)
+            val tw = paint.measureText(a.label); if (tw > sz.width * 0.85f) paint.textSize *= sz.width * 0.85f / tw
+            drawContext.canvas.nativeCanvas.drawText(a.label, tl.x + sz.width / 2, tl.y + sz.height * (if (hasDate) 0.55f else 0.7f), paint)
+            if (hasDate) { paint.isFakeBoldText = false; paint.textSize = sz.height * 0.2f; drawContext.canvas.nativeCanvas.drawText(a.dateText!!, tl.x + sz.width / 2, tl.y + sz.height * 0.85f, paint) }
         }
         is Annot.Picture -> {
             val img = cache.getOrPut(a.path) { BitmapFactory.decodeFile(a.path)?.asImageBitmap() }
@@ -393,14 +530,17 @@ private fun DrawScope.drawAnnot(a: Annot, ptToPx: Float, selected: Boolean, cach
         val b = a.bounds()
         val tl = Offset(b.left * w - 6, b.top * h - 6); val sz = Size(b.width * w + 12, b.height * h + 12)
         drawRect(Color(0xFF1E4FA3), tl, sz, style = Stroke(3f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))))
-        if (a is Annot.Picture || a is Annot.Box) drawCircle(Color(0xFF1E4FA3), 14f, Offset(b.right * w, b.bottom * h))
+        if (a is Annot.Picture || a is Annot.Box || a is Annot.Stamp) drawCircle(Color(0xFF1E4FA3), 14f, Offset(b.right * w, b.bottom * h))
     }
 }
 
 private fun hintFor(t: Tool) = when (t) {
     Tool.SELECT -> "Tap an item to select it, drag to move it, drag the round handle to resize. Use the bin to delete."
-    Tool.HIGHLIGHT -> "Drag across text to highlight an area."
-    Tool.UNDERLINE, Tool.STRIKE -> "Drag along the text."
+    Tool.HIGHLIGHT -> "Drag across text – the highlight snaps to the words (on scanned pages it covers the area you drag). Pinch with two fingers to zoom."
+    Tool.UNDERLINE, Tool.STRIKE -> "Drag along the text; it snaps to the words."
+    Tool.EDIT_TEXT -> "Tap a line of text to change it. The old line is covered and your new text is placed in the same position and size."
+    Tool.STAMP -> "Tap where the stamp should go, then choose PAID, APPROVED, RECEIVED…"
+    Tool.REDACT -> "Drag over confidential information. On saving, it is permanently removed (the page becomes an image)."
     Tool.PEN -> "Draw with your finger."
     Tool.RECT, Tool.ELLIPSE -> "Drag to draw the shape."
     Tool.LINE, Tool.ARROW -> "Drag from start to end."
@@ -408,12 +548,12 @@ private fun hintFor(t: Tool) = when (t) {
     Tool.NOTE -> "Tap to place a comment (sticky note)."
     Tool.IMAGE -> "Tap where the image should go, then choose a picture."
     Tool.SIGNATURE -> "Tap where your signature should go."
-    Tool.WHITEOUT -> "Drag over content to cover it with white, then add a text box on top to replace it."
+    Tool.WHITEOUT -> "Drag over content to cover it with white (visual only – use Redact to really remove information)."
 }
 
 private fun colorName(c: Int) = when (c) {
     palette[0] -> "yellow"; palette[1] -> "green"; palette[2] -> "light blue"; palette[3] -> "pink"; palette[4] -> "red"; palette[5] -> "dark blue"; else -> "black"
 }
 
-private const val EDIT_EXISTING = "DocDesk adds content on top of the page (annotations). It cannot reliably change the PDF's existing text or images in place: PDF text is stored as positioned glyphs with embedded font subsets, so rewriting it on a phone usually breaks the layout or the font. To correct text, use \"Cover (white-out)\" over the old text and add a Text box with the new wording. Note that covered text may still exist underneath and can be found by copying or searching – it is not a secure redaction. True in-place editing requires a commercial PDF SDK (for example Apryse/PDFTron, PSPDFKit/Nutrient or Foxit) and is planned for a later phase."
+private const val EDIT_EXISTING = "Use the \"Edit text\" tool and tap a line: DocDesk covers the old line and places your new text at the same position and size, in a standard font (Helvetica). This works well for corrections such as names, dates and amounts on text-based PDFs. It is not true in-place editing: the original text still exists underneath (use Redact to remove it permanently), the font may differ from the original, and text does not reflow into following lines. Full reflowing text editing like Acrobat's requires a commercial PDF engine (for example Apryse, Nutrient or Foxit)."
 
