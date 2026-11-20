@@ -21,7 +21,11 @@ This document records which requested features can be built reliably on a phone,
 | Brightness/contrast, colour/grey/B&W, reorder, rotate | Yes | In-app processing after scanning | High |
 | Searchable PDF from scans | Yes (Latin) | Invisible text layer with PdfBox; Hindi words can't be embedded (no shaping/font in PdfBox 2) | Medium |
 | Annotations, drawing, shapes, text, images, signatures | Yes | Drawn into page content with PdfBox; sticky notes as real PDF comments | High |
-| **Edit existing PDF text/images in place** | **Not reliably** | Not offered; *Cover (white-out) + Text box* workaround with honest warning | – |
+| Edit existing PDF text | Partly | *Edit text* tool: replaces a tapped line (cover + new text at the same position and size, standard font). No reflow, original font not reused | Good for corrections of names/dates/amounts |
+| Secure redaction | Yes | Pages with redactions are re-rendered to images; original content removed | High (page loses searchable text) |
+| Editable annotations (Acrobat-compatible) | Yes | PdfBox `PDAnnotationTextMarkup`, `SquareCircle`, `Line` with generated appearances | High |
+| Fill AcroForm forms | Yes | PdfBox `PDAcroForm` (text, checkbox, radio, choice), optional flatten | High for Latin text; Hindi depends on the form's font |
+| Watermark, page numbers, header/footer, compress | Yes | PdfBox content streams; JPEG recompression of large images | High |
 
 ## 2. Libraries, licences and restrictions
 
@@ -59,8 +63,9 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 
 | Feature | What is needed | Suggested next step |
 |---|---|---|
-| True in-place editing of existing PDF text/images | Commercial SDK (Apryse, Nutrient/PSPDFKit, Foxit) | Phase 5: wrap the SDK behind the existing *Edit PDF* screen; keep annotations path for free tier |
-| Secure redaction (permanent removal of text under a box) | Commercial SDK, or substantial content-stream rewriting work | Until then the app warns that *Cover* is not redaction |
+| Reflowing in-place text editing with the original fonts, editing existing images | Commercial SDK (Apryse, Nutrient/PSPDFKit, Foxit) | Phase 6: wrap the SDK behind *Edit PDF*; keep the free line-replacement tool |
+| Text-preserving redaction (remove only the covered glyphs, keep the rest searchable) | Content-stream rewriting or commercial SDK | Current redaction rasterises the affected pages |
+| Digital (certificate) signatures | PKCS#7 signing with a user certificate (PdfBox supports signing; key management UI needed) | Phase 6 |
 | `.doc` / `.xls` input | Apache POI HWPF/HSSF (Apache 2.0) – large; or LibreOffice on a server | Add as optional dynamic feature module to keep base APK small |
 | Pixel-exact Word/Excel → PDF (exact fonts, charts, SmartArt) | Server-side LibreOffice/Office, or commercial SDK | Opt-in cloud conversion with explicit upload consent screen |
 | Hindi in searchable-PDF text layer | Type0 font embedding with OpenType shaping (PdfBox 3 + HarfBuzz-style shaping) | Investigate PdfBox 3.x port or shaping via Android `TextShaper` (API 31+) |
@@ -84,3 +89,4 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 | 2 Conversion | PDF→Word, Word→PDF, PDF→Excel (text), Excel→PDF, previews & reports | Done |
 | 3 Scanning, OCR, editing | Camera scan, English+Hindi OCR, OCR-assisted conversions, annotations & signatures | Done; in-place text editing deferred (see §4) |
 | 4 Refinement | Performance, accessibility, privacy review, large files, user docs | Partly done (see [TESTING.md](TESTING.md)); on-device testing on a range of phones still required |
+| 5 Professional tools | Editor zoom, snap-to-text markups, Edit text, stamps, secure redaction, editable annotations, Create PDF hub, share-to-app, fill forms, watermark, page numbers/header/footer, compress | Done (v1.1.0); on-device testing required |

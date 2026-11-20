@@ -48,6 +48,7 @@ object Routes {
     const val VIEWER = "viewer"; const val MERGE = "merge"; const val SPLIT = "split"; const val ORGANIZE = "organize"
     const val PDF_EXCEL = "pdf2excel"; const val PDF_WORD = "pdf2word"; const val EXCEL_PDF = "excel2pdf"; const val WORD_PDF = "word2pdf"
     const val EDIT = "edit"; const val SCAN = "scan"; const val OCR = "ocr"; const val RESULT = "result"
+    const val CREATE = "create"; const val FORM = "form"; const val WATERMARK = "watermark"; const val NUMBERS = "numbers"; const val COMPRESS = "compress"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -78,7 +79,7 @@ class Nav(private val c: NavHostController) {
 }
 
 @Composable
-fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit) {
+fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean = false) {
     val controller = rememberNavController()
     val nav = Nav(controller)
     val entry by controller.currentBackStackEntryAsState()
@@ -88,7 +89,9 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit) {
     LaunchedEffect(incoming) {
         if (incoming != null) {
             runCatching { context.contentResolver.takePersistableUriPermission(incoming, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-            nav.to(Routes.VIEWER, incoming)
+            val type = com.docdesk.app.DocDeskApp.instance.files.describe(incoming).type
+            // PDFs open in the viewer; Word, Excel and photos go to Create PDF.
+            if (type == com.docdesk.app.data.DocType.PDF && !incomingMany) nav.to(Routes.VIEWER, incoming) else nav.to(Routes.CREATE, if (incomingMany) null else incoming)
             onIncomingHandled()
         }
     }
@@ -133,6 +136,11 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit) {
             tool(Routes.EDIT) { EditPdfScreen(nav, it) }
             tool(Routes.SCAN) { ScanScreen(nav) }
             tool(Routes.OCR) { OcrScreen(nav, it) }
+            tool(Routes.CREATE) { com.docdesk.app.ui.create.CreatePdfScreen(nav, it) }
+            tool(Routes.FORM) { com.docdesk.app.ui.tools.FillFormScreen(nav, it) }
+            tool(Routes.WATERMARK) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.WATERMARK) }
+            tool(Routes.NUMBERS) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.NUMBERS) }
+            tool(Routes.COMPRESS) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.COMPRESS) }
             composable("${Routes.RESULT}/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { e ->
                 ResultScreen(nav, e.arguments?.getLong("id") ?: -1)
             }

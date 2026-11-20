@@ -23,6 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.BrandingWatermark
+import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.CallSplit
 import androidx.compose.material.icons.filled.Description
@@ -72,6 +77,7 @@ import java.util.Date
 private data class ToolItem(val label: String, val hint: String, val icon: ImageVector, val route: String)
 
 private val tools = listOf(
+    ToolItem("Create PDF", "Word, Excel, photos → PDF", Icons.Default.NoteAdd, Routes.CREATE),
     ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL),
     ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD),
     ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF),
@@ -81,6 +87,10 @@ private val tools = listOf(
     ToolItem("Split PDF", "By pages or ranges", Icons.Default.CallSplit, Routes.SPLIT),
     ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE),
     ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN),
+    ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM),
+    ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK),
+    ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS),
+    ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS),
     ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES),
 )
 
@@ -101,8 +111,8 @@ fun HomeScreen(nav: Nav) {
             DocType.PDF -> chosenPdf = uri
             DocType.WORD -> nav.to(Routes.WORD_PDF, uri)
             DocType.EXCEL -> nav.to(Routes.EXCEL_PDF, uri)
+            DocType.IMAGE -> nav.to(Routes.CREATE, uri)
             DocType.LEGACY_WORD, DocType.LEGACY_EXCEL -> message = "Older .doc and .xls files are not supported yet. Open the file in Word, Excel or Google Docs/Sheets and save it as .docx or .xlsx first."
-            DocType.IMAGE -> message = "To turn photos into a PDF, use Scan & OCR and choose \"Import images\"."
             else -> message = "This file type is not supported. Choose a PDF, Word (.docx) or Excel (.xlsx) file."
         }
     }
@@ -167,6 +177,10 @@ fun HomeScreen(nav: Nav) {
                 Triple("Organise pages", Icons.Default.ViewModule, Routes.ORGANIZE), Triple("Split", Icons.Default.CallSplit, Routes.SPLIT),
                 Triple("Convert to Excel", Icons.Default.TableChart, Routes.PDF_EXCEL), Triple("Convert to Word", Icons.Default.Description, Routes.PDF_WORD),
                 Triple("Extract text (OCR)", Icons.Default.DocumentScanner, Routes.OCR),
+                Triple("Fill form", Icons.Default.EditNote, Routes.FORM),
+                Triple("Add watermark", Icons.Default.BrandingWatermark, Routes.WATERMARK),
+                Triple("Add page numbers / header / footer", Icons.Default.FormatListNumbered, Routes.NUMBERS),
+                Triple("Compress", Icons.Default.Compress, Routes.COMPRESS),
             ).forEach { (label, icon, route) ->
                 ListItem(
                     headlineContent = { Text(label) }, leadingContent = { Icon(icon, null) },

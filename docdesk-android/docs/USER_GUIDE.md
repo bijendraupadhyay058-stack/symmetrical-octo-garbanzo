@@ -36,10 +36,22 @@ Choose a `.docx` or `.xlsx` file. For Excel, select the sheets and page setup (o
 
 OCR works best with sharp, well-lit, straight pages. Handwriting, faint print and complex layouts reduce accuracy.
 
-## Edit PDF (annotate and sign)
-Pick a tool (highlight, underline, strikethrough, draw, rectangle, ellipse, line, arrow, text box, sticky note, image, signature, cover), a colour and thickness, then drag or tap on the page. Use *Select / move* to move, resize (round handle) or delete items. Undo/redo are at the top. *Save as new PDF* keeps the original unchanged.
+## Create PDF (Word, Excel, photos)
+Tap **Create PDF**, choose one or more Word (.docx), Excel (.xlsx), photo or PDF files, arrange the order and choose *Combine into one PDF* or *A separate PDF for each file*. You can also send files straight to DocDesk from WhatsApp, Gmail or Files: **Share › DocDesk**. For detailed Excel page setup use **Excel to PDF**; for Word page options use **Word to PDF**.
 
-To correct existing text: use **Cover (white-out)** over it and add a **Text box** with the new wording. The covered text can still be found underneath – this is **not** secure redaction.
+## Fill forms, watermark, page numbers, compress
+- **Fill Form**: type into the form's fields, tick boxes, choose options; optionally *flatten* so answers can't be changed.
+- **Watermark**: e.g. CONFIDENTIAL or DRAFT across pages, with size and transparency.
+- **Page Numbers**: formats like `Page {n} of {total}`, Bates numbers `INV-{n:4}` → INV-0001, plus header/footer text with `{date}` or `{file}`.
+- **Compress PDF**: makes scanned and photo-heavy PDFs smaller; the report shows the size before and after.
+
+## Edit PDF (annotate and sign)
+Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with two fingers to zoom in for precise work. Highlight, underline and strikethrough snap to the words you drag across. Use *Select / move* to move, resize (round handle) or delete items. Undo/redo are at the top. *Save as new PDF* keeps the original unchanged. With *Keep markups editable in Acrobat* on, highlights, shapes and lines stay editable in other PDF apps.
+
+- **Edit text**: tap a line of text, type the correction, choose size/bold. The old line is covered and the new text is placed in the same spot (standard font; the original still exists underneath unless you also redact).
+- **Stamp**: PAID, APPROVED, RECEIVED, VERIFIED… or your own text, with today's date.
+- **Redact (secure)**: drag black boxes over confidential details. When you save, those pages are rebuilt as images so the information is really gone (those pages are no longer searchable).
+- **Cover (white-out)** only hides content visually – use Redact for sensitive information.
 
 ## My Files, History and Settings
 - **My Files**: files you saved in DocDesk (stored privately in the app). Sort, search, open, share, rename, *Save to device*, *Add password* (AES-256) and delete.

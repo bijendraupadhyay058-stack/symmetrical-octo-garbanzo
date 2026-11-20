@@ -22,6 +22,11 @@ class DocDeskApp : Application() {
     lateinit var jobs: JobRunner private set
     val results = ResultStore()
 
+    /** Files shared into the app ("Share › DocDesk" with several files), picked up by Create PDF. */
+    private val pendingInputs = mutableListOf<android.net.Uri>()
+    @Synchronized fun setPendingInputs(uris: List<android.net.Uri>) { pendingInputs.clear(); pendingInputs.addAll(uris) }
+    @Synchronized fun takePendingInputs(): List<android.net.Uri> = pendingInputs.toList().also { pendingInputs.clear() }
+
     override fun onCreate() {
         super.onCreate()
         instance = this

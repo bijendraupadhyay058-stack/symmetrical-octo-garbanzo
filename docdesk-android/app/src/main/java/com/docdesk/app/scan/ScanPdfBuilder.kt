@@ -62,14 +62,14 @@ object ScanPdfBuilder {
      * [pages] supplies one bitmap at a time to limit memory use. [ocrWords] (optional) gives
      * recognised words in image-pixel coordinates for each page.
      */
-    suspend fun build(count: Int, page: suspend (Int) -> Bitmap, ocrWords: (suspend (Int, Bitmap) -> List<TextWord>)?, out: File, progress: Progress): Stats {
+    suspend fun build(count: Int, page: suspend (Int) -> Bitmap, ocrWords: (suspend (Int, Bitmap) -> List<TextWord>)?, out: File, progress: Progress, paperWidthPt: Float = PDRectangle.A4.width): Stats {
         var skipped = 0
         PDDocument().use { doc ->
             for (i in 0 until count) {
                 progress.step("Adding page ${i + 1} of $count", i.toFloat() / count)
                 val bmp = page(i)
-                // Page width = A4 width; height follows the image's aspect ratio.
-                val pw = PDRectangle.A4.width
+                // Page width = paper width (A4 by default); height follows the image's aspect ratio.
+                val pw = paperWidthPt
                 val ph = pw * bmp.height / bmp.width
                 val p = PDPage(PDRectangle(pw, ph))
                 doc.addPage(p)

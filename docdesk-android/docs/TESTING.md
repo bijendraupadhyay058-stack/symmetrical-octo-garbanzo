@@ -6,7 +6,7 @@ The app was built in a cloud container **without an Android device or emulator**
 
 | Check | Result |
 |---|---|
-| `:core` unit tests (24) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
+| `:core` unit tests (30, incl. text selection & label templates) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
 | `:core` real-document tests (5) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
 | `:app:compileDebugKotlin`, `:app:assembleDebug` | ✅ builds |
 | `:app:assembleRelease` with R8 shrinking | ✅ builds (unsigned without keystore) |
@@ -68,6 +68,10 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | History & settings | Turn history off, run an operation, clear history, delete temp files, switch theme | No entry recorded when off; temp size drops |
 | Interruptions | Cancel during PDF→Excel on 100 pages; press Home during conversion; low storage | Partial result marked *Cancelled*; no half-written files; storage error message |
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
+| Editor (v1.1) | Pinch zoom then draw; highlight across 2 lines; Edit text on invoice total; stamp PAID; redact account number; save with *editable* on | Highlights hug the words; edited line matches position; open output in Acrobat Reader: highlights/shapes selectable & deletable; redacted page has no selectable text under the box |
+| Create PDF (v1.1) | Word + Excel + 3 photos, combined and separate; Share 2 files from WhatsApp to DocDesk | One PDF in the shown order / separate PDFs; shared files appear in Create PDF |
+| Fill form (v1.1) | A government/bank PDF form with text fields and checkboxes; flatten on/off | Values visible in other readers; flattened form not editable |
+| Watermark / numbers / compress (v1.1) | `CONFIDENTIAL` 20%; `INV-{n:4}` bottom right; compress the scanned statement | Correct on rotated pages too; numbering correct; size reduced and report shows saving |
 
 ## 4. Known limitations
 
@@ -77,7 +81,10 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 - **PDF→Word** approximates layout: multi-column pages, text boxes, vector graphics, form fields and exact fonts are not reproduced; images on rotated pages are skipped (reported).
 - **Word→PDF / Excel→PDF** use the phone's fonts and layout engine – line/page breaks can differ from Office. Not drawn: charts, SmartArt, text boxes/shapes, floating image positions, footnotes, conditional formatting, cell images. Formulas show their last saved value only. `.doc` and `.xls` are not supported.
 - **Searchable PDFs**: Hindi text cannot be embedded in the invisible text layer (PdfBox 2 has no complex-script shaping); it is still available via *Extract text*.
-- **Editing existing PDF text in place** is not available; *Cover (white-out)* is visual only and is **not secure redaction**.
+- **Edit text** replaces whole lines with a standard font and does not reflow paragraphs; the original text remains underneath unless redacted. *Cover (white-out)* is visual only – use **Redact**.
+- **Redaction** converts affected pages to images (no searchable text on those pages).
+- **Forms**: digital certificate signatures and JavaScript calculations are not supported; Hindi input depends on the form font.
+- **Compress** only recompresses images; text-only PDFs rarely get smaller.
 - **Viewer** renders a decrypted temporary copy for password-protected PDFs (private cache, deleted on close).
 - **Process death** during a conversion loses that conversion (results are in memory until saved); completed saves are never half-written.
 - **Very large files** (hundreds of MB / thousands of pages) can exhaust memory on low-end phones; use page ranges.

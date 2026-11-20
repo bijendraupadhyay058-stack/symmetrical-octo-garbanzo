@@ -179,6 +179,10 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Organise pages") }, onClick = { menu = false; nav.to(Routes.ORGANIZE, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Convert to Word") }, onClick = { menu = false; nav.to(Routes.PDF_WORD, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Convert to Excel") }, onClick = { menu = false; nav.to(Routes.PDF_EXCEL, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Fill form") }, onClick = { menu = false; nav.to(Routes.FORM, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Add watermark") }, onClick = { menu = false; nav.to(Routes.WATERMARK, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Page numbers / header / footer") }, onClick = { menu = false; nav.to(Routes.NUMBERS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Compress") }, onClick = { menu = false; nav.to(Routes.COMPRESS, holder.doc?.uri) })
                             if (holder.doc?.uri?.scheme != "file") DropdownMenuItem(text = { Text("Save a copy to My Files") }, onClick = {
                                 menu = false
                                 scope.launch {

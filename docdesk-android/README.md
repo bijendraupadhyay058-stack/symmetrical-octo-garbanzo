@@ -4,6 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
+| Version | 1.1.0 (Phase 5) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -28,8 +29,13 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Excel → PDF | ✅ (.xlsx) | Sheet selection, print area, orientation, paper, margins, fit-to-width/page/custom %, gridlines, sheet names, page numbers, preview. `.xls` not supported |
 | Scan & OCR | ✅ | Camera scanner (edges, crop, perspective, rotate), then reorder, rotate, brightness/contrast, colour/grey/B&W; searchable PDF; text export |
 | Extract text from PDF (OCR) | ✅ | English and Hindi, editable result, low-confidence words listed, TXT, searchable PDF |
-| Annotate & sign | ✅ | Highlight, underline, strikethrough, pen, shapes, lines, arrows, text boxes, sticky notes, images, signatures (draw/import, saved privately), colours, sizes, move/resize, undo/redo, save as new |
-| Edit existing PDF text in place | ❌ (planned) | Not reliable with open-source engines; app explains this and offers *Cover + Text box*. See [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
+| Annotate & sign | ✅ | Highlight/underline/strikethrough that **snap to words**, pen, shapes, lines, arrows, text boxes, sticky notes, **stamps** (PAID, APPROVED, RECEIVED… with date), images, signatures, colours, sizes, move/resize, undo/redo, **pinch zoom**; markups can be saved as **editable Acrobat annotations** |
+| Edit text | ✅ (line replacement) | Tap a line → change it; old line covered, new text placed at same position/size (standard font). Full reflowing text editing needs a commercial engine – see [docs/FEASIBILITY.md](docs/FEASIBILITY.md) |
+| Secure redaction | ✅ | Redacted pages are rebuilt as images so the hidden content is really removed |
+| Create PDF | ✅ | Word, Excel, photos and PDFs → one combined PDF or separate PDFs; "Share › DocDesk" and "Open with" from other apps |
+| Fill forms | ✅ | Text fields, checkboxes, radio buttons, lists; optional flatten |
+| Watermark, page numbers, header/footer | ✅ | Diagonal/horizontal watermark with opacity; `{n}`, `{total}`, `{date}`, `{file}`, Bates `{n:4}` |
+| Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Password-protect PDF | ✅ | AES-256, permissions |
 
 Every conversion shows a report: document type (text/scanned/mixed), pages selected and processed, failed pages with reasons, warnings, checks and a preview **before** you save or share.
