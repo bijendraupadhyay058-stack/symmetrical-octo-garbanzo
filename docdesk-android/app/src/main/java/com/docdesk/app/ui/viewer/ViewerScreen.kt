@@ -10,6 +10,14 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.runtime.mutableStateMapOf
+import com.docdesk.app.pdf.Bookmark
+import com.docdesk.app.pdf.Bookmarks
+import com.docdesk.core.PageText
+import com.docdesk.core.TextSelection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -121,6 +129,33 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
     var hits by remember { mutableStateOf<List<Hit>?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     val current by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+    var bookmarks by remember { mutableStateOf<List<Bookmark>>(emptyList()) }
+    var showBookmarks by remember { mutableStateOf(false) }
+    val pageWords = remember { mutableStateMapOf<Int, PageText>() }
+    var selPage by remember { mutableStateOf<Int?>(null) }
+    var selA by remember { mutableStateOf(Offset.Zero) }
+    var selB by remember { mutableStateOf(Offset.Zero) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    LaunchedEffect(holder.info) {
+        bookmarks = emptyList(); pageWords.clear(); selPage = null
+        val d = holder.doc ?: return@LaunchedEffect
+        if (holder.info == null) return@LaunchedEffect
+        bookmarks = withContext(Dispatchers.IO) { runCatching { PdfDocs.open(app, d.uri, holder.password).use { Bookmarks.read(it) } }.getOrDefault(emptyList()) }
+    }
+    fun loadWords(page: Int) {
+        if (pageWords.containsKey(page)) return
+        val d = holder.doc ?: return
+        scope.launch {
+            val t = withContext(Dispatchers.IO) {
+                runCatching { PdfDocs.open(app, d.uri, holder.password).use { PdfDocs.require(it, PdfAction.EXTRACT); PdfTextExtractor.extract(it, page) } }
+            }
+            t.onSuccess { pageWords[page] = it }.onFailure { message = it.userMessage(); selPage = null }
+        }
+    }
+    fun selection(): List<TextSelection.LineRect> {
+        val p = selPage ?: return emptyList(); val t = pageWords[p] ?: return emptyList()
+        return TextSelection.select(t.words, selA.x * t.width, selA.y * t.height, selB.x * t.width, selB.y * t.height)
+    }
     val r = holder.renderer
 
     fun search() {
@@ -170,6 +205,7 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
             actions = {
                 if (r != null) {
                     IconButton(onClick = { searchOpen = !searchOpen }) { Icon(Icons.Default.Search, "Search in document") }
+                    if (bookmarks.isNotEmpty()) IconButton(onClick = { showBookmarks = true }) { Icon(Icons.AutoMirrored.Filled.List, "Contents (bookmarks)") }
                     IconButton(onClick = { thumbs = true }) { Icon(Icons.Default.GridView, "Page thumbnails") }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "More actions") }
@@ -183,6 +219,9 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Add watermark") }, onClick = { menu = false; nav.to(Routes.WATERMARK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Page numbers / header / footer") }, onClick = { menu = false; nav.to(Routes.NUMBERS, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compress") }, onClick = { menu = false; nav.to(Routes.COMPRESS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Sign digitally / check signatures") }, onClick = { menu = false; nav.to(Routes.SIGN, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Compare with another version") }, onClick = { menu = false; nav.to(Routes.COMPARE, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Save pages as JPG/PNG") }, onClick = { menu = false; nav.to(Routes.IMAGES, holder.doc?.uri) })
                             if (holder.doc?.uri?.scheme != "file") DropdownMenuItem(text = { Text("Save a copy to My Files") }, onClick = {
                                 menu = false
                                 scope.launch {
@@ -252,8 +291,20 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         itemsIndexed(List(r.pageCount) { it }, key = { _, i -> i }) { _, i ->
-                            Box(Modifier.padding(horizontal = 8.dp)) {
-                                PageImage(r, i, renderW, description = "Page ${i + 1} of ${r.pageCount}")
+                            Box(Modifier.padding(horizontal = 8.dp).pointerInput(i) {
+                                // Long-press and drag to select text, like in Acrobat.
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { o -> selPage = i; selA = Offset(o.x / size.width, o.y / size.height); selB = selA; loadWords(i) },
+                                    onDrag = { c, _ -> selB = Offset(c.position.x / size.width, c.position.y / size.height) },
+                                )
+                            }) {
+                                PageImage(r, i, renderW, description = "Page ${i + 1} of ${r.pageCount}. Long-press and drag to select text.")
+                                if (selPage == i) Canvas(Modifier.matchParentSize()) {
+                                    val t = pageWords[i]
+                                    if (t != null) selection().forEach { lr ->
+                                        drawRect(Color(0x553D7BFF), topLeft = Offset(lr.x / t.width * size.width, lr.top / t.height * size.height), size = Size((lr.right - lr.x) / t.width * size.width, (lr.bottom - lr.top) / t.height * size.height))
+                                    }
+                                }
                                 val pageHits = hits?.firstOrNull { it.page == i }
                                 if (pageHits != null) Canvas(Modifier.matchParentSize()) {
                                     pageHits.rects.forEach { rc ->
@@ -261,6 +312,16 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                                     }
                                 }
                             }
+                        }
+                    }
+                    if (selPage != null) Surface(Modifier.align(Alignment.BottomStart).padding(16.dp), shape = RoundedCornerShape(24.dp), tonalElevation = 4.dp, shadowElevation = 4.dp) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val sel = selection()
+                            TextButton(enabled = sel.isNotEmpty(), onClick = {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(sel.joinToString("\n") { it.text }))
+                                message = "Copied ${sel.sumOf { it.text.length }} characters."; selPage = null
+                            }) { Icon(Icons.Default.ContentCopy, null); Text(" Copy") }
+                            TextButton(onClick = { selPage = null }) { Text("Cancel") }
                         }
                     }
                     // Zoom buttons (accessible alternative to pinch).
@@ -283,6 +344,18 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                     PageImage(r, i, 220, description = "Go to page ${i + 1}")
                     Text("${i + 1}", style = MaterialTheme.typography.labelMedium, color = if (i == current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                 }
+            }
+        }
+    }
+    if (showBookmarks && r != null) ModalBottomSheet(onDismissRequest = { showBookmarks = false }) {
+        Text("Contents", Modifier.padding(horizontal = 24.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium)
+        LazyColumn {
+            itemsIndexed(bookmarks) { _, b ->
+                ListItem(
+                    headlineContent = { Text(b.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                    supportingContent = b.page?.let { p -> { Text("Page ${p + 1}") } },
+                    modifier = Modifier.padding(start = (b.level * 16).dp).clickable(enabled = b.page != null) { showBookmarks = false; b.page?.let { p -> scope.launch { listState.scrollToItem(p) } } },
+                )
             }
         }
     }

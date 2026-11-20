@@ -7,3 +7,6 @@
 -dontwarn org.bouncycastle.**
 # Room entities
 -keep class com.docdesk.app.data.db.** { *; }
+# Bouncy Castle (digital signatures): CMS/X.509 classes are looked up by OID at runtime.
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**

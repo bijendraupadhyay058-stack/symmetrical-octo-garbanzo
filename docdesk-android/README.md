@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.1.0 (Phase 5) |
+| Version | 1.2.0 (Phase 6) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -37,6 +37,10 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Watermark, page numbers, header/footer | ✅ | Diagonal/horizontal watermark with opacity; `{n}`, `{total}`, `{date}`, `{file}`, Bates `{n:4}` |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Password-protect PDF | ✅ | AES-256, permissions |
+| Digital signatures | ✅ | Sign with a .pfx/.p12 certificate or a personal certificate created in the app (PKCS#7 detached, SHA-256, visible box optional, incremental so earlier signatures stay valid); check signatures in received PDFs (intact / changed after signing / certificate details) |
+| Compare PDFs | ✅ | Line and word-level differences; highlighted copies of both versions (editable annotations, comments with original wording) and a text report |
+| PDF → JPG / PNG | ✅ | Pages at 96/150/300 dpi, or extract embedded pictures; optional ZIP |
+| Viewer: contents & copy | ✅ | Bookmarks panel; long-press and drag to select text, then Copy |
 
 Every conversion shows a report: document type (text/scanned/mixed), pages selected and processed, failed pages with reasons, warnings, checks and a preview **before** you save or share.
 

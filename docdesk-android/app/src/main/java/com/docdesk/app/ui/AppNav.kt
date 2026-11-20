@@ -49,6 +49,7 @@ object Routes {
     const val PDF_EXCEL = "pdf2excel"; const val PDF_WORD = "pdf2word"; const val EXCEL_PDF = "excel2pdf"; const val WORD_PDF = "word2pdf"
     const val EDIT = "edit"; const val SCAN = "scan"; const val OCR = "ocr"; const val RESULT = "result"
     const val CREATE = "create"; const val FORM = "form"; const val WATERMARK = "watermark"; const val NUMBERS = "numbers"; const val COMPRESS = "compress"
+    const val SIGN = "sign"; const val COMPARE = "compare"; const val IMAGES = "images"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -140,6 +141,9 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             tool(Routes.FORM) { com.docdesk.app.ui.tools.FillFormScreen(nav, it) }
             tool(Routes.WATERMARK) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.WATERMARK) }
             tool(Routes.NUMBERS) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.NUMBERS) }
+            tool(Routes.SIGN) { com.docdesk.app.ui.sign.SignScreen(nav, it) }
+            tool(Routes.COMPARE) { com.docdesk.app.ui.tools.CompareScreen(nav, it) }
+            tool(Routes.IMAGES) { com.docdesk.app.ui.tools.ExportImagesScreen(nav, it) }
             tool(Routes.COMPRESS) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.COMPRESS) }
             composable("${Routes.RESULT}/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { e ->
                 ResultScreen(nav, e.arguments?.getLong("id") ?: -1)

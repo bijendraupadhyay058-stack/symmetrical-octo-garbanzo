@@ -45,6 +45,22 @@ Tap **Create PDF**, choose one or more Word (.docx), Excel (.xlsx), photo or PDF
 - **Page Numbers**: formats like `Page {n} of {total}`, Bates numbers `INV-{n:4}` → INV-0001, plus header/footer text with `{date}` or `{file}`.
 - **Compress PDF**: makes scanned and photo-heavy PDFs smaller; the report shows the size before and after.
 
+## Digital signature
+A digital signature proves who signed and that the PDF hasn't changed since. Open **Digital Signature**, choose a PDF, then:
+1. **Import .pfx/.p12** (your certificate file) or **Create personal** certificate (name, password – remember it!).
+2. Enter a reason and location; keep *Show a signature box* on to print "Digitally signed by…" on the first or last page.
+3. Tap **Sign digitally** and enter the certificate password.
+Opening any signed PDF here shows its signatures: ✓ unchanged, ✓ intact but updated later, or ✗ invalid (altered). Personal certificates show as "identity unknown" in Adobe Acrobat until the recipient trusts them; for legally recognised signatures use a DSC from a licensed Certifying Authority.
+
+## Compare PDFs
+Choose the original and the new version. DocDesk produces the new version with green highlights for new text and orange for changed words (tap the comment to see the old wording), the original with removed text struck through in red, and a text report of all changes. Only text is compared.
+
+## PDF to JPG / PNG
+Save pages as pictures (96, 150 or 300 dpi) or extract the photos inside a PDF. Many images can be packed into one ZIP.
+
+## Viewer extras
+Tap the list icon for the document's **contents** (bookmarks). **Long-press** on text and drag to select it, then tap **Copy**.
+
 ## Edit PDF (annotate and sign)
 Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with two fingers to zoom in for precise work. Highlight, underline and strikethrough snap to the words you drag across. Use *Select / move* to move, resize (round handle) or delete items. Undo/redo are at the top. *Save as new PDF* keeps the original unchanged. With *Keep markups editable in Acrobat* on, highlights, shapes and lines stay editable in other PDF apps.
 

@@ -38,6 +38,7 @@ This document records which requested features can be built reliably on a phone,
 | AndroidX: Compose BOM, Activity, Lifecycle, Navigation, Room, WorkManager, DataStore, Core | see `gradle/libs.versions.toml` | Apache 2.0 | Yes | Standard Jetpack stack. |
 | Reorderable (`sh.calvin.reorderable`) | 2.4.3 | Apache 2.0 | Yes | Drag-and-drop for LazyColumn/LazyVerticalGrid (merge list, organise grid). Up/down buttons provided too, for accessibility. |
 | kotlinx.coroutines (+ play-services adapter) | 1.10.2 | Apache 2.0 | Yes | Background work, `Task.await()` for ML Kit. |
+| Bouncy Castle (bcprov/bcpkix, via PdfBox-Android) | 1.72 | MIT-style (Bouncy Castle licence) | Yes | CMS signature creation/verification and certificate generation for digital signatures. Kept in release builds by R8 rule (+≈2 MB). |
 | Apache PDFBox (desktop) | 2.0.32 | Apache 2.0 | Yes | **Test-only** (`:core` integration tests on sample PDFs). Not shipped. |
 
 ### Libraries considered and not used
@@ -65,7 +66,7 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 |---|---|---|
 | Reflowing in-place text editing with the original fonts, editing existing images | Commercial SDK (Apryse, Nutrient/PSPDFKit, Foxit) | Phase 6: wrap the SDK behind *Edit PDF*; keep the free line-replacement tool |
 | Text-preserving redaction (remove only the covered glyphs, keep the rest searchable) | Content-stream rewriting or commercial SDK | Current redaction rasterises the affected pages |
-| Digital (certificate) signatures | PKCS#7 signing with a user certificate (PdfBox supports signing; key management UI needed) | Phase 6 |
+| Hardware-token DSC (USB Class 3 tokens), timestamping (TSA), long-term validation (LTV), trust-list validation | USB token drivers/PKCS#11 on Android, a TSA server (network), CA trust lists | Future; current signing uses .pfx/.p12 files and reports identity without trust-list validation |
 | `.doc` / `.xls` input | Apache POI HWPF/HSSF (Apache 2.0) – large; or LibreOffice on a server | Add as optional dynamic feature module to keep base APK small |
 | Pixel-exact Word/Excel → PDF (exact fonts, charts, SmartArt) | Server-side LibreOffice/Office, or commercial SDK | Opt-in cloud conversion with explicit upload consent screen |
 | Hindi in searchable-PDF text layer | Type0 font embedding with OpenType shaping (PdfBox 3 + HarfBuzz-style shaping) | Investigate PdfBox 3.x port or shaping via Android `TextShaper` (API 31+) |
@@ -89,4 +90,5 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 | 2 Conversion | PDF→Word, Word→PDF, PDF→Excel (text), Excel→PDF, previews & reports | Done |
 | 3 Scanning, OCR, editing | Camera scan, English+Hindi OCR, OCR-assisted conversions, annotations & signatures | Done; in-place text editing deferred (see §4) |
 | 4 Refinement | Performance, accessibility, privacy review, large files, user docs | Partly done (see [TESTING.md](TESTING.md)); on-device testing on a range of phones still required |
+| 6 Signatures & review | Digital signatures (sign/verify), Compare PDFs, PDF→JPG/PNG & image extraction, viewer bookmarks and text copy | Done (v1.2.0); signing verified on JVM with desktop PDFBox + Bouncy Castle (sign, double-sign, tamper detection, wrong password); on-device testing required |
 | 5 Professional tools | Editor zoom, snap-to-text markups, Edit text, stamps, secure redaction, editable annotations, Create PDF hub, share-to-app, fill forms, watermark, page numbers/header/footer, compress | Done (v1.1.0); on-device testing required |

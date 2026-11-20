@@ -37,6 +37,7 @@ sealed class Preview {
     data class Word(val doc: DocDocument) : Preview()
     data class Sheets(val sheets: List<XSheet>) : Preview()
     data class Text(val text: String) : Preview()
+    data class Image(val file: File) : Preview()
 }
 
 data class OperationResult(val report: OperationReport, val outputs: List<OutputFile>, val preview: Preview? = null)

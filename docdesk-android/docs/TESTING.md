@@ -6,7 +6,7 @@ The app was built in a cloud container **without an Android device or emulator**
 
 | Check | Result |
 |---|---|
-| `:core` unit tests (30, incl. text selection & label templates) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
+| `:core` unit tests (34, incl. text selection, label templates and PDF comparison) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
 | `:core` real-document tests (5) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
 | `:app:compileDebugKotlin`, `:app:assembleDebug` | ✅ builds |
 | `:app:assembleRelease` with R8 shrinking | ✅ builds (unsigned without keystore) |
@@ -22,6 +22,8 @@ The app was built in a cloud container **without an Android device or emulator**
 | `report_mixed_text_and_scan.pdf` page 1 → Word | Title heading, "1. Summary" as a heading (not a list), three-line paragraph joined into one, three bullets |
 | `workbook_multi_sheet.xlsx` | Indian lakh format `4,32,438.24`; brackets `(1,830,000.00)`; `23.5%`; hidden sheet detected; formula without saved result **warned**; print area respected (40 rows) |
 | `word_tables_images.docx` | Title + headings, 3 bullets and 1./2./3. numbering from list *styles*, bold run inside a paragraph, 3×4 table, image, page break, Hindi paragraph intact, header and footer |
+
+Digital signatures were additionally verified on a JVM by running the same signing code against desktop Apache PDFBox 2.0.32 and Bouncy Castle 1.72: personal certificate created; signature valid and covering the whole file; a second signature keeps the first intact; a modified file is reported invalid; a wrong certificate password gives a clear message.
 
 Bugs found by these tests and fixed: list styles in Word files were ignored; empty formula values were not flagged; PDF→Word split paragraphs at normal line spacing and treated numbered headings as list items.
 
@@ -68,6 +70,10 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | History & settings | Turn history off, run an operation, clear history, delete temp files, switch theme | No entry recorded when off; temp size drops |
 | Interruptions | Cancel during PDF→Excel on 100 pages; press Home during conversion; low storage | Partial result marked *Cancelled*; no half-written files; storage error message |
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
+| Digital signature (v1.2) | Create personal certificate; sign invoice with visible box; open the result in Adobe Acrobat Reader; sign again; edit the signed file in another app and re-check | Acrobat shows valid integrity (identity unknown for personal cert); both signatures valid after second signing; edited file reported as changed/invalid |
+| Compare (v1.2) | Agreement v1 vs v2 with a changed amount, a removed clause and a new clause | Amount word highlighted orange with comment, clause green, removed clause struck red in original; report lists all three |
+| PDF→JPG/PNG (v1.2) | 100-page PDF at 150 dpi as ZIP; extract images from mixed report | ZIP with 100 images; extracted chart image |
+| Viewer (v1.2) | Bookmarks on a PDF with outline; long-press select across lines and copy into Notes | Jumps to the right page; copied text matches |
 | Editor (v1.1) | Pinch zoom then draw; highlight across 2 lines; Edit text on invoice total; stamp PAID; redact account number; save with *editable* on | Highlights hug the words; edited line matches position; open output in Acrobat Reader: highlights/shapes selectable & deletable; redacted page has no selectable text under the box |
 | Create PDF (v1.1) | Word + Excel + 3 photos, combined and separate; Share 2 files from WhatsApp to DocDesk | One PDF in the shown order / separate PDFs; shared files appear in Create PDF |
 | Fill form (v1.1) | A government/bank PDF form with text fields and checkboxes; flatten on/off | Values visible in other readers; flattened form not editable |

@@ -25,6 +25,9 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Compare
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.NoteAdd
@@ -88,6 +91,9 @@ private val tools = listOf(
     ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE),
     ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN),
     ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM),
+    ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN),
+    ToolItem("Compare PDFs", "Find changes between versions", Icons.Default.Compare, Routes.COMPARE),
+    ToolItem("PDF to JPG/PNG", "Pages or pictures as images", Icons.Default.Image, Routes.IMAGES),
     ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK),
     ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS),
     ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS),
@@ -181,6 +187,9 @@ fun HomeScreen(nav: Nav) {
                 Triple("Add watermark", Icons.Default.BrandingWatermark, Routes.WATERMARK),
                 Triple("Add page numbers / header / footer", Icons.Default.FormatListNumbered, Routes.NUMBERS),
                 Triple("Compress", Icons.Default.Compress, Routes.COMPRESS),
+                Triple("Sign digitally / check signatures", Icons.Default.VerifiedUser, Routes.SIGN),
+                Triple("Compare with another version", Icons.Default.Compare, Routes.COMPARE),
+                Triple("Save pages as JPG/PNG", Icons.Default.Image, Routes.IMAGES),
             ).forEach { (label, icon, route) ->
                 ListItem(
                     headlineContent = { Text(label) }, leadingContent = { Icon(icon, null) },

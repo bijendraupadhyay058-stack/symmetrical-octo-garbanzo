@@ -144,6 +144,10 @@ fun ResultScreen(nav: Nav, id: Long) {
             is Preview.Word -> SectionCard("Preview (text and structure)") { WordPreview(p.doc) }
             is Preview.Sheets -> SectionCard("Preview") { SheetsPreview(p.sheets) }
             is Preview.Text -> SectionCard("Preview") { Text(p.text.take(5000), style = MaterialTheme.typography.bodyMedium) }
+            is Preview.Image -> SectionCard("Preview") {
+                val bmp = remember(p.file) { runCatching { BitmapFactory.decodeFile(p.file.path, BitmapFactory.Options().apply { inSampleSize = 2 }) }.getOrNull() }
+                if (bmp != null) Image(bmp.asImageBitmap(), "First image", Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant))
+            }
             null -> Unit
         }
     }

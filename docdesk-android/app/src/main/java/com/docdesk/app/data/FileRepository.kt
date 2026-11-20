@@ -15,6 +15,8 @@ enum class DocType(val label: String, val mime: String, val extensions: Set<Stri
     WORD("Word", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", setOf("docx")),
     EXCEL("Excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", setOf("xlsx")),
     TEXT("Text", "text/plain", setOf("txt")),
+    ZIP("ZIP archive", "application/zip", setOf("zip")),
+    CERT("Certificate", "application/x-pkcs12", setOf("p12", "pfx")),
     IMAGE("Image", "image/*", setOf("jpg", "jpeg", "png")),
     LEGACY_WORD("Word 97-2003", "application/msword", setOf("doc")),
     LEGACY_EXCEL("Excel 97-2003", "application/vnd.ms-excel", setOf("xls")),
