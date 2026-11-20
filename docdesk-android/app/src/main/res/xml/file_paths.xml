@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Only these app-private folders can be shared via content:// URIs. -->
+    <files-path name="myfiles" path="MyFiles/" />
+    <cache-path name="output" path="output/" />
+</paths>
