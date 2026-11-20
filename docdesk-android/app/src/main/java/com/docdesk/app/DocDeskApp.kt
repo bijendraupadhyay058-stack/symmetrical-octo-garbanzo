@@ -31,7 +31,7 @@ class DocDeskApp : Application() {
         history = HistoryRepository(AppDatabase.get(this).historyDao(), settings)
         jobs = JobRunner()
         // Remove stale temporary files left by interrupted work (e.g. the app was killed).
-        files.cleanTemporary(olderThanMillis = TimeUnit.HOURS.toMillis(6))
+        Thread { files.cleanTemporary(olderThanMillis = TimeUnit.HOURS.toMillis(6)) }.start()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "temp-cleanup",
             ExistingPeriodicWorkPolicy.KEEP,

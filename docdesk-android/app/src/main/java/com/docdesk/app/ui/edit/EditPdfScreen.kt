@@ -132,6 +132,7 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
     var error by remember { mutableStateOf<String?>(null) }
     var showEditInfo by remember { mutableStateOf(false) }
     var outName by remember { mutableStateOf("") }
+    var currentPageSize by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(holder.doc) { holder.doc?.let { outName = FileRepository.baseName(it.name) + " (edited)" } }
 
     fun commit(change: () -> Unit) { undo.add(annots.toList()); if (undo.size > 60) undo.removeAt(0); redo.clear(); change() }
@@ -146,7 +147,7 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
             }.getOrNull()
         }
         if (file == null) { error = "The image could not be opened."; return@launch }
-        addPicture(file.first, file.second, file.third, at, signature, page, nextId++, holder) { a -> commit { annots.add(a) } }
+        addPicture(file.first, file.second, file.third, at, signature, page, nextId++, currentPageSize) { a -> commit { annots.add(a) } }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         val p = pendingPicture; pendingPicture = null
@@ -186,6 +187,7 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
 
         // Page with drawing overlay
         val pageSize by produceState<Pair<Int, Int>?>(null, r, page) { value = runCatching { r.pageSize(page) }.getOrNull() }
+        LaunchedEffect(pageSize) { currentPageSize = pageSize }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         var draft by remember { mutableStateOf<Annot?>(null) }
         Box(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh).padding(4.dp)) {
@@ -302,7 +304,7 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
         SignatureDialog(onPicked = { f ->
             signatureAt = null
             val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }; BitmapFactory.decodeFile(f.path, o)
-            addPicture(f, o.outWidth, o.outHeight, at, true, page, nextId++, holder) { a -> commit { annots.add(a) } }
+            addPicture(f, o.outWidth, o.outHeight, at, true, page, nextId++, currentPageSize) { a -> commit { annots.add(a) } }
         }, onImport = {
             signatureAt = null; pendingPicture = at to true
             imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -310,10 +312,9 @@ fun EditPdfScreen(nav: Nav, input: Uri?) {
     }
 }
 
-private fun addPicture(f: File, w: Int, h: Int, at: NPoint, signature: Boolean, page: Int, id: Long, holder: PdfInputHolder, add: (Annot) -> Unit) {
+private fun addPicture(f: File, w: Int, h: Int, at: NPoint, signature: Boolean, page: Int, id: Long, pageSize: Pair<Int, Int>?, add: (Annot) -> Unit) {
     // Width as a fraction of the page; height keeps the image's aspect ratio relative to the page's.
-    val r = holder.renderer ?: return
-    val ps = kotlinx.coroutines.runBlocking { runCatching { r.pageSize(page) }.getOrNull() } ?: (595 to 842)
+    val ps = pageSize ?: (595 to 842)
     val nw = if (signature) 0.3f else 0.4f
     val nh = nw * (h.toFloat() / w.coerceAtLeast(1)) * (ps.first.toFloat() / ps.second)
     val left = at.x.coerceAtMost(1f - nw).coerceAtLeast(0f); val top = at.y.coerceAtMost(1f - nh).coerceAtLeast(0f)
