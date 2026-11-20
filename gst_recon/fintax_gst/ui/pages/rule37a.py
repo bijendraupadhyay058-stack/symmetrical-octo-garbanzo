@@ -30,7 +30,8 @@ class Rule37aPage(LazyPage):
             "Rule 37A reversal", "ITC shown in GSTR-2B from suppliers who had not furnished their GSTR-3B for the "
             "period by 30 September after the year: reverse it in GSTR-3B Table 4B(2) by 30 November, and re-avail "
             "in Table 4A(5) once the supplier files. Filing status comes from GSTR-2A or is entered by you – "
-            "nothing is assumed."))
+            "nothing is assumed. A reversal / re-availment recorded for a month appears in that month's GSTR-3B "
+            "draft (GSTR-3B & annual page)."))
         bar = QHBoxLayout()
         imp = primary("Import filing status (GSTR-2A / list)…")
         imp.clicked.connect(lambda: self.import_status())

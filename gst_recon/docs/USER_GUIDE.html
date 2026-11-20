@@ -65,7 +65,7 @@
 
 <h2 id="install">1. Install</h2>
 <ol>
-  <li>Download <b>FinTaxPro-Setup-1.21.0.exe</b> from the download page you were given.</li>
+  <li>Download <b>FinTaxPro-Setup-1.22.0.exe</b> from the download page you were given.</li>
   <li>Double-click it. Windows may show <i>“Windows protected your PC”</i>, because the program is not yet
       signed with a code-signing certificate. Click <span class="btn">More info</span>, then
       <span class="btn">Run anyway</span>.</li>
@@ -794,6 +794,15 @@
   <li>After filing GSTR-3B, select the lines and click <b>Record reversal…</b> (or <b>Record re-availment…</b>) and
     give the GSTR-3B month. The program never files anything.</li>
 </ol>
+<p><b>In the GSTR-3B draft:</b> when you record a reversal for a month, the amount appears in that month's GSTR-3B
+   draft (GSTR-3B &amp; annual → GSTR-3B draft) in <b>4(B)(2)</b> and reduces the net ITC in 4(C). A re-availment
+   appears in <b>4(A)(5)</b> and again in <b>4(D)(1)</b>. A note under the draft says how much was added and for how many
+   suppliers. You are warned when:</p>
+<ul>
+  <li>a re-availment is recorded but the supplier is not shown as having filed GSTR-3B;</li>
+  <li>a reversal is recorded for a supplier now shown as having filed in time.</li>
+</ul>
+<p>The draft is for you to check against the portal; nothing is filed.</p>
 <p>Before 30 September the working is marked <i>provisional</i>, because suppliers can still file.
    <b>Export to Excel…</b> saves the working with totals: to reverse, not yet reversed, can be re-availed now, and
    status not known.</p>

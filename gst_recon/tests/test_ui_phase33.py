@@ -65,3 +65,23 @@ def test_rule37a_signoff_letters(qtbot, db, tmp_path, messages):  # noqa: F811
     assert so.review("ok")
     assert so.model.rows[r][1] == "Reviewed" and so.model.rows[r][5] == "partner"
     assert so.export(str(tmp_path / "s.xlsx"), open_file=False).exists()
+
+
+def test_rule37a_in_gstr3b_draft_dialog(qtbot, db, tmp_path, messages):  # noqa: F811
+    from fintax_gst.services.clients import ClientService
+    from fintax_gst.services.rule37a import Rule37aService
+    from fintax_gst.ui.dialogs.gstr3b_draft import Gstr3bDraftDialog
+
+    win = _window(qtbot, db, tmp_path, Session("asha", "accountant"))
+    st = win.state
+    c = ClientService(db).create(**CLIENT)
+    add_docs(db, c.id, [("GSTR2B", SUP, "INV", "A1", date(2024, 6, 3), "2024-06", 10000, 1800, "")])
+    Rule37aService(db).set_status(SUP, "2024-06", False)
+    Rule37aService(db).record(c.id, SUP, "2024-06", reversed_in="2025-10")
+    st.set_client(c)
+    dlg = Gstr3bDraftDialog(win, st, "2025-10")
+    qtbot.addWidget(dlg)
+    row = next(r for r in dlg.model.rows if r[0].startswith("4(B)(2)"))
+    assert row[3] == 900 and row[4] == 900
+    assert "Rule 37A: Rs. 1800" in dlg.notes.text()
+    assert dlg.save_pdf(str(tmp_path / "3b.pdf"), open_file=False)

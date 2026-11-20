@@ -4,7 +4,8 @@
   charge in the purchase register.
 * 3.2 – inter-state supplies to unregistered persons, by place of supply.
 * 4 – the ITC working (claim register, else purchase documents matched with GSTR-2B less blocked credit; GSTR-2B
-  when the month is not reconciled).
+  when the month is not reconciled), Rule 42/43 reversal and the Rule 37A reversal / re-availment recorded for the
+  month.
 * 5 – exempt / nil-rated / non-GST purchases (purchase documents without tax), inter- and intra-state.
 * 6.1 – tax payable, the ITC set-off (see compliance/gstr3b_draft.py) and the cash to pay.
 """
@@ -149,6 +150,29 @@ class Gstr3bDraftService:
                 t4["4C"] = Gstr3bValues(c.igst - r.igst, c.cgst - r.cgst, c.sgst - r.sgst, c.cess - r.cess)
                 notes.append(f"Rule 42/43: Rs. {m.total} of common credit reversed in 4(B)(1) (exempt share "
                              f"{m.ratio * 100:.2f} % of turnover{' of ' + m.ratio_from if m.ratio_from else ''}).")
+        # Rule 37A – supplier did not file GSTR-3B: reversal (4(B)(2)) and re-availment (4(A)(5), also 4(D)(1)),
+        # as recorded on the Rule 37A page for this month
+        from .rule37a import Rule37aService
+
+        r37 = Rule37aService(self.db).month(client_id, p)
+        rv, rc = r37["reverse"], r37["reclaim"]
+        if any(rv.values()):
+            r = Gstr3bValues(rv["igst"], rv["cgst"], rv["sgst"], rv["cess"])
+            t4["4B2"] = _add(t4["4B2"], r)
+            c = t4["4C"]
+            t4["4C"] = Gstr3bValues(c.igst - r.igst, c.cgst - r.cgst, c.sgst - r.sgst, c.cess - r.cess)
+            n = sum(1 for k, _ln in r37["lines"] if k == "reverse")
+            notes.append(f"Rule 37A: Rs. {r.total} reversed in 4(B)(2) for {n} supplier period(s) whose GSTR-3B was "
+                         "not filed by 30 September (as recorded on the Rule 37A page).")
+        if any(rc.values()):
+            r = Gstr3bValues(rc["igst"], rc["cgst"], rc["sgst"], rc["cess"])
+            t4["4A5"] = _add(t4["4A5"], r)
+            t4["4C"] = _add(t4["4C"], r)
+            t4["4D1"] = _add(t4.get("4D1", Gstr3bValues()), r)
+            n = sum(1 for k, _ln in r37["lines"] if k == "reclaim")
+            notes.append(f"Rule 37A: Rs. {r.total} re-availed in 4(A)(5) and shown in 4(D)(1) for {n} supplier "
+                         "period(s) that have since filed GSTR-3B.")
+        notes += r37["warnings"]
         # 5 – exempt / nil / non-GST inward supplies
         t5 = {"inter": ZERO, "intra": ZERO}
         for b in books:

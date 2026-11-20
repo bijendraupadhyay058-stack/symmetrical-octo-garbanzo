@@ -350,6 +350,42 @@ class Rule37aService:
                   client_id=client_id)
             s.commit()
 
+    def month(self, client_id: int, period: str) -> dict:
+        """Rule 37A amounts recorded for one GSTR-3B month: ``reverse`` (Table 4B(2)) and ``reclaim`` (Table 4A(5),
+        shown again in 4(D)(1)), by tax head, with the supplier lines and any warnings."""
+        out = {"reverse": {h: ZERO for h in HEADS}, "reclaim": {h: ZERO for h in HEADS}, "lines": [], "warnings": []}
+        with self.db.session() as s:
+            acts = list(s.scalars(select(Rule37aAction).where(
+                Rule37aAction.client_id == client_id,
+                (Rule37aAction.reversed_in == period) | (Rule37aAction.reclaimed_in == period))))
+            for a in acts:
+                s.expunge(a)
+        if not acts:
+            return out
+        works: dict[str, Rule37aWorking] = {}
+        for a in acts:
+            y, m = int(a.period[:4]), int(a.period[5:])
+            fy = f"{y if m >= 4 else y - 1}-{str((y if m >= 4 else y - 1) + 1)[2:]}"
+            if fy not in works:
+                works[fy] = self.working(client_id, fy)
+            ln = next((x for x in works[fy].lines if x.gstin == a.gstin and x.period == a.period), None)
+            if ln is None:
+                out["warnings"].append(f"Rule 37A: {a.gstin} {a.period} is recorded but its GSTR-2B ITC is no longer in "
+                                       "the data – not included; check the Rule 37A page.")
+                continue
+            for kind, month in (("reverse", a.reversed_in), ("reclaim", a.reclaimed_in)):
+                if month == period:
+                    for h in HEADS:
+                        out[kind][h] += ln.tax[h]
+                    out["lines"].append((kind, ln))
+            if a.reversed_in == period and ln.state == "filed":
+                out["warnings"].append(f"Rule 37A: {ln.name or ln.gstin} ({ln.period}) is recorded as reversed this "
+                                       "month, but the supplier's GSTR-3B is now shown as filed in time – check.")
+            if a.reclaimed_in == period and ln.state not in ("filed", "filed_late"):
+                out["warnings"].append(f"Rule 37A: ITC of {ln.name or ln.gstin} ({ln.period}) is re-availed this month "
+                                       "but the supplier's GSTR-3B is not shown as filed – re-avail only after it is.")
+        return out
+
     # ------------------------------------------------------------ export
     def export_xlsx(self, client_id: int, fy: str, path: str | Path, today: date | None = None) -> Path:
         from openpyxl import Workbook
