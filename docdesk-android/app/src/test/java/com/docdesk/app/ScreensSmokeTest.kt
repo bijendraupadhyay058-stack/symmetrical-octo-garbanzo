@@ -66,5 +66,7 @@ class ScreensSmokeTest {
     @Test fun repair() = check("Choose a damaged PDF") { com.docdesk.app.ui.tools.RepairScreen(it, null) }
     @Test fun bookmarks() = check("Add or edit its bookmarks") { com.docdesk.app.ui.tools.BookmarksScreen(it, null) }
     @Test fun properties() = check("See and change its title") { com.docdesk.app.ui.tools.PropertiesScreen(it, null) }
+    @Test fun attachments() = check("See, save or add files attached") { com.docdesk.app.ui.tools.AttachmentsScreen(it, null) }
+    @Test fun autoLink() = check("Turn web addresses and e-mails into links") { com.docdesk.app.ui.tools.AutoLinkScreen(it, null) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

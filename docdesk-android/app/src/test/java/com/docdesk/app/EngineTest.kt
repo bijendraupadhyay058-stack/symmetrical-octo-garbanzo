@@ -335,4 +335,42 @@ class EngineTest {
             assertEquals(null, d.documentCatalog.documentOutline)
         }
     }
+
+    @Test fun attachmentsAndAutoLinks() = runBlocking {
+        val src = out("links-src.pdf")
+        PDDocument().use { d ->
+            val page = PDPage(PDRectangle.A4); d.addPage(page)
+            com.tom_roush.pdfbox.pdmodel.PDPageContentStream(d, page).use { cs ->
+                cs.beginText(); cs.setFont(PDType1Font.HELVETICA, 12f); cs.newLineAtOffset(60f, 500f)
+                cs.showText("Visit www.example.com or write to help@example.org today."); cs.endText()
+            }
+            d.save(src)
+        }
+        val linked = out("links-out.pdf"); val trimmed = out("attach-trim.pdf")
+        PdfDocs.open(src).use { d ->
+            val st = com.docdesk.app.pdf.PdfLinks.autoLink(d, com.docdesk.core.FoundLink.Kind.entries.toSet(), listOf(0), null)
+            assertEquals(1, st.web); assertEquals(1, st.email)
+            // Running again finds the same addresses already linked.
+            assertEquals(0, com.docdesk.app.pdf.PdfLinks.autoLink(d, com.docdesk.core.FoundLink.Kind.entries.toSet(), listOf(0), null).total)
+            com.docdesk.app.pdf.PdfAttachments.add(d, "data.csv", "text/csv", "a,b\n1,2\n".byteInputStream())
+            com.docdesk.app.pdf.PdfAttachments.add(d, "data.csv", "text/csv", "x".byteInputStream())
+            d.save(linked)
+        }
+        PdfDocs.open(linked).use { d ->
+            val links = d.getPage(0).annotations.filterIsInstance<com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink>()
+            val uris = links.map { (it.action as com.tom_roush.pdfbox.pdmodel.interactive.action.PDActionURI).uri }
+            assertEquals(listOf("https://www.example.com", "mailto:help@example.org"), uris.sorted())
+            // The link box covers the address on the baseline at y = 500, after "Visit ".
+            val web = links.first { (it.action as com.tom_roush.pdfbox.pdmodel.interactive.action.PDActionURI).uri.contains("www") }.rectangle
+            val visit = PDType1Font.HELVETICA.getStringWidth("Visit ") / 1000f * 12f
+            assertTrue("rect $web", web.lowerLeftY < 501f && web.upperRightY > 506f && web.upperRightY < 520f)
+            assertEquals(60f + visit, web.lowerLeftX + 1f, 3f)
+            val list = com.docdesk.app.pdf.PdfAttachments.list(d)
+            assertEquals(listOf("data (2).csv", "data.csv"), list.map { it.name })
+            assertEquals("a,b\n1,2\n", com.docdesk.app.pdf.PdfAttachments.open(d, list.first { it.name == "data.csv" }.key).readBytes().decodeToString())
+            assertEquals(1, com.docdesk.app.pdf.PdfAttachments.remove(d, setOf(list.first { it.name == "data (2).csv" }.key)))
+            d.save(trimmed)
+        }
+        PdfDocs.open(trimmed).use { d -> assertEquals(listOf("data.csv"), com.docdesk.app.pdf.PdfAttachments.list(d).map { it.name }) }
+    }
 }

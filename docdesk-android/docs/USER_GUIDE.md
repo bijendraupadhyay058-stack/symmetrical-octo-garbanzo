@@ -117,6 +117,8 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **Repair PDF**: for files that won't open or show errors (half-downloaded, damaged attachments). DocDesk rebuilds the file; if that's impossible it rescues the readable pages as images.
 - **Bookmarks**: build the table of contents shown in the side panel of PDF readers. Tap **From headings** to let DocDesk find chapter titles (bigger or bold lines), or **One per page**. Use the arrows to reorder, the indent buttons to make sub-levels, then **Save**. Scanned pages need OCR first.
 - **Document properties**: see who made a PDF and with which program; change the title, author, subject and keywords, or switch on **Remove all hidden information** before sharing.
+- **Attachments**: PDFs can carry other files inside them. See them, tick files to save them to My Files, tap the bin to remove one, or attach new files (up to 100 MB each), then **Save PDF copy**. Only open attachments from people you trust.
+- **Make links clickable**: turns www… addresses, e-mail addresses and (optionally) phone numbers into tappable links without changing how the page looks. Addresses split over two lines are only linked on the first line.
 
 ## Protect PDF (encrypt)
 Choose a PDF, then:
