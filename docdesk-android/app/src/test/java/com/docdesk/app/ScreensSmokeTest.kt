@@ -91,7 +91,11 @@ class ScreensSmokeTest {
     }
 
     @Test fun workspace() = check("New client") { com.docdesk.app.ui.workspace.WorkspaceScreen(it) }
-    @Test fun clientUnknown() = check("client was not found") { com.docdesk.app.ui.workspace.ClientScreen(it, 999999L, null) }
+    @Test fun clientUnknown() {
+        rule.setContent { DocDeskTheme(ThemeMode.LIGHT) { com.docdesk.app.ui.workspace.ClientScreen(Nav(rememberNavController()), 999999L, null) } }
+        // The database answers on a background thread; wait for it.
+        rule.waitUntil(10_000) { rule.onAllNodesWithText("client was not found", substring = true).fetchSemanticsNodes().isNotEmpty() }
+    }
 
     @Test fun invoiceReviewEmpty() { com.docdesk.app.ui.tools.InvoiceReviewStore.current = null; check("no invoice review open") { com.docdesk.app.ui.tools.InvoiceReviewScreen(it) } }
 
