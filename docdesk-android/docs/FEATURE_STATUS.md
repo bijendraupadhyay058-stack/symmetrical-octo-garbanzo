@@ -1,4 +1,4 @@
-# DocDesk – feature status against the accountant/tax-consultant specification (v1.13.0)
+# DocDesk – feature status against the accountant/tax-consultant specification (v1.14.0)
 
 How to read this table:
 
@@ -118,7 +118,7 @@ All of these save a new file.
 |---|---|---|
 | Search file names and tags; text inside PDFs, Word, Excel and OCR'd output in My Files with page numbers | Implemented | |
 | Local backup and restore | Implemented and tested | A JSON file with clients, folders, document links, tags, notes, statuses, checklists, activity and settings. **Documents are not included**, and the app says so. Restoring on another phone keeps entries, but linked files must be added again |
-| Cloud backup | Planned | No automatic upload. Users can save the backup file to a cloud folder themselves |
+| Cloud backup | Implemented and tested | Only when the user starts it. The backup is encrypted with the user's password (PBKDF2-HMAC-SHA256 + AES-256-GCM, tamper-evident) and saved through Android's file picker to any installed cloud app (Google Drive, OneDrive, Dropbox…) or the phone. DocDesk makes no internet connection; the cloud app uploads the file. Documents in My Files can be included. Optional daily or weekly automatic backup to the same file: only a derived key is kept, wrapped by a non-exportable Android Keystore key, never the password. Restore needs the password; a forgotten password can't be recovered. A direct Google Drive API connection (sign-in inside DocDesk) is **not** used: it would need the app registered with Google under its final app ID |
 | Recovery of unfinished work | Partly | Edit sessions keep undo history while open. Statement and invoice reviews are memory-only (see above) |
 | Recycle bin | Implemented and tested | My Files deletions are kept for 30 days |
 
@@ -150,7 +150,6 @@ Implemented:
 **Paid components:** none.
 
 **Needs a server or third party:**
-- Cloud backup.
 - Aadhaar eSign.
 - Live GSTIN status lookup.
 - Hardware-token DSC signing.

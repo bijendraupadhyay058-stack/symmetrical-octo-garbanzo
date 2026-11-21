@@ -136,8 +136,16 @@ Choose the required fields, read the invoices, then tap each invoice to check or
 ### Client workspace (Clients tab)
 Create a client, add a financial-year folder (suggested names like FY 2024-25), category folders inside it (GST, Income Tax…), then **Add documents** – DocDesk links to the files, it doesn’t copy them. Tap a file to open it, set its status, tags or note. Use **Checklists** for ITR, GST registration, tax audit and more. Search finds clients, file names, tags, notes and statuses.
 
-### Backup, restore and recycle bin
-Settings › **Backup and restore** saves your workspace and settings to a file you choose (documents themselves are not included). Deleted My Files documents stay in the **Recycle bin** for 30 days.
+### Backup to the cloud, restore and recycle bin
+1. Settings › **Backup (cloud or phone)** › **Back up now…**
+2. Choose a backup password (at least 8 characters) – write it down; without it the backup can't be opened, not even by DocDesk.
+3. Choose whether to include the documents in My Files, and whether to repeat the backup every day or week.
+4. Tap **Choose location**. In the file picker, open the menu (☰) and pick **Drive**, **OneDrive**, **Dropbox** or another cloud app (it must be installed and signed in), or a folder on the phone.
+
+The backup is encrypted on your phone before the cloud app uploads it. Automatic backups replace the same file; the time and result of the last one are shown in Settings. To restore (also on a new phone), tap **Restore from a backup…**, pick the file and enter the password. Documents are added to My Files without overwriting anything; workspace files that were only linked must be added again on a new phone.
+
+Deleted My Files documents stay in the **Recycle bin** for 30 days.
+
 
 ## Protect PDF (encrypt)
 Choose a PDF, then:

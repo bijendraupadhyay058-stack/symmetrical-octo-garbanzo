@@ -10,6 +10,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -47,13 +49,20 @@ fun SettingsScreen() {
     var confirmHistory by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    val backupSaver = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { u ->
-        if (u != null) scope.launch {
+    var backupDialog by remember { mutableStateOf(false) }
+    var pendingBackup by remember { mutableStateOf<Triple<String, Boolean, com.docdesk.app.data.BackupFrequency>?>(null) }
+    var cloudCfg by remember { mutableStateOf(com.docdesk.app.data.CloudBackup.config(app)) }
+    var busy by remember { mutableStateOf<String?>(null) }
+    val backupTarget = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/octet-stream")) { u ->
+        val req = pendingBackup; pendingBackup = null
+        if (u != null && req != null) scope.launch {
+            busy = "Encrypting and saving backup…"
             note = runCatching {
-                val json = com.docdesk.app.data.Backup.export(app)
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.contentResolver.openOutputStream(u)!!.use { it.write(json.toByteArray()) } }
-                "Backup saved. It contains client folders, document names and links, tags, notes, checklists and settings – not the documents themselves. Keep it somewhere safe: it includes client names and notes."
+                val o = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.docdesk.app.data.CloudBackup.backupNow(app, u, req.first.toCharArray(), req.second, req.third) }
+                "Encrypted backup saved (${o.documents} document(s), ${formatSize(o.bytes)}). If you chose a cloud app, it uploads the file. Keep your backup password safe – without it the backup can't be opened." +
+                    if (req.third != com.docdesk.app.data.BackupFrequency.OFF && !com.docdesk.app.data.CloudBackup.config(app).hasKey) " Automatic backups aren't available on this phone (secure key storage missing)." else ""
             }.getOrElse { "Backup failed: ${it.message}" }
+            busy = null; cloudCfg = com.docdesk.app.data.CloudBackup.config(app)
         }
     }
     val backupPicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { u -> restoreUri = u }
@@ -96,10 +105,23 @@ fun SettingsScreen() {
                 }
                 Text(PRIVACY, style = MaterialTheme.typography.bodySmall)
             }
-            SectionCard("Backup and restore") {
-                Text("Saves your client workspace (clients, folders, document names and links, tags, notes, statuses, checklists, activity) and settings to a file you choose. Document files are NOT included – back them up separately. Nothing is uploaded; to keep a copy in the cloud, save the backup file to a cloud folder yourself.", style = MaterialTheme.typography.bodySmall)
-                SecondaryAction("Create backup file") { backupSaver.launch("DocDesk backup ${java.time.LocalDate.now()}.json") }
-                SecondaryAction("Restore from backup file") { backupPicker.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+            SectionCard("Backup (cloud or phone)") {
+                Text("Encrypted backup of your client workspace (clients, folders, document links, tags, notes, statuses, checklists, activity), settings and – if you choose – the documents in My Files. Save it to Google Drive, OneDrive, Dropbox or any cloud app on this phone, or to the phone itself.", style = MaterialTheme.typography.bodySmall)
+                Text("The file is encrypted with your password (AES-256) before it leaves DocDesk; DocDesk itself never connects to the internet – the cloud app you choose uploads the file. Forgotten passwords can't be recovered.", style = MaterialTheme.typography.bodySmall)
+                busy?.let { Text(it) }
+                SecondaryAction("Back up now…", enabled = busy == null) { backupDialog = true }
+                SecondaryAction("Restore from a backup…", enabled = busy == null) { backupPicker.launch(arrayOf("application/octet-stream", "application/json", "text/plain", "*/*")) }
+                val c = cloudCfg
+                if (c.uri != null) {
+                    Text("Automatic backup: ${c.frequency.label}" + (c.fileName?.let { " to “$it”" } ?: ""), style = MaterialTheme.typography.bodyMedium)
+                    if (c.lastTime > 0) Text("Last: ${java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(c.lastTime))} – ${c.lastStatus}", style = MaterialTheme.typography.bodySmall)
+                    else if (c.lastStatus.isNotEmpty()) Text(c.lastStatus, style = MaterialTheme.typography.bodySmall)
+                    RadioOptions(com.docdesk.app.data.BackupFrequency.entries, c.frequency, { it.label }) { f ->
+                        if (f != com.docdesk.app.data.BackupFrequency.OFF && !c.hasKey) { note = "To turn automatic backups on again, use “Back up now…” with your password."; return@RadioOptions }
+                        com.docdesk.app.data.CloudBackup.setFrequency(app, f); cloudCfg = com.docdesk.app.data.CloudBackup.config(app)
+                    }
+                    SecondaryAction("Forget backup location") { com.docdesk.app.data.CloudBackup.forget(app); cloudCfg = com.docdesk.app.data.CloudBackup.config(app); note = "Automatic backups stopped. Existing backup files are not deleted." }
+                }
             }
             SectionCard("Help us fix problems") {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
@@ -116,17 +138,45 @@ fun SettingsScreen() {
         }
     }
     restoreUri?.let { u ->
-        ConfirmDialog("Restore backup?", "Your current client workspace and settings will be replaced by the backup's contents. Documents linked in the backup open only if they are still on this phone and DocDesk still has access; otherwise add them again.", "Restore",
-            onConfirm = {
-                restoreUri = null
+        var pw by remember { mutableStateOf("") }
+        var restoring by remember { mutableStateOf(false) }
+        androidx.compose.material3.AlertDialog(onDismissRequest = { if (!restoring) restoreUri = null }, title = { Text("Restore backup?") },
+            text = { Column {
+                Text("Your current client workspace and settings are replaced by the backup's contents. Documents in the backup are added to My Files (nothing there is overwritten). Linked documents open only if they are still on this phone.")
+                androidx.compose.material3.OutlinedTextField(pw, { pw = it }, Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("Backup password") },
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), supportingText = { Text("Leave empty for an older unencrypted .json backup.") })
+                if (restoring) Text("Restoring…")
+            } },
+            confirmButton = { TextButton({
+                restoring = true
                 scope.launch {
                     note = runCatching {
-                        val json = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.contentResolver.openInputStream(u)!!.use { it.readBytes().toString(Charsets.UTF_8) } }
-                        val r = com.docdesk.app.data.Backup.restore(app, json)
-                        "Restored ${r.clients} client(s), ${r.documents} document link(s), ${r.checklists} checklist(s) and ${r.settings} setting(s)."
+                        val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.contentResolver.openInputStream(u)!!.use { it.readBytes() } }
+                        val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.docdesk.app.data.CloudBackup.restore(app, bytes, pw.toCharArray()) }
+                        "Restored ${r.data.clients} client(s), ${r.data.documents} document link(s), ${r.data.checklists} checklist(s), ${r.data.settings} setting(s) and ${r.documentsRestored} document(s) into My Files."
                     }.getOrElse { it.message ?: "Restore failed." }
+                    restoring = false; restoreUri = null
                 }
-            }, onDismiss = { restoreUri = null })
+            }, enabled = !restoring) { Text("Restore") } },
+            dismissButton = { TextButton({ restoreUri = null }, enabled = !restoring) { Text("Cancel") } })
+    }
+    if (backupDialog) {
+        var pw by remember { mutableStateOf("") }; var pw2 by remember { mutableStateOf("") }
+        var files by remember { mutableStateOf(true) }
+        var freq by remember { mutableStateOf(com.docdesk.app.data.BackupFrequency.OFF) }
+        val problem = com.docdesk.core.BackupCrypto.passwordProblem(pw) ?: if (pw != pw2) "The passwords don't match." else null
+        androidx.compose.material3.AlertDialog(onDismissRequest = { backupDialog = false }, title = { Text("Encrypted backup") },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                androidx.compose.material3.OutlinedTextField(pw, { pw = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Backup password (min. 8)") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                androidx.compose.material3.OutlinedTextField(pw2, { pw2 = it }, Modifier.fillMaxWidth().padding(top = 6.dp), singleLine = true, label = { Text("Repeat password") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    isError = pw2.isNotEmpty() && problem != null, supportingText = { if (pw.isNotEmpty()) Text(problem ?: "OK") })
+                SwitchRow("Include documents in My Files", files, "${app.files.listMyFiles().size} file(s), ${formatSize(app.files.listMyFiles().sumOf { it.size })}. Linked workspace files outside My Files are not included.") { files = it }
+                Text("Repeat automatically to the same file", style = MaterialTheme.typography.labelLarge)
+                RadioOptions(com.docdesk.app.data.BackupFrequency.entries, freq, { it.label }) { freq = it }
+                Text("Next you choose where to save – pick Drive, OneDrive, Dropbox or another cloud app in the menu of the file picker.", style = MaterialTheme.typography.bodySmall)
+            } },
+            confirmButton = { TextButton({ backupDialog = false; pendingBackup = Triple(pw, files, freq); backupTarget.launch("DocDesk backup ${java.time.LocalDate.now()}.ddbk") }, enabled = problem == null) { Text("Choose location") } },
+            dismissButton = { TextButton({ backupDialog = false }) { Text("Cancel") } })
     }
     if (confirmHistory) ConfirmDialog("Clear history?", "All history entries will be removed. Saved files are not deleted.", "Clear",
         onConfirm = { scope.launch { app.history.clear() }; confirmHistory = false; note = "History cleared." }, onDismiss = { confirmHistory = false })

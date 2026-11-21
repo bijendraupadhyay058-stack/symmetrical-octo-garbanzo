@@ -96,6 +96,7 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 | 15 Attachments & links | Embedded-file manager (add/extract/remove, 100 MB limit per file); auto-linking of URLs, e-mails and phone numbers via positioned text; scanned pages need OCR first | Done (v1.11.0) |
 | 16 Printing | Printing via Android PrintManager (temporary decrypted copy, deleted after the job; no-print permission respected); N-up and booklet imposition with vector page forms; duplex-scan collation | Done (v1.12.0) |
 | 17 Accountant workflows | Statement review with reconciliation, categories and 6-sheet workbook; invoice review with names/items/duplicate checks; client workspace and checklists; backup/restore; recycle bin; batch rename/split/report; cover and contents pages | Done (v1.13.0) – see FEATURE_STATUS.md |
+| 18 Cloud backup | Encrypted (.ddbk) backups via the Storage Access Framework to any cloud provider app, optional automatic backups (WorkManager, Keystore-wrapped key), restore incl. documents | Done (v1.14.0) |
 | 12 Portal-ready PDFs | Compress to target size, split by size, resize pages to A4/Letter; deprecation clean-up | Done (v1.8.0) |
 | 11 Security | Protect PDF (granular permissions, AES-256/128), Remove password with owner rights | Done (v1.7.0) |
 | 10 Quality & release | Robolectric engine tests and screen smoke tests (run in CI), sanitised local problem reports, Play Store kit | Done (v1.6.0) |

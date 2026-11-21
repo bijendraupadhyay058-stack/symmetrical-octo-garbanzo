@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.13.0 (Phase 17) |
+| Version | 1.14.0 (Phase 18) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -55,7 +55,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Bank statement review | ✅ | Every row beside its source page (highlighted); edit/add/delete/split/combine with audit trail; opening + credits − debits vs closing balance, running balance in the confirmed order, duplicates, missing values, failed pages; suggested categories; 6-sheet workbook |
 | Invoice review | ✅ | Supplier/customer names and GSTINs, invoice type, HSN/SAC items, page; duplicate per supplier + financial year; required fields; correct before export |
 | Client workspace | ✅ | Clients › FY/AY › category › files (linked), tags, notes, statuses, search, activity, checklists (ITR, GST registration, tax audit, annual filing, document collection) |
-| Backup & restore, recycle bin | ✅ | Local JSON backup of workspace and settings (documents not included); 30-day recycle bin in My Files |
+| Backup (cloud or phone), recycle bin | ✅ | Password-encrypted (AES-256-GCM) backup of workspace, settings and optionally My Files documents, saved to Google Drive/OneDrive/Dropbox or any location via the system picker; optional daily/weekly automatic backup; restore; 30-day recycle bin |
 | Cover & contents pages | ✅ | Cover page, linked contents page from bookmarks or headings, blank pages |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |

@@ -74,4 +74,27 @@ class WorkspaceRepoTest {
         files.emptyTrash()
         assertTrue(files.listTrash().isEmpty())
     }
+
+    @Test fun encryptedBackupRoundTrip() = runBlocking {
+        val ws = app.workspace
+        ws.createClient("Verma & Co", "")
+        File(app.files.myFilesDir, "Balance sheet.pdf").writeText("%PDF secret numbers")
+        val target = File(app.cacheDir, "backup.ddbk")
+        val o = com.docdesk.app.data.CloudBackup.backupNow(app, Uri.fromFile(target), "backup pass 1".toCharArray(), includeFiles = true, frequency = com.docdesk.app.data.BackupFrequency.OFF)
+        assertEquals(1, o.documents)
+        val bytes = target.readBytes()
+        assertTrue(com.docdesk.core.BackupCrypto.isBackup(bytes))
+        assertFalse(String(bytes, Charsets.ISO_8859_1).contains("Verma") || String(bytes, Charsets.ISO_8859_1).contains("secret numbers"))
+        // Lose everything, then restore.
+        ws.dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        app.files.myFilesDir.listFiles()!!.forEach { it.delete() }
+        try { com.docdesk.app.data.CloudBackup.restore(app, bytes, "wrong".toCharArray()); org.junit.Assert.fail() } catch (e: com.docdesk.core.WrongBackupPasswordException) { }
+        val r = com.docdesk.app.data.CloudBackup.restore(app, bytes, "backup pass 1".toCharArray())
+        assertEquals(1, r.documentsRestored)
+        assertTrue(ws.dao.allClients().any { it.name == "Verma & Co" })
+        assertEquals("%PDF secret numbers", File(app.files.myFilesDir, "Balance sheet.pdf").readText())
+        // A second restore doesn't overwrite: the document is added under a new name.
+        assertEquals(1, com.docdesk.app.data.CloudBackup.restore(app, bytes, "backup pass 1".toCharArray()).documentsRestored)
+        assertTrue(File(app.files.myFilesDir, "Balance sheet (2).pdf").exists())
+    }
 }
