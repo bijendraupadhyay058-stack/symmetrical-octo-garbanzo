@@ -114,6 +114,13 @@ class SamplesIT {
             assertEquals(java.math.BigDecimal("26482.50"), inv.taxable)
             assertEquals(java.math.BigDecimal("31249.35"), inv.total)
             assertEquals(inv.cgst, inv.sgst)
+            assertEquals("Tax Invoice", inv.invoiceType)
+            assertEquals("Sample Supplies Pvt Ltd", inv.supplierName)
+            assertEquals("Example Traders", inv.buyerName)
+            assertEquals(listOf("4802", "8443", "4820", "9987"), inv.items.map { it.hsnSac })
+            assertEquals("Toner cartridge 88A", inv.items[1].description)
+            assertEquals(java.math.BigDecimal("7350.00"), inv.items[1].amount)
+            assertEquals(1, inv.page)
         }
     }
 

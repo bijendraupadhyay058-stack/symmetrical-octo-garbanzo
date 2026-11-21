@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.AttachFile
@@ -133,6 +135,8 @@ private val tools = listOf(
     ToolItem("Flatten PDF", "Make comments & forms permanent", Icons.Default.Layers, Routes.FLATTEN, Category.EDIT),
     ToolItem("Repair PDF", "Fix files that won't open", Icons.Default.Build, Routes.REPAIR, Category.PRIVACY),
     ToolItem("Bookmarks", "Add or auto-create a table of contents", Icons.Default.Bookmarks, Routes.BOOKMARKS, Category.EDIT),
+    ToolItem("Cover & Contents", "Cover page, contents page, blank pages", Icons.Default.MenuBook, Routes.FRONT_MATTER, Category.EDIT),
+    ToolItem("Client Workspace", "Clients › year › category › files", Icons.Default.Business, Routes.WORKSPACE, Category.PRIVACY),
     ToolItem("Document properties", "Title, author, hidden info", Icons.Default.Info, Routes.PROPERTIES, Category.PRIVACY),
     ToolItem("Attachments", "Files inside a PDF: add, save, remove", Icons.Default.AttachFile, Routes.ATTACHMENTS, Category.EDIT),
     ToolItem("Make Links Clickable", "Web, e-mail and phone links", Icons.Default.Link, Routes.AUTOLINK, Category.EDIT),
@@ -250,6 +254,7 @@ fun HomeScreen(nav: Nav) {
                 Triple("Crop pages", Icons.Default.Crop, Routes.CROP),
                 Triple("Flatten (make permanent)", Icons.Default.Layers, Routes.FLATTEN),
                 Triple("Edit bookmarks", Icons.Default.Bookmarks, Routes.BOOKMARKS),
+                Triple("Cover & contents pages", Icons.Default.MenuBook, Routes.FRONT_MATTER),
                 Triple("Document properties", Icons.Default.Info, Routes.PROPERTIES),
                 Triple("Attachments", Icons.Default.AttachFile, Routes.ATTACHMENTS),
                 Triple("Make links clickable", Icons.Default.Link, Routes.AUTOLINK),

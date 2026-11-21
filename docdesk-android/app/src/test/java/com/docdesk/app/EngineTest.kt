@@ -407,4 +407,36 @@ class EngineTest {
         PdfDocs.open(fr).use { a -> PdfDocs.open(bkS).use { b -> assertEquals(6, com.docdesk.app.pdf.LayoutTools.collate(a, b, true, col, null)) } }
         PdfDocs.open(col).use { d -> assertEquals(listOf("FRONT1", "BACK3", "FRONT2", "BACK2", "FRONT3", "BACK1"), (0 until 6).map { PdfTextExtractor.plainText(d, it).trim() }) }
     }
+
+    @Test fun frontMatter() {
+        val src = out("fm-src.pdf")
+        PDDocument().use { d ->
+            for (k in 1..4) {
+                val page = PDPage(PDRectangle.A4); d.addPage(page)
+                com.tom_roush.pdfbox.pdmodel.PDPageContentStream(d, page).use { cs -> cs.beginText(); cs.setFont(PDType1Font.HELVETICA, 30f); cs.newLineAtOffset(100f, 400f); cs.showText("BODY$k"); cs.endText() }
+            }
+            d.save(src)
+        }
+        val res = out("fm-out.pdf")
+        PdfDocs.open(src).use { d ->
+            val toc = listOf(com.docdesk.core.OutlineEntry("Introduction", 0, 0), com.docdesk.core.OutlineEntry("Results", 0, 2), com.docdesk.core.OutlineEntry("Details", 1, 3))
+            val r = com.docdesk.app.pdf.FrontMatter.apply(d, com.docdesk.app.pdf.FrontMatter.Cover("Annual Report", "FY 2024-25", "Sharma Traders", "DocDesk", "21 November 2025"), toc, listOf(2), null)
+            assertEquals(1, r.coverPages); assertEquals(1, r.contentsPages); assertEquals(1, r.blankPages); assertEquals(3, r.contentsEntries)
+            d.save(res)
+        }
+        PdfDocs.open(res).use { d ->
+            // cover, contents, BODY1, BODY2, blank, BODY3, BODY4
+            assertEquals(7, d.numberOfPages)
+            assertTrue(PdfTextExtractor.plainText(d, 0).contains("Annual Report"))
+            val toc = PdfTextExtractor.plainText(d, 1)
+            assertTrue(toc, toc.contains("Contents") && toc.contains("Introduction"))
+            assertTrue(toc, Regex("Results[ .]*6").containsMatchIn(toc.replace("\n", " ")))
+            assertEquals("", PdfTextExtractor.plainText(d, 4).trim())
+            assertEquals("BODY3", PdfTextExtractor.plainText(d, 5).trim())
+            // Contents links point at the right pages.
+            val link = d.getPage(1).annotations.filterIsInstance<com.tom_roush.pdfbox.pdmodel.interactive.annotation.PDAnnotationLink>()[1]
+            val dest = ((link.action as com.tom_roush.pdfbox.pdmodel.interactive.action.PDActionGoTo).destination as com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageDestination)
+            assertEquals(5, d.pages.indexOf(dest.page))
+        }
+    }
 }

@@ -24,3 +24,14 @@ class WorkspaceTest {
         assertTrue(Workspace.checklistTemplates.keys.containsAll(listOf("ITR filing", "GST registration", "Tax audit", "Company annual filing", "Client document collection")))
     }
 }
+
+class BatchNamingTest {
+    @Test fun patterns() {
+        val d = LocalDate.of(2025, 11, 21)
+        assertEquals("Invoice 5 (compressed)", BatchNaming.name(BatchNaming.DEFAULT, "Invoice 5", 0, 3, "compressed", d))
+        assertEquals("07 - Sharma_GST - 2025-11-21", BatchNaming.name("{n} - {name} - {date}", "Sharma/GST", 6, 12, "x", d))
+        assertEquals("Stmt part 2", BatchNaming.name("{name}", "Stmt", 0, 1, "split", d, part = 2))
+        assertEquals("Stmt-2", BatchNaming.name("{name}-{part}", "Stmt", 0, 1, "split", d, part = 2))
+        assertEquals(listOf("a.pdf", "A (2).pdf", "b.pdf"), BatchNaming.unique(listOf("a.pdf", "A.pdf", "b.pdf")))
+    }
+}

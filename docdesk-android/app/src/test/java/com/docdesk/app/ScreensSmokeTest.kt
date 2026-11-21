@@ -92,4 +92,8 @@ class ScreensSmokeTest {
 
     @Test fun workspace() = check("New client") { com.docdesk.app.ui.workspace.WorkspaceScreen(it) }
     @Test fun clientUnknown() = check("client was not found") { com.docdesk.app.ui.workspace.ClientScreen(it, 999999L, null) }
+
+    @Test fun invoiceReviewEmpty() { com.docdesk.app.ui.tools.InvoiceReviewStore.current = null; check("no invoice review open") { com.docdesk.app.ui.tools.InvoiceReviewScreen(it) } }
+
+    @Test fun frontMatter() = check("Add a cover page, contents page") { com.docdesk.app.ui.tools.FrontMatterScreen(it, null) }
 }

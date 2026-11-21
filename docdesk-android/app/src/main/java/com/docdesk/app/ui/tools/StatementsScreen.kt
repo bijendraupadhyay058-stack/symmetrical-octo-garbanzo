@@ -11,10 +11,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
@@ -24,13 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.docdesk.app.DocDeskApp
 import com.docdesk.app.convert.Limitations
 import com.docdesk.app.convert.OcrMode
-import com.docdesk.app.convert.OperationReport
-import com.docdesk.app.convert.OperationResult
-import com.docdesk.app.convert.OutputFile
-import com.docdesk.app.convert.Outcome
-import com.docdesk.app.convert.PageIssue
 import com.docdesk.app.convert.PdfToExcelEngine
-import com.docdesk.app.convert.Preview
 import com.docdesk.app.data.AppSettings
 import com.docdesk.app.jobs.OperationFailed
 import com.docdesk.app.jobs.userMessage
@@ -42,7 +36,6 @@ import com.docdesk.app.ui.components.MultiPdfList
 import com.docdesk.app.ui.components.MultiPdfState
 import com.docdesk.app.ui.components.Notice
 import com.docdesk.app.ui.components.NoteKind
-import com.docdesk.app.ui.components.Operations
 import com.docdesk.app.ui.components.PrimaryAction
 import com.docdesk.app.ui.components.RadioOptions
 import com.docdesk.app.ui.components.SecondaryAction
@@ -54,7 +47,6 @@ import com.docdesk.core.NormalizedStatement
 import com.docdesk.core.NumberStyle
 import com.docdesk.core.StatementNormalizer
 import com.docdesk.core.TableOptions
-import com.docdesk.core.XlsxWriter
 
 class StatementsVm : ViewModel() {
     val files = MultiPdfState(viewModelScope)

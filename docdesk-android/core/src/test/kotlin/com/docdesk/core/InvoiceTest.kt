@@ -42,4 +42,19 @@ class InvoiceTest {
         assertNull(r.total); assertNull(r.invoiceNo); assertNull(r.supplierGstin)
         assertTrue(r.flags.size >= 3)
     }
+
+    @Test fun registerChecks() {
+        fun rec(src: String, no: String?, d: LocalDate?, gstin: String?) = InvoiceRecord(src, no, d, d?.toString(), gstin, null, BigDecimal("100"), null, null, null, null, BigDecimal("118"), emptyList(), emptyMap())
+        val out = InvoiceChecks.apply(listOf(
+            rec("a.pdf", "INV-1", LocalDate.of(2024, 5, 1), "27AAPFU0939F1ZV"),
+            rec("b.pdf", "inv 1", LocalDate.of(2025, 2, 1), "27AAPFU0939F1ZV"), // same FY 2024-25 → duplicate
+            rec("c.pdf", "INV-1", LocalDate.of(2025, 5, 1), "27AAPFU0939F1ZV"), // next FY → not a duplicate
+            rec("d.pdf", null, null, null),
+        ), setOf(InvoiceChecks.Field.INVOICE_NO, InvoiceChecks.Field.SUPPLIER_GSTIN))
+        assertTrue(out[1].flags.single().startsWith("Possible duplicate of a.pdf"))
+        assertTrue(out[0].flags.isEmpty() && out[2].flags.isEmpty())
+        assertEquals(listOf("Required field missing: Invoice number", "Required field missing: Supplier GSTIN"), out[3].flags)
+        val sheets = InvoiceExtractor.toSheets(out)
+        assertEquals(listOf("Invoice register", "Line items", "Where values came from", "About the checks"), sheets.map { it.name })
+    }
 }

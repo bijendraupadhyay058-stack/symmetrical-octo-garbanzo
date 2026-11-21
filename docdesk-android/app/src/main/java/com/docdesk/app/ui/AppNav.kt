@@ -61,6 +61,8 @@ object Routes {
     const val PRINT_LAYOUT = "printlayout"; const val COLLATE = "collate"
     const val STATEMENT_REVIEW = "statementreview"
     const val WORKSPACE = "workspace"; const val CLIENT = "client"
+    const val INVOICE_REVIEW = "invoicereview"
+    const val FRONT_MATTER = "frontmatter"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -138,6 +140,7 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             composable(Routes.HISTORY) { HistoryScreen(nav) }
             composable(Routes.STATEMENT_REVIEW) { com.docdesk.app.ui.statements.StatementReviewScreen(nav) }
             composable(Routes.WORKSPACE) { com.docdesk.app.ui.workspace.WorkspaceScreen(nav) }
+            composable(Routes.INVOICE_REVIEW) { com.docdesk.app.ui.tools.InvoiceReviewScreen(nav) }
             composable(
                 "${Routes.CLIENT}/{id}?folder={folder}",
                 arguments = listOf(androidx.navigation.navArgument("id") { type = androidx.navigation.NavType.LongType }, androidx.navigation.navArgument("folder") { type = androidx.navigation.NavType.LongType; defaultValue = -1L }),
@@ -171,6 +174,7 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             tool(Routes.AUTOLINK) { com.docdesk.app.ui.tools.AutoLinkScreen(nav, it) }
             tool(Routes.PRINT_LAYOUT) { com.docdesk.app.ui.tools.PrintLayoutScreen(nav, it) }
             tool(Routes.COLLATE) { com.docdesk.app.ui.tools.CollateScreen(nav) }
+            tool(Routes.FRONT_MATTER) { com.docdesk.app.ui.tools.FrontMatterScreen(nav, it) }
             tool(Routes.TO_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.TARGET_SIZE) }
             tool(Routes.SPLIT_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.SPLIT_SIZE) }
             tool(Routes.FIT) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.FIT_PAGES) }
