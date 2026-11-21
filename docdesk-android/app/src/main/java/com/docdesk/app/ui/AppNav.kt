@@ -58,6 +58,7 @@ object Routes {
     const val BOOKMARKS = "bookmarks"; const val PROPERTIES = "properties"
     const val ATTACHMENTS = "attachments"; const val AUTOLINK = "autolink"
     const val PRINT_LAYOUT = "printlayout"; const val COLLATE = "collate"
+    const val STATEMENT_REVIEW = "statementreview"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -133,6 +134,7 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             composable(Routes.HOME) { HomeScreen(nav) }
             composable(Routes.FILES) { FilesScreen(nav) }
             composable(Routes.HISTORY) { HistoryScreen(nav) }
+            composable(Routes.STATEMENT_REVIEW) { com.docdesk.app.ui.statements.StatementReviewScreen(nav) }
             composable(Routes.SETTINGS) { SettingsScreen() }
             fun tool(route: String, content: @Composable (Uri?) -> Unit) = composable(
                 "$route?input={input}",

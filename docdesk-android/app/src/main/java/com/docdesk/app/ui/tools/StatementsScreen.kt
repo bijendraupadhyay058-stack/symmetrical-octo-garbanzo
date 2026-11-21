@@ -68,6 +68,7 @@ class StatementsVm : ViewModel() {
     var defaultLedger by mutableStateOf<String?>(null)
     var rules by mutableStateOf<String?>(null)
     var name by mutableStateOf("Bank statements")
+    var pageRange by mutableStateOf("")
     var error by mutableStateOf<String?>(null)
 }
 
@@ -89,7 +90,7 @@ fun StatementsScreen(nav: Nav, input: Uri?) {
         vm.files.skipped?.let { Notice(it, NoteKind.WARNING) { vm.files.skipped = null } }
         if (vm.files.items.isEmpty()) {
             FilePickTarget("Choose one or more bank statements", "e.g. April to March – combined into one Excel sheet", Icons.Default.AccountBalance) { picker.launch(arrayOf("application/pdf")) }
-            Notice("Creates a standard layout: Date · Narration · Reference · Debit · Credit · Balance · Source file. Rows from all statements are sorted by date; each file's balances are checked; transactions that appear in two overlapping statements are flagged (not removed). For unusual layouts use PDF to Excel, where you can review every cell.")
+            Notice("You review every transaction before export: DocDesk shows each row next to its source page, checks opening + credits − debits against the closing balance and the running balance, flags doubtful values and possible duplicates, and suggests categories you can change. The Excel file has Transactions, Monthly Summary, Category Summary, Reconciliation, Exceptions and Processing Report sheets. For unusual layouts use PDF to Excel.")
             return@ToolScaffold
         }
         SectionCard("${vm.files.items.size} statement(s)") {
@@ -115,63 +116,67 @@ fun StatementsScreen(nav: Nav, input: Uri?) {
         }
         OutlinedTextField(vm.name, { vm.name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("File name") })
         job?.let { JobProgressCard(it) { app.jobs.cancel() } }
-        PrimaryAction("Create Excel", enabled = vm.files.allReady && job == null, icon = Icons.Default.AccountBalance) {
+        OutlinedTextField(vm.pageRange, { vm.pageRange = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Pages (blank = all pages)") }, placeholder = { Text("e.g. 1-5, 8") },
+            supportingText = { Text("Applies to each statement. Pages beyond a file's length are ignored for that file.") })
+        PrimaryAction("Read statements and review", enabled = vm.files.allReady && job == null, icon = Icons.Default.AccountBalance) {
             val items = vm.files.items.map { Triple(it.doc, it.password, it.pages!!) }
             val ocr = vm.ocrMode; val lang: OcrLanguage = settings.ocrLanguage; val wantCsv = vm.csv; val name = vm.name.ifBlank { "Bank statements" }
-            val wantSummaries = vm.summaries; val wantTally = vm.tally
+            val wantSummaries = vm.summaries; val wantTally = vm.tally; val range = vm.pageRange.trim()
             val rulesText = vm.rules ?: settings.ledgerRules
             val bank = (vm.bankLedger ?: settings.tallyBankLedger).trim(); val deflt = (vm.defaultLedger ?: settings.tallyDefaultLedger).trim().ifEmpty { "Suspense A/c" }
             if (wantTally && bank.isEmpty()) { vm.error = "Enter your bank ledger name exactly as it appears in Tally."; return@PrimaryAction }
+            if (range.isNotEmpty()) runCatching { com.docdesk.core.PageRanges.parse(range, 100000) }.onFailure { vm.error = "Pages: ${it.message}"; return@PrimaryAction }
             scope.launch { app.settings.setTally(rulesText, bank.ifEmpty { settings.tallyBankLedger }, deflt) }
             val rules = com.docdesk.core.LedgerRule.parse(rulesText)
-            Operations.run("Bank statements to Excel", onError = { vm.error = it }, onResult = nav.resultCallback()) { p ->
-                p.allowPartialResults()
-                val per = mutableListOf<Pair<String, NormalizedStatement>>()
-                val failed = mutableListOf<PageIssue>()
+            val started = app.jobs.start("Reading bank statements", { p ->
+                val per = mutableListOf<NormalizedStatement>()
+                val pageStatus = mutableListOf<com.docdesk.core.PageStatus>()
+                val sources = LinkedHashMap<String, Pair<Uri, String?>>()
                 val warnings = mutableListOf<String>()
-                var cancelled = false
                 items.forEachIndexed { i, (d, pw, pages) ->
-                    if (p.cancelRequested) { cancelled = true; return@forEachIndexed }
-                    p.step("Reading ${d.name} (${i + 1} of ${items.size})", i.toFloat() / items.size * 0.85f)
+                    if (p.cancelRequested) throw com.docdesk.app.jobs.OperationCancelled()
+                    // Unique name per file so rows, checks and source pages never mix up two files called the same.
+                    var src = d.name; var k = 2; while (src in sources) src = "${d.name} ($k)".also { k++ }
+                    sources[src] = d.uri to pw
+                    val sel = if (range.isEmpty()) (0 until pages).toList() else com.docdesk.core.PageRanges.parse(range, 100000).filter { it < pages }.distinct()
+                    if (sel.isEmpty()) { pageStatus.add(com.docdesk.core.PageStatus(src, 0, "–", "Not processed", "The page range doesn't include any page of this file ($pages pages)")); return@forEachIndexed }
+                    p.step("Reading ${d.name} (${i + 1} of ${items.size})", i.toFloat() / items.size * 0.9f)
                     try {
-                        val ex = PdfToExcelEngine.extract(app, d.uri, pw, (0 until pages).toList(), ocr, lang, TableOptions(style, order), app.files.workDir, p)
-                        ex.failed.forEach { f -> failed.add(f.copy(message = "${d.name}: ${f.message}")) }
-                        val n = StatementNormalizer.normalize(ex.tables, style, order, d.name)
-                        if (n == null || n.rows.isEmpty()) failed.add(PageIssue(i + 1, "${d.name}: transaction columns (date, debit/credit or amount) were not recognised. Use PDF to Excel for this file."))
-                        else { per.add(d.name to n); if (ex.ocrWords > 0) warnings.add("${d.name}: read with OCR – check amounts carefully.") }
+                        val ex = PdfToExcelEngine.extract(app, d.uri, pw, sel, ocr, lang, TableOptions(style, order), app.files.workDir, p)
+                        val failedP = ex.failed.associate { it.page to it.message }
+                        for (pg in sel) {
+                            val type = when (ex.sources[pg]) { com.docdesk.core.TextSource.PDF_TEXT -> "Text"; com.docdesk.core.TextSource.OCR -> "Scanned (read with OCR)"; com.docdesk.core.TextSource.NONE -> "No readable text"; null -> "Unknown" }
+                            val (status, note) = when {
+                                failedP.containsKey(pg + 1) -> "Failed" to failedP[pg + 1]!!
+                                pg in ex.pagesWithoutTables -> "No transactions found" to "No table was recognised on this page – check it isn't missing transactions"
+                                pg in ex.pagesDone -> "Processed" to ""
+                                else -> "Not processed" to "Stopped before this page"
+                            }
+                            pageStatus.add(com.docdesk.core.PageStatus(src, pg + 1, type, status, note))
+                        }
+                        val n = StatementNormalizer.normalize(ex.tables, style, order, src)
+                        if (n == null || n.rows.isEmpty()) pageStatus.add(com.docdesk.core.PageStatus(src, 0, "–", "Failed", "Transaction columns (date, debit/credit or amount) were not recognised. Use PDF to Excel for this file."))
+                        else { per.add(n); if (ex.ocrWords > 0) warnings.add("$src: read with OCR – check amounts carefully.") }
                     } catch (e: Exception) {
                         if (e is com.docdesk.app.jobs.OperationCancelled) throw e
-                        failed.add(PageIssue(i + 1, "${d.name}: ${e.userMessage()}"))
+                        pageStatus.add(com.docdesk.core.PageStatus(src, 0, "–", "Failed", e.userMessage()))
                     }
                 }
-                if (per.isEmpty()) throw OperationFailed("No transactions could be read. " + failed.joinToString("; ") { it.message })
-                p.step("Combining and checking…", 0.9f)
-                val rows = StatementNormalizer.combine(per.map { it.second })
-                val sheets = StatementNormalizer.toSheets(rows, per) + if (wantSummaries) com.docdesk.core.StatementAnalysis.sheets(rows, rules) else emptyList()
-                val xlsx = app.files.newOutputFile("$name.xlsx")
-                xlsx.outputStream().buffered().use { XlsxWriter.write(sheets, it) }
-                val outputs = mutableListOf(OutputFile(xlsx))
-                if (wantCsv) { val c = app.files.newOutputFile("$name.csv"); c.writeText(StatementNormalizer.toCsv(rows)); outputs.add(OutputFile(c)) }
-                val tallyNotes = mutableListOf<String>()
-                if (wantTally) {
-                    val t = com.docdesk.core.TallyXml.build(rows, com.docdesk.core.TallyXml.Options(bank, deflt, rules = rules))
-                    val x = app.files.newOutputFile("$name (Tally import).xml"); x.writeText(t.xml); outputs.add(OutputFile(x))
-                    tallyNotes.add("Tally XML: ${t.vouchers} voucher(s); ${t.suspense} posted to \"$deflt\" (no rule matched)" + if (t.skipped > 0) "; ${t.skipped} row(s) skipped (no date or unclear debit/credit)." else ".")
-                    tallyNotes.add("Import into a test company first. Ledgers must already exist in Tally with exactly these names.")
-                }
-                val checks = per.map { (n, st) ->
-                    val m = StatementNormalizer.balanceMismatches(st.rows)
-                    "$n: ${st.rows.size} transactions; " + when { m == null -> "no balance column"; m.isEmpty() -> "running balance reconciles"; else -> "${m.size} row(s) don't reconcile (rows ${m.take(8).joinToString()})" }
-                }
-                val flagged = rows.count { it.flags.isNotEmpty() }
-                if (flagged > 0) warnings.add("$flagged row(s) need review – see the Review column (highlighted).")
-                OperationResult(OperationReport("Bank statements to Excel", items.map { it.first.name },
-                    when { cancelled -> Outcome.CANCELLED; failed.isNotEmpty() -> Outcome.PARTIAL; else -> Outcome.SUCCESS },
-                    failedPages = failed, warnings = warnings, checks = checks + Limitations.FINANCIAL,
-                    notes = listOf("${rows.size} transactions from ${per.size} statement(s), sorted by date.") + tallyNotes + per.flatMap { it.second.notes.map { n -> "${it.first}: $n" } }),
-                    outputs, Preview.Sheets(sheets))
+                if (per.isEmpty()) throw OperationFailed("No transactions could be read. " + pageStatus.filter { it.status == "Failed" }.joinToString("; ") { "${it.source}: ${it.note}" })
+                p.step("Preparing review…", 0.95f)
+                val session = com.docdesk.core.ReviewSession(per.flatMap { it.rows })
+                val notes = listOf("Number format: ${style.label}", "Date format: ${order.label}", "Scanned pages: ${ocr.label}", "Pages: ${range.ifEmpty { "all" }}") +
+                    per.flatMap { st -> st.notes.map { "${st.rows.firstOrNull()?.source}: $it" } }
+                com.docdesk.app.ui.statements.StatementReview(session, sources, pageStatus, notes, name, style, order, wantCsv,
+                    if (wantTally) com.docdesk.app.ui.statements.TallyChoice(bank, deflt) else null, rules, wantSummaries, items.map { it.first.name }, warnings)
+            }) { r ->
+                r.onSuccess { com.docdesk.app.ui.statements.StatementReviewStore.current = it; nav.to(com.docdesk.app.ui.Routes.STATEMENT_REVIEW) }
+                    .onFailure { if (it !is com.docdesk.app.jobs.OperationCancelled) vm.error = it.userMessage() }
             }
+            if (!started) vm.error = "Another operation is still running. Wait for it to finish or cancel it from the Home screen."
         }
+        if (com.docdesk.app.ui.statements.StatementReviewStore.current != null && job == null)
+            SecondaryAction("Return to the open review") { nav.to(com.docdesk.app.ui.Routes.STATEMENT_REVIEW) }
         Text(Limitations.GENERAL, style = MaterialTheme.typography.bodySmall)
     }
 }

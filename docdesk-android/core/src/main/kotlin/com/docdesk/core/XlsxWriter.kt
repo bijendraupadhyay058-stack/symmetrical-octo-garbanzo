@@ -19,6 +19,8 @@ data class XSheet(
     val rows: List<List<XStyledCell>>,
     val columnWidths: List<Double> = emptyList(),
     val freezeTopRow: Boolean = false,
+    /** Adds Excel filter buttons to the first row. */
+    val autoFilter: Boolean = false,
 )
 
 object XlsxWriter {
@@ -109,6 +111,7 @@ object XlsxWriter {
             append("</row>")
         }
         append("</sheetData>")
+        if (sheet.autoFilter && sheet.rows.size > 1 && sheet.rows[0].isNotEmpty()) append("""<autoFilter ref="A1:${columnName(sheet.rows[0].size - 1)}${sheet.rows.size}"/>""")
         append("""<pageMargins left="0.5" right="0.5" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>""")
         append("</worksheet>")
     }

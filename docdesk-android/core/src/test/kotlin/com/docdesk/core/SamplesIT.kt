@@ -86,6 +86,15 @@ class SamplesIT {
             assertEquals(55, n.rows.size)
             assertTrue(n.rows.all { it.date != null && it.flags.isEmpty() })
             assertEquals(emptyList<Int>(), StatementNormalizer.balanceMismatches(n.rows))
+            // Review session over a real multi-page statement: rows know their position, order is detected, balances chain.
+            assertTrue(n.rows.all { it.top != null && it.bottom != null && it.top!! < it.bottom!! && it.original.isNotEmpty() })
+            val session = ReviewSession(n.rows)
+            assertTrue(session.orderConfirmed)
+            val rec = Reconciler.reconcile(session).single()
+            assertEquals(emptyList<Int>(), rec.runningBreaks)
+            session.confirmOpening("statement.pdf", session.opening("statement.pdf").value); session.confirmClosing("statement.pdf", session.closing("statement.pdf").value)
+            assertEquals(CheckStatus.OK, Reconciler.reconcile(session).single().lines.first { it.label == "Difference" }.status)
+            assertEquals(6, BankWorkbook.build(session, emptyList(), emptyList()).size)
             assertEquals(java.math.BigDecimal("513405.27"), n.rows.mapNotNull { it.debit }.fold(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
             val text = (0 until doc.numberOfPages).map { words(doc, it) }
             assertTrue(text.flatMap { SensitiveFinder.find(it, setOf(SensitiveKind.ACCOUNT)) }.any { it.text == "001234567890" })

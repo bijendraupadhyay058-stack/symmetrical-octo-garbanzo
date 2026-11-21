@@ -23,7 +23,11 @@ data class TableCell(
     val isBlank get() = raw.isBlank()
 }
 
-data class TableRow(val cells: List<TableCell>, val pageIndex: Int, val isHeader: Boolean = false)
+data class TableRow(
+    val cells: List<TableCell>, val pageIndex: Int, val isHeader: Boolean = false,
+    /** Vertical extent on the page as a fraction of page height (0 = top), for showing the row on the source page. */
+    val top: Float? = null, val bottom: Float? = null,
+)
 
 data class ExtractedTable(
     val pageIndex: Int,
@@ -213,12 +217,12 @@ object TableExtractor {
                         pc.flags + add.flags + CellFlag.MERGED_WRAPPED_TEXT,
                     )
                 }
-                rows[rows.lastIndex] = prev.copy(cells = mergedCells)
+                rows[rows.lastIndex] = prev.copy(cells = mergedCells, bottom = maxOf(prev.bottom ?: 0f, r.line.bottom / page.height))
                 continue
             }
             val isHeader = !headerFound && rows.isEmpty() && looksLikeHeader(cells, options)
             if (isHeader) headerFound = true
-            rows.add(TableRow(cells, page.pageIndex, isHeader))
+            rows.add(TableRow(cells, page.pageIndex, isHeader, r.line.top / page.height, r.line.bottom / page.height))
         }
         // Flag values in typed columns that could not be interpreted.
         val checked = rows.map { row ->

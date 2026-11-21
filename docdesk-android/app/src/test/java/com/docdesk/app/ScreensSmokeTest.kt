@@ -71,4 +71,22 @@ class ScreensSmokeTest {
     @Test fun printLayout() = check("Several pages per sheet, or a booklet") { com.docdesk.app.ui.tools.PrintLayoutScreen(it, null) }
     @Test fun collate() = check("Choose the fronts scan") { com.docdesk.app.ui.tools.CollateScreen(it) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
+
+    @Test fun statementReviewEmpty() {
+        com.docdesk.app.ui.statements.StatementReviewStore.current = null
+        check("no statement review open") { com.docdesk.app.ui.statements.StatementReviewScreen(it) }
+    }
+
+    @Test fun statementReviewWithRows() {
+        fun row(d: String, n: String, dr: String?, cr: String?, bal: String, flags: List<String> = emptyList()) = com.docdesk.core.StatementRow(
+            java.time.LocalDate.parse(d), d, n, "", dr?.let { java.math.BigDecimal(it) }, cr?.let { java.math.BigDecimal(it) }, java.math.BigDecimal(bal), bal, "A.pdf", 1, flags)
+        val session = com.docdesk.core.ReviewSession(listOf(row("2024-04-01", "NEFT CR ACME", null, "5000", "6000"), row("2024-04-02", "UPI/77/SHOP", "100", null, "5900", listOf("Low OCR confidence"))))
+        com.docdesk.app.ui.statements.StatementReviewStore.current = com.docdesk.app.ui.statements.StatementReview(session, emptyMap(), listOf(com.docdesk.core.PageStatus("A.pdf", 1, "Text", "Processed")),
+            emptyList(), "Test", com.docdesk.core.NumberStyle.INDIAN, com.docdesk.core.DateOrder.DMY, false, null, emptyList(), false, listOf("A.pdf"), emptyList())
+        try {
+            check("NEFT CR ACME") { com.docdesk.app.ui.statements.StatementReviewScreen(it) }
+            assertTrue(rule.onAllNodesWithText("Low OCR confidence", substring = true).fetchSemanticsNodes().isNotEmpty())
+            assertTrue(rule.onAllNodesWithText("Needs review (1)", substring = true).fetchSemanticsNodes().isNotEmpty())
+        } finally { com.docdesk.app.ui.statements.StatementReviewStore.current = null }
+    }
 }

@@ -16,12 +16,18 @@ data class StatementRow(
     val source: String,
     val page: Int,
     val flags: List<String> = emptyList(),
+    val valueDate: LocalDate? = null,
+    val valueDateRaw: String = "",
+    /** The extracted row exactly as read (cells joined with " | "), kept for audit. */
+    val original: String = "",
+    /** Row position on the page (fractions of page height), when known. */
+    val top: Float? = null, val bottom: Float? = null,
 )
 
-data class ColumnMapping(val date: Int?, val narration: Int?, val reference: Int?, val debit: Int?, val credit: Int?, val balance: Int?, val amount: Int?, val drCr: Int?) {
+data class ColumnMapping(val date: Int?, val narration: Int?, val reference: Int?, val debit: Int?, val credit: Int?, val balance: Int?, val amount: Int?, val drCr: Int?, val valueDate: Int? = null) {
     fun describe(header: List<String>?): String {
         fun n(i: Int?) = i?.let { header?.getOrNull(it)?.takeIf { h -> h.isNotBlank() } ?: "column ${it + 1}" } ?: "–"
-        return "Date=${n(date)}, Narration=${n(narration)}, Ref=${n(reference)}, " +
+        return "Date=${n(date)}" + (valueDate?.let { ", Value date=${n(it)}" } ?: "") + ", Narration=${n(narration)}, Ref=${n(reference)}, " +
             (if (amount != null) "Amount=${n(amount)}${drCr?.let { ", Dr/Cr=${n(it)}" } ?: ""}" else "Debit=${n(debit)}, Credit=${n(credit)}") + ", Balance=${n(balance)}"
     }
 }
@@ -53,8 +59,11 @@ object StatementNormalizer {
             i?.let { used.add(it) }
             return i
         }
-        var date = find(dateNames)
-        // "Value date" columns: prefer the first date column as transaction date.
+        // Two date columns: the one called "value date" is the value date, the other the transaction date.
+        val dateCols = h?.indices?.filter { i -> dateNames.any { n -> h[i] == n || h[i].startsWith("$n ") || h[i].contains(n) } || h[i] == "dt" }.orEmpty()
+        val valueCol = dateCols.firstOrNull { h!![it].contains("value") }?.takeIf { dateCols.size > 1 }
+        var date = dateCols.firstOrNull { it != valueCol }?.also { used.add(it) }
+        valueCol?.let { used.add(it) }
         val drCr = find(drCrNames)
         var debit = find(debitNames, ColumnType.AMOUNT)
         var credit = find(creditNames, ColumnType.AMOUNT)
@@ -69,7 +78,7 @@ object StatementNormalizer {
         if (narr == null) narr = t.columnTypes.indices.filter { t.columnTypes[it] == ColumnType.TEXT && it !in used }
             .maxByOrNull { c -> t.bodyRows.sumOf { it.cells.getOrNull(c)?.raw?.length ?: 0 } }
         if (date == null || (debit == null && credit == null && amount == null)) return null
-        return ColumnMapping(date, narr, ref, debit, credit, balance, amount, drCr)
+        return ColumnMapping(date, narr, ref, debit, credit, balance, amount, drCr, valueCol)
     }
 
     fun normalize(tables: List<ExtractedTable>, style: NumberStyle, order: DateOrder, source: String): NormalizedStatement? {
@@ -91,6 +100,8 @@ object StatementNormalizer {
                     val raw = cell(i); if (raw.isEmpty()) return null
                     val p = AmountParser.parse(raw, style)
                     if (p == null) { flags.add("Amount \"$raw\" not recognised"); return null }
+                    // Debit/credit columns hold sizes; a minus or brackets there is unusual and must be checked, not silently dropped.
+                    if (p.value.signum() < 0 || p.bracketed) flags.add("\"$raw\" is negative/bracketed in a ${if (i == m.debit) "Debit" else "Credit"} column – check the sign")
                     return p.value.abs()
                 }
                 var debit = amt(m.debit); var credit = amt(m.credit)
@@ -111,7 +122,11 @@ object StatementNormalizer {
                 val bal = balP?.let { if (it.drCr == DrCr.DR) it.value.abs().negate() else it.value }
                 if (balRaw.isNotEmpty() && balP == null) flags.add("Balance not recognised")
                 if (dateRaw.isEmpty() && debit == null && credit == null) continue // e.g. "Opening balance" lines without a date are skipped from transactions
-                rows.add(StatementRow(date, dateRaw, cell(m.narration), cell(m.reference), debit, credit, bal, balRaw, source, r.pageIndex + 1, flags))
+                val vRaw = cell(m.valueDate)
+                val vDate = if (vRaw.isNotEmpty()) DateParser.parse(vRaw, order) else null
+                if (vRaw.isNotEmpty() && vDate == null) flags.add("Value date not recognised")
+                rows.add(StatementRow(date, dateRaw, cell(m.narration), cell(m.reference), debit, credit, bal, balRaw, source, r.pageIndex + 1, flags,
+                    vDate, vRaw, r.cells.joinToString(" | ") { it.raw.trim() }, r.top, r.bottom))
             }
         }
         if (mapping == null) return null
