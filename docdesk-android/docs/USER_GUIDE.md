@@ -45,6 +45,14 @@ Tap **Create PDF**, choose one or more Word (.docx), Excel (.xlsx), photo or PDF
 - **Page Numbers**: formats like `Page {n} of {total}`, Bates numbers `INV-{n:4}` → INV-0001, plus header/footer text with `{date}` or `{file}`.
 - **Compress PDF**: makes scanned and photo-heavy PDFs smaller; the report shows the size before and after.
 
+## Month-wise / party-wise summaries and Tally import
+In **Bank Statements**, keep *Add month-wise, party-wise and category summaries* on to get extra sheets: totals per month, per party (names read from UPI/NEFT/IMPS narrations) and per category. Categories come from your **rules**, one per line, e.g. `SALARY => Salary` or `BESCOM => Electricity`; the first matching keyword wins.
+
+Turn on *Create Tally import file (XML)* and enter your bank ledger name exactly as in Tally. Money out becomes a Payment voucher, money in a Receipt voucher, and anything matched to your cash ledger (e.g. `ATM => Cash`) a Contra voucher. Unmatched rows go to *Suspense A/c* (changeable). In Tally: **Gateway of Tally › Import › Transactions** and choose the XML file. **Always try it on a test company first**, and create any missing ledgers before importing.
+
+## Home screen
+Use the search box to find a tool or a saved file. Tap ☆ on a tool to add it to **Favourites** at the top. Long-press the DocDesk icon on your phone's home screen for quick shortcuts: Scan document, Create PDF, Bank statements.
+
 ## GST invoice register
 Choose your purchase or sales invoices (PDFs, scanned ones too). DocDesk builds an Excel register with invoice number, date, supplier and buyer GSTIN, taxable value, CGST, SGST/UTGST, IGST, cess and total, plus a totals row. The **Review** column flags anything to check: a GSTIN with a wrong check digit, taxes that don't add up to the total, CGST ≠ SGST, IGST on a same-state supply, or a field that wasn't found. The second sheet shows the exact line each value was read from. Always reconcile with GSTR-2B before filing.
 

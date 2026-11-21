@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ManageSearch
 import androidx.compose.material.icons.filled.AccountBalance
@@ -61,6 +63,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -82,32 +85,34 @@ import com.docdesk.app.ui.history.statusLabel
 import java.text.DateFormat
 import java.util.Date
 
-private data class ToolItem(val label: String, val hint: String, val icon: ImageVector, val route: String)
+private enum class Category(val title: String) { ACCOUNTING("Accounting"), CONVERT("Convert"), EDIT("Edit & sign"), ORGANISE("Organise"), PRIVACY("Privacy & files") }
+
+private data class ToolItem(val label: String, val hint: String, val icon: ImageVector, val route: String, val category: Category = Category.CONVERT)
 
 private val tools = listOf(
-    ToolItem("Create PDF", "Word, Excel (.doc/.xls too), photos → PDF", Icons.Default.NoteAdd, Routes.CREATE),
-    ToolItem("Bank Statements", "Many statements → one Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS),
-    ToolItem("GST Invoices", "Invoices → Excel register", Icons.Default.ReceiptLong, Routes.INVOICES),
-    ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL),
-    ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD),
-    ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF),
-    ToolItem("Word to PDF", ".docx to PDF", Icons.Default.PictureAsPdf, Routes.WORD_PDF),
-    ToolItem("Edit PDF", "Annotate & sign", Icons.Default.Brush, Routes.EDIT),
-    ToolItem("Merge PDFs", "Combine files", Icons.Default.CallMerge, Routes.MERGE),
-    ToolItem("Split PDF", "By pages or ranges", Icons.Default.CallSplit, Routes.SPLIT),
-    ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE),
-    ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN),
-    ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM),
-    ToolItem("Find & Redact", "Remove PAN, Aadhaar, A/c nos.", Icons.Default.Shield, Routes.REDACT),
-    ToolItem("Batch Process", "Many PDFs at once", Icons.Default.DynamicFeed, Routes.BATCH),
-    ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN),
-    ToolItem("Compare PDFs", "Find changes between versions", Icons.Default.Compare, Routes.COMPARE),
-    ToolItem("PDF to JPG/PNG", "Pages or pictures as images", Icons.Default.Image, Routes.IMAGES),
-    ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK),
-    ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS),
-    ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS),
-    ToolItem("Search in Files", "Find text inside documents", Icons.Default.ManageSearch, Routes.SEARCH),
-    ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES),
+    ToolItem("Create PDF", "Word, Excel (.doc/.xls too), photos → PDF", Icons.Default.NoteAdd, Routes.CREATE, Category.CONVERT),
+    ToolItem("Bank Statements", "Many statements → one Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS, Category.ACCOUNTING),
+    ToolItem("GST Invoices", "Invoices → Excel register", Icons.Default.ReceiptLong, Routes.INVOICES, Category.ACCOUNTING),
+    ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL, Category.CONVERT),
+    ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD, Category.CONVERT),
+    ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF, Category.CONVERT),
+    ToolItem("Word to PDF", ".docx to PDF", Icons.Default.PictureAsPdf, Routes.WORD_PDF, Category.CONVERT),
+    ToolItem("Edit PDF", "Annotate & sign", Icons.Default.Brush, Routes.EDIT, Category.EDIT),
+    ToolItem("Merge PDFs", "Combine files", Icons.Default.CallMerge, Routes.MERGE, Category.ORGANISE),
+    ToolItem("Split PDF", "By pages or ranges", Icons.Default.CallSplit, Routes.SPLIT, Category.ORGANISE),
+    ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE, Category.ORGANISE),
+    ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN, Category.CONVERT),
+    ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM, Category.EDIT),
+    ToolItem("Find & Redact", "Remove PAN, Aadhaar, A/c nos.", Icons.Default.Shield, Routes.REDACT, Category.PRIVACY),
+    ToolItem("Batch Process", "Many PDFs at once", Icons.Default.DynamicFeed, Routes.BATCH, Category.ORGANISE),
+    ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN, Category.EDIT),
+    ToolItem("Compare PDFs", "Find changes between versions", Icons.Default.Compare, Routes.COMPARE, Category.ORGANISE),
+    ToolItem("PDF to JPG/PNG", "Pages or pictures as images", Icons.Default.Image, Routes.IMAGES, Category.CONVERT),
+    ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK, Category.EDIT),
+    ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS, Category.EDIT),
+    ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS, Category.ORGANISE),
+    ToolItem("Search in Files", "Find text inside documents", Icons.Default.ManageSearch, Routes.SEARCH, Category.PRIVACY),
+    ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES, Category.PRIVACY),
 )
 
 @Composable
@@ -117,6 +122,9 @@ fun HomeScreen(nav: Nav) {
     val job by app.jobs.state.collectAsStateWithLifecycle()
     val history by app.history.all.collectAsStateWithLifecycle(emptyList())
     var query by rememberSaveable { mutableStateOf("") }
+    val settings by app.settings.settings.collectAsStateWithLifecycle(com.docdesk.app.data.AppSettings())
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val shown = remember(query) { if (query.isBlank()) tools else tools.filter { it.label.contains(query, true) || it.hint.contains(query, true) || it.category.title.contains(query, true) } }
     var chosenPdf by remember { mutableStateOf<Uri?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
 
@@ -150,7 +158,7 @@ fun HomeScreen(nav: Nav) {
                 job?.let { JobProgressCard(it) { app.jobs.cancel() } }
                 OutlinedTextField(
                     value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Search, null) }, label = { Text("Search recent files") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) }, label = { Text("Search tools and files") },
                 )
                 files.forEach { f ->
                     ListItem(
@@ -163,11 +171,19 @@ fun HomeScreen(nav: Nav) {
                         },
                     )
                 }
-                if (query.isNotBlank() && files.isEmpty()) Text("No files in My Files match \"$query\".", style = MaterialTheme.typography.bodyMedium)
-                Text("Tools", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
+                if (query.isNotBlank() && files.isEmpty() && shown.isEmpty()) Text("No tools or files match \"$query\".", style = MaterialTheme.typography.bodyMedium)
             }
         }
-        items(tools, key = { it.route + it.label }) { t -> ToolCard(t) { nav.to(t.route) } }
+        val fav = tools.filter { it.route in settings.favourites }
+        val sections: List<Pair<String, List<ToolItem>>> = if (query.isNotBlank()) listOf("Tools" to shown)
+            else listOfNotNull(fav.takeIf { it.isNotEmpty() }?.let { "★ Favourites" to it }) + Category.entries.map { c -> c.title to tools.filter { it.category == c } }
+        for ((title, list) in sections) {
+            if (list.isEmpty()) continue
+            item(span = { GridItemSpan(maxLineSpan) }, key = "h-$title") { Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() }.padding(top = 8.dp)) }
+            items(list, key = { "$title-${it.route}-${it.label}" }) { t ->
+                ToolCard(t, favourite = t.route in settings.favourites, onFavourite = { scope.launch { app.settings.toggleFavourite(t.route) } }) { nav.to(t.route) }
+            }
+        }
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Spacer(Modifier.size(8.dp))
@@ -213,12 +229,17 @@ fun HomeScreen(nav: Nav) {
 }
 
 @Composable
-private fun ToolCard(t: ToolItem, onClick: () -> Unit) {
+private fun ToolCard(t: ToolItem, favourite: Boolean, onFavourite: () -> Unit, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().heightIn(min = 104.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                     Icon(t.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(8.dp).size(24.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                androidx.compose.material3.IconButton(onClick = onFavourite) {
+                    Icon(if (favourite) Icons.Default.Star else Icons.Default.StarBorder, contentDescription = if (favourite) "Remove ${t.label} from favourites" else "Add ${t.label} to favourites",
+                        tint = if (favourite) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Text(t.label, style = MaterialTheme.typography.titleMedium, maxLines = 2)

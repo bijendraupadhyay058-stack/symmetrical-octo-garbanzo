@@ -82,7 +82,7 @@ class Nav(private val c: NavHostController) {
 }
 
 @Composable
-fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean = false) {
+fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean = false, openRoute: String? = null, onRouteHandled: () -> Unit = {}) {
     val controller = rememberNavController()
     val nav = Nav(controller)
     val entry by controller.currentBackStackEntryAsState()
@@ -97,6 +97,10 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             if (type == com.docdesk.app.data.DocType.PDF && !incomingMany) nav.to(Routes.VIEWER, incoming) else nav.to(Routes.CREATE, if (incomingMany) null else incoming)
             onIncomingHandled()
         }
+    }
+
+    LaunchedEffect(openRoute) {
+        if (openRoute != null) { runCatching { nav.to(openRoute) }; onRouteHandled() }
     }
 
     val showBar = tabs.any { it.route == currentRoute }

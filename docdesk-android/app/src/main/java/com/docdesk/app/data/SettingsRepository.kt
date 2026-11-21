@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.docdesk.app.ocr.OcrLanguage
 import com.docdesk.core.DateOrder
@@ -23,7 +24,14 @@ data class AppSettings(
     val appLock: Boolean = false,
     /** Block screenshots and hide the app's content in the recent-apps screen. */
     val secureScreen: Boolean = false,
+    /** Keyword → ledger rules ("SALARY => Salary A/c"), used for categories and Tally export. */
+    val ledgerRules: String = DEFAULT_RULES,
+    val tallyBankLedger: String = "",
+    val tallyDefaultLedger: String = "Suspense A/c",
+    val favourites: Set<String> = setOf("statements", "pdf2excel", "edit", "create"),
 )
+
+const val DEFAULT_RULES = "# Keyword => Ledger (one per line; first match wins)\nSALARY => Salary\nRENT => Rent\nATM => Cash\nGST => GST Payable\nINTEREST => Bank Interest\nCHARGES => Bank Charges"
 
 private val Context.dataStore by preferencesDataStore("settings")
 
@@ -35,6 +43,10 @@ class SettingsRepository(private val context: Context) {
     private val keepHistory = booleanPreferencesKey("keep_history")
     private val appLock = booleanPreferencesKey("app_lock")
     private val secureScreen = booleanPreferencesKey("secure_screen")
+    private val rules = stringPreferencesKey("ledger_rules")
+    private val bankLedger = stringPreferencesKey("tally_bank_ledger")
+    private val defaultLedger = stringPreferencesKey("tally_default_ledger")
+    private val favourites = stringSetPreferencesKey("favourites")
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -45,6 +57,10 @@ class SettingsRepository(private val context: Context) {
             keepHistory = p[keepHistory] ?: true,
             appLock = p[appLock] ?: false,
             secureScreen = p[secureScreen] ?: false,
+            ledgerRules = p[rules] ?: DEFAULT_RULES,
+            tallyBankLedger = p[bankLedger] ?: "",
+            tallyDefaultLedger = p[defaultLedger] ?: "Suspense A/c",
+            favourites = p[favourites] ?: setOf("statements", "pdf2excel", "edit", "create"),
         )
     }
 
@@ -55,4 +71,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setKeepHistory(v: Boolean) = context.dataStore.edit { it[keepHistory] = v }
     suspend fun setAppLock(v: Boolean) = context.dataStore.edit { it[appLock] = v }
     suspend fun setSecureScreen(v: Boolean) = context.dataStore.edit { it[secureScreen] = v }
+    suspend fun setTally(rulesText: String, bank: String, default: String) = context.dataStore.edit { it[rules] = rulesText; it[bankLedger] = bank; it[defaultLedger] = default }
+    suspend fun toggleFavourite(route: String) = context.dataStore.edit { p -> val cur = p[favourites] ?: setOf("statements", "pdf2excel", "edit", "create"); p[favourites] = if (route in cur) cur - route else cur + route }
 }

@@ -40,6 +40,7 @@ class MainActivity : FragmentActivity() {
     /** A file opened from another app ("Open with" / "Share › DocDesk"). */
     private val incoming = mutableStateOf<Uri?>(null)
     private val incomingMany = mutableStateOf(false)
+    private val openRoute = mutableStateOf<String?>(null)
     private val locked = mutableStateOf(false)
     private var lockEnabled = false
     private var backgroundAt = 0L
@@ -61,7 +62,8 @@ class MainActivity : FragmentActivity() {
                 if (!settings.appLock) locked.value = false
             }
             DocDeskTheme(settings.theme) {
-                if (locked.value) LockScreen() else AppNav(incoming = incoming.value, onIncomingHandled = { incoming.value = null; incomingMany.value = false }, incomingMany = incomingMany.value)
+                if (locked.value) LockScreen() else AppNav(incoming = incoming.value, onIncomingHandled = { incoming.value = null; incomingMany.value = false }, incomingMany = incomingMany.value,
+                    openRoute = openRoute.value, onRouteHandled = { openRoute.value = null })
             }
         }
     }
@@ -101,6 +103,11 @@ class MainActivity : FragmentActivity() {
         prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Unlock DocDesk").setAllowedAuthenticators(auth).build())
     }
 
+    companion object {
+        const val ACTION_OPEN_TOOL = "com.docdesk.app.OPEN_TOOL"
+        const val EXTRA_ROUTE = "route"
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handle(intent)
@@ -110,6 +117,7 @@ class MainActivity : FragmentActivity() {
     @Suppress("DEPRECATION")
     private fun handle(intent: Intent?) {
         when (intent?.action) {
+            ACTION_OPEN_TOOL -> intent.getStringExtra(EXTRA_ROUTE)?.takeIf { it.matches(Regex("[a-z0-9]+")) }?.let { openRoute.value = it }
             Intent.ACTION_VIEW -> intent.data?.let { incoming.value = it }
             Intent.ACTION_SEND -> (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { incoming.value = it }
             Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.takeIf { it.isNotEmpty() }?.let { list ->

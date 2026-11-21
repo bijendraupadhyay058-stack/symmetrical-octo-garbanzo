@@ -6,7 +6,7 @@ The app was built in a cloud container **without an Android device or emulator**
 
 | Check | Result |
 |---|---|
-| `:core` unit tests (44, incl. RK numbers, .xls/.doc readers, GST invoice extraction; incl. text selection, label templates, PDF comparison, sensitive-data detection with checksums and statement normalisation) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
+| `:core` unit tests (47, incl. counterparty extraction, ledger rules, month/category summaries, Tally XML well-formedness and sign convention; incl. RK numbers, .xls/.doc readers, GST invoice extraction; incl. text selection, label templates, PDF comparison, sensitive-data detection with checksums and statement normalisation) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
 | `:core` real-document tests (6 + legacy Office tests, incl. statement normalisation: 55/55 rows, balances reconcile; invoice fields from the sample invoice PDF; .xls and .doc made by LibreOffice) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
 | `:app:compileDebugKotlin`, `:app:assembleDebug` | ✅ builds |
 | `:app:assembleRelease` with R8 shrinking | ✅ builds (unsigned without keystore) |
@@ -72,6 +72,8 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | History & settings | Turn history off, run an operation, clear history, delete temp files, switch theme | No entry recorded when off; temp size drops |
 | Interruptions | Cancel during PDF→Excel on 100 pages; press Home during conversion; low storage | Partial result marked *Cancelled*; no half-written files; storage error message |
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
+| Tally export (v1.5) | Bank statements → Tally XML with rules; import into a TallyPrime test company with matching ledgers | Vouchers created with correct dates, types, ledgers and amounts; bank balance in Tally matches statement |
+| Summaries & Home (v1.5) | Month/party sheets on a year of statements; favourite a tool; search "excel"; long-press app icon shortcuts | Sheets totals equal Transactions totals; favourites persist; shortcuts open the right tool |
 | GST invoices (v1.4) | 10 real purchase invoices from different suppliers incl. 2 scanned and one inter-state | Register totals match; IGST invoice correct; scanned ones flagged for review where uncertain; evidence sheet lines match |
 | Old Office files (v1.4) | Tally .xls export; an old .doc letter with a table | PDF shows values/formats and table text; warnings about missing formatting |
 | Search in files (v1.4) | Search a PAN and an amount across saved files | Matches with page/sheet; protected files reported as skipped |
@@ -106,6 +108,7 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 - **Very large files** (hundreds of MB / thousands of pages) can exhaust memory on low-end phones; use page ranges.
 - **Find & redact** finds identifiers written in standard formats; numbers split across lines, inside images or with unusual separators may be missed. Account-number detection (9–18 digits) is off by default because it also matches other long numbers.
 - **Old .doc** files lose fonts, bold, headings, lists and images; page breaks set as a paragraph option are not kept. **Old .xls** files lose cell colours and borders; print areas are not read.
+- **Party names** are guessed from narrations and may be partial; **Tally import** requires ledgers to exist with identical names and posts unmatched rows to the default (suspense) ledger.
 - **GST invoices**: values are read only from labelled lines; unusual invoice designs or tables of HSN-wise tax may leave fields blank or flagged.
 - **Bank statements**: layouts where debit/credit direction is not stated (single amount column without Dr/Cr or sign) are flagged, not guessed.
 - History and the result list are per-device; there is no sync or cloud backup (by design).

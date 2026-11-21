@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.4.0 (Phase 8) |
+| Version | 1.5.0 (Phase 9) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -28,6 +28,8 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Word → PDF | ✅ (.docx, .doc) | .docx: text, runs, headings, lists, tables, images, page breaks, header/footer, Hindi shaping. .doc (Word 97–2003): text, paragraphs, tables, hard page breaks (no formatting) |
 | Excel → PDF | ✅ (.xlsx, .xls) | Sheet selection, print area, orientation, paper, margins, fit-to-width/page/custom %, gridlines, sheet names, page numbers, preview. .xls (incl. Tally exports): values, number formats, bold/italic, widths, merges (no fills/borders) |
 | GST invoice register | ✅ | Invoice PDFs (text or scanned) → Excel: invoice no., date, supplier/buyer GSTIN, taxable, CGST, SGST/UTGST, IGST, cess, total; GSTIN checksum, tax arithmetic, CGST=SGST, IGST vs same-state checks; duplicates flagged; evidence sheet |
+| Statement insights & Tally | ✅ | Month-wise, party-wise (from UPI/NEFT/IMPS narrations) and category summaries via keyword → ledger rules; Tally XML (Payment/Receipt/Contra vouchers) for import |
+| Home: search, favourites, categories, shortcuts | ✅ | One search for tools and files; ★ favourites; tools grouped; long-press app icon for Scan / Create PDF / Bank statements |
 | Search in files | ✅ | Text search inside all PDFs, Word, Excel and text files in My Files |
 | Scan & OCR | ✅ | Camera scanner (edges, crop, perspective, rotate), then reorder, rotate, brightness/contrast, colour/grey/B&W; searchable PDF; text export |
 | Extract text from PDF (OCR) | ✅ | English and Hindi, editable result, low-confidence words listed, TXT, searchable PDF |
