@@ -1,0 +1,12 @@
+# PdfBox-Android uses reflection for some font/filter classes.
+-keep class com.tom_roush.pdfbox.** { *; }
+-keep class com.tom_roush.fontbox.** { *; }
+-keep class com.tom_roush.harmony.** { *; }
+-dontwarn com.tom_roush.pdfbox.filter.JPXFilter
+-dontwarn com.gemalto.jp2.**
+-dontwarn org.bouncycastle.**
+# Room entities
+-keep class com.docdesk.app.data.db.** { *; }
+# Bouncy Castle (digital signatures): CMS/X.509 classes are looked up by OID at runtime.
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**
