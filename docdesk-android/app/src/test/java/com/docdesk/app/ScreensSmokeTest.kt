@@ -61,5 +61,8 @@ class ScreensSmokeTest {
     @Test fun toSize() = check("Make it small enough") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.TARGET_SIZE) }
     @Test fun splitSize() = check("Split into parts under") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.SPLIT_SIZE) }
     @Test fun fitPages() = check("Put every page on A4") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.FIT_PAGES) }
+    @Test fun crop() = check("Choose a PDF to crop") { com.docdesk.app.ui.tools.CropScreen(it, null) }
+    @Test fun flatten() = check("Choose a PDF to flatten") { com.docdesk.app.ui.tools.FlattenScreen(it, null) }
+    @Test fun repair() = check("Choose a damaged PDF") { com.docdesk.app.ui.tools.RepairScreen(it, null) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

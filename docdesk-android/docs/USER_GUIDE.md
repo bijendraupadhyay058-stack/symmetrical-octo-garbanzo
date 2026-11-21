@@ -111,6 +111,11 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **Split by Size**: e.g. parts under 10 MB for e-mail; pages stay in order.
 - **Resize Pages**: makes every page A4 (or Letter/Legal) with margins – handy when a portal rejects mixed page sizes or photographed documents.
 
+## Crop, flatten and repair
+- **Crop Pages**: *Automatically remove white borders* (great for scans and phone photos) or cut the same margins (mm) from every page. Cropping hides content outside the new edges – it doesn't delete it.
+- **Flatten PDF**: makes highlights, comments, stamps, drawings and filled forms part of the page, so they can't be changed and look the same everywhere. Do this before sending a final version.
+- **Repair PDF**: for files that won't open or show errors (half-downloaded, damaged attachments). DocDesk rebuilds the file; if that's impossible it rescues the readable pages as images.
+
 ## Protect PDF (encrypt)
 Choose a PDF, then:
 - **Require a password to open** – nobody can view the file without it.

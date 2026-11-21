@@ -99,7 +99,7 @@ fun Throwable.userMessage(): String = when (this) {
     is java.io.IOException -> when {
         message?.contains("ENOSPC") == true || message?.contains("No space") == true -> "There is not enough free storage on the device."
         message?.contains("Missing root object", true) == true || message?.contains("Header doesn't contain", true) == true ||
-            message?.contains("Error: End-of-File", true) == true -> "The PDF is damaged or is not a PDF file."
+            message?.contains("Error: End-of-File", true) == true -> "The PDF is damaged or is not a PDF file. Try Repair PDF on the Home screen."
         else -> "The file could not be read: ${message ?: "input/output error"}."
     }
     is SecurityException -> "The app no longer has permission to read this file. Please select it again."

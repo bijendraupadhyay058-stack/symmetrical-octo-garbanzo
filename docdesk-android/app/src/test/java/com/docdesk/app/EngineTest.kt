@@ -252,6 +252,40 @@ class EngineTest {
         }
     }
 
+    @Test fun cropFlattenRepair() = runBlocking {
+        // Crop 50 pt from the displayed left on a 90°-rotated page: the visible width shrinks by 50.
+        val rot = out("crop-src.pdf")
+        PdfDocs.open(s("invoice.pdf")).use { PdfOps.assemble(listOf(it), listOf(PageRef(0, 0, 90)), rot) }
+        PdfDocs.open(rot).use { d ->
+            val before = d.getPage(0).cropBox
+            assertEquals(1, com.docdesk.app.pdf.PdfFixes.crop(d, listOf(0), { com.docdesk.app.pdf.PdfFixes.Margins(50f, 0f, 0f, 0f) }, null))
+            val after = d.getPage(0).cropBox
+            // Display left of a 90° page = box bottom: height shrinks, width unchanged.
+            assertEquals(before.width, after.width, 0.1f); assertEquals(before.height - 50f, after.height, 0.1f)
+            assertEquals(before.lowerLeftY + 50f, after.lowerLeftY, 0.1f)
+        }
+        // Flatten: the stamp/highlight annotations disappear but their drawing stays on the page.
+        val annotated = out("ann.pdf")
+        PdfDocs.open(s("invoice.pdf")).use { AnnotationWriter.write(it, listOf(
+            Annot.Box(1, 0, Annot.BoxKind.HIGHLIGHT, NRect(0.1f, 0.6f, 0.4f, 0.62f), android.graphics.Color.YELLOW, 1f),
+            Annot.Note(2, 0, NPoint(0.5f, 0.7f), "note", android.graphics.Color.YELLOW)), annotated, null, editable = true) }
+        val flat = out("flat.pdf")
+        PdfDocs.open(annotated).use { d ->
+            assertTrue(d.getPage(0).annotations.isNotEmpty())
+            val st = com.docdesk.app.pdf.PdfFixes.flatten(d, null); assertTrue(st.annotations >= 1)
+            PdfOps.saveAtomically(d, flat)
+        }
+        PdfDocs.open(flat).use { assertTrue(it.getPage(0).annotations.isEmpty()); assertTrue(PdfTextExtractor.plainText(it, 0).contains("TAX INVOICE")) }
+        // Repair: remove the cross-reference table/trailer at the end – PdfBox rebuilds the structure.
+        val bytes = s("invoice.pdf").readBytes()
+        val cut = String(bytes, Charsets.ISO_8859_1).lastIndexOf("xref")
+        val broken = out("broken.pdf"); broken.writeBytes(bytes.copyOf(if (cut > 0) cut else bytes.size - 100))
+        val fixed = out("fixed.pdf")
+        val r = com.docdesk.app.pdf.PdfFixes.repair(app, Uri.fromFile(broken), null, fixed, app.files.workDir, progress)
+        assertTrue(r.method, r.method.startsWith("Structure rebuilt"))
+        PdfDocs.open(fixed).use { assertEquals(1, it.numberOfPages); assertTrue(PdfTextExtractor.plainText(it, 0).contains("TAX INVOICE")) }
+    }
+
     @Test fun sanitizeAndUniqueNames() {
         assertEquals("a_b_c.pdf", FileRepository.sanitize("a/b:c.pdf"))
         val dir = app.files.workDir

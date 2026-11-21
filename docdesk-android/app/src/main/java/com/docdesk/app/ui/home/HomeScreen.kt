@@ -25,6 +25,9 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.automirrored.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.AspectRatio
@@ -121,6 +124,9 @@ private val tools = listOf(
     ToolItem("Compress to Size", "Fit portal limits: 500 KB, 2 MB…", Icons.Default.UploadFile, Routes.TO_SIZE, Category.ORGANISE),
     ToolItem("Split by Size", "Parts under 10 MB etc.", Icons.Default.ContentCut, Routes.SPLIT_SIZE, Category.ORGANISE),
     ToolItem("Resize Pages", "Make all pages A4/Letter", Icons.Default.AspectRatio, Routes.FIT, Category.ORGANISE),
+    ToolItem("Crop Pages", "Trim white borders & margins", Icons.Default.Crop, Routes.CROP, Category.ORGANISE),
+    ToolItem("Flatten PDF", "Make comments & forms permanent", Icons.Default.Layers, Routes.FLATTEN, Category.EDIT),
+    ToolItem("Repair PDF", "Fix files that won't open", Icons.Default.Build, Routes.REPAIR, Category.PRIVACY),
     ToolItem("Search in Files", "Find text inside documents", Icons.AutoMirrored.Filled.ManageSearch, Routes.SEARCH, Category.PRIVACY),
     ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES, Category.PRIVACY),
 )
@@ -230,6 +236,8 @@ fun HomeScreen(nav: Nav) {
                 Triple("Compress to a size limit", Icons.Default.UploadFile, Routes.TO_SIZE),
                 Triple("Split by size", Icons.Default.ContentCut, Routes.SPLIT_SIZE),
                 Triple("Resize pages to A4/Letter", Icons.Default.AspectRatio, Routes.FIT),
+                Triple("Crop pages", Icons.Default.Crop, Routes.CROP),
+                Triple("Flatten (make permanent)", Icons.Default.Layers, Routes.FLATTEN),
                 Triple("Protect with password", Icons.Default.Lock, Routes.PROTECT),
                 Triple("Remove password", Icons.Default.LockOpen, Routes.UNLOCK),
                 Triple("Find & redact personal data", Icons.Default.Shield, Routes.REDACT),
