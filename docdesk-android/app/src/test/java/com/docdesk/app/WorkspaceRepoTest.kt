@@ -20,6 +20,13 @@ import org.robolectric.annotation.Config
 class WorkspaceRepoTest {
     private val app get() = androidx.test.core.app.ApplicationProvider.getApplicationContext<DocDeskApp>()
 
+    /** The database instance is shared between tests in this class: start each test empty. */
+    @org.junit.Before fun clean() = runBlocking {
+        app.workspace.dao.replaceAll(emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList())
+        app.files.myFilesDir.listFiles()?.forEach { it.delete() }
+        app.files.emptyTrash()
+    }
+
     @Test fun clientFoldersDocsChecklistsAndBackup() = runBlocking {
         val ws = app.workspace
         val id = ws.createClient("Sharma Traders", "F-102")
