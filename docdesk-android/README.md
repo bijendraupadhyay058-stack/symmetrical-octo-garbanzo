@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.5.0 (Phase 9) |
+| Version | 1.6.0 (Phase 10) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -70,3 +70,4 @@ Full setup, signing and release steps: [docs/BUILD.md](docs/BUILD.md).
 - [docs/BUILD.md](docs/BUILD.md) – setup, debug APK, signed release / App Bundle, CI
 - [docs/TESTING.md](docs/TESTING.md) – test plan, results, known limitations, sample files
 - [docs/USER_GUIDE.md](docs/USER_GUIDE.md) – how to use each tool
+- [docs/PLAY_STORE.md](docs/PLAY_STORE.md) – Google Play publishing kit (listing text, form answers, privacy policy, graphics in `docs/store/`)

@@ -23,6 +23,7 @@ cd docdesk-android
 echo "sdk.dir=$HOME/Android/Sdk" > local.properties     # path to your Android SDK
 ./gradlew :core:test                 # engine tests (29 tests incl. real sample documents)
 ./gradlew :app:assembleDebug         # debug APK
+./gradlew :app:testDebugUnitTest     # Android-layer tests with Robolectric (downloads its Android framework on first run)
 ./gradlew :app:lintDebug             # Android Lint
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```

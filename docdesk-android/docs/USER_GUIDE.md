@@ -106,5 +106,8 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **History**: what you did and whether it succeeded – only file names, dates and results are stored. Clear it any time or turn it off in Settings.
 - **Settings**: theme, default OCR language, default number/date format, privacy (history, delete temporary files).
 
+## Problem reports
+If DocDesk closes unexpectedly, the next time you open it you'll see **Send problem report**. You can also send one any time from **Settings › Help us fix problems**. The report holds technical details only (app and Android version, phone model and error trace) – file names, folders, e-mail addresses and document content are removed. You choose how to send it (e-mail, WhatsApp…). Nothing is sent automatically.
+
 ## Privacy
 All processing happens on your phone. DocDesk does not upload documents, has no analytics and never stores passwords. Files are excluded from cloud backup. Unsaved results and temporary files are deleted automatically within a day. The camera scanner is provided by Google Play services, which may download its scanning module the first time.

@@ -28,6 +28,15 @@ Digital signatures were additionally verified on a JVM by running the same signi
 
 Bugs found by these tests and fixed: list styles in Word files were ignored; empty formula values were not flagged; PDF→Word split paragraphs at normal line spacing and treated numbered headings as list items.
 
+### Android-layer tests (Robolectric, run in GitHub Actions)
+
+`app/src/test` runs the real app code on a JVM with Robolectric:
+- **EngineTest** – PDF kind detection (text/scanned/mixed); merge with rotation and duplicates; AES-256 protect/open with right/wrong password and refusal for restricted PDFs; annotations (text box, stamp, highlight, arrow, note, ink) written as editable annotations and **landing at the displayed position on both normal and 90°-rotated pages**; watermark, page numbers/Bates and compression; AcroForm read/fill; create certificate → sign → verify; the real app extractor on the bank statement (55 rows, balances reconcile) and Excel export; PDF→Word with images; Compare reporting added text.
+- **ScreensSmokeTest** – opens all 30 screens (light and dark) and checks each renders.
+- **ProblemReportsTest** – problem reports strip paths, URIs, e-mails and file names but keep code locations.
+
+These need Robolectric's Android framework download (large files served by `gcp.mirrors.maven.org`), which the build container used for development could not reach; they run in CI (`.github/workflows/android.yml`) and in Android Studio.
+
 ## 2. Sample files
 
 Generate with `python3 samples/make_samples.py` (needs `reportlab pypdf pillow openpyxl python-docx`). Pre-generated copies are in `samples/out/`. All data is fictitious.

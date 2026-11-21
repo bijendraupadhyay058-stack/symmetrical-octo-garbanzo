@@ -85,6 +85,12 @@ fun SettingsScreen() {
                 }
                 Text(PRIVACY, style = MaterialTheme.typography.bodySmall)
             }
+            SectionCard("Help us fix problems") {
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                Text("If something didn't work, send a problem report. It contains the app and Android version, phone model and technical error details – never your documents, file names or passwords. You choose how to send it (e-mail, WhatsApp…).", style = MaterialTheme.typography.bodySmall)
+                SecondaryAction("Send problem report") { runCatching { ctx.startActivity(com.docdesk.app.data.ProblemReports.shareIntent()) } }
+                SecondaryAction("Clear problem log") { com.docdesk.app.data.ProblemReports.clear(); note = "Problem log cleared." }
+            }
             SectionCard("About") {
                 Text("DocDesk ${BuildConfigInfo.versionName(app)}", style = MaterialTheme.typography.bodyLarge)
                 Text(LIMITS, style = MaterialTheme.typography.bodySmall)

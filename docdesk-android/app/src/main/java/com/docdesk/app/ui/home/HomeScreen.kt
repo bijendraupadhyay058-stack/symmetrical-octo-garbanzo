@@ -155,6 +155,11 @@ fun HomeScreen(nav: Nav) {
                 Text("Convert, edit and organise PDFs on your phone. Files are processed on this device.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 PrimaryAction("Select a file", icon = Icons.Default.FileOpen) { picker.launch(arrayOf("application/pdf", DocType.WORD.mime, DocType.EXCEL.mime, DocType.LEGACY_WORD.mime, DocType.LEGACY_EXCEL.mime, "image/*")) }
                 message?.let { Notice(it, NoteKind.WARNING) { message = null } }
+                var crashed by remember { mutableStateOf(com.docdesk.app.data.ProblemReports.hasCrash()) }
+                if (crashed) {
+                    Notice("DocDesk closed unexpectedly last time. Sending a problem report helps fix it (it contains technical details only – no documents, file names or personal data).", NoteKind.WARNING) { com.docdesk.app.data.ProblemReports.dismissCrash(); crashed = false }
+                    com.docdesk.app.ui.components.SecondaryAction("Send problem report") { runCatching { context.startActivity(com.docdesk.app.data.ProblemReports.shareIntent()) }; com.docdesk.app.data.ProblemReports.dismissCrash(); crashed = false }
+                }
                 job?.let { JobProgressCard(it) { app.jobs.cancel() } }
                 OutlinedTextField(
                     value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,

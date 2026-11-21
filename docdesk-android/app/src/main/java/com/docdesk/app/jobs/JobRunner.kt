@@ -67,8 +67,12 @@ class JobRunner {
             } catch (e: CancellationException) {
                 Result.failure(OperationCancelled())
             } catch (e: OutOfMemoryError) {
+                com.docdesk.app.data.ProblemReports.recordError("$title (out of memory)", e)
                 Result.failure(OperationFailed("The device ran out of memory. Try fewer pages at a time or close other apps."))
             } catch (e: Throwable) {
+                // Unexpected programming errors are logged (sanitised) for an optional problem report.
+                if (e !is OperationFailed && e !is com.docdesk.core.UnsupportedDocumentException && e !is com.docdesk.app.pdf.PasswordRequiredException &&
+                    e !is com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException) com.docdesk.app.data.ProblemReports.recordError(title, e)
                 Result.failure(e)
             }
             _state.value = null

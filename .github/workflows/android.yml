@@ -20,6 +20,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Core engine tests
         run: ./gradlew :core:test
+      - name: Generate sample documents (incl. .xls/.doc via LibreOffice)
+        working-directory: docdesk-android/samples
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libreoffice-calc libreoffice-writer > /dev/null
+          pip install -q reportlab pypdf pillow openpyxl python-docx
+          python3 make_samples.py
+      - name: App tests (Robolectric engine + screen smoke tests)
+        run: ./gradlew :app:testDebugUnitTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-test-report
+          path: docdesk-android/app/build/reports/tests/testDebugUnitTest/
       - name: Lint
         run: ./gradlew :app:lintDebug
       - name: Debug APK

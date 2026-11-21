@@ -22,8 +22,8 @@ android {
         applicationId = "com.docdesk.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.5.0"
+        versionCode = 7
+        versionName = "1.6.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -55,6 +55,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.maxHeapSize = "3g"
+                // Robolectric downloads its Android framework jar from Maven Central.
+                it.systemProperty("robolectric.dependency.repo.url", "https://repo1.maven.org/maven2")
+                it.systemProperty("docdesk.samples", rootProject.file("samples/out").absolutePath)
+            }
+        }
+    }
     packaging {
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
@@ -106,4 +117,9 @@ dependencies {
     implementation(libs.androidx.biometric)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

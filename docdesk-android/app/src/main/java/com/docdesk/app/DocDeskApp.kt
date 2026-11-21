@@ -30,6 +30,7 @@ class DocDeskApp : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        com.docdesk.app.data.ProblemReports.install(this)
         PDFBoxResourceLoader.init(applicationContext)
         files = FileRepository(this)
         settings = SettingsRepository(this)
@@ -38,11 +39,13 @@ class DocDeskApp : Application() {
         // Remove stale temporary files left by interrupted work (e.g. the app was killed).
         Thread { files.cleanTemporary(olderThanMillis = TimeUnit.HOURS.toMillis(6)) }.start()
         publishShortcuts()
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "temp-cleanup",
-            ExistingPeriodicWorkPolicy.KEEP,
-            PeriodicWorkRequestBuilder<CleanupWorker>(1, TimeUnit.DAYS).build(),
-        )
+        runCatching {
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "temp-cleanup",
+                ExistingPeriodicWorkPolicy.KEEP,
+                PeriodicWorkRequestBuilder<CleanupWorker>(1, TimeUnit.DAYS).build(),
+            )
+        }
     }
 
     /** Long-press shortcuts on the launcher icon. Dynamic, so they work for debug and release package names. */

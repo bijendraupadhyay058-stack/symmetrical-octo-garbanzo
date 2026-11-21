@@ -17,6 +17,8 @@ docScanner = "16.0.0"
 reorderable = "2.4.3"
 junit = "4.13.2"
 biometric = "1.1.0"
+robolectric = "4.16.1"
+androidxTestCore = "1.6.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -43,6 +45,10 @@ mlkit-text-devanagari = { module = "com.google.mlkit:text-recognition-devanagari
 mlkit-doc-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "docScanner" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 junit = { module = "junit:junit", version.ref = "junit" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 
 [plugins]
