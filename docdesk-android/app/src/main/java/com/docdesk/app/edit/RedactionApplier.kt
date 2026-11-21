@@ -18,6 +18,32 @@ import java.io.File
  * Trade-off: those pages are no longer searchable or selectable.
  */
 object RedactionApplier {
+    /**
+     * Full pipeline: draws black boxes for [annots] (all REDACT boxes, possibly other markups),
+     * rebuilds the affected pages as images, keeps the original's protection policy and saves
+     * to [out]. Returns a note about password protection, if any.
+     */
+    suspend fun redactToFile(context: android.content.Context, uri: android.net.Uri, password: String?, annots: List<Annot>, out: File, work: File, progress: Progress?): String? {
+        val pages = annots.filter { it is Annot.Box && it.kind == Annot.BoxKind.REDACT }.map { it.page }.toSet()
+        com.docdesk.app.pdf.PdfDocs.open(context, uri, password).use { doc ->
+            com.docdesk.app.pdf.PdfDocs.require(doc, com.docdesk.app.pdf.PdfAction.MODIFY)
+            val perm = if (doc.isEncrypted) doc.currentAccessPermission else null
+            AnnotationWriter.apply(doc, annots, editable = false, progress = progress)
+            val tmp = File.createTempFile("red", ".pdf", work)
+            try {
+                doc.isAllSecurityToBeRemoved = true
+                doc.save(tmp)
+                com.docdesk.app.pdf.PdfDocs.open(tmp).use { red ->
+                    apply(red, tmp, pages, progress)
+                    val note = com.docdesk.app.pdf.PdfOps.reapplyProtection(perm, red, password)
+                    progress?.step("Saving…", 0.95f)
+                    com.docdesk.app.pdf.PdfOps.saveAtomically(red, out)
+                    return note
+                }
+            } finally { tmp.delete() }
+        }
+    }
+
     /** Rewrites [pages] (0-based) of [doc], which was loaded from [annotated]. */
     suspend fun apply(doc: PDDocument, annotated: File, pages: Set<Int>, progress: Progress?) {
         PageRenderer.open(annotated).use { r ->

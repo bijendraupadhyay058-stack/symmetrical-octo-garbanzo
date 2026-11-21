@@ -19,6 +19,10 @@ data class AppSettings(
     val dateOrder: DateOrder = DateOrder.DMY,
     val numberStyle: NumberStyle = NumberStyle.INDIAN,
     val keepHistory: Boolean = true,
+    /** Ask for fingerprint / face / screen lock when opening DocDesk. */
+    val appLock: Boolean = false,
+    /** Block screenshots and hide the app's content in the recent-apps screen. */
+    val secureScreen: Boolean = false,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -29,6 +33,8 @@ class SettingsRepository(private val context: Context) {
     private val date = stringPreferencesKey("date_order")
     private val number = stringPreferencesKey("number_style")
     private val keepHistory = booleanPreferencesKey("keep_history")
+    private val appLock = booleanPreferencesKey("app_lock")
+    private val secureScreen = booleanPreferencesKey("secure_screen")
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
@@ -37,6 +43,8 @@ class SettingsRepository(private val context: Context) {
             dateOrder = p[date]?.let { runCatching { DateOrder.valueOf(it) }.getOrNull() } ?: DateOrder.DMY,
             numberStyle = p[number]?.let { runCatching { NumberStyle.valueOf(it) }.getOrNull() } ?: NumberStyle.INDIAN,
             keepHistory = p[keepHistory] ?: true,
+            appLock = p[appLock] ?: false,
+            secureScreen = p[secureScreen] ?: false,
         )
     }
 
@@ -45,4 +53,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setDateOrder(v: DateOrder) = context.dataStore.edit { it[date] = v.name }
     suspend fun setNumberStyle(v: NumberStyle) = context.dataStore.edit { it[number] = v.name }
     suspend fun setKeepHistory(v: Boolean) = context.dataStore.edit { it[keepHistory] = v }
+    suspend fun setAppLock(v: Boolean) = context.dataStore.edit { it[appLock] = v }
+    suspend fun setSecureScreen(v: Boolean) = context.dataStore.edit { it[secureScreen] = v }
 }

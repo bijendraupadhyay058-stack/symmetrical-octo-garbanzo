@@ -6,6 +6,13 @@
          runs inside Google Play services, which downloads its model on first use. -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <!-- Android 11+: needed to find the phone's text-to-speech engine (Read aloud). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".DocDeskApp"
         android:allowBackup="false"

@@ -130,6 +130,9 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
     var message by remember { mutableStateOf<String?>(null) }
     val current by remember { derivedStateOf { listState.firstVisibleItemIndex } }
     var bookmarks by remember { mutableStateOf<List<Bookmark>>(emptyList()) }
+    var speaking by remember { mutableStateOf(false) }
+    val reader = remember { com.docdesk.app.pdf.ReadAloud(context) { on, msg -> speaking = on; if (msg != null) message = msg } }
+    DisposableEffect(Unit) { onDispose { reader.release() } }
     var showBookmarks by remember { mutableStateOf(false) }
     val pageWords = remember { mutableStateMapOf<Int, PageText>() }
     var selPage by remember { mutableStateOf<Int?>(null) }
@@ -211,6 +214,22 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, "More actions") }
                         DropdownMenu(menu, { menu = false }) {
                             DropdownMenuItem(text = { Text("Go to page…") }, onClick = { menu = false; goTo = true })
+                            DropdownMenuItem(text = { Text("Read this page aloud") }, onClick = {
+                                menu = false
+                                val d = holder.doc
+                                if (d != null) scope.launch {
+                                    val page = current
+                                    withContext(Dispatchers.IO) {
+                                        runCatching {
+                                            PdfDocs.open(app, d.uri, holder.password).use { doc ->
+                                                val perm = doc.currentAccessPermission
+                                                if (doc.isEncrypted && !perm.isOwnerPermission && !perm.canExtractForAccessibility()) throw com.docdesk.app.jobs.OperationFailed("This PDF's permissions don't allow reading its text aloud.")
+                                                PdfTextExtractor.plainText(doc, page)
+                                            }
+                                        }
+                                    }.onSuccess { reader.speak(it) }.onFailure { message = it.userMessage() }
+                                }
+                            })
                             DropdownMenuItem(text = { Text("Edit / annotate") }, leadingIcon = { Icon(Icons.Default.Brush, null) }, onClick = { menu = false; nav.to(Routes.EDIT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Organise pages") }, onClick = { menu = false; nav.to(Routes.ORGANIZE, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Convert to Word") }, onClick = { menu = false; nav.to(Routes.PDF_WORD, holder.doc?.uri) })
@@ -219,6 +238,7 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Add watermark") }, onClick = { menu = false; nav.to(Routes.WATERMARK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Page numbers / header / footer") }, onClick = { menu = false; nav.to(Routes.NUMBERS, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compress") }, onClick = { menu = false; nav.to(Routes.COMPRESS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Find & redact personal data") }, onClick = { menu = false; nav.to(Routes.REDACT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Sign digitally / check signatures") }, onClick = { menu = false; nav.to(Routes.SIGN, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compare with another version") }, onClick = { menu = false; nav.to(Routes.COMPARE, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Save pages as JPG/PNG") }, onClick = { menu = false; nav.to(Routes.IMAGES, holder.doc?.uri) })
@@ -313,6 +333,9 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                                 }
                             }
                         }
+                    }
+                    if (speaking) Surface(Modifier.align(Alignment.TopEnd).padding(12.dp), shape = RoundedCornerShape(24.dp), tonalElevation = 4.dp, shadowElevation = 4.dp) {
+                        TextButton(onClick = { reader.stop() }) { Text("■ Stop reading") }
                     }
                     if (selPage != null) Surface(Modifier.align(Alignment.BottomStart).padding(16.dp), shape = RoundedCornerShape(24.dp), tonalElevation = 4.dp, shadowElevation = 4.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

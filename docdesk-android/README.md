@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.2.0 (Phase 6) |
+| Version | 1.3.0 (Phase 7) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -40,6 +40,11 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Digital signatures | ✅ | Sign with a .pfx/.p12 certificate or a personal certificate created in the app (PKCS#7 detached, SHA-256, visible box optional, incremental so earlier signatures stay valid); check signatures in received PDFs (intact / changed after signing / certificate details) |
 | Compare PDFs | ✅ | Line and word-level differences; highlighted copies of both versions (editable annotations, comments with original wording) and a text report |
 | PDF → JPG / PNG | ✅ | Pages at 96/150/300 dpi, or extract embedded pictures; optional ZIP |
+| Bank statements → Excel/CSV | ✅ | Several statements (any month/bank layout the table engine reads) → one standard sheet: Date, Narration, Reference, Debit, Credit, Balance, Source; sorted by date; per-file totals and balance checks; overlapping transactions flagged; CSV for Tally/Zoho/reconciliation |
+| Find & redact | ✅ | Detects PAN, Aadhaar (Verhoeff checksum), GSTIN (checksum), IFSC, mobile, email, card (Luhn), account numbers and custom words (OCR for scans); review, then secure redaction |
+| Batch process | ✅ | Many PDFs → Excel, Word, compressed or password-protected, optional ZIP |
+| App lock & privacy screen | ✅ | Fingerprint/face/screen-lock to open (re-locks after 1 min in background); option to block screenshots and hide content in recent apps |
+| Read aloud | ✅ | Viewer reads the current page with the phone's text-to-speech (English/Hindi) |
 | Viewer: contents & copy | ✅ | Bookmarks panel; long-press and drag to select text, then Copy |
 
 Every conversion shows a report: document type (text/scanned/mixed), pages selected and processed, failed pages with reasons, warnings, checks and a preview **before** you save or share.

@@ -64,6 +64,15 @@ fun SettingsScreen() {
                 Text("Numbers", style = MaterialTheme.typography.labelLarge)
                 RadioOptions(NumberStyle.entries, s.numberStyle, { it.label }) { scope.launch { app.settings.setNumberStyle(it) } }
             }
+            SectionCard("Security") {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val canLock = androidx.biometric.BiometricManager.from(context).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK or androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
+                SwitchRow("Lock DocDesk", s.appLock, if (canLock) "Ask for fingerprint, face or screen lock when opening the app and after 1 minute in the background." else "Set up a screen lock or fingerprint in your phone's settings first.") { v ->
+                    if (!canLock && v) note = "Your phone has no screen lock or fingerprint set up, so DocDesk can't be locked. Add one in Settings › Security."
+                    else scope.launch { app.settings.setAppLock(v) }
+                }
+                SwitchRow("Hide content & block screenshots", s.secureScreen, "Documents are hidden in the recent-apps view and screenshots/screen recording are blocked.") { scope.launch { app.settings.setSecureScreen(it) } }
+            }
             SectionCard("Privacy") {
                 SwitchRow("Keep processing history", s.keepHistory, "Only file names, dates and results are stored.") { scope.launch { app.settings.setKeepHistory(it) } }
                 SecondaryAction("Clear history") { confirmHistory = true }

@@ -22,8 +22,8 @@ android {
         applicationId = "com.docdesk.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -103,6 +103,7 @@ dependencies {
     implementation(libs.mlkit.text.devanagari)
     implementation(libs.mlkit.doc.scanner)
     implementation(libs.reorderable)
+    implementation(libs.androidx.biometric)
 
     testImplementation(libs.junit)
 }

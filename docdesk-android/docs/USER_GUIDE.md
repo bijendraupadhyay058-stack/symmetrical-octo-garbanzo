@@ -45,6 +45,21 @@ Tap **Create PDF**, choose one or more Word (.docx), Excel (.xlsx), photo or PDF
 - **Page Numbers**: formats like `Page {n} of {total}`, Bates numbers `INV-{n:4}` → INV-0001, plus header/footer text with `{date}` or `{file}`.
 - **Compress PDF**: makes scanned and photo-heavy PDFs smaller; the report shows the size before and after.
 
+## Bank statements to Excel / CSV
+Choose one or more statements (for example a whole financial year). DocDesk reads the transactions, puts them in one standard layout (Date, Narration, Reference, Debit, Credit, Balance, Source file), sorts them by date, checks each file's running balance and flags rows that need review or that appear in two overlapping statements. The workbook has a *Summary* sheet with totals per file. Tick *Also create a CSV file* for Tally, Zoho Books or reconciliation software. If a bank's layout isn't recognised, use **PDF to Excel** for that file.
+
+## Find & redact
+Choose a PDF and what to look for – PAN, Aadhaar, GSTIN, IFSC, mobile numbers, emails, card or account numbers, or your own words. Review the list, untick anything that should stay, and tap **Redact**. Redacted pages become images so the information is truly removed. Always check the result: numbers split across lines or inside pictures can be missed.
+
+## Batch process
+Choose many PDFs and one action: convert each to Excel or Word, compress each, or add the same password to each. Results can be packed into one ZIP.
+
+## Security
+Settings › Security: **Lock DocDesk** asks for fingerprint, face or screen lock when you open the app (and after a minute in the background). **Hide content & block screenshots** keeps documents out of the recent-apps view and blocks screenshots.
+
+## Read aloud
+In the viewer menu choose **Read this page aloud**; tap **Stop reading** to stop. Hindi needs a Hindi voice installed in your phone's text-to-speech settings.
+
 ## Digital signature
 A digital signature proves who signed and that the PDF hasn't changed since. Open **Digital Signature**, choose a PDF, then:
 1. **Import .pfx/.p12** (your certificate file) or **Create personal** certificate (name, password – remember it!).

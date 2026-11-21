@@ -79,6 +79,19 @@ class SamplesIT {
         }
     }
 
+    @Test fun statementNormalized() {
+        PDDocument.load(File(dir, "bank_statement_text.pdf")).use { doc ->
+            val tables = (0 until doc.numberOfPages).flatMap { TableExtractor.extract(words(doc, it)) }
+            val n = StatementNormalizer.normalize(tables, NumberStyle.INDIAN, DateOrder.DMY, "statement.pdf")!!
+            assertEquals(55, n.rows.size)
+            assertTrue(n.rows.all { it.date != null && it.flags.isEmpty() })
+            assertEquals(emptyList<Int>(), StatementNormalizer.balanceMismatches(n.rows))
+            assertEquals(java.math.BigDecimal("513405.27"), n.rows.mapNotNull { it.debit }.fold(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
+            val text = (0 until doc.numberOfPages).map { words(doc, it) }
+            assertTrue(text.flatMap { SensitiveFinder.find(it, setOf(SensitiveKind.ACCOUNT)) }.any { it.text == "001234567890" })
+        }
+    }
+
     @Test fun invoice() {
         PDDocument.load(File(dir, "invoice.pdf")).use { doc ->
             val t = TableExtractor.extract(words(doc, 0))

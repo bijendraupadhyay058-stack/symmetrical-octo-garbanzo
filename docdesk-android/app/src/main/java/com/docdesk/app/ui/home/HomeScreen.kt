@@ -25,6 +25,9 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.DynamicFeed
 import androidx.compose.material.icons.filled.Compare
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.VerifiedUser
@@ -81,6 +84,7 @@ private data class ToolItem(val label: String, val hint: String, val icon: Image
 
 private val tools = listOf(
     ToolItem("Create PDF", "Word, Excel, photos → PDF", Icons.Default.NoteAdd, Routes.CREATE),
+    ToolItem("Bank Statements", "Many statements → one Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS),
     ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL),
     ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD),
     ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF),
@@ -91,6 +95,8 @@ private val tools = listOf(
     ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE),
     ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN),
     ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM),
+    ToolItem("Find & Redact", "Remove PAN, Aadhaar, A/c nos.", Icons.Default.Shield, Routes.REDACT),
+    ToolItem("Batch Process", "Many PDFs at once", Icons.Default.DynamicFeed, Routes.BATCH),
     ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN),
     ToolItem("Compare PDFs", "Find changes between versions", Icons.Default.Compare, Routes.COMPARE),
     ToolItem("PDF to JPG/PNG", "Pages or pictures as images", Icons.Default.Image, Routes.IMAGES),
@@ -187,6 +193,8 @@ fun HomeScreen(nav: Nav) {
                 Triple("Add watermark", Icons.Default.BrandingWatermark, Routes.WATERMARK),
                 Triple("Add page numbers / header / footer", Icons.Default.FormatListNumbered, Routes.NUMBERS),
                 Triple("Compress", Icons.Default.Compress, Routes.COMPRESS),
+                Triple("Find & redact personal data", Icons.Default.Shield, Routes.REDACT),
+                Triple("Bank statement to Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS),
                 Triple("Sign digitally / check signatures", Icons.Default.VerifiedUser, Routes.SIGN),
                 Triple("Compare with another version", Icons.Default.Compare, Routes.COMPARE),
                 Triple("Save pages as JPG/PNG", Icons.Default.Image, Routes.IMAGES),

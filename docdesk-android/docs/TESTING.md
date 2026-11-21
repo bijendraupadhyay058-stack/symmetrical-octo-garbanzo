@@ -6,8 +6,8 @@ The app was built in a cloud container **without an Android device or emulator**
 
 | Check | Result |
 |---|---|
-| `:core` unit tests (34, incl. text selection, label templates and PDF comparison) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
-| `:core` real-document tests (5) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
+| `:core` unit tests (39, incl. text selection, label templates, PDF comparison, sensitive-data detection with checksums and statement normalisation) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
+| `:core` real-document tests (6, incl. statement normalisation: 55/55 rows, balances reconcile) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
 | `:app:compileDebugKotlin`, `:app:assembleDebug` | ✅ builds |
 | `:app:assembleRelease` with R8 shrinking | ✅ builds (unsigned without keystore) |
 | Android Lint (`:app:lintDebug`) | ✅ 0 errors; remaining warnings are newer-version notices and style suggestions |
@@ -70,6 +70,11 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | History & settings | Turn history off, run an operation, clear history, delete temp files, switch theme | No entry recorded when off; temp size drops |
 | Interruptions | Cancel during PDF→Excel on 100 pages; press Home during conversion; low storage | Partial result marked *Cancelled*; no half-written files; storage error message |
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
+| Bank statements (v1.3) | 2–3 real statements from different banks/months incl. one scanned; overlapping dates | One sorted sheet; Summary totals match printed totals; overlap rows flagged; CSV opens correctly in Excel (₹, Hindi) |
+| Find & redact (v1.3) | KYC PDF with PAN, Aadhaar, mobile, email; scanned Aadhaar copy | All found and listed; redacted output has no selectable text under boxes; random 12-digit numbers not reported as Aadhaar |
+| Batch (v1.3) | 5 PDFs incl. one protected and one damaged → Excel; → compress; → protect | Good files processed; damaged file listed as failed; ZIP contains outputs |
+| App lock (v1.3) | Enable lock; leave app 2 min; reopen; Android 8 device with fingerprint; phone without screen lock | Prompt appears; unlock works; on Android 8 no crash; without screen lock the switch explains why it can't be enabled |
+| Read aloud (v1.3) | English page; Hindi page with and without Hindi voice | Reads; Stop works; missing-voice message shown |
 | Digital signature (v1.2) | Create personal certificate; sign invoice with visible box; open the result in Adobe Acrobat Reader; sign again; edit the signed file in another app and re-check | Acrobat shows valid integrity (identity unknown for personal cert); both signatures valid after second signing; edited file reported as changed/invalid |
 | Compare (v1.2) | Agreement v1 vs v2 with a changed amount, a removed clause and a new clause | Amount word highlighted orange with comment, clause green, removed clause struck red in original; report lists all three |
 | PDF→JPG/PNG (v1.2) | 100-page PDF at 150 dpi as ZIP; extract images from mixed report | ZIP with 100 images; extracted chart image |
@@ -94,4 +99,6 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 - **Viewer** renders a decrypted temporary copy for password-protected PDFs (private cache, deleted on close).
 - **Process death** during a conversion loses that conversion (results are in memory until saved); completed saves are never half-written.
 - **Very large files** (hundreds of MB / thousands of pages) can exhaust memory on low-end phones; use page ranges.
+- **Find & redact** finds identifiers written in standard formats; numbers split across lines, inside images or with unusual separators may be missed. Account-number detection (9–18 digits) is off by default because it also matches other long numbers.
+- **Bank statements**: layouts where debit/credit direction is not stated (single amount column without Dr/Cr or sign) are flagged, not guessed.
 - History and the result list are per-device; there is no sync or cloud backup (by design).
