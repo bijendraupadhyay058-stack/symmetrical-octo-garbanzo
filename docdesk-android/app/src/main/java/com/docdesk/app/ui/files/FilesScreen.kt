@@ -102,6 +102,9 @@ fun FilesScreen(nav: Nav) {
     var info by remember { mutableStateOf<StoredFile?>(null) }
     var exporting by remember { mutableStateOf<StoredFile?>(null) }
     val pages = remember { mutableStateMapOf<String, String>() }
+    var showTrash by remember { mutableStateOf(false) }
+    var confirmEmpty by remember { mutableStateOf(false) }
+    val trash = remember(refresh) { app.files.listTrash() }
 
     val all = remember(refresh) { app.files.listMyFiles() }
     val shown = remember(all, query, sort) {
@@ -154,6 +157,21 @@ fun FilesScreen(nav: Nav) {
                     Text("Files you save in DocDesk are stored privately in the app. Use \"Save to device\" or Share to put a copy elsewhere.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+            if (trash.isNotEmpty() || showTrash) item {
+                TextButton({ showTrash = !showTrash }) { Text(if (showTrash) "Hide recycle bin" else "Recycle bin (${trash.size})") }
+            }
+            if (showTrash) {
+                item { Text("Deleted files are kept for ${app.files.TRASH_DAYS} days, then removed for good.", style = MaterialTheme.typography.bodySmall) }
+                items(trash, key = { "trash:" + it.file.path }) { f ->
+                    ListItem(headlineContent = { Text(f.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+                        supportingContent = { Text("Deleted ${DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(f.modified))} · ${formatSize(f.size)}") },
+                        leadingContent = { Icon(iconFor(f.type), null) },
+                        trailingContent = { Row {
+                            TextButton({ val r = app.files.restoreFromTrash(f.file); message = "Restored \"${r.name}\" to My Files." to NoteKind.INFO; refresh++ }) { Text("Restore") }
+                        } })
+                }
+                if (trash.isNotEmpty()) item { TextButton({ confirmEmpty = true }) { Text("Empty recycle bin", color = MaterialTheme.colorScheme.error) } }
+            }
             if (shown.isEmpty()) item { Text(if (all.isEmpty()) "No files yet. Converted and edited files you save will appear here." else "No files match your search.", Modifier.padding(vertical = 24.dp)) }
             items(shown, key = { it.file.path }) { f ->
                 var menu by remember { mutableStateOf(false) }
@@ -198,9 +216,11 @@ fun FilesScreen(nav: Nav) {
         }, onDismiss = { renaming = null })
     }
     deleting?.let { f ->
-        ConfirmDialog("Delete file?", "\"${f.name}\" will be permanently deleted from My Files. Copies you saved elsewhere are not affected.", "Delete",
-            onConfirm = { app.files.delete(f.file); deleting = null; refresh++ }, onDismiss = { deleting = null })
+        ConfirmDialog("Delete file?", "\"${f.name}\" moves to the recycle bin for ${app.files.TRASH_DAYS} days, then is deleted for good. Copies you saved elsewhere are not affected.", "Delete",
+            onConfirm = { if (!app.files.moveToTrash(f.file)) app.files.delete(f.file); deleting = null; message = "Moved to the recycle bin." to NoteKind.INFO; refresh++ }, onDismiss = { deleting = null })
     }
+    if (confirmEmpty) ConfirmDialog("Empty recycle bin?", "${trash.size} file(s) will be deleted for good. This can't be undone.", "Delete for good",
+        onConfirm = { app.files.emptyTrash(); confirmEmpty = false; showTrash = false; refresh++ }, onDismiss = { confirmEmpty = false })
     info?.let { f ->
         AlertDialog(onDismissRequest = { info = null }, confirmButton = { TextButton(onClick = { info = null }) { Text("Close") } }, title = { Text("Details") }, text = {
             Column {

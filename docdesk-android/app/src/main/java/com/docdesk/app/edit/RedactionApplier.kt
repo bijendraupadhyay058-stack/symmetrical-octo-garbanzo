@@ -47,22 +47,36 @@ object RedactionApplier {
     /** Rewrites [pages] (0-based) of [doc], which was loaded from [annotated]. */
     suspend fun apply(doc: PDDocument, annotated: File, pages: Set<Int>, progress: Progress?) {
         PageRenderer.open(annotated).use { r ->
-            for ((k, i) in pages.sorted().withIndex()) {
-                progress?.step("Securing redacted page ${i + 1}…", 0.6f + 0.3f * k / pages.size)
-                val (w, h) = r.pageSize(i)
-                val px = (w / 72f * 200f).toInt().coerceIn(800, 2400) // ≈200 dpi
-                val bmp = r.render(i, px, cache = false) ?: continue
-                val old = doc.getPage(i)
-                val fresh = PDPage(PDRectangle(w.toFloat(), h.toFloat())) // displayed orientation, no /Rotate
-                fresh.resources = PDResources()
-                val img = JPEGFactory.createFromImage(doc, bmp, 0.85f)
-                PDPageContentStream(doc, fresh).use { cs -> cs.drawImage(img, 0f, 0f, w.toFloat(), h.toFloat()) }
-                bmp.recycle()
-                // Replace in place so page order and links to other pages stay valid.
-                doc.pages.insertBefore(fresh, old)
-                doc.pages.remove(old)
+            applyWith(doc, pages, progress, { i -> r.pageSize(i).let { (w, h) -> w.toFloat() to h.toFloat() } }) { i, w ->
+                r.render(i, (w / 72f * 200f).toInt().coerceIn(800, 2400), cache = false) // ≈200 dpi
             }
         }
+        scrubMetadata(doc)
+    }
+
+    /**
+     * Replaces each page in [pages] by an image of itself, so none of its text, fonts, vector
+     * drawings, hidden layers or annotations remain. [size] gives the displayed page size in points;
+     * [render] draws the page (with the black boxes already on it).
+     */
+    suspend fun applyWith(doc: PDDocument, pages: Set<Int>, progress: Progress?, size: suspend (Int) -> Pair<Float, Float>, render: suspend (Int, Float) -> android.graphics.Bitmap?) {
+        for ((k, i) in pages.sorted().withIndex()) {
+            progress?.step("Securing redacted page ${i + 1}…", 0.6f + 0.3f * k / pages.size)
+            val (w, h) = size(i)
+            val bmp = render(i, w) ?: throw IllegalStateException("Page ${i + 1} could not be drawn, so it was not redacted.")
+            val old = doc.getPage(i)
+            val fresh = PDPage(PDRectangle(w, h)) // displayed orientation, no /Rotate
+            fresh.resources = PDResources()
+            val img = JPEGFactory.createFromImage(doc, bmp, 0.85f)
+            PDPageContentStream(doc, fresh).use { cs -> cs.drawImage(img, 0f, 0f, w, h) }
+            bmp.recycle()
+            // Replace in place so page order and links to other pages stay valid.
+            doc.pages.insertBefore(fresh, old)
+            doc.pages.remove(old)
+        }
+    }
+
+    fun scrubMetadata(doc: PDDocument) {
         // Text in bookmarks and document properties could reveal redacted content.
         doc.documentInformation.cosObject.removeItem(COSName.KEYWORDS)
         doc.documentInformation.cosObject.removeItem(COSName.SUBJECT)

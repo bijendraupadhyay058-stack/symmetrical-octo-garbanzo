@@ -439,4 +439,33 @@ class EngineTest {
             assertEquals(5, d.pages.indexOf(dest.page))
         }
     }
+
+    @Test fun redactionRemovesText() = runBlocking {
+        val src = out("red-src.pdf")
+        PDDocument().use { d ->
+            for (t in listOf("PAN ABCDE1234F SECRET", "KEEP THIS PAGE")) {
+                val page = PDPage(PDRectangle.A4); d.addPage(page)
+                com.tom_roush.pdfbox.pdmodel.PDPageContentStream(d, page).use { cs -> cs.beginText(); cs.setFont(PDType1Font.HELVETICA, 14f); cs.newLineAtOffset(72f, 700f); cs.showText(t); cs.endText() }
+            }
+            d.documentInformation.keywords = "ABCDE1234F"
+            d.save(src)
+        }
+        val red = out("red-out.pdf")
+        PdfDocs.open(src).use { d ->
+            // The real app renders with Android's PdfRenderer; here a plain image stands in for the rendered page.
+            com.docdesk.app.edit.RedactionApplier.applyWith(d, setOf(0), null, { 595f to 842f }) { _, _ -> android.graphics.Bitmap.createBitmap(200, 283, android.graphics.Bitmap.Config.ARGB_8888) }
+            com.docdesk.app.edit.RedactionApplier.scrubMetadata(d)
+            d.save(red)
+        }
+        PdfDocs.open(red).use { d ->
+            assertEquals(2, d.numberOfPages)
+            assertEquals("", PdfTextExtractor.plainText(d, 0).trim()) // text, search and copy find nothing
+            assertTrue(PdfTextExtractor.plainText(d, 1).contains("KEEP THIS PAGE"))
+            assertTrue(d.documentInformation.keywords == null)
+            // No font remains on the redacted page; the raw file no longer contains the text.
+            assertTrue(d.getPage(0).resources.fontNames.toList().isEmpty())
+        }
+        val raw = red.readBytes().toString(Charsets.ISO_8859_1)
+        assertTrue(!raw.contains("ABCDE1234F"))
+    }
 }

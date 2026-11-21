@@ -123,6 +123,22 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **Print layout**: put 2–16 pages on each sheet to save paper, or make a **booklet**: print double-sided, flip on the short edge, fold the stack in half and staple.
 - **Combine 2-sided scans**: scan all fronts, turn the stack over and scan the backs; DocDesk merges them as front 1, back 1, front 2… If the order looks wrong, run it again with the “reverse order” switch changed.
 
+### Bank statements: review before export
+1. Choose the statements (and pages, if not all), then tap **Read statements and review**.
+2. **Transactions** tab: every row with page number. Rows needing attention are red; filters show *Needs review*, *Balance breaks* or *Suggested category*. Tap a row to correct it, change its category, add a row below, split, combine with the next row, delete, or **Show on page**.
+3. **Checks** tab: confirm the statement order (oldest/newest first) if asked, and type or confirm the **opening** and **closing balance** from the printed statement. The difference must be 0 for the check to show OK.
+4. **Source page** tab: the page with the selected row highlighted.
+5. **Export to Excel**: you see the open warnings before the file is made. The workbook has Transactions, Monthly Summary, Category Summary, Reconciliation, Exceptions and Processing Report (with every correction you made).
+
+### Invoices: review before export
+Choose the required fields, read the invoices, then tap each invoice to check or correct it. Duplicates (same supplier, invoice number and financial year) are flagged for you to confirm. A valid GSTIN *format* doesn’t mean the GSTIN is active.
+
+### Client workspace (Clients tab)
+Create a client, add a financial-year folder (suggested names like FY 2024-25), category folders inside it (GST, Income Tax…), then **Add documents** – DocDesk links to the files, it doesn’t copy them. Tap a file to open it, set its status, tags or note. Use **Checklists** for ITR, GST registration, tax audit and more. Search finds clients, file names, tags, notes and statuses.
+
+### Backup, restore and recycle bin
+Settings › **Backup and restore** saves your workspace and settings to a file you choose (documents themselves are not included). Deleted My Files documents stay in the **Recycle bin** for 30 days.
+
 ## Protect PDF (encrypt)
 Choose a PDF, then:
 - **Require a password to open** – nobody can view the file without it.

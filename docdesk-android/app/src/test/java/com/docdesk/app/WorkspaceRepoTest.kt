@@ -58,4 +58,20 @@ class WorkspaceRepoTest {
         assertFalse(ws.isAvailable(ws.dao.allDocs().single()))
         assertTrue(ws.dao.observeActivity(id).first().any { it.text.contains("Checklist") })
     }
+
+    @Test fun recycleBin() {
+        val files = app.files
+        val f = File(files.myFilesDir, "Report.pdf").apply { writeText("x") }
+        assertTrue(files.moveToTrash(f))
+        assertFalse(f.exists())
+        assertEquals(listOf("Report.pdf"), files.listTrash().map { it.name })
+        File(files.myFilesDir, "Report.pdf").writeText("new") // name taken meanwhile
+        val back = files.restoreFromTrash(files.listTrash().single().file)
+        assertEquals("Report (2).pdf", back.name); assertEquals("x", back.readText())
+        assertTrue(files.moveToTrash(back))
+        files.emptyTrash(olderThanMillis = 60_000) // too recent to purge
+        assertEquals(1, files.listTrash().size)
+        files.emptyTrash()
+        assertTrue(files.listTrash().isEmpty())
+    }
 }

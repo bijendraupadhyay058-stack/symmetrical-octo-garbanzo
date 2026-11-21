@@ -53,6 +53,7 @@ data class InputDoc(val uri: Uri, val name: String, val size: Long, val type: Do
  */
 class FileRepository(private val context: Context) {
     val myFilesDir: File = File(context.filesDir, "MyFiles").apply { mkdirs() }
+    val TRASH_DAYS = 30L
     private val outputDir: File get() = File(context.cacheDir, "output").apply { mkdirs() }
     val workDir: File get() = File(context.cacheDir, "work").apply { mkdirs() }
     val signaturesDir: File get() = File(context.filesDir, "signatures").apply { mkdirs() }
@@ -124,6 +125,34 @@ class FileRepository(private val context: Context) {
     }
 
     fun delete(file: File): Boolean = file.delete()
+
+    /** Recycle bin for My Files: deleted files are kept for [TRASH_DAYS] days, then removed for good. */
+    val trashDir: File get() = File(context.filesDir, "RecycleBin").apply { mkdirs() }
+
+    /** Moves a My Files document to the recycle bin. The bin keeps the deletion time as the file's date. */
+    fun moveToTrash(file: File): Boolean {
+        val target = unique(trashDir, file.name)
+        val ok = file.renameTo(target) || (runCatching { file.copyTo(target); file.delete() }.getOrDefault(false))
+        if (ok) target.setLastModified(System.currentTimeMillis())
+        return ok
+    }
+
+    fun listTrash(): List<StoredFile> = (trashDir.listFiles() ?: emptyArray()).filter { it.isFile }.sortedByDescending { it.lastModified() }.map {
+        StoredFile(it, it.name, it.length(), it.lastModified(), DocType.of(it.name))
+    }
+
+    /** Puts a file back into My Files (renamed if the name is taken). */
+    fun restoreFromTrash(file: File): File {
+        val target = unique(myFilesDir, file.name)
+        if (!file.renameTo(target)) { file.copyTo(target); file.delete() }
+        target.setLastModified(System.currentTimeMillis())
+        return target
+    }
+
+    fun emptyTrash(olderThanMillis: Long = 0) {
+        val cutoff = System.currentTimeMillis() - olderThanMillis
+        trashDir.listFiles()?.forEach { if (it.lastModified() <= cutoff) it.delete() }
+    }
 
     fun uriFor(file: File): Uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
 

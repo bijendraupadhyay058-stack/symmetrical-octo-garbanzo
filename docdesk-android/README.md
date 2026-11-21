@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.12.0 (Phase 16) |
+| Version | 1.13.0 (Phase 17) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -52,6 +52,11 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Print | ✅ | Android print system (any printer app, Save as PDF); respects “no printing” permission; from viewer and result screens |
 | Print layout | ✅ | 2/4/6/8/9/16 pages per sheet, or a fold-and-staple booklet; pages stay vector |
 | Combine double-sided scans | ✅ | Interleaves a fronts scan and a backs scan (normal or reversed order) |
+| Bank statement review | ✅ | Every row beside its source page (highlighted); edit/add/delete/split/combine with audit trail; opening + credits − debits vs closing balance, running balance in the confirmed order, duplicates, missing values, failed pages; suggested categories; 6-sheet workbook |
+| Invoice review | ✅ | Supplier/customer names and GSTINs, invoice type, HSN/SAC items, page; duplicate per supplier + financial year; required fields; correct before export |
+| Client workspace | ✅ | Clients › FY/AY › category › files (linked), tags, notes, statuses, search, activity, checklists (ITR, GST registration, tax audit, annual filing, document collection) |
+| Backup & restore, recycle bin | ✅ | Local JSON backup of workspace and settings (documents not included); 30-day recycle bin in My Files |
+| Cover & contents pages | ✅ | Cover page, linked contents page from bookmarks or headings, blank pages |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |
 | Remove password | ✅ | Shows current protection; removes it with the open password, or the permissions password when the author set restrictions – never bypassed |
@@ -79,6 +84,7 @@ Full setup, signing and release steps: [docs/BUILD.md](docs/BUILD.md).
 
 ## Documentation
 
+- [docs/FEATURE_STATUS.md](docs/FEATURE_STATUS.md) – status of every requirement in the accountant specification (implemented / partly / planned)
 - [docs/FEASIBILITY.md](docs/FEASIBILITY.md) – feature & feasibility assessment, libraries and licences, offline vs. server/paid features, roadmap
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) – architecture, project structure, data flow, how to extend
 - [docs/BUILD.md](docs/BUILD.md) – setup, debug APK, signed release / App Bundle, CI

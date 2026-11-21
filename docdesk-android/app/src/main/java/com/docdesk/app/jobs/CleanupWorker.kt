@@ -11,6 +11,7 @@ class CleanupWorker(context: Context, params: WorkerParameters) : CoroutineWorke
     override suspend fun doWork(): Result {
         val app = applicationContext as DocDeskApp
         if (!app.jobs.isBusy) app.files.cleanTemporary(olderThanMillis = TimeUnit.DAYS.toMillis(1))
+        app.files.emptyTrash(olderThanMillis = TimeUnit.DAYS.toMillis(app.files.TRASH_DAYS))
         return Result.success()
     }
 }
