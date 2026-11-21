@@ -99,6 +99,12 @@ class SamplesIT {
             assertEquals(listOf("S.No", "Description", "HSN", "Qty", "Rate", "Amount"), t[0].header!!.cells.map { it.raw })
             assertEquals("Toner cartridge 88A", t[0].bodyRows[1].cells[1].raw)
             assertEquals("31,249.35", t[0].bodyRows.last().cells[5].raw)
+            val inv = InvoiceExtractor.extract(listOf(words(doc, 0)), "invoice.pdf")
+            assertEquals("INV/2024-25/0042", inv.invoiceNo)
+            assertEquals(java.time.LocalDate.of(2024, 4, 15), inv.date)
+            assertEquals(java.math.BigDecimal("26482.50"), inv.taxable)
+            assertEquals(java.math.BigDecimal("31249.35"), inv.total)
+            assertEquals(inv.cgst, inv.sgst)
         }
     }
 

@@ -45,6 +45,15 @@ Tap **Create PDF**, choose one or more Word (.docx), Excel (.xlsx), photo or PDF
 - **Page Numbers**: formats like `Page {n} of {total}`, Bates numbers `INV-{n:4}` → INV-0001, plus header/footer text with `{date}` or `{file}`.
 - **Compress PDF**: makes scanned and photo-heavy PDFs smaller; the report shows the size before and after.
 
+## GST invoice register
+Choose your purchase or sales invoices (PDFs, scanned ones too). DocDesk builds an Excel register with invoice number, date, supplier and buyer GSTIN, taxable value, CGST, SGST/UTGST, IGST, cess and total, plus a totals row. The **Review** column flags anything to check: a GSTIN with a wrong check digit, taxes that don't add up to the total, CGST ≠ SGST, IGST on a same-state supply, or a field that wasn't found. The second sheet shows the exact line each value was read from. Always reconcile with GSTR-2B before filing.
+
+## Old Word and Excel files (.doc, .xls)
+Excel to PDF, Word to PDF and Create PDF accept old .xls (including Tally exports) and .doc files. Old .xls keeps values, number formats, bold/italic, column widths and merged cells (not cell colours or borders). Old .doc keeps text, paragraphs and tables only.
+
+## Search in files
+Type a word, name, amount or PAN to find it inside every PDF, Word, Excel and text file in My Files. Tap a result to open it.
+
 ## Bank statements to Excel / CSV
 Choose one or more statements (for example a whole financial year). DocDesk reads the transactions, puts them in one standard layout (Date, Narration, Reference, Debit, Credit, Balance, Source file), sorts them by date, checks each file's running balance and flags rows that need review or that appear in two overlapping statements. The workbook has a *Summary* sheet with totals per file. Tick *Also create a CSV file* for Tally, Zoho Books or reconciliation software. If a bank's layout isn't recognised, use **PDF to Excel** for that file.
 

@@ -235,8 +235,8 @@ private fun open(f: StoredFile, nav: Nav, context: android.content.Context, onEr
     val uri = Uri.fromFile(f.file)
     when (f.type) {
         DocType.PDF -> nav.to(Routes.VIEWER, uri)
-        DocType.WORD -> nav.to(Routes.WORD_PDF, uri)
-        DocType.EXCEL -> nav.to(Routes.EXCEL_PDF, uri)
+        DocType.WORD, DocType.LEGACY_WORD -> nav.to(Routes.WORD_PDF, uri)
+        DocType.EXCEL, DocType.LEGACY_EXCEL -> nav.to(Routes.EXCEL_PDF, uri)
         else -> runCatching { context.startActivity(DocDeskApp.instance.files.openWithIntent(f.file).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.onFailure { onError("No app on this phone can open this file.") }
     }
 }

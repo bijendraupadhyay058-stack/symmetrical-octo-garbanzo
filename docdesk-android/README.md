@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.3.0 (Phase 7) |
+| Version | 1.4.0 (Phase 8) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -25,8 +25,10 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Organise pages | ✅ | Drag to reorder, rotate 90/180/270, delete, duplicate, extract, insert from another PDF, undo/redo, save as new |
 | PDF → Excel | ✅ | Text PDFs and OCR; auto or manual table area; editable review grid; Indian number & date formats; raw text kept; flagged cells; financial checks; 3 sheet layouts |
 | PDF → Word | ✅ | Editable-text and layout-focused modes; headings, bold/italic, lists, tables, images, page breaks, repeated header/footer; OCR for scans |
-| Word → PDF | ✅ (.docx) | Text, runs, headings, lists, tables, images, page breaks, header/footer, Hindi shaping. `.doc` not supported |
-| Excel → PDF | ✅ (.xlsx) | Sheet selection, print area, orientation, paper, margins, fit-to-width/page/custom %, gridlines, sheet names, page numbers, preview. `.xls` not supported |
+| Word → PDF | ✅ (.docx, .doc) | .docx: text, runs, headings, lists, tables, images, page breaks, header/footer, Hindi shaping. .doc (Word 97–2003): text, paragraphs, tables, hard page breaks (no formatting) |
+| Excel → PDF | ✅ (.xlsx, .xls) | Sheet selection, print area, orientation, paper, margins, fit-to-width/page/custom %, gridlines, sheet names, page numbers, preview. .xls (incl. Tally exports): values, number formats, bold/italic, widths, merges (no fills/borders) |
+| GST invoice register | ✅ | Invoice PDFs (text or scanned) → Excel: invoice no., date, supplier/buyer GSTIN, taxable, CGST, SGST/UTGST, IGST, cess, total; GSTIN checksum, tax arithmetic, CGST=SGST, IGST vs same-state checks; duplicates flagged; evidence sheet |
+| Search in files | ✅ | Text search inside all PDFs, Word, Excel and text files in My Files |
 | Scan & OCR | ✅ | Camera scanner (edges, crop, perspective, rotate), then reorder, rotate, brightness/contrast, colour/grey/B&W; searchable PDF; text export |
 | Extract text from PDF (OCR) | ✅ | English and Hindi, editable result, low-confidence words listed, TXT, searchable PDF |
 | Annotate & sign | ✅ | Highlight/underline/strikethrough that **snap to words**, pen, shapes, lines, arrows, text boxes, sticky notes, **stamps** (PAID, APPROVED, RECEIVED… with date), images, signatures, colours, sizes, move/resize, undo/redo, **pinch zoom**; markups can be saved as **editable Acrobat annotations** |

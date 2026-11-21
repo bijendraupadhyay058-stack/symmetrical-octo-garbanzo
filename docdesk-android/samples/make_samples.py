@@ -318,6 +318,17 @@ def word_doc(path):
     doc.save(path)
 
 
+def legacy_copies():
+    """Old-format .xls/.doc copies made with LibreOffice (skipped if it is not installed)."""
+    import shutil, subprocess
+    office = shutil.which("soffice") or shutil.which("libreoffice")
+    if not office:
+        print("LibreOffice not found: skipping .xls/.doc samples")
+        return
+    for src, fmt in [("workbook_multi_sheet.xlsx", "xls"), ("word_tables_images.docx", "doc")]:
+        subprocess.run([office, "--headless", "--convert-to", fmt, "--outdir", OUT, os.path.join(OUT, src)], check=False, capture_output=True, timeout=180)
+
+
 def main():
     rows = transactions()
     bank_statement_pdf(os.path.join(OUT, "bank_statement_text.pdf"), rows)
@@ -329,6 +340,7 @@ def main():
     damaged_pdf(os.path.join(OUT, "invoice.pdf"))
     workbook(os.path.join(OUT, "workbook_multi_sheet.xlsx"))
     word_doc(os.path.join(OUT, "word_tables_images.docx"))
+    legacy_copies()
     for f in sorted(os.listdir(OUT)):
         print(f"{os.path.getsize(os.path.join(OUT, f)) / 1024:8.1f} KB  {f}")
 

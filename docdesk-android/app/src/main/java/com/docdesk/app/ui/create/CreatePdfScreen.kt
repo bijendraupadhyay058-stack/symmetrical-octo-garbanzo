@@ -85,7 +85,7 @@ class CreatePdfVm : ViewModel() {
     var consumedPending = false
 }
 
-private val ACCEPTED = setOf(DocType.WORD, DocType.EXCEL, DocType.IMAGE, DocType.PDF)
+private val ACCEPTED = setOf(DocType.WORD, DocType.EXCEL, DocType.IMAGE, DocType.PDF, DocType.LEGACY_WORD, DocType.LEGACY_EXCEL)
 
 /**
  * "Create PDF": turn Word, Excel and image files (and existing PDFs) into PDF – each as its own
@@ -103,7 +103,6 @@ fun CreatePdfScreen(nav: Nav, input: Uri?) {
             val d = app.files.describe(u)
             when {
                 d.type in ACCEPTED -> vm.files.add(d)
-                d.type == DocType.LEGACY_WORD || d.type == DocType.LEGACY_EXCEL -> skipped.add("${d.name} (old ${d.type.label} format – save it as .docx/.xlsx first)")
                 else -> skipped.add("${d.name} (unsupported type)")
             }
         }
@@ -123,8 +122,8 @@ fun CreatePdfScreen(nav: Nav, input: Uri?) {
     ToolScaffold("Create PDF", nav::back) {
         vm.error?.let { Notice(it, NoteKind.WARNING) { vm.error = null } }
         if (vm.files.isEmpty()) {
-            FilePickTarget("Choose Word, Excel or photo files", "Convert each to PDF, or combine them into one PDF", Icons.Default.NoteAdd) { picker.launch(mimes) }
-            Notice("Supported: Word (.docx), Excel (.xlsx), photos (JPG/PNG) and PDFs. Tip: in WhatsApp, Gmail or Files, use Share › DocDesk to send files here directly.")
+            FilePickTarget("Choose Word, Excel or photo files (incl. .doc/.xls)", "Convert each to PDF, or combine them into one PDF", Icons.Default.NoteAdd) { picker.launch(mimes) }
+            Notice("Supported: Word (.docx, .doc), Excel (.xlsx, .xls – e.g. Tally exports), photos (JPG/PNG) and PDFs. Tip: in WhatsApp, Gmail or Files, use Share › DocDesk to send files here directly.")
             return@ToolScaffold
         }
         SectionCard("${vm.files.size} file(s) – in this order") {
@@ -176,13 +175,13 @@ fun CreatePdfScreen(nav: Nav, input: Uri?) {
                         }
                         val out = app.files.newOutputFile(FileRepository.baseName(d.name) + ".pdf")
                         when (d.type) {
-                            DocType.WORD -> {
-                                val doc = app.contentResolver.openInputStream(d.uri)?.use { DocxReader.read(it) } ?: throw OperationFailed("Could not open ${d.name}.")
+                            DocType.WORD, DocType.LEGACY_WORD -> {
+                                val doc = app.contentResolver.openInputStream(d.uri)?.use { if (d.type == DocType.LEGACY_WORD) com.docdesk.core.DocReader.read(it) else DocxReader.read(it) } ?: throw OperationFailed("Could not open ${d.name}.")
                                 DocToPdfRenderer(doc, pageNumbers = false).render(out, null)
                                 if (doc.unsupported.isNotEmpty()) warnings.add("${d.name}: not fully reproduced – " + doc.unsupported.keys.joinToString())
                             }
-                            DocType.EXCEL -> {
-                                val wb = app.contentResolver.openInputStream(d.uri)?.use { XlsxReader.read(it) } ?: throw OperationFailed("Could not open ${d.name}.")
+                            DocType.EXCEL, DocType.LEGACY_EXCEL -> {
+                                val wb = app.contentResolver.openInputStream(d.uri)?.use { if (d.type == DocType.LEGACY_EXCEL) com.docdesk.core.XlsReader.read(it) else XlsxReader.read(it) } ?: throw OperationFailed("Could not open ${d.name}.")
                                 val sheets = wb.sheets.filter { !it.hidden && it.maxRow >= 0 }
                                 if (sheets.isEmpty()) throw OperationFailed("${d.name} has no data.")
                                 SheetToPdfRenderer.render(sheets, print, out, null)

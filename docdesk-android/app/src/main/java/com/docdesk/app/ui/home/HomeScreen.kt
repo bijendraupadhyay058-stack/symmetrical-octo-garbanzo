@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.ManageSearch
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.DynamicFeed
@@ -83,8 +85,9 @@ import java.util.Date
 private data class ToolItem(val label: String, val hint: String, val icon: ImageVector, val route: String)
 
 private val tools = listOf(
-    ToolItem("Create PDF", "Word, Excel, photos → PDF", Icons.Default.NoteAdd, Routes.CREATE),
+    ToolItem("Create PDF", "Word, Excel (.doc/.xls too), photos → PDF", Icons.Default.NoteAdd, Routes.CREATE),
     ToolItem("Bank Statements", "Many statements → one Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS),
+    ToolItem("GST Invoices", "Invoices → Excel register", Icons.Default.ReceiptLong, Routes.INVOICES),
     ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL),
     ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD),
     ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF),
@@ -103,6 +106,7 @@ private val tools = listOf(
     ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK),
     ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS),
     ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS),
+    ToolItem("Search in Files", "Find text inside documents", Icons.Default.ManageSearch, Routes.SEARCH),
     ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES),
 )
 
@@ -121,10 +125,9 @@ fun HomeScreen(nav: Nav) {
         runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         when (app.files.describe(uri).type) {
             DocType.PDF -> chosenPdf = uri
-            DocType.WORD -> nav.to(Routes.WORD_PDF, uri)
-            DocType.EXCEL -> nav.to(Routes.EXCEL_PDF, uri)
+            DocType.WORD, DocType.LEGACY_WORD -> nav.to(Routes.WORD_PDF, uri)
+            DocType.EXCEL, DocType.LEGACY_EXCEL -> nav.to(Routes.EXCEL_PDF, uri)
             DocType.IMAGE -> nav.to(Routes.CREATE, uri)
-            DocType.LEGACY_WORD, DocType.LEGACY_EXCEL -> message = "Older .doc and .xls files are not supported yet. Open the file in Word, Excel or Google Docs/Sheets and save it as .docx or .xlsx first."
             else -> message = "This file type is not supported. Choose a PDF, Word (.docx) or Excel (.xlsx) file."
         }
     }

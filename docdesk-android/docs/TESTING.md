@@ -6,8 +6,8 @@ The app was built in a cloud container **without an Android device or emulator**
 
 | Check | Result |
 |---|---|
-| `:core` unit tests (39, incl. text selection, label templates, PDF comparison, sensitive-data detection with checksums and statement normalisation) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
-| `:core` real-document tests (6, incl. statement normalisation: 55/55 rows, balances reconcile) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
+| `:core` unit tests (44, incl. RK numbers, .xls/.doc readers, GST invoice extraction; incl. text selection, label templates, PDF comparison, sensitive-data detection with checksums and statement normalisation) – page ranges, Indian amounts, dates, Excel number formats, page rotation maths, table extraction, wrapped rows, OCR flags, financial checks, XLSX/DOCX round trips | ✅ all pass |
+| `:core` real-document tests (6 + legacy Office tests, incl. statement normalisation: 55/55 rows, balances reconcile; invoice fields from the sample invoice PDF; .xls and .doc made by LibreOffice) on `samples/out` using desktop Apache PDFBox (same API as PdfBox-Android) | ✅ all pass |
 | `:app:compileDebugKotlin`, `:app:assembleDebug` | ✅ builds |
 | `:app:assembleRelease` with R8 shrinking | ✅ builds (unsigned without keystore) |
 | Android Lint (`:app:lintDebug`) | ✅ 0 errors; remaining warnings are newer-version notices and style suggestions |
@@ -20,6 +20,7 @@ The app was built in a cloud container **without an Android device or emulator**
 | `bank_statement_text.pdf` (3 pages, 55 transactions, wrapped narrations, Indian numbers) | 3 tables detected, combined into **55/55 rows**; columns typed Date/Text/Text/Amount/Amount/Amount; wrapped narrations joined; leading-zero references kept as text; **54/54 running balances reconcile**; opening + credits − debits = printed closing balance; debit total matches the printed total |
 | `invoice.pdf` | Header `S.No/Description/HSN/Qty/Rate/Amount`, 4 items + sub-total/CGST/SGST/Total rows; total `31,249.35` kept exactly; label cells in the amount column flagged for review |
 | `report_mixed_text_and_scan.pdf` page 1 → Word | Title heading, "1. Summary" as a heading (not a list), three-line paragraph joined into one, three bullets |
+| `workbook_multi_sheet.xls`, `word_tables_images.doc` | Old-format input for Excel/Word → PDF and Create PDF (made with LibreOffice by the sample script) |
 | `workbook_multi_sheet.xlsx` | Indian lakh format `4,32,438.24`; brackets `(1,830,000.00)`; `23.5%`; hidden sheet detected; formula without saved result **warned**; print area respected (40 rows) |
 | `word_tables_images.docx` | Title + headings, 3 bullets and 1./2./3. numbering from list *styles*, bold run inside a paragraph, 3×4 table, image, page break, Hindi paragraph intact, header and footer |
 
@@ -41,6 +42,7 @@ Generate with `python3 samples/make_samples.py` (needs `reportlab pypdf pillow o
 | `protected_password_test1234.pdf` | Password prompt (password `test1234`), wrong password message, protection kept after editing |
 | `restricted_no_copy.pdf` | Opens without password but conversions/editing are **refused** (permissions respected) |
 | `damaged_truncated.pdf`, `not_a_pdf.pdf` | Error messages for damaged/unsupported files |
+| `workbook_multi_sheet.xls`, `word_tables_images.doc` | Old-format input for Excel/Word → PDF and Create PDF (made with LibreOffice by the sample script) |
 | `workbook_multi_sheet.xlsx` | Excel→PDF: sheet selection, hidden sheet, print area, merged title, Indian format, wide sheet (scaling/landscape), formula warning |
 | `word_tables_images.docx` | Word→PDF: headings, lists, table, image, page break, header/footer, Hindi shaping |
 
@@ -70,6 +72,9 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | History & settings | Turn history off, run an operation, clear history, delete temp files, switch theme | No entry recorded when off; temp size drops |
 | Interruptions | Cancel during PDF→Excel on 100 pages; press Home during conversion; low storage | Partial result marked *Cancelled*; no half-written files; storage error message |
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
+| GST invoices (v1.4) | 10 real purchase invoices from different suppliers incl. 2 scanned and one inter-state | Register totals match; IGST invoice correct; scanned ones flagged for review where uncertain; evidence sheet lines match |
+| Old Office files (v1.4) | Tally .xls export; an old .doc letter with a table | PDF shows values/formats and table text; warnings about missing formatting |
+| Search in files (v1.4) | Search a PAN and an amount across saved files | Matches with page/sheet; protected files reported as skipped |
 | Bank statements (v1.3) | 2–3 real statements from different banks/months incl. one scanned; overlapping dates | One sorted sheet; Summary totals match printed totals; overlap rows flagged; CSV opens correctly in Excel (₹, Hindi) |
 | Find & redact (v1.3) | KYC PDF with PAN, Aadhaar, mobile, email; scanned Aadhaar copy | All found and listed; redacted output has no selectable text under boxes; random 12-digit numbers not reported as Aadhaar |
 | Batch (v1.3) | 5 PDFs incl. one protected and one damaged → Excel; → compress; → protect | Good files processed; damaged file listed as failed; ZIP contains outputs |
@@ -100,5 +105,7 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 - **Process death** during a conversion loses that conversion (results are in memory until saved); completed saves are never half-written.
 - **Very large files** (hundreds of MB / thousands of pages) can exhaust memory on low-end phones; use page ranges.
 - **Find & redact** finds identifiers written in standard formats; numbers split across lines, inside images or with unusual separators may be missed. Account-number detection (9–18 digits) is off by default because it also matches other long numbers.
+- **Old .doc** files lose fonts, bold, headings, lists and images; page breaks set as a paragraph option are not kept. **Old .xls** files lose cell colours and borders; print areas are not read.
+- **GST invoices**: values are read only from labelled lines; unusual invoice designs or tables of HSN-wise tax may leave fields blank or flagged.
 - **Bank statements**: layouts where debit/credit direction is not stated (single amount column without Dr/Cr or sign) are flagged, not guessed.
 - History and the result list are per-device; there is no sync or cloud backup (by design).

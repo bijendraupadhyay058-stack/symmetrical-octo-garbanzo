@@ -83,17 +83,22 @@ class OfficeVm : ViewModel() {
         val d = app.files.describe(uri)
         error = null; workbook = null; word = null
         when (d.type) {
-            DocType.LEGACY_WORD, DocType.LEGACY_EXCEL -> { error = "\"${d.name}\" is an older ${d.type.label} file, which is not supported yet. Open it in Word/Excel or Google Docs/Sheets and save it as ${if (excel) ".xlsx" else ".docx"}, then try again."; return }
-            DocType.WORD -> if (excel) { error = "That is a Word file. Use Word to PDF instead."; return }
-            DocType.EXCEL -> if (!excel) { error = "That is an Excel file. Use Excel to PDF instead."; return }
-            else -> { error = "Choose a ${if (excel) "Excel (.xlsx)" else "Word (.docx)"} file."; return }
+            DocType.WORD, DocType.LEGACY_WORD -> if (excel) { error = "That is a Word file. Use Word to PDF instead."; return }
+            DocType.EXCEL, DocType.LEGACY_EXCEL -> if (!excel) { error = "That is an Excel file. Use Excel to PDF instead."; return }
+            else -> { error = "Choose a ${if (excel) "Excel (.xlsx or .xls)" else "Word (.docx or .doc)"} file."; return }
         }
+        val legacy = d.type == DocType.LEGACY_WORD || d.type == DocType.LEGACY_EXCEL
         doc = d; fileName = FileRepository.baseName(d.name); loading = true
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     app.contentResolver.openInputStream(uri)?.use { s ->
-                        if (excel) workbook = XlsxReader.read(s) else word = DocxReader.read(s)
+                        when {
+                            excel && legacy -> workbook = com.docdesk.core.XlsReader.read(s)
+                            excel -> workbook = XlsxReader.read(s)
+                            legacy -> word = com.docdesk.core.DocReader.read(s)
+                            else -> word = DocxReader.read(s)
+                        }
                     } ?: throw OperationFailed("The file could not be opened.")
                 }
                 workbook?.let { wb -> selectedSheets = wb.sheets.indices.filter { !wb.sheets[it].hidden }.toSet() }
@@ -116,9 +121,9 @@ fun OfficeToPdfScreen(nav: Nav, input: Uri?, excel: Boolean) {
         val d = vm.doc
         if (d == null || (vm.workbook == null && vm.word == null)) {
             if (vm.loading) Text("Reading file…")
-            else FilePickTarget(if (excel) "Choose an Excel file (.xlsx)" else "Choose a Word file (.docx)", "Converted on this phone", if (excel) Icons.Default.GridOn else Icons.Default.Description) { picker.launch(mimes) }
-            Notice(if (excel) "Values, number formats, bold/italic, fills, borders, merged cells and column widths are reproduced. Formulas show their last saved result. Charts, images and conditional formatting are not drawn."
-                else "Text, headings, bold/italic/underline, lists, tables, images, page breaks, headers and footers are reproduced. Fonts are replaced with the phone's fonts, so line and page breaks may differ from Word.")
+            else FilePickTarget(if (excel) "Choose an Excel file (.xlsx or .xls)" else "Choose a Word file (.docx or .doc)", "Converted on this phone", if (excel) Icons.Default.GridOn else Icons.Default.Description) { picker.launch(mimes) }
+            Notice(if (excel) "Values, number formats, bold/italic, fills, borders, merged cells and column widths are reproduced. Formulas show their last saved result. Charts, images and conditional formatting are not drawn. Old .xls files (e.g. Tally exports) are supported without cell colours and borders."
+                else "Text, headings, bold/italic/underline, lists, tables, images, page breaks, headers and footers are reproduced. Fonts are replaced with the phone's fonts, so line and page breaks may differ from Word. Old .doc files are converted as text, paragraphs and tables only.")
             return@ToolScaffold
         }
         FileHeader(d.name, formatSize(d.size), if (excel) Icons.Default.GridOn else Icons.Default.Description) { picker.launch(mimes) }
