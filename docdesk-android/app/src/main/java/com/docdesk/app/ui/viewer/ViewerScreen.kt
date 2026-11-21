@@ -241,6 +241,16 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Compress to a size limit") }, onClick = { menu = false; nav.to(Routes.TO_SIZE, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Crop pages") }, onClick = { menu = false; nav.to(Routes.CROP, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Flatten (make permanent)") }, onClick = { menu = false; nav.to(Routes.FLATTEN, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Print") }, onClick = {
+                                menu = false
+                                val d = holder.doc ?: return@DropdownMenuItem; val pw = holder.password
+                                scope.launch {
+                                    withContext(Dispatchers.IO) { runCatching { com.docdesk.app.pdf.Printing.prepare(app, d.uri, pw, app.files.workDir) } }
+                                        .onSuccess { (f, n) -> runCatching { com.docdesk.app.pdf.Printing.print(context, f, d.name, n, deleteAfter = true) }.onFailure { f.delete(); holder.error = "Printing isn't available on this phone." } }
+                                        .onFailure { holder.error = it.message ?: "Couldn't prepare the file for printing." }
+                                }
+                            })
+                            DropdownMenuItem(text = { Text("Print layout (pages per sheet, booklet)") }, onClick = { menu = false; nav.to(Routes.PRINT_LAYOUT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Edit bookmarks") }, onClick = { menu = false; nav.to(Routes.BOOKMARKS, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Document properties") }, onClick = { menu = false; nav.to(Routes.PROPERTIES, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Attachments") }, onClick = { menu = false; nav.to(Routes.ATTACHMENTS, holder.doc?.uri) })

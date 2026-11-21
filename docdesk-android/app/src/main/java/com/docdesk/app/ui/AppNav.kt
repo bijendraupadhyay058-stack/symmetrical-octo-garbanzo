@@ -57,6 +57,7 @@ object Routes {
     const val CROP = "crop"; const val FLATTEN = "flatten"; const val REPAIR = "repair"
     const val BOOKMARKS = "bookmarks"; const val PROPERTIES = "properties"
     const val ATTACHMENTS = "attachments"; const val AUTOLINK = "autolink"
+    const val PRINT_LAYOUT = "printlayout"; const val COLLATE = "collate"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -159,6 +160,8 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             tool(Routes.PROPERTIES) { com.docdesk.app.ui.tools.PropertiesScreen(nav, it) }
             tool(Routes.ATTACHMENTS) { com.docdesk.app.ui.tools.AttachmentsScreen(nav, it) }
             tool(Routes.AUTOLINK) { com.docdesk.app.ui.tools.AutoLinkScreen(nav, it) }
+            tool(Routes.PRINT_LAYOUT) { com.docdesk.app.ui.tools.PrintLayoutScreen(nav, it) }
+            tool(Routes.COLLATE) { com.docdesk.app.ui.tools.CollateScreen(nav) }
             tool(Routes.TO_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.TARGET_SIZE) }
             tool(Routes.SPLIT_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.SPLIT_SIZE) }
             tool(Routes.FIT) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.FIT_PAGES) }

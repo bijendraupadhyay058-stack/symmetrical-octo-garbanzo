@@ -119,6 +119,9 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **Document properties**: see who made a PDF and with which program; change the title, author, subject and keywords, or switch on **Remove all hidden information** before sharing.
 - **Attachments**: PDFs can carry other files inside them. See them, tick files to save them to My Files, tap the bin to remove one, or attach new files (up to 100 MB each), then **Save PDF copy**. Only open attachments from people you trust.
 - **Make links clickable**: turns www… addresses, e-mail addresses and (optionally) phone numbers into tappable links without changing how the page looks. Addresses split over two lines are only linked on the first line.
+- **Print**: in the viewer’s ⋮ menu or on any result screen. Uses your phone’s printing (your printer’s app, or Save as PDF). PDFs whose author blocked printing can’t be printed.
+- **Print layout**: put 2–16 pages on each sheet to save paper, or make a **booklet**: print double-sided, flip on the short edge, fold the stack in half and staple.
+- **Combine 2-sided scans**: scan all fronts, turn the stack over and scan the backs; DocDesk merges them as front 1, back 1, front 2… If the order looks wrong, run it again with the “reverse order” switch changed.
 
 ## Protect PDF (encrypt)
 Choose a PDF, then:

@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.11.0 (Phase 15) |
+| Version | 1.12.0 (Phase 16) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -49,6 +49,9 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Document properties | ✅ | Edit title/author/subject/keywords; remove all hidden metadata (info, XMP, thumbnails) |
 | Attachments | ✅ | List, save out, remove and add files embedded in a PDF (incl. paperclip annotations) |
 | Make links clickable | ✅ | Finds web addresses, e-mails and Indian phone numbers in the text and adds invisible link areas |
+| Print | ✅ | Android print system (any printer app, Save as PDF); respects “no printing” permission; from viewer and result screens |
+| Print layout | ✅ | 2/4/6/8/9/16 pages per sheet, or a fold-and-staple booklet; pages stay vector |
+| Combine double-sided scans | ✅ | Interleaves a fronts scan and a backs scan (normal or reversed order) |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |
 | Remove password | ✅ | Shows current protection; removes it with the open password, or the permissions password when the author set restrictions – never bypassed |

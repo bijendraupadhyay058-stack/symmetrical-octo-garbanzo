@@ -68,5 +68,7 @@ class ScreensSmokeTest {
     @Test fun properties() = check("See and change its title") { com.docdesk.app.ui.tools.PropertiesScreen(it, null) }
     @Test fun attachments() = check("See, save or add files attached") { com.docdesk.app.ui.tools.AttachmentsScreen(it, null) }
     @Test fun autoLink() = check("Turn web addresses and e-mails into links") { com.docdesk.app.ui.tools.AutoLinkScreen(it, null) }
+    @Test fun printLayout() = check("Several pages per sheet, or a booklet") { com.docdesk.app.ui.tools.PrintLayoutScreen(it, null) }
+    @Test fun collate() = check("Choose the fronts scan") { com.docdesk.app.ui.tools.CollateScreen(it) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

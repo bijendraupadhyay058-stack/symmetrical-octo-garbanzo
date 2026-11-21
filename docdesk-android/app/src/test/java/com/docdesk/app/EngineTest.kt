@@ -373,4 +373,38 @@ class EngineTest {
         }
         PdfDocs.open(trimmed).use { d -> assertEquals(listOf("data.csv"), com.docdesk.app.pdf.PdfAttachments.list(d).map { it.name }) }
     }
+
+    @Test fun printLayouts() {
+        fun numbered(name: String, n: Int, prefix: String): File = out(name).also { f ->
+            PDDocument().use { d ->
+                for (k in 1..n) {
+                    val page = PDPage(PDRectangle.A4); d.addPage(page)
+                    com.tom_roush.pdfbox.pdmodel.PDPageContentStream(d, page).use { cs -> cs.beginText(); cs.setFont(PDType1Font.HELVETICA, 30f); cs.newLineAtOffset(100f, 400f); cs.showText("$prefix$k"); cs.endText() }
+                }
+                d.save(f)
+            }
+        }
+        val src = numbered("layout-src.pdf", 5, "PAGE")
+        val up = out("layout-4up.pdf"); val bk = out("layout-booklet.pdf")
+        PdfDocs.open(src).use { d ->
+            assertEquals(2, com.docdesk.app.pdf.LayoutTools.nUp(d, up, com.docdesk.core.PaperSize.A4, 4, 18f, true, null))
+            assertEquals(4, com.docdesk.app.pdf.LayoutTools.booklet(d, bk, com.docdesk.core.PaperSize.A4, null))
+        }
+        PdfDocs.open(up).use { d ->
+            // Text stays text: sheet 1 has pages 1–4 in reading order, sheet 2 has page 5.
+            val t1 = PdfTextExtractor.plainText(d, 0)
+            assertTrue(t1, listOf("PAGE1", "PAGE2", "PAGE3", "PAGE4").all { t1.contains(it) })
+            assertTrue(t1.indexOf("PAGE1") < t1.indexOf("PAGE3"))
+            assertEquals("PAGE5", PdfTextExtractor.plainText(d, 1).trim())
+        }
+        PdfDocs.open(bk).use { d ->
+            val side1 = PdfTextExtractor.plainText(d, 0)
+            // 5 pages pad to 8: first side is (blank, page 1); second side (page 2, blank).
+            assertTrue(side1, side1.contains("PAGE1") && !side1.contains("PAGE2"))
+            assertTrue(d.getPage(0).mediaBox.width > d.getPage(0).mediaBox.height)
+        }
+        val fr = numbered("scan-fronts.pdf", 3, "FRONT"); val bkS = numbered("scan-backs.pdf", 3, "BACK"); val col = out("scan-combined.pdf")
+        PdfDocs.open(fr).use { a -> PdfDocs.open(bkS).use { b -> assertEquals(6, com.docdesk.app.pdf.LayoutTools.collate(a, b, true, col, null)) } }
+        PdfDocs.open(col).use { d -> assertEquals(listOf("FRONT1", "BACK3", "FRONT2", "BACK2", "FRONT3", "BACK1"), (0 until 6).map { PdfTextExtractor.plainText(d, it).trim() }) }
+    }
 }

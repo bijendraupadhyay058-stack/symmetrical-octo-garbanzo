@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
@@ -136,6 +137,13 @@ fun ResultScreen(nav: Nav, id: Long) {
                 }
                 val pdf = (saved ?: outputs.map { it.file }).firstOrNull { it.name.endsWith(".pdf", true) }
                 if (pdf != null && outputs.size == 1) SecondaryAction("Open in DocDesk viewer") { nav.to(Routes.VIEWER, Uri.fromFile(pdf)) }
+                if (pdf != null && outputs.size == 1) SecondaryAction("Print", icon = Icons.Default.Print) {
+                    scope.launch {
+                        withContext(Dispatchers.IO) { runCatching { com.docdesk.app.pdf.Printing.prepare(app, Uri.fromFile(pdf), null, app.files.workDir) } }
+                            .onSuccess { (f, n) -> runCatching { com.docdesk.app.pdf.Printing.print(context, f, pdf.name, n, deleteAfter = true) }.onFailure { f.delete(); message = "Printing isn't available on this phone." to NoteKind.WARNING } }
+                            .onFailure { message = (it.message ?: "Couldn't prepare the file for printing.") to NoteKind.ERROR }
+                    }
+                }
                 Text("Unsaved results are deleted automatically within a day.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
