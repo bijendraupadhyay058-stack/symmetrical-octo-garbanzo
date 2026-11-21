@@ -25,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.ReceiptLong
@@ -103,6 +105,8 @@ private val tools = listOf(
     ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE, Category.ORGANISE),
     ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN, Category.CONVERT),
     ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM, Category.EDIT),
+    ToolItem("Protect PDF", "Encrypt with password", Icons.Default.Lock, Routes.PROTECT, Category.PRIVACY),
+    ToolItem("Remove Password", "Unlock a PDF you can open", Icons.Default.LockOpen, Routes.UNLOCK, Category.PRIVACY),
     ToolItem("Find & Redact", "Remove PAN, Aadhaar, A/c nos.", Icons.Default.Shield, Routes.REDACT, Category.PRIVACY),
     ToolItem("Batch Process", "Many PDFs at once", Icons.Default.DynamicFeed, Routes.BATCH, Category.ORGANISE),
     ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN, Category.EDIT),
@@ -217,6 +221,8 @@ fun HomeScreen(nav: Nav) {
                 Triple("Add watermark", Icons.Default.BrandingWatermark, Routes.WATERMARK),
                 Triple("Add page numbers / header / footer", Icons.Default.FormatListNumbered, Routes.NUMBERS),
                 Triple("Compress", Icons.Default.Compress, Routes.COMPRESS),
+                Triple("Protect with password", Icons.Default.Lock, Routes.PROTECT),
+                Triple("Remove password", Icons.Default.LockOpen, Routes.UNLOCK),
                 Triple("Find & redact personal data", Icons.Default.Shield, Routes.REDACT),
                 Triple("Bank statement to Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS),
                 Triple("Sign digitally / check signatures", Icons.Default.VerifiedUser, Routes.SIGN),

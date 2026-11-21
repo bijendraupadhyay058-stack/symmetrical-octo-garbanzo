@@ -238,6 +238,8 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Add watermark") }, onClick = { menu = false; nav.to(Routes.WATERMARK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Page numbers / header / footer") }, onClick = { menu = false; nav.to(Routes.NUMBERS, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compress") }, onClick = { menu = false; nav.to(Routes.COMPRESS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Protect with password") }, onClick = { menu = false; nav.to(Routes.PROTECT, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Remove password") }, onClick = { menu = false; nav.to(Routes.UNLOCK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Find & redact personal data") }, onClick = { menu = false; nav.to(Routes.REDACT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Sign digitally / check signatures") }, onClick = { menu = false; nav.to(Routes.SIGN, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compare with another version") }, onClick = { menu = false; nav.to(Routes.COMPARE, holder.doc?.uri) })

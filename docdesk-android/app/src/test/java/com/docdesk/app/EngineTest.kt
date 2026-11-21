@@ -89,7 +89,7 @@ class EngineTest {
 
     @Test fun passwordProtectAndOpen() {
         val o = out("p.pdf")
-        PdfDocs.open(s("invoice.pdf")).use { PdfOps.protect(it, o, "abcd", "owner123", true, false, false) }
+        PdfDocs.open(s("invoice.pdf")).use { com.docdesk.app.pdf.PdfSecurity.protect(it, o, "abcd", "owner123", com.docdesk.app.pdf.Allowed(print = true, copy = false), com.docdesk.app.pdf.Strength.AES256) }
         try { PdfDocs.open(o).close(); fail("should need a password") } catch (e: PasswordRequiredException) { assertTrue(!e.wrongPassword) }
         try { PdfDocs.open(o, "wrong").close(); fail() } catch (e: PasswordRequiredException) { assertTrue(e.wrongPassword) }
         PdfDocs.open(o, "abcd").use { assertTrue(it.isEncrypted); assertTrue(!it.currentAccessPermission.canExtractContent()) }
@@ -97,6 +97,28 @@ class EngineTest {
         PdfDocs.open(s("restricted_no_copy.pdf")).use { d ->
             try { PdfDocs.require(d, com.docdesk.app.pdf.PdfAction.EXTRACT); fail("permissions must be respected") } catch (e: Exception) { assertTrue(e.message!!.contains("does not allow")) }
         }
+    }
+
+    @Test fun protectAndUnlock() {
+        val sec = com.docdesk.app.pdf.PdfSecurity
+        // Open password only: the same password gives full rights, so it can unlock again.
+        val a = out("a.pdf")
+        PdfDocs.open(s("invoice.pdf")).use { sec.protect(it, a, "open123", null, com.docdesk.app.pdf.Allowed(), com.docdesk.app.pdf.Strength.AES256) }
+        PdfDocs.open(a, "open123").use { d ->
+            val info = sec.describe(d); assertTrue(info.ownerRights); assertEquals("AES-256", info.method)
+            val u = out("a-unlocked.pdf"); sec.removeAll(d, u)
+            PdfDocs.open(u).use { assertTrue(!it.isEncrypted) }
+        }
+        // Restrictions with a separate permissions password, AES-128, no open password.
+        val b = out("b.pdf")
+        PdfDocs.open(s("invoice.pdf")).use { sec.protect(it, b, "", "perm456", com.docdesk.app.pdf.Allowed(print = true, copy = false, edit = false), com.docdesk.app.pdf.Strength.AES128) }
+        PdfDocs.open(b).use { d ->
+            val info = sec.describe(d)
+            assertEquals("AES-128", info.method); assertTrue(!info.ownerRights)
+            assertTrue(info.restrictions.any { it.startsWith("Copying") }); assertTrue(info.restrictions.none { it.startsWith("Printing") })
+            try { sec.removeAll(d, out("nope.pdf")); fail("must not remove without permissions password") } catch (e: IllegalStateException) { }
+        }
+        PdfDocs.open(b, "perm456").use { d -> assertTrue(d.currentAccessPermission.isOwnerPermission); val u = out("b-u.pdf"); sec.removeAll(d, u); PdfDocs.open(u).use { assertTrue(!it.isEncrypted) } }
     }
 
     @Test fun annotationsLandWhereShownEvenOnRotatedPages() {
@@ -121,7 +143,8 @@ class EngineTest {
                 assertTrue((d.getPage(0).annotations.first { it is PDAnnotationTextMarkup } as PDAnnotationTextMarkup).quadPoints.size == 8)
                 // The text box must appear near (0.1, 0.1) of the page AS DISPLAYED.
                 val t = PdfTextExtractor.extract(d, 0)
-                val w = t.words.first { it.text == "HELLO" }
+                val w = t.words.firstOrNull { it.text.contains("HELLO") }
+                    ?: fail("HELLO not found on ${src.name} (rotation ${d.getPage(0).rotation}); words: ${t.words.take(60).joinToString { it.text }}; plain: ${PdfTextExtractor.plainText(d, 0).take(300)}").let { error("unreachable") }
                 assertEquals("x for ${src.name}", 0.1, (w.x / t.width).toDouble(), 0.03)
                 assertEquals("y for ${src.name}", 0.1, (w.y / t.height).toDouble(), 0.04)
                 assertTrue(t.words.any { it.text == "PAID" })

@@ -106,6 +106,16 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **History**: what you did and whether it succeeded – only file names, dates and results are stored. Clear it any time or turn it off in Settings.
 - **Settings**: theme, default OCR language, default number/date format, privacy (history, delete temporary files).
 
+## Protect PDF (encrypt)
+Choose a PDF, then:
+- **Require a password to open** – nobody can view the file without it.
+- **Restrict printing, copying and editing** – tick what others may do and set a **permissions password** (different from the open password). You need it later to change or remove the restrictions.
+- **Encryption** – AES-256 (recommended) or AES-128 for very old PDF readers.
+DocDesk checks the saved file really needs the password before showing the result. If the PDF was already protected, you need its permissions password to change the protection. Keep your passwords safe – they can't be recovered.
+
+## Remove password
+Choose a protected PDF and enter its password. DocDesk shows the current protection (encryption type, restrictions) and creates an unprotected copy. If the author restricted printing or copying, you must enter the **permissions password** – DocDesk never removes protection without the correct password.
+
 ## Problem reports
 If DocDesk closes unexpectedly, the next time you open it you'll see **Send problem report**. You can also send one any time from **Settings › Help us fix problems**. The report holds technical details only (app and Android version, phone model and error trace) – file names, folders, e-mail addresses and document content are removed. You choose how to send it (e-mail, WhatsApp…). Nothing is sent automatically.
 

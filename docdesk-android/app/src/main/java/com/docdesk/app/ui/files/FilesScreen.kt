@@ -100,7 +100,6 @@ fun FilesScreen(nav: Nav) {
     var renaming by remember { mutableStateOf<StoredFile?>(null) }
     var deleting by remember { mutableStateOf<StoredFile?>(null) }
     var info by remember { mutableStateOf<StoredFile?>(null) }
-    var protecting by remember { mutableStateOf<StoredFile?>(null) }
     var exporting by remember { mutableStateOf<StoredFile?>(null) }
     val pages = remember { mutableStateMapOf<String, String>() }
 
@@ -178,7 +177,8 @@ fun FilesScreen(nav: Nav) {
                                 if (f.type == DocType.PDF) {
                                     item("Edit / annotate") { nav.to(Routes.EDIT, Uri.fromFile(f.file)) }
                                     item("Organise pages") { nav.to(Routes.ORGANIZE, Uri.fromFile(f.file)) }
-                                    item("Add password") { protecting = f }
+                                    item("Protect with password") { nav.to(Routes.PROTECT, Uri.fromFile(f.file)) }
+                                    item("Remove password") { nav.to(Routes.UNLOCK, Uri.fromFile(f.file)) }
                                 }
                                 item("Details") { info = f }
                                 item("Delete") { deleting = f }
@@ -211,24 +211,6 @@ fun FilesScreen(nav: Nav) {
             }
         })
     }
-    protecting?.let { f -> ProtectDialog(f, onDismiss = { protecting = null }) { user, owner, print, copy, edit ->
-        protecting = null
-        Operations.run("Protect PDF", onError = { message = it to NoteKind.ERROR }, onResult = nav.resultCallback()) { progress ->
-            progress.step("Encrypting with AES-256…", null)
-            val out = app.files.newOutputFile(FileRepository.baseName(f.name) + " (protected).pdf")
-            PdfDocs.open(f.file).use { doc ->
-                PdfDocs.require(doc, com.docdesk.app.pdf.PdfAction.MODIFY)
-                PdfOps.protect(doc, out, user, owner, print, copy, edit)
-            }
-            OperationResult(
-                OperationReport("Protect PDF", listOf(f.name), Outcome.SUCCESS, notes = listOf(
-                    "Encrypted with AES-256. Opening it requires the password you set. Very old PDF readers (before Acrobat X, 2010) may not support AES-256.",
-                    "Keep the password safe: DocDesk cannot recover it.",
-                )),
-                listOf(OutputFile(out)), Preview.Pdf(out),
-            )
-        }
-    } }
 }
 
 private fun open(f: StoredFile, nav: Nav, context: android.content.Context, onError: (String) -> Unit) {
@@ -247,38 +229,4 @@ fun iconFor(t: DocType) = when (t) {
     DocType.EXCEL, DocType.LEGACY_EXCEL -> Icons.Default.GridOn
     DocType.IMAGE -> Icons.Default.Image
     else -> Icons.AutoMirrored.Filled.InsertDriveFile
-}
-
-@Composable
-private fun ProtectDialog(f: StoredFile, onDismiss: () -> Unit, onConfirm: (String, String, Boolean, Boolean, Boolean) -> Unit) {
-    var pw by remember { mutableStateOf("") }
-    var pw2 by remember { mutableStateOf("") }
-    var owner by remember { mutableStateOf("") }
-    var print by remember { mutableStateOf(true) }
-    var copy by remember { mutableStateOf(false) }
-    var edit by remember { mutableStateOf(false) }
-    val mismatch = pw2.isNotEmpty() && pw != pw2
-    AlertDialog(
-        onDismissRequest = onDismiss, title = { Text("Add password") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Creates a protected copy of \"${f.name}\". The original stays unchanged.", style = MaterialTheme.typography.bodyMedium)
-                val kb = KeyboardOptions(keyboardType = KeyboardType.Password)
-                OutlinedTextField(pw, { pw = it }, label = { Text("Password to open") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = kb)
-                OutlinedTextField(pw2, { pw2 = it }, label = { Text("Repeat password") }, singleLine = true, isError = mismatch, visualTransformation = PasswordVisualTransformation(), keyboardOptions = kb)
-                OutlinedTextField(owner, { owner = it }, label = { Text("Permissions password (optional)") }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = kb,
-                    supportingText = { Text("Needed to change permissions later. If left empty, a random one is used.") })
-                Row { CheckRow("Allow printing", print) { print = it } }
-                Row { CheckRow("Allow copying text", copy) { copy = it } }
-                Row { CheckRow("Allow editing", edit) { edit = it } }
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = pw.length >= 4 && pw == pw2, onClick = {
-                val ownerPw = owner.ifEmpty { java.util.UUID.randomUUID().toString() }
-                onConfirm(pw, ownerPw, print, copy, edit)
-            }) { Text("Protect") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

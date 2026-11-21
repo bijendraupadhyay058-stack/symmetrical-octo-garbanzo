@@ -22,8 +22,8 @@ android {
         applicationId = "com.docdesk.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.6.0"
+        versionCode = 8
+        versionName = "1.7.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -63,6 +63,11 @@ android {
                 // Robolectric downloads its Android framework jar from Maven Central.
                 it.systemProperty("robolectric.dependency.repo.url", "https://repo1.maven.org/maven2")
                 it.systemProperty("docdesk.samples", rootProject.file("samples/out").absolutePath)
+                it.testLogging {
+                    events("failed")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showStackTraces = true
+                }
             }
         }
     }
@@ -117,7 +122,8 @@ dependencies {
     implementation(libs.androidx.biometric)
 
     testImplementation(libs.junit)
-    testImplementation(libs.robolectric)
+    // Robolectric brings a newer Bouncy Castle than PdfBox-Android uses; two copies clash in tests.
+    testImplementation(libs.robolectric) { exclude(group = "org.bouncycastle", module = "bcprov-jdk18on") }
     testImplementation(libs.androidx.test.core)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)

@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.6.0 (Phase 10) |
+| Version | 1.7.0 (Phase 11) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -40,7 +40,8 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Fill forms | ✅ | Text fields, checkboxes, radio buttons, lists; optional flatten |
 | Watermark, page numbers, header/footer | ✅ | Diagonal/horizontal watermark with opacity; `{n}`, `{total}`, `{date}`, `{file}`, Bates `{n:4}` |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
-| Password-protect PDF | ✅ | AES-256, permissions |
+| Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |
+| Remove password | ✅ | Shows current protection; removes it with the open password, or the permissions password when the author set restrictions – never bypassed |
 | Digital signatures | ✅ | Sign with a .pfx/.p12 certificate or a personal certificate created in the app (PKCS#7 detached, SHA-256, visible box optional, incremental so earlier signatures stay valid); check signatures in received PDFs (intact / changed after signing / certificate details) |
 | Compare PDFs | ✅ | Line and word-level differences; highlighted copies of both versions (editable annotations, comments with original wording) and a text report |
 | PDF → JPG / PNG | ✅ | Pages at 96/150/300 dpi, or extract embedded pictures; optional ZIP |

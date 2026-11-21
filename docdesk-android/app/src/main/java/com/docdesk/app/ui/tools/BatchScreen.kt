@@ -143,9 +143,8 @@ fun BatchScreen(nav: Nav, input: Uri?) {
                             }
                             BatchAction.PROTECT -> PdfDocs.open(app, d.uri, pw).use { doc ->
                                 PdfDocs.require(doc, PdfAction.MODIFY)
-                                if (doc.isEncrypted) doc.isAllSecurityToBeRemoved = true
                                 val out = app.files.newOutputFile("$base (protected).pdf")
-                                PdfOps.protect(doc, out, pwNew, java.util.UUID.randomUUID().toString(), allowPrinting = true, allowCopying = false, allowEditing = false)
+                                com.docdesk.app.pdf.PdfSecurity.protect(doc, out, pwNew, null, com.docdesk.app.pdf.Allowed.EVERYTHING, com.docdesk.app.pdf.Strength.AES256)
                                 outs.add(out)
                             }
                         }

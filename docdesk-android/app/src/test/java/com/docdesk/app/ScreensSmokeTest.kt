@@ -55,5 +55,7 @@ class ScreensSmokeTest {
     @Test fun batch() = check("Choose several PDFs") { com.docdesk.app.ui.tools.BatchScreen(it, null) }
     @Test fun invoices() = check("Choose GST invoices") { com.docdesk.app.ui.tools.InvoicesScreen(it, null) }
     @Test fun search() = check("Search inside files") { com.docdesk.app.ui.tools.SearchFilesScreen(it) }
+    @Test fun protect() = check("Choose a PDF to protect") { com.docdesk.app.ui.tools.SecurityScreen(it, null, unlock = false) }
+    @Test fun unlock() = check("Choose a protected PDF") { com.docdesk.app.ui.tools.SecurityScreen(it, null, unlock = true) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

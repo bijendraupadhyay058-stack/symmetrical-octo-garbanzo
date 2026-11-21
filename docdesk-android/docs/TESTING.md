@@ -31,7 +31,7 @@ Bugs found by these tests and fixed: list styles in Word files were ignored; emp
 ### Android-layer tests (Robolectric, run in GitHub Actions)
 
 `app/src/test` runs the real app code on a JVM with Robolectric:
-- **EngineTest** – PDF kind detection (text/scanned/mixed); merge with rotation and duplicates; AES-256 protect/open with right/wrong password and refusal for restricted PDFs; annotations (text box, stamp, highlight, arrow, note, ink) written as editable annotations and **landing at the displayed position on both normal and 90°-rotated pages**; watermark, page numbers/Bates and compression; AcroForm read/fill; create certificate → sign → verify; the real app extractor on the bank statement (55 rows, balances reconcile) and Excel export; PDF→Word with images; Compare reporting added text.
+- **EngineTest** – protect (AES-256/128, permissions) and unlock with/without the permissions password; PDF kind detection (text/scanned/mixed); merge with rotation and duplicates; AES-256 protect/open with right/wrong password and refusal for restricted PDFs; annotations (text box, stamp, highlight, arrow, note, ink) written as editable annotations and **landing at the displayed position on both normal and 90°-rotated pages**; watermark, page numbers/Bates and compression; AcroForm read/fill; create certificate → sign → verify; the real app extractor on the bank statement (55 rows, balances reconcile) and Excel export; PDF→Word with images; Compare reporting added text.
 - **ScreensSmokeTest** – opens all 30 screens (light and dark) and checks each renders.
 - **ProblemReportsTest** – problem reports strip paths, URIs, e-mails and file names but keep code locations.
 
@@ -83,6 +83,7 @@ Run on at least: one Android 8/9 phone (or emulator), one Android 14–16 phone,
 | Accessibility | TalkBack through Home, a conversion, Result | All buttons announced meaningfully; selection states read out |
 | Tally export (v1.5) | Bank statements → Tally XML with rules; import into a TallyPrime test company with matching ledgers | Vouchers created with correct dates, types, ledgers and amounts; bank balance in Tally matches statement |
 | Summaries & Home (v1.5) | Month/party sheets on a year of statements; favourite a tool; search "excel"; long-press app icon shortcuts | Sheets totals equal Transactions totals; favourites persist; shortcuts open the right tool |
+| Protect / Remove password (v1.7) | Protect with open password only; with restrictions + permissions password (AES-128); open results in Adobe Reader; remove each again; try removing a restricted PDF with only the open password | Reader asks for the password and enforces restrictions; removal works with the right password and is refused otherwise |
 | GST invoices (v1.4) | 10 real purchase invoices from different suppliers incl. 2 scanned and one inter-state | Register totals match; IGST invoice correct; scanned ones flagged for review where uncertain; evidence sheet lines match |
 | Old Office files (v1.4) | Tally .xls export; an old .doc letter with a table | PDF shows values/formats and table text; warnings about missing formatting |
 | Search in files (v1.4) | Search a PAN and an amount across saved files | Matches with page/sheet; protected files reported as skipped |

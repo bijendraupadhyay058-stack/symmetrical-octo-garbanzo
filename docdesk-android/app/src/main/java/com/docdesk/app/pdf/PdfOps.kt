@@ -88,21 +88,4 @@ object PdfOps {
         return "The new file keeps the original's password and permissions (now encrypted with AES-256)."
     }
 
-    /**
-     * Adds password protection with AES-256 (PDF 2.0 / Acrobat X+ standard). Readers older than
-     * Acrobat X (2010) may not open AES-256 files.
-     */
-    fun protect(doc: PDDocument, out: File, userPassword: String, ownerPassword: String, allowPrinting: Boolean, allowCopying: Boolean, allowEditing: Boolean) {
-        val ap = AccessPermission().apply {
-            setCanPrint(allowPrinting)
-            setCanExtractContent(allowCopying)
-            setCanModify(allowEditing)
-            setCanAssembleDocument(allowEditing)
-            setCanModifyAnnotations(allowEditing)
-            setCanFillInForm(true)
-        }
-        val policy = StandardProtectionPolicy(ownerPassword, userPassword, ap).apply { encryptionKeyLength = 256 }
-        doc.protect(policy)
-        saveAtomically(doc, out)
-    }
 }
