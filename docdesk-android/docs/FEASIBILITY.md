@@ -92,6 +92,7 @@ DocDesk requests **no INTERNET permission** in its own manifest and has no analy
 | 3 Scanning, OCR, editing | Camera scan, English+Hindi OCR, OCR-assisted conversions, annotations & signatures | Done; in-place text editing deferred (see §4) |
 | 4 Refinement | Performance, accessibility, privacy review, large files, user docs | Partly done (see [TESTING.md](TESTING.md)); on-device testing on a range of phones still required |
 | 13 Fix & finish | Crop (auto/manual), flatten annotations and forms, repair damaged PDFs; AES-128 bug fix | Done (v1.9.0) |
+| 14 Navigation & metadata | Bookmarks editor with auto-creation from headings (font-size analysis, running headers ignored); document properties editor and metadata removal; temp-file naming fix | Done (v1.10.0) |
 | 12 Portal-ready PDFs | Compress to target size, split by size, resize pages to A4/Letter; deprecation clean-up | Done (v1.8.0) |
 | 11 Security | Protect PDF (granular permissions, AES-256/128), Remove password with owner rights | Done (v1.7.0) |
 | 10 Quality & release | Robolectric engine tests and screen smoke tests (run in CI), sanitised local problem reports, Play Store kit | Done (v1.6.0) |

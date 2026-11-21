@@ -88,7 +88,7 @@ class FileRepository(private val context: Context) {
         return File(dir, sanitize(name))
     }
 
-    fun newWorkFile(suffix: String): File = File.createTempFile("w", suffix, workDir)
+    fun newWorkFile(suffix: String): File = File.createTempFile("work", suffix, workDir)
 
     /** Copies an output into My Files with a unique name and returns the stored file. */
     fun saveToMyFiles(source: File, desiredName: String = source.name): File {

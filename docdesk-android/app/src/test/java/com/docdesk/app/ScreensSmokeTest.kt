@@ -64,5 +64,7 @@ class ScreensSmokeTest {
     @Test fun crop() = check("Choose a PDF to crop") { com.docdesk.app.ui.tools.CropScreen(it, null) }
     @Test fun flatten() = check("Choose a PDF to flatten") { com.docdesk.app.ui.tools.FlattenScreen(it, null) }
     @Test fun repair() = check("Choose a damaged PDF") { com.docdesk.app.ui.tools.RepairScreen(it, null) }
+    @Test fun bookmarks() = check("Add or edit its bookmarks") { com.docdesk.app.ui.tools.BookmarksScreen(it, null) }
+    @Test fun properties() = check("See and change its title") { com.docdesk.app.ui.tools.PropertiesScreen(it, null) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

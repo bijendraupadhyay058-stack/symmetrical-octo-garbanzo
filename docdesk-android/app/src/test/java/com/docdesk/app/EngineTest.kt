@@ -292,4 +292,47 @@ class EngineTest {
         File(dir, "x.pdf").writeText("1")
         assertEquals("x (2).pdf", FileRepository.unique(dir, "x.pdf").name)
     }
+
+    @Test fun bookmarksAndProperties() {
+        // Three pages: a big title, a medium heading and body text.
+        val src = out("outline-src.pdf")
+        PDDocument().use { d ->
+            for (n in 1..3) {
+                val page = PDPage(PDRectangle.A4); d.addPage(page)
+                com.tom_roush.pdfbox.pdmodel.PDPageContentStream(d, page).use { cs ->
+                    fun line(t: String, size: Float, y: Float) { cs.beginText(); cs.setFont(PDType1Font.HELVETICA, size); cs.newLineAtOffset(60f, y); cs.showText(t); cs.endText() }
+                    if (n == 1) line("Main Title", 24f, 780f)
+                    line("Chapter $n Overview", 16f, 740f)
+                    for (k in 0 until 12) line("Ordinary body text sentence number $k on this page.", 10f, 700f - k * 14f)
+                }
+            }
+            d.save(src)
+        }
+        val found = PdfDocs.open(src).use { d -> com.docdesk.core.HeadingFinder.find((0 until d.numberOfPages).map { PdfTextExtractor.extract(d, it) }) }
+        assertEquals(listOf("Main Title", "Chapter 1 Overview", "Chapter 2 Overview", "Chapter 3 Overview"), found.map { it.title })
+        assertEquals(listOf(0, 1, 1, 1), found.map { it.level })
+        assertEquals(listOf(0, 0, 1, 2), found.map { it.page })
+
+        val withBm = out("outline-out.pdf"); val clean = out("outline-clean.pdf")
+        PdfDocs.open(src).use { d ->
+            com.docdesk.app.pdf.Bookmarks.write(d, found)
+            com.docdesk.app.pdf.DocProperties.write(d, com.docdesk.app.pdf.DocProps(title = "Quarterly Report", author = "Finance Team", keywords = "q3, report"))
+            d.save(withBm)
+        }
+        PdfDocs.open(withBm).use { d ->
+            val back = com.docdesk.app.pdf.Bookmarks.readEntries(d)
+            assertEquals(found, back)
+            val p = com.docdesk.app.pdf.DocProperties.read(d)
+            assertEquals("Quarterly Report", p.title); assertEquals("Finance Team", p.author); assertEquals("q3, report", p.keywords); assertEquals("", p.subject)
+            assertEquals(com.tom_roush.pdfbox.pdmodel.PageMode.USE_OUTLINES, d.documentCatalog.pageMode)
+            // Remove all: info gone, bookmarks kept.
+            assertTrue(com.docdesk.app.pdf.DocProperties.stripAll(d) >= 3)
+            com.docdesk.app.pdf.Bookmarks.write(d, emptyList())
+            d.save(clean)
+        }
+        PdfDocs.open(clean).use { d ->
+            assertEquals("", com.docdesk.app.pdf.DocProperties.read(d).author)
+            assertEquals(null, d.documentCatalog.documentOutline)
+        }
+    }
 }

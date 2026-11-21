@@ -115,6 +115,8 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **Crop Pages**: *Automatically remove white borders* (great for scans and phone photos) or cut the same margins (mm) from every page. Cropping hides content outside the new edges – it doesn't delete it.
 - **Flatten PDF**: makes highlights, comments, stamps, drawings and filled forms part of the page, so they can't be changed and look the same everywhere. Do this before sending a final version.
 - **Repair PDF**: for files that won't open or show errors (half-downloaded, damaged attachments). DocDesk rebuilds the file; if that's impossible it rescues the readable pages as images.
+- **Bookmarks**: build the table of contents shown in the side panel of PDF readers. Tap **From headings** to let DocDesk find chapter titles (bigger or bold lines), or **One per page**. Use the arrows to reorder, the indent buttons to make sub-levels, then **Save**. Scanned pages need OCR first.
+- **Document properties**: see who made a PDF and with which program; change the title, author, subject and keywords, or switch on **Remove all hidden information** before sharing.
 
 ## Protect PDF (encrypt)
 Choose a PDF, then:

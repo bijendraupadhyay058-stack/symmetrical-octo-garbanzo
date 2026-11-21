@@ -241,6 +241,8 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Compress to a size limit") }, onClick = { menu = false; nav.to(Routes.TO_SIZE, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Crop pages") }, onClick = { menu = false; nav.to(Routes.CROP, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Flatten (make permanent)") }, onClick = { menu = false; nav.to(Routes.FLATTEN, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Edit bookmarks") }, onClick = { menu = false; nav.to(Routes.BOOKMARKS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Document properties") }, onClick = { menu = false; nav.to(Routes.PROPERTIES, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Resize pages to A4/Letter") }, onClick = { menu = false; nav.to(Routes.FIT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Protect with password") }, onClick = { menu = false; nav.to(Routes.PROTECT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Remove password") }, onClick = { menu = false; nav.to(Routes.UNLOCK, holder.doc?.uri) })

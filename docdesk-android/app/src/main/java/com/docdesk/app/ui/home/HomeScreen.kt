@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.automirrored.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
@@ -127,6 +129,8 @@ private val tools = listOf(
     ToolItem("Crop Pages", "Trim white borders & margins", Icons.Default.Crop, Routes.CROP, Category.ORGANISE),
     ToolItem("Flatten PDF", "Make comments & forms permanent", Icons.Default.Layers, Routes.FLATTEN, Category.EDIT),
     ToolItem("Repair PDF", "Fix files that won't open", Icons.Default.Build, Routes.REPAIR, Category.PRIVACY),
+    ToolItem("Bookmarks", "Add or auto-create a table of contents", Icons.Default.Bookmarks, Routes.BOOKMARKS, Category.EDIT),
+    ToolItem("Document properties", "Title, author, hidden info", Icons.Default.Info, Routes.PROPERTIES, Category.PRIVACY),
     ToolItem("Search in Files", "Find text inside documents", Icons.AutoMirrored.Filled.ManageSearch, Routes.SEARCH, Category.PRIVACY),
     ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES, Category.PRIVACY),
 )
@@ -238,6 +242,8 @@ fun HomeScreen(nav: Nav) {
                 Triple("Resize pages to A4/Letter", Icons.Default.AspectRatio, Routes.FIT),
                 Triple("Crop pages", Icons.Default.Crop, Routes.CROP),
                 Triple("Flatten (make permanent)", Icons.Default.Layers, Routes.FLATTEN),
+                Triple("Edit bookmarks", Icons.Default.Bookmarks, Routes.BOOKMARKS),
+                Triple("Document properties", Icons.Default.Info, Routes.PROPERTIES),
                 Triple("Protect with password", Icons.Default.Lock, Routes.PROTECT),
                 Triple("Remove password", Icons.Default.LockOpen, Routes.UNLOCK),
                 Triple("Find & redact personal data", Icons.Default.Shield, Routes.REDACT),

@@ -107,7 +107,7 @@ object PortalTools {
         val n = doc.numberOfPages
         val sizes = (0 until n).map { i ->
             progress.step("Measuring page ${i + 1} of $n", 0.5f * i / n)
-            val t = File.createTempFile("pg", ".pdf", work)
+            val t = File.createTempFile("page", ".pdf", work)
             try { PDDocument().use { one -> PdfOps.copyPage(one, doc.getPage(i), 0); one.save(t) }; t.length() } finally { t.delete() }
         }
         // Single-page files repeat shared fonts, so the sum over-estimates; a 5% margin keeps parts under the limit.

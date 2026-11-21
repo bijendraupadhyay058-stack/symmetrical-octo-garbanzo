@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.9.0 (Phase 13) |
+| Version | 1.10.0 (Phase 14) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -45,6 +45,8 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Crop pages | ✅ | Auto-remove white borders (per page) or fixed margins in mm; correct on rotated pages |
 | Flatten PDF | ✅ | Comments, markups, stamps and form fields made permanent; links kept |
 | Repair PDF | ✅ | Rebuilds damaged structure; rescues readable pages as images if needed |
+| Bookmarks editor | ✅ | Add, rename, reorder and nest bookmarks; auto-create from headings or one per page |
+| Document properties | ✅ | Edit title/author/subject/keywords; remove all hidden metadata (info, XMP, thumbnails) |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |
 | Remove password | ✅ | Shows current protection; removes it with the open password, or the permissions password when the author set restrictions – never bypassed |
