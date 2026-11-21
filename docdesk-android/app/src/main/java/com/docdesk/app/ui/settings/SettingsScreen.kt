@@ -46,6 +46,17 @@ fun SettingsScreen() {
     var tempBytes by remember { mutableLongStateOf(app.files.temporaryBytes()) }
     var confirmHistory by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
+    var restoreUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val backupSaver = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { u ->
+        if (u != null) scope.launch {
+            note = runCatching {
+                val json = com.docdesk.app.data.Backup.export(app)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.contentResolver.openOutputStream(u)!!.use { it.write(json.toByteArray()) } }
+                "Backup saved. It contains client folders, document names and links, tags, notes, checklists and settings – not the documents themselves. Keep it somewhere safe: it includes client names and notes."
+            }.getOrElse { "Backup failed: ${it.message}" }
+        }
+    }
+    val backupPicker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { u -> restoreUri = u }
 
     Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -85,6 +96,11 @@ fun SettingsScreen() {
                 }
                 Text(PRIVACY, style = MaterialTheme.typography.bodySmall)
             }
+            SectionCard("Backup and restore") {
+                Text("Saves your client workspace (clients, folders, document names and links, tags, notes, statuses, checklists, activity) and settings to a file you choose. Document files are NOT included – back them up separately. Nothing is uploaded; to keep a copy in the cloud, save the backup file to a cloud folder yourself.", style = MaterialTheme.typography.bodySmall)
+                SecondaryAction("Create backup file") { backupSaver.launch("DocDesk backup ${java.time.LocalDate.now()}.json") }
+                SecondaryAction("Restore from backup file") { backupPicker.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+            }
             SectionCard("Help us fix problems") {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 Text("If something didn't work, send a problem report. It contains the app and Android version, phone model and technical error details – never your documents, file names or passwords. You choose how to send it (e-mail, WhatsApp…).", style = MaterialTheme.typography.bodySmall)
@@ -98,6 +114,19 @@ fun SettingsScreen() {
                 Text(LICENCES, style = MaterialTheme.typography.bodySmall)
             }
         }
+    }
+    restoreUri?.let { u ->
+        ConfirmDialog("Restore backup?", "Your current client workspace and settings will be replaced by the backup's contents. Documents linked in the backup open only if they are still on this phone and DocDesk still has access; otherwise add them again.", "Restore",
+            onConfirm = {
+                restoreUri = null
+                scope.launch {
+                    note = runCatching {
+                        val json = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { app.contentResolver.openInputStream(u)!!.use { it.readBytes().toString(Charsets.UTF_8) } }
+                        val r = com.docdesk.app.data.Backup.restore(app, json)
+                        "Restored ${r.clients} client(s), ${r.documents} document link(s), ${r.checklists} checklist(s) and ${r.settings} setting(s)."
+                    }.getOrElse { it.message ?: "Restore failed." }
+                }
+            }, onDismiss = { restoreUri = null })
     }
     if (confirmHistory) ConfirmDialog("Clear history?", "All history entries will be removed. Saved files are not deleted.", "Clear",
         onConfirm = { scope.launch { app.history.clear() }; confirmHistory = false; note = "History cleared." }, onDismiss = { confirmHistory = false })

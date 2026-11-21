@@ -89,4 +89,7 @@ class ScreensSmokeTest {
             assertTrue(rule.onAllNodesWithText("Needs review (1)", substring = true).fetchSemanticsNodes().isNotEmpty())
         } finally { com.docdesk.app.ui.statements.StatementReviewStore.current = null }
     }
+
+    @Test fun workspace() = check("New client") { com.docdesk.app.ui.workspace.WorkspaceScreen(it) }
+    @Test fun clientUnknown() = check("client was not found") { com.docdesk.app.ui.workspace.ClientScreen(it, 999999L, null) }
 }

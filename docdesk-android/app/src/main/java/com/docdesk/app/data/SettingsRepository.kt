@@ -10,6 +10,7 @@ import com.docdesk.app.ocr.OcrLanguage
 import com.docdesk.core.DateOrder
 import com.docdesk.core.NumberStyle
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 enum class ThemeMode(val label: String) { SYSTEM("Follow system"), LIGHT("Light"), DARK("Dark") }
@@ -73,4 +74,18 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSecureScreen(v: Boolean) = context.dataStore.edit { it[secureScreen] = v }
     suspend fun setTally(rulesText: String, bank: String, default: String) = context.dataStore.edit { it[rules] = rulesText; it[bankLedger] = bank; it[defaultLedger] = default }
     suspend fun toggleFavourite(route: String) = context.dataStore.edit { p -> val cur = p[favourites] ?: setOf("statements", "pdf2excel", "edit", "create"); p[favourites] = if (route in cur) cur - route else cur + route }
+
+    /** All settings as plain values, for backups. App lock and screen protection are included; nothing secret is stored in settings. */
+    suspend fun exportAll(): Map<String, Any> = context.dataStore.data.first().asMap().mapKeys { it.key.name }.filterValues { it is String || it is Boolean || it is Set<*> }
+
+    /** Restores settings from a backup: only strings, booleans and string sets are accepted. */
+    suspend fun importAll(values: Map<String, Any>) {
+        context.dataStore.edit { p ->
+            for ((k, v) in values) when (v) {
+                is String -> p[stringPreferencesKey(k)] = v
+                is Boolean -> p[booleanPreferencesKey(k)] = v
+                is Set<*> -> p[stringSetPreferencesKey(k)] = v.filterIsInstance<String>().toSet()
+            }
+        }
+    }
 }

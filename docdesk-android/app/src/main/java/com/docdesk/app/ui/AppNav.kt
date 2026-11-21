@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -59,13 +60,14 @@ object Routes {
     const val ATTACHMENTS = "attachments"; const val AUTOLINK = "autolink"
     const val PRINT_LAYOUT = "printlayout"; const val COLLATE = "collate"
     const val STATEMENT_REVIEW = "statementreview"
+    const val WORKSPACE = "workspace"; const val CLIENT = "client"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 private val tabs = listOf(
-    Tab(Routes.HOME, "Home", Icons.Default.Home), Tab(Routes.FILES, "Files", Icons.Default.Folder),
+    Tab(Routes.HOME, "Home", Icons.Default.Home), Tab(Routes.FILES, "Files", Icons.Default.Folder), Tab(Routes.WORKSPACE, "Clients", Icons.Default.Business),
     Tab(Routes.HISTORY, "History", Icons.Default.History), Tab(Routes.SETTINGS, "Settings", Icons.Default.Settings),
 )
 
@@ -135,6 +137,11 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             composable(Routes.FILES) { FilesScreen(nav) }
             composable(Routes.HISTORY) { HistoryScreen(nav) }
             composable(Routes.STATEMENT_REVIEW) { com.docdesk.app.ui.statements.StatementReviewScreen(nav) }
+            composable(Routes.WORKSPACE) { com.docdesk.app.ui.workspace.WorkspaceScreen(nav) }
+            composable(
+                "${Routes.CLIENT}/{id}?folder={folder}",
+                arguments = listOf(androidx.navigation.navArgument("id") { type = androidx.navigation.NavType.LongType }, androidx.navigation.navArgument("folder") { type = androidx.navigation.NavType.LongType; defaultValue = -1L }),
+            ) { e -> com.docdesk.app.ui.workspace.ClientScreen(nav, e.arguments?.getLong("id") ?: 0L, e.arguments?.getLong("folder")?.takeIf { it >= 0 }) }
             composable(Routes.SETTINGS) { SettingsScreen() }
             fun tool(route: String, content: @Composable (Uri?) -> Unit) = composable(
                 "$route?input={input}",

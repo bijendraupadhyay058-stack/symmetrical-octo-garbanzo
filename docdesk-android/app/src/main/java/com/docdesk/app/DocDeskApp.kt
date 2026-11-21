@@ -19,6 +19,7 @@ class DocDeskApp : Application() {
     lateinit var files: FileRepository private set
     lateinit var settings: SettingsRepository private set
     lateinit var history: HistoryRepository private set
+    lateinit var workspace: com.docdesk.app.data.WorkspaceRepository private set
     lateinit var jobs: JobRunner private set
     val results = ResultStore()
 
@@ -35,6 +36,7 @@ class DocDeskApp : Application() {
         files = FileRepository(this)
         settings = SettingsRepository(this)
         history = HistoryRepository(AppDatabase.get(this).historyDao(), settings)
+        workspace = com.docdesk.app.data.WorkspaceRepository(this, com.docdesk.app.data.db.WorkspaceDatabase.get(this).dao())
         jobs = JobRunner()
         // Remove stale temporary files left by interrupted work (e.g. the app was killed).
         Thread { files.cleanTemporary(olderThanMillis = TimeUnit.HOURS.toMillis(6)) }.start()
