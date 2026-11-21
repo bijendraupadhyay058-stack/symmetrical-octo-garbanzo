@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.CallMerge
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -190,7 +190,7 @@ fun MergeScreen(nav: Nav, input: Uri?) {
                     }
                     OutlinedTextField(outName, { outName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Output file name") }, suffix = { Text(".pdf") })
                     job?.let { JobProgressCard(it) { app.jobs.cancel() } }
-                    PrimaryAction("Merge ${items.size} files", enabled = ready && job == null, icon = Icons.Default.CallMerge) {
+                    PrimaryAction("Merge ${items.size} files", enabled = ready && job == null, icon = Icons.AutoMirrored.Filled.CallMerge) {
                         val snapshot = items.map { Triple(it.doc, it.password, rangeOf(it).getOrThrow()) }
                         val name = outName.ifBlank { "Merged document" } + ".pdf"
                         Operations.run("Merge PDFs", onError = { error = it }, onResult = nav.resultCallback()) { progress ->

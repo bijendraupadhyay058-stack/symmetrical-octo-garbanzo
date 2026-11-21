@@ -6,7 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -70,7 +70,7 @@ fun InvoicesScreen(nav: Nav, input: Uri?) {
         vm.error?.let { Notice(it, NoteKind.ERROR) { vm.error = null } }
         vm.files.skipped?.let { Notice(it, NoteKind.WARNING) { vm.files.skipped = null } }
         if (vm.files.items.isEmpty()) {
-            FilePickTarget("Choose GST invoices (PDF)", "Purchase or sales invoices → one Excel register", Icons.Default.ReceiptLong) { picker.launch(arrayOf("application/pdf")) }
+            FilePickTarget("Choose GST invoices (PDF)", "Purchase or sales invoices → one Excel register", Icons.AutoMirrored.Filled.ReceiptLong) { picker.launch(arrayOf("application/pdf")) }
             Notice("Reads invoice number, date, supplier and buyer GSTIN, taxable value, CGST, SGST/UTGST, IGST, cess and total from labelled text. Checks GSTIN check digits, that taxable value + taxes = total, CGST = SGST, and IGST vs. same-state supply. Values that aren't clearly labelled are left blank – never guessed. A second sheet shows the exact line each value came from.")
             return@ToolScaffold
         }
@@ -80,7 +80,7 @@ fun InvoicesScreen(nav: Nav, input: Uri?) {
         }
         OutlinedTextField(vm.name, { vm.name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("File name") }, suffix = { Text(".xlsx") })
         job?.let { JobProgressCard(it) { app.jobs.cancel() } }
-        PrimaryAction("Create register", enabled = vm.files.allReady && job == null, icon = Icons.Default.ReceiptLong) {
+        PrimaryAction("Create register", enabled = vm.files.allReady && job == null, icon = Icons.AutoMirrored.Filled.ReceiptLong) {
             val items = vm.files.items.map { Triple(it.doc, it.password, it.pages!!) }
             val style = settings.numberStyle; val order = settings.dateOrder; val lang = settings.ocrLanguage; val name = vm.name.ifBlank { "GST invoice register" }
             Operations.run("GST invoice register", onError = { vm.error = it }, onResult = nav.resultCallback()) { p ->

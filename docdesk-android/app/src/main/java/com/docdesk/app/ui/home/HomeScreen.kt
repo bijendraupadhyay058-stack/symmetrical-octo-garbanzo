@@ -23,14 +23,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.BrandingWatermark
+import androidx.compose.material.icons.automirrored.filled.BrandingWatermark
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.ReceiptLong
-import androidx.compose.material.icons.filled.ManageSearch
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.ManageSearch
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.DynamicFeed
@@ -39,9 +42,9 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.NoteAdd
-import androidx.compose.material.icons.filled.CallMerge
-import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.CallMerge
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.FileOpen
@@ -50,7 +53,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.TextSnippet
+import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -92,16 +95,16 @@ private enum class Category(val title: String) { ACCOUNTING("Accounting"), CONVE
 private data class ToolItem(val label: String, val hint: String, val icon: ImageVector, val route: String, val category: Category = Category.CONVERT)
 
 private val tools = listOf(
-    ToolItem("Create PDF", "Word, Excel (.doc/.xls too), photos → PDF", Icons.Default.NoteAdd, Routes.CREATE, Category.CONVERT),
+    ToolItem("Create PDF", "Word, Excel (.doc/.xls too), photos → PDF", Icons.AutoMirrored.Filled.NoteAdd, Routes.CREATE, Category.CONVERT),
     ToolItem("Bank Statements", "Many statements → one Excel/CSV", Icons.Default.AccountBalance, Routes.STATEMENTS, Category.ACCOUNTING),
-    ToolItem("GST Invoices", "Invoices → Excel register", Icons.Default.ReceiptLong, Routes.INVOICES, Category.ACCOUNTING),
+    ToolItem("GST Invoices", "Invoices → Excel register", Icons.AutoMirrored.Filled.ReceiptLong, Routes.INVOICES, Category.ACCOUNTING),
     ToolItem("PDF to Excel", "Tables to .xlsx", Icons.Default.TableChart, Routes.PDF_EXCEL, Category.CONVERT),
     ToolItem("PDF to Word", "Editable .docx", Icons.Default.Description, Routes.PDF_WORD, Category.CONVERT),
     ToolItem("Excel to PDF", "Sheets to PDF", Icons.Default.GridOn, Routes.EXCEL_PDF, Category.CONVERT),
     ToolItem("Word to PDF", ".docx to PDF", Icons.Default.PictureAsPdf, Routes.WORD_PDF, Category.CONVERT),
     ToolItem("Edit PDF", "Annotate & sign", Icons.Default.Brush, Routes.EDIT, Category.EDIT),
-    ToolItem("Merge PDFs", "Combine files", Icons.Default.CallMerge, Routes.MERGE, Category.ORGANISE),
-    ToolItem("Split PDF", "By pages or ranges", Icons.Default.CallSplit, Routes.SPLIT, Category.ORGANISE),
+    ToolItem("Merge PDFs", "Combine files", Icons.AutoMirrored.Filled.CallMerge, Routes.MERGE, Category.ORGANISE),
+    ToolItem("Split PDF", "By pages or ranges", Icons.AutoMirrored.Filled.CallSplit, Routes.SPLIT, Category.ORGANISE),
     ToolItem("Organise Pages", "Reorder, rotate, delete", Icons.Default.ViewModule, Routes.ORGANIZE, Category.ORGANISE),
     ToolItem("Scan & OCR", "Camera to PDF/text", Icons.Default.DocumentScanner, Routes.SCAN, Category.CONVERT),
     ToolItem("Fill Form", "Fill & flatten PDF forms", Icons.Default.EditNote, Routes.FORM, Category.EDIT),
@@ -112,10 +115,13 @@ private val tools = listOf(
     ToolItem("Digital Signature", "Sign & verify with certificate", Icons.Default.VerifiedUser, Routes.SIGN, Category.EDIT),
     ToolItem("Compare PDFs", "Find changes between versions", Icons.Default.Compare, Routes.COMPARE, Category.ORGANISE),
     ToolItem("PDF to JPG/PNG", "Pages or pictures as images", Icons.Default.Image, Routes.IMAGES, Category.CONVERT),
-    ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.Default.BrandingWatermark, Routes.WATERMARK, Category.EDIT),
+    ToolItem("Watermark", "CONFIDENTIAL, DRAFT…", Icons.AutoMirrored.Filled.BrandingWatermark, Routes.WATERMARK, Category.EDIT),
     ToolItem("Page Numbers", "Header, footer, Bates", Icons.Default.FormatListNumbered, Routes.NUMBERS, Category.EDIT),
     ToolItem("Compress PDF", "Make files smaller", Icons.Default.Compress, Routes.COMPRESS, Category.ORGANISE),
-    ToolItem("Search in Files", "Find text inside documents", Icons.Default.ManageSearch, Routes.SEARCH, Category.PRIVACY),
+    ToolItem("Compress to Size", "Fit portal limits: 500 KB, 2 MB…", Icons.Default.UploadFile, Routes.TO_SIZE, Category.ORGANISE),
+    ToolItem("Split by Size", "Parts under 10 MB etc.", Icons.Default.ContentCut, Routes.SPLIT_SIZE, Category.ORGANISE),
+    ToolItem("Resize Pages", "Make all pages A4/Letter", Icons.Default.AspectRatio, Routes.FIT, Category.ORGANISE),
+    ToolItem("Search in Files", "Find text inside documents", Icons.AutoMirrored.Filled.ManageSearch, Routes.SEARCH, Category.PRIVACY),
     ToolItem("Recent Files", "Your documents", Icons.Default.History, Routes.FILES, Category.PRIVACY),
 )
 
@@ -202,7 +208,7 @@ fun HomeScreen(nav: Nav) {
                     ListItem(
                         headlineContent = { Text(h.operation + if (h.inputNames.isNotBlank()) " · ${h.inputNames}" else "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                         supportingContent = { Text("${statusLabel(h.status)} · ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(h.timestamp))}") },
-                        leadingContent = { Icon(Icons.Default.TextSnippet, null) },
+                        leadingContent = { Icon(Icons.AutoMirrored.Filled.TextSnippet, null) },
                     )
                 }
             }
@@ -214,13 +220,16 @@ fun HomeScreen(nav: Nav) {
             Text("What would you like to do?", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
             listOf(
                 Triple("View", Icons.Default.PictureAsPdf, Routes.VIEWER), Triple("Edit / annotate", Icons.Default.Brush, Routes.EDIT),
-                Triple("Organise pages", Icons.Default.ViewModule, Routes.ORGANIZE), Triple("Split", Icons.Default.CallSplit, Routes.SPLIT),
+                Triple("Organise pages", Icons.Default.ViewModule, Routes.ORGANIZE), Triple("Split", Icons.AutoMirrored.Filled.CallSplit, Routes.SPLIT),
                 Triple("Convert to Excel", Icons.Default.TableChart, Routes.PDF_EXCEL), Triple("Convert to Word", Icons.Default.Description, Routes.PDF_WORD),
                 Triple("Extract text (OCR)", Icons.Default.DocumentScanner, Routes.OCR),
                 Triple("Fill form", Icons.Default.EditNote, Routes.FORM),
-                Triple("Add watermark", Icons.Default.BrandingWatermark, Routes.WATERMARK),
+                Triple("Add watermark", Icons.AutoMirrored.Filled.BrandingWatermark, Routes.WATERMARK),
                 Triple("Add page numbers / header / footer", Icons.Default.FormatListNumbered, Routes.NUMBERS),
                 Triple("Compress", Icons.Default.Compress, Routes.COMPRESS),
+                Triple("Compress to a size limit", Icons.Default.UploadFile, Routes.TO_SIZE),
+                Triple("Split by size", Icons.Default.ContentCut, Routes.SPLIT_SIZE),
+                Triple("Resize pages to A4/Letter", Icons.Default.AspectRatio, Routes.FIT),
                 Triple("Protect with password", Icons.Default.Lock, Routes.PROTECT),
                 Triple("Remove password", Icons.Default.LockOpen, Routes.UNLOCK),
                 Triple("Find & redact personal data", Icons.Default.Shield, Routes.REDACT),

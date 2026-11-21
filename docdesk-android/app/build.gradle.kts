@@ -1,3 +1,4 @@
+import java.time.Duration
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -22,8 +23,8 @@ android {
         applicationId = "com.docdesk.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.8.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -60,6 +61,7 @@ android {
             isIncludeAndroidResources = true
             all {
                 it.maxHeapSize = "3g"
+                it.timeout.set(Duration.ofMinutes(20))
                 // Robolectric downloads its Android framework jar from Maven Central.
                 it.systemProperty("robolectric.dependency.repo.url", "https://repo1.maven.org/maven2")
                 it.systemProperty("docdesk.samples", rootProject.file("samples/out").absolutePath)

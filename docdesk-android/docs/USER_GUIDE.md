@@ -106,6 +106,11 @@ Pick a tool, a colour and thickness, then drag or tap on the page. Pinch with tw
 - **History**: what you did and whether it succeeded – only file names, dates and results are stored. Clear it any time or turn it off in Settings.
 - **Settings**: theme, default OCR language, default number/date format, privacy (history, delete temporary files).
 
+## Upload-ready PDFs (portals)
+- **Compress to Size**: pick a limit such as 500 KB or 2 MB. DocDesk first shrinks images (text stays sharp). If that's not enough, pages are rebuilt as images at the best quality that fits – the report tells you, because text is then no longer selectable. If even that can't reach the limit, you get the smallest readable version and a suggestion to split.
+- **Split by Size**: e.g. parts under 10 MB for e-mail; pages stay in order.
+- **Resize Pages**: makes every page A4 (or Letter/Legal) with margins – handy when a portal rejects mixed page sizes or photographed documents.
+
 ## Protect PDF (encrypt)
 Choose a PDF, then:
 - **Require a password to open** – nobody can view the file without it.

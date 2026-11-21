@@ -14,7 +14,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -122,7 +122,7 @@ fun CreatePdfScreen(nav: Nav, input: Uri?) {
     ToolScaffold("Create PDF", nav::back) {
         vm.error?.let { Notice(it, NoteKind.WARNING) { vm.error = null } }
         if (vm.files.isEmpty()) {
-            FilePickTarget("Choose Word, Excel or photo files (incl. .doc/.xls)", "Convert each to PDF, or combine them into one PDF", Icons.Default.NoteAdd) { picker.launch(mimes) }
+            FilePickTarget("Choose Word, Excel or photo files (incl. .doc/.xls)", "Convert each to PDF, or combine them into one PDF", Icons.AutoMirrored.Filled.NoteAdd) { picker.launch(mimes) }
             Notice("Supported: Word (.docx, .doc), Excel (.xlsx, .xls – e.g. Tally exports), photos (JPG/PNG) and PDFs. Tip: in WhatsApp, Gmail or Files, use Share › DocDesk to send files here directly.")
             return@ToolScaffold
         }

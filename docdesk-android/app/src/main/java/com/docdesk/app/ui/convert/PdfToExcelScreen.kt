@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -247,7 +247,7 @@ private fun ReviewSection(vm: PdfToExcelVm, ex: ExtractionResult, style: NumberS
         Text(Limitations.FINANCIAL, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (vm.tab >= tables.size) vm.tab = 0
-    ScrollableTabRow(selectedTabIndex = vm.tab, edgePadding = 0.dp) {
+    PrimaryScrollableTabRow(selectedTabIndex = vm.tab, edgePadding = 0.dp) {
         tables.forEachIndexed { i, t -> Tab(selected = vm.tab == i, onClick = { vm.tab = i }, text = { Text("P${t.pageIndex + 1} T${t.tableIndexOnPage + 1}" + if (t.source == TextSource.OCR) " (OCR)" else "") }) }
     }
     val t = tables[vm.tab]

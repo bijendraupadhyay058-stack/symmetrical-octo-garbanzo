@@ -61,6 +61,8 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class EngineTest {
+    @get:org.junit.Rule val timeout: org.junit.rules.Timeout = org.junit.rules.Timeout.seconds(180)
+
     private val samples = File(System.getProperty("docdesk.samples") ?: "../samples/out")
     private val app get() = ApplicationProvider.getApplicationContext<DocDeskApp>()
     private val progress = Progress { _, _ -> }
@@ -226,6 +228,27 @@ class EngineTest {
         PdfDocs.open(s("invoice.pdf")).use { doc -> PdfEnhance.numbering(doc, listOf(0), NumberingOptions(listOf(HeaderFooterItem("Revised copy", Position.TOP_LEFT))), null); PdfOps.saveAtomically(doc, v2) }
         val res = CompareEngine.compare(app, app.files.inputOf(s("invoice.pdf")), null, app.files.inputOf(v2), null, true, { app.files.newOutputFile(it) }, progress)
         assertTrue(res.report.checks.first(), res.report.checks.first().contains("1 added"))
+    }
+
+    @Test fun portalTools() = runBlocking {
+        // Resize mixed pages (incl. a rotated one) to A4: every page A4, text still extractable.
+        val mixed = out("mixed.pdf")
+        PdfDocs.open(s("invoice.pdf")).use { a -> PdfDocs.open(s("large_100_pages.pdf")).use { b -> PdfOps.assemble(listOf(a, b), listOf(PageRef(0, 0), PageRef(1, 0, 90)), mixed) } }
+        val a4 = out("a4.pdf")
+        PdfDocs.open(mixed).use { com.docdesk.app.pdf.PortalTools.fitPages(it, a4, com.docdesk.core.PaperSize.A4, com.docdesk.app.pdf.FitOrientation.PORTRAIT, 18f, null) }
+        PdfDocs.open(a4).use { d ->
+            assertEquals(2, d.numberOfPages)
+            (0 until 2).forEach { i -> assertEquals(595f, d.getPage(i).mediaBox.width, 1f); assertEquals(842f, d.getPage(i).mediaBox.height, 1f) }
+            assertTrue(PdfTextExtractor.plainText(d, 0).contains("TAX INVOICE"))
+            assertTrue(PdfTextExtractor.plainText(d, 1).contains("page 1"))
+        }
+        // Split the 100-page file into parts under 30 KB; every part must respect the limit.
+        PdfDocs.open(s("large_100_pages.pdf")).use { d ->
+            val parts = com.docdesk.app.pdf.PortalTools.splitBySize(d, 30L * 1024, { k -> out("part$k.pdf") }, app.files.workDir, progress)
+            assertTrue(parts.size > 1)
+            assertEquals((0 until 100).toList(), parts.flatMap { it.second })
+            assertTrue(parts.all { it.first.length() <= 30L * 1024 })
+        }
     }
 
     @Test fun sanitizeAndUniqueNames() {

@@ -18,7 +18,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.Icon
@@ -123,7 +123,7 @@ fun SplitScreen(nav: Nav, input: Uri?) {
                             { e -> Text(e.message ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) },
                         )
                         job?.let { JobProgressCard(it) { app.jobs.cancel() } }
-                        PrimaryAction("Split PDF", enabled = groups.isSuccess && job == null, icon = Icons.Default.CallSplit) {
+                        PrimaryAction("Split PDF", enabled = groups.isSuccess && job == null, icon = Icons.AutoMirrored.Filled.CallSplit) {
                             val g = groups.getOrThrow(); val pw = holder.password; val m = mode
                             val base = baseName.ifBlank { FileRepository.baseName(d.name) }
                             Operations.run("Split PDF", onError = { error = it }, onResult = nav.resultCallback()) { progress ->

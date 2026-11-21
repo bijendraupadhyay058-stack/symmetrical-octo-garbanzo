@@ -22,14 +22,14 @@ class ReadAloud(context: Context, private val onState: (speaking: Boolean, messa
         tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) { onState(true, null) }
             override fun onDone(id: String?) { if (id == "last") onState(false, null) }
-            @Deprecated("Deprecated in Java") override fun onError(id: String?) { onState(false, "Reading stopped because of a speech error.") }
+            @Deprecated("Deprecated in Java") @Suppress("OVERRIDE_DEPRECATION") override fun onError(id: String?) { onState(false, "Reading stopped because of a speech error.") }
         })
     }
 
     fun speak(text: String) {
         if (!ready) { pending = text; return }
         val hindi = text.count { it in 'ऀ'..'ॿ' } > text.length / 10
-        val locale = if (hindi) Locale("hi", "IN") else Locale("en", "IN")
+        val locale = if (hindi) Locale.forLanguageTag("hi-IN") else Locale.forLanguageTag("en-IN")
         val r = tts.setLanguage(locale)
         var note: String? = null
         if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {

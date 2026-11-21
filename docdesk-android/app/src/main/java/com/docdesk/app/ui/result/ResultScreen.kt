@@ -20,13 +20,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -129,7 +129,7 @@ fun ResultScreen(nav: Nav, id: Long) {
                     SecondaryAction("Share", icon = Icons.Default.Share, modifier = Modifier.weight(1f)) {
                         runCatching { context.startActivity(app.files.shareIntent((saved ?: outputs.map { it.file }))) }
                     }
-                    if (outputs.size == 1) SecondaryAction("Open with", icon = Icons.Default.OpenInNew, modifier = Modifier.weight(1f)) {
+                    if (outputs.size == 1) SecondaryAction("Open with", icon = Icons.AutoMirrored.Filled.OpenInNew, modifier = Modifier.weight(1f)) {
                         runCatching { context.startActivity(app.files.openWithIntent(saved?.first() ?: outputs[0].file)) }
                             .onFailure { message = "No app on this phone can open ${DocType.of(outputs[0].displayName).label} files. You can still share or save it." to NoteKind.WARNING }
                     }
@@ -235,7 +235,7 @@ fun WordPreview(doc: DocDocument, limit: Int = 120) {
 @Composable
 private fun SheetsPreview(sheets: List<XSheet>) {
     var tab by remember { mutableIntStateOf(0) }
-    ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) { sheets.forEachIndexed { i, s -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(s.name) }) } }
+    PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) { sheets.forEachIndexed { i, s -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(s.name) }) } }
     val s = sheets[tab.coerceIn(0, sheets.lastIndex)]
     Column(Modifier.horizontalScroll(rememberScrollState())) {
         s.rows.take(60).forEach { row ->

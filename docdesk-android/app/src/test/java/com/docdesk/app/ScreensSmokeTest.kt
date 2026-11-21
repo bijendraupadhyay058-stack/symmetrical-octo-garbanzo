@@ -18,6 +18,8 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class ScreensSmokeTest {
+    @get:org.junit.Rule val timeout: org.junit.rules.Timeout = org.junit.rules.Timeout.seconds(180)
+
     @get:Rule val rule = createComposeRule()
 
     private fun check(expected: String, dark: Boolean = false, content: @Composable (Nav) -> Unit) {
@@ -57,5 +59,8 @@ class ScreensSmokeTest {
     @Test fun search() = check("Search inside files") { com.docdesk.app.ui.tools.SearchFilesScreen(it) }
     @Test fun protect() = check("Choose a PDF to protect") { com.docdesk.app.ui.tools.SecurityScreen(it, null, unlock = false) }
     @Test fun unlock() = check("Choose a protected PDF") { com.docdesk.app.ui.tools.SecurityScreen(it, null, unlock = true) }
+    @Test fun toSize() = check("Make it small enough") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.TARGET_SIZE) }
+    @Test fun splitSize() = check("Split into parts under") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.SPLIT_SIZE) }
+    @Test fun fitPages() = check("Put every page on A4") { com.docdesk.app.ui.tools.PortalScreen(it, null, com.docdesk.app.ui.tools.PortalTool.FIT_PAGES) }
     @Test fun missingResult() = check("no longer available") { com.docdesk.app.ui.result.ResultScreen(it, 99999) }
 }

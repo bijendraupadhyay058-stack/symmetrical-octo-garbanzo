@@ -32,7 +32,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SelectAll
@@ -189,7 +189,7 @@ fun OrganizeScreen(nav: Nav, input: Uri?) {
                     else { commit(items.filter { it.key !in selected }); selected = emptySet() }
                 }, enabled = hasSel) { Icon(Icons.Default.Delete, "Delete selected") }
                 IconButton(onClick = { save(items.filter { it.key in selected }, "$outName - extracted", "Extract pages") }, enabled = hasSel && job == null) { Icon(Icons.Default.FileUpload, "Extract selected into a new PDF") }
-                IconButton(onClick = { insertPicker.launch(arrayOf("application/pdf")) }) { Icon(Icons.Default.NoteAdd, "Insert pages from another PDF") }
+                IconButton(onClick = { insertPicker.launch(arrayOf("application/pdf")) }) { Icon(Icons.AutoMirrored.Filled.NoteAdd, "Insert pages from another PDF") }
                 IconButton(onClick = { save(items, outName.ifBlank { "Organised" }, "Organise pages") }, enabled = job == null) { Icon(Icons.Default.Save, "Save as new PDF") }
             }
         }

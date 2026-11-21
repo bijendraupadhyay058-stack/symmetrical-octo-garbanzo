@@ -53,6 +53,7 @@ object Routes {
     const val STATEMENTS = "statements"; const val REDACT = "redact"; const val BATCH = "batch"
     const val INVOICES = "invoices"; const val SEARCH = "searchfiles"
     const val PROTECT = "protect"; const val UNLOCK = "unlock"
+    const val TO_SIZE = "tosize"; const val SPLIT_SIZE = "splitsize"; const val FIT = "fitpages"
 
     fun withInput(route: String, uri: Uri?) = if (uri == null) route else "$route?input=${Uri.encode(uri.toString())}"
 }
@@ -148,6 +149,9 @@ fun AppNav(incoming: Uri?, onIncomingHandled: () -> Unit, incomingMany: Boolean 
             tool(Routes.FORM) { com.docdesk.app.ui.tools.FillFormScreen(nav, it) }
             tool(Routes.WATERMARK) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.WATERMARK) }
             tool(Routes.NUMBERS) { com.docdesk.app.ui.tools.MoreToolsScreen(nav, it, com.docdesk.app.ui.tools.MoreTool.NUMBERS) }
+            tool(Routes.TO_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.TARGET_SIZE) }
+            tool(Routes.SPLIT_SIZE) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.SPLIT_SIZE) }
+            tool(Routes.FIT) { com.docdesk.app.ui.tools.PortalScreen(nav, it, com.docdesk.app.ui.tools.PortalTool.FIT_PAGES) }
             tool(Routes.PROTECT) { com.docdesk.app.ui.tools.SecurityScreen(nav, it, unlock = false) }
             tool(Routes.UNLOCK) { com.docdesk.app.ui.tools.SecurityScreen(nav, it, unlock = true) }
             tool(Routes.INVOICES) { com.docdesk.app.ui.tools.InvoicesScreen(nav, it) }

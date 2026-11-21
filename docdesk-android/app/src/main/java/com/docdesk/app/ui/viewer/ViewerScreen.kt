@@ -138,7 +138,7 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
     var selPage by remember { mutableStateOf<Int?>(null) }
     var selA by remember { mutableStateOf(Offset.Zero) }
     var selB by remember { mutableStateOf(Offset.Zero) }
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboard.current
     LaunchedEffect(holder.info) {
         bookmarks = emptyList(); pageWords.clear(); selPage = null
         val d = holder.doc ?: return@LaunchedEffect
@@ -238,6 +238,8 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                             DropdownMenuItem(text = { Text("Add watermark") }, onClick = { menu = false; nav.to(Routes.WATERMARK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Page numbers / header / footer") }, onClick = { menu = false; nav.to(Routes.NUMBERS, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Compress") }, onClick = { menu = false; nav.to(Routes.COMPRESS, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Compress to a size limit") }, onClick = { menu = false; nav.to(Routes.TO_SIZE, holder.doc?.uri) })
+                            DropdownMenuItem(text = { Text("Resize pages to A4/Letter") }, onClick = { menu = false; nav.to(Routes.FIT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Protect with password") }, onClick = { menu = false; nav.to(Routes.PROTECT, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Remove password") }, onClick = { menu = false; nav.to(Routes.UNLOCK, holder.doc?.uri) })
                             DropdownMenuItem(text = { Text("Find & redact personal data") }, onClick = { menu = false; nav.to(Routes.REDACT, holder.doc?.uri) })
@@ -343,7 +345,8 @@ fun ViewerScreen(nav: Nav, input: Uri?) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val sel = selection()
                             TextButton(enabled = sel.isNotEmpty(), onClick = {
-                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(sel.joinToString("\n") { it.text }))
+                                val text = sel.joinToString("\n") { it.text }
+                                scope.launch { clipboard.setClipEntry(androidx.compose.ui.platform.ClipEntry(android.content.ClipData.newPlainText("PDF text", text))) }
                                 message = "Copied ${sel.sumOf { it.text.length }} characters."; selPage = null
                             }) { Icon(Icons.Default.ContentCopy, null); Text(" Copy") }
                             TextButton(onClick = { selPage = null }) { Text("Cancel") }

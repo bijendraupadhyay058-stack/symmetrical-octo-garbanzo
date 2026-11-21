@@ -4,7 +4,7 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 
 | | |
 |---|---|
-| Version | 1.7.0 (Phase 11) |
+| Version | 1.8.0 (Phase 12) |
 | Platform | Android 8.0+ (minSdk 26), phones and tablets, target/compile SDK 36 |
 | Language / UI | Kotlin, Jetpack Compose (Material 3), light & dark themes |
 | Architecture | Single-activity Compose app, screen state in ViewModels/state holders, pure-Kotlin `:core` engine |
@@ -39,6 +39,9 @@ DocDesk converts, edits, combines, splits and organises PDF files on an Android 
 | Create PDF | ✅ | Word, Excel, photos and PDFs → one combined PDF or separate PDFs; "Share › DocDesk" and "Open with" from other apps |
 | Fill forms | ✅ | Text fields, checkboxes, radio buttons, lists; optional flatten |
 | Watermark, page numbers, header/footer | ✅ | Diagonal/horizontal watermark with opacity; `{n}`, `{total}`, `{date}`, `{file}`, Bates `{n:4}` |
+| Compress to size | ✅ | Target size (e.g. 500 KB, 2 MB) for upload portals: image recompression first; page images only if needed (reported) |
+| Split by size | ✅ | Parts under a size limit, verified after saving |
+| Resize pages | ✅ | Every page scaled onto A4/Letter/Legal with margins, vector content kept |
 | Compress PDF | ✅ | Light / medium / strong image recompression; reports size saved |
 | Protect PDF (encrypt) | ✅ | Open password and/or permissions password; choose print/copy/edit/comment/forms/page-change rights; AES-256 or AES-128; change protection of already-protected PDFs; result verified after saving |
 | Remove password | ✅ | Shows current protection; removes it with the open password, or the permissions password when the author set restrictions – never bypassed |
