@@ -70,6 +70,8 @@ object PdfSecurity {
         val owner = permissionsPassword?.takeIf { it.isNotEmpty() } ?: openPassword
         val policy = StandardProtectionPolicy(owner, openPassword, if (permissionsPassword.isNullOrEmpty()) Allowed.EVERYTHING.toAccessPermission() else allowed.toAccessPermission())
         policy.encryptionKeyLength = strength.bits
+        // PdfBox-Android defaults to RC4 for 128-bit keys; AES must be requested explicitly.
+        policy.isPreferAES = true
         // Setting the policy replaces any previous encryption.
         doc.isAllSecurityToBeRemoved = false
         doc.protect(policy)

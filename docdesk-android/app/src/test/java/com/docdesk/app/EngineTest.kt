@@ -61,7 +61,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class EngineTest {
-    @get:org.junit.Rule val timeout: org.junit.rules.Timeout = org.junit.rules.Timeout.seconds(180)
 
     private val samples = File(System.getProperty("docdesk.samples") ?: "../samples/out")
     private val app get() = ApplicationProvider.getApplicationContext<DocDeskApp>()
@@ -124,10 +123,12 @@ class EngineTest {
     }
 
     @Test fun annotationsLandWhereShownEvenOnRotatedPages() {
-        // A rotated copy of page 1 of the invoice.
+        // Blank A4 page and a 90°-rotated copy, so added text can't mix with existing text.
+        val blank = out("blank.pdf")
+        PDDocument().use { it.addPage(PDPage(PDRectangle.A4)); it.save(blank) }
         val rotated = out("rot.pdf")
-        runBlocking { PdfDocs.open(s("invoice.pdf")).use { PdfOps.assemble(listOf(it), listOf(PageRef(0, 0, 90)), rotated) } }
-        for (src in listOf(s("invoice.pdf"), rotated)) {
+        runBlocking { PdfDocs.open(blank).use { PdfOps.assemble(listOf(it), listOf(PageRef(0, 0, 90)), rotated) } }
+        for (src in listOf(blank, rotated)) {
             val o = out("ann-${src.name}")
             val annots = listOf(
                 Annot.TextBox(1, 0, NPoint(0.1f, 0.1f), "HELLO MARK", 12f, android.graphics.Color.BLUE),

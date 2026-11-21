@@ -23,4 +23,28 @@ object PageTransform {
         270 -> Affine(0f, -1f, 1f, 0f, x0, y0 + h)
         else -> Affine(1f, 0f, 0f, 1f, x0, y0)
     }
+
+    /**
+     * Converts margins measured on the page AS DISPLAYED (left, top, right, bottom) into margins
+     * on the unrotated PDF box sides (left, bottom, right, top) for the given /Rotate.
+     */
+    fun displayMarginsToBox(rotation: Int, left: Float, top: Float, right: Float, bottom: Float): FloatArray = when (normalise(rotation)) {
+        90 -> floatArrayOf(top, left, bottom, right)    // display top = box left, display left = box bottom
+        180 -> floatArrayOf(right, top, left, bottom)
+        270 -> floatArrayOf(bottom, right, top, left)
+        else -> floatArrayOf(left, bottom, right, top)
+    }
+
+    /**
+     * Finds the content box in a greyscale image (0 = black, 255 = white): the area that is not
+     * near-white. Returns normalised (left, top, right, bottom) or null for a blank page.
+     */
+    fun contentBounds(pixels: IntArray, width: Int, height: Int, threshold: Int = 235): FloatArray? {
+        var minX = width; var minY = height; var maxX = -1; var maxY = -1
+        for (y in 0 until height) for (x in 0 until width) {
+            if (pixels[y * width + x] < threshold) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y }
+        }
+        if (maxX < 0) return null
+        return floatArrayOf(minX.toFloat() / width, minY.toFloat() / height, (maxX + 1f) / width, (maxY + 1f) / height)
+    }
 }
