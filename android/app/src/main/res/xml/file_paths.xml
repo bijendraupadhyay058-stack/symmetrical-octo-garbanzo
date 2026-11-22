@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Exports waiting to be shared, and photos taken with the camera before import. -->
+    <cache-path name="exports" path="exports/" />
+    <cache-path name="camera" path="camera/" />
+    <!-- Private attachments, opened read-only in a viewer on request. -->
+    <files-path name="attachments" path="attachments/" />
+</paths>

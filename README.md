@@ -1,5 +1,7 @@
 # FIN TAX PRO – CashBook
 
+> **Native Android app:** an offline-first Kotlin/Jetpack Compose **Cashbook** app (English/Hindi, encrypted storage, PDF/Excel reports, encrypted backups) lives in [`android/`](android/README.md). A test APK is at [`android/dist/`](android/dist/).
+
 A secure, mobile-first **cash income & expense management PWA** for an accounting, GST, TDS, income-tax and audit practice. Built to be installed on an Android phone through Chrome and used every day, with laptop/tablet support.
 
 - Currency **₹ (INR)**, amounts stored as **integer paise** (no rounding errors)

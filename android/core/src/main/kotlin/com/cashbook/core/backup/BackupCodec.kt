@@ -1,0 +1,164 @@
+package com.cashbook.core.backup
+
+import com.cashbook.core.AccountType
+import com.cashbook.core.CategoryKind
+import com.cashbook.core.PartyType
+import com.cashbook.core.PaymentMode
+import com.cashbook.core.TxnType
+import kotlinx.serialization.json.Json
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+/** A file to place inside the backup, opened lazily so large files are streamed. */
+class AttachmentSource(val storedName: String, val open: () -> InputStream?)
+
+data class DecodedBackup(val manifest: BackupManifest, val data: BackupData, val attachmentFiles: Set<String>)
+
+/**
+ * Reads and writes the encrypted backup archive:
+ * encrypted( zip{ manifest.json, data.json, attachments/<storedName>... } ).
+ */
+object BackupCodec {
+    val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
+    private const val MAX_JSON_BYTES = 200L * 1024 * 1024
+
+    fun write(
+        out: OutputStream,
+        password: CharArray,
+        manifest: BackupManifest,
+        data: BackupData,
+        attachments: List<AttachmentSource>,
+        iterations: Int = BackupCrypto.DEFAULT_ITERATIONS,
+    ) {
+        val enc = BackupCrypto.encrypt(out, password, iterations)
+        val zip = ZipOutputStream(enc)
+        zip.putNextEntry(ZipEntry("manifest.json"))
+        zip.write(json.encodeToString(BackupManifest.serializer(), manifest).toByteArray())
+        zip.closeEntry()
+        zip.putNextEntry(ZipEntry("data.json"))
+        zip.write(json.encodeToString(BackupData.serializer(), data).toByteArray())
+        zip.closeEntry()
+        for (a in attachments) {
+            val stream = a.open() ?: continue
+            stream.use {
+                zip.putNextEntry(ZipEntry("attachments/" + safeName(a.storedName)))
+                it.copyTo(zip)
+                zip.closeEntry()
+            }
+        }
+        zip.finish()
+        zip.close() // closes the encrypting stream, which writes the final authenticated chunk
+    }
+
+    /**
+     * Decrypts and fully reads the backup. Attachment bytes are handed to [attachmentSink]
+     * (stored name, stream) so the caller can stage them. The whole file is authenticated before
+     * this returns, then the data is validated.
+     */
+    fun read(input: InputStream, password: CharArray, attachmentSink: (String, InputStream) -> Unit): DecodedBackup {
+        val plain = BackupCrypto.decrypt(input, password)
+        var manifest: BackupManifest? = null
+        var data: BackupData? = null
+        val files = HashSet<String>()
+        try {
+            val zip = ZipInputStream(plain)
+            while (true) {
+                val e = zip.nextEntry ?: break
+                when {
+                    e.name == "manifest.json" -> manifest = json.decodeFromString(BackupManifest.serializer(), readText(zip))
+                    e.name == "data.json" -> data = json.decodeFromString(BackupData.serializer(), readText(zip))
+                    e.name.startsWith("attachments/") && !e.isDirectory -> {
+                        val name = e.name.removePrefix("attachments/")
+                        if (name != safeName(name)) throw BackupException(BackupException.Reason.INVALID_DATA)
+                        attachmentSink(name, zip)
+                        files += name
+                    }
+                }
+                zip.closeEntry()
+            }
+            // Drain so the final chunk is authenticated even if zip stops early.
+            val buf = ByteArray(8192)
+            while (plain.read(buf) != -1) { /* drain */ }
+        } catch (e: BackupException) {
+            throw e
+        } catch (e: Exception) {
+            throw BackupException(BackupException.Reason.INVALID_DATA, e)
+        }
+        val m = manifest ?: throw BackupException(BackupException.Reason.INVALID_DATA)
+        val d = data ?: throw BackupException(BackupException.Reason.INVALID_DATA)
+        if (m.format != "cashbook-backup") throw BackupException(BackupException.Reason.NOT_A_BACKUP)
+        if (m.formatVersion > BACKUP_FORMAT_VERSION) throw BackupException(BackupException.Reason.UNSUPPORTED_VERSION)
+        val problems = validate(d)
+        if (problems.isNotEmpty()) throw BackupException(BackupException.Reason.INVALID_DATA, IllegalStateException(problems.take(5).joinToString("; ")))
+        return DecodedBackup(m, d, files)
+    }
+
+    private fun readText(zip: ZipInputStream): String {
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(8192)
+        var total = 0L
+        while (true) {
+            val n = zip.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > MAX_JSON_BYTES) throw BackupException(BackupException.Reason.INVALID_DATA)
+            out.write(buf, 0, n)
+        }
+        return out.toString(Charsets.UTF_8.name())
+    }
+
+    fun safeName(name: String): String = name.replace(Regex("[^A-Za-z0-9._-]"), "_").trimStart('.').ifEmpty { "file" }
+
+    /** Referential and value checks. Returns a list of human-readable problems (empty = valid). */
+    fun validate(d: BackupData): List<String> {
+        val p = ArrayList<String>()
+        fun <T> dupes(list: List<T>, id: (T) -> Long, what: String) {
+            val seen = HashSet<Long>()
+            list.forEach { if (!seen.add(id(it))) p += "duplicate $what id ${id(it)}" }
+        }
+        dupes(d.cashbooks, { it.id }, "cashbook"); dupes(d.accounts, { it.id }, "account")
+        dupes(d.categories, { it.id }, "category"); dupes(d.parties, { it.id }, "party")
+        dupes(d.transactions, { it.id }, "transaction"); dupes(d.attachments, { it.id }, "attachment")
+        val cb = d.cashbooks.map { it.id }.toSet()
+        val acc = d.accounts.associateBy { it.id }
+        val cat = d.categories.associateBy { it.id }
+        val party = d.parties.map { it.id }.toSet()
+        val txn = d.transactions.map { it.id }.toSet()
+        d.cashbooks.forEach { if (it.name.isBlank()) p += "cashbook ${it.id} has no name" }
+        d.accounts.forEach {
+            if (it.cashbookId !in cb) p += "account ${it.id} has unknown cashbook"
+            if (runCatching { AccountType.valueOf(it.type) }.isFailure) p += "account ${it.id} has invalid type"
+            if (it.openingBalance < 0) p += "account ${it.id} has negative opening balance"
+        }
+        d.categories.forEach {
+            if (runCatching { CategoryKind.valueOf(it.kind) }.isFailure) p += "category ${it.id} has invalid kind"
+            if (it.parentId != null && it.parentId !in cat) p += "category ${it.id} has unknown parent"
+        }
+        d.parties.forEach { if (runCatching { PartyType.valueOf(it.type) }.isFailure) p += "party ${it.id} has invalid type" }
+        d.transactions.forEach { t ->
+            val type = runCatching { TxnType.valueOf(t.type) }.getOrNull()
+            if (type == null) p += "transaction ${t.id} has invalid type"
+            if (runCatching { PaymentMode.valueOf(t.paymentMode) }.isFailure) p += "transaction ${t.id} has invalid payment mode"
+            if (t.amount <= 0) p += "transaction ${t.id} has invalid amount"
+            if (t.cashbookId !in cb) p += "transaction ${t.id} has unknown cashbook"
+            val a = acc[t.accountId]
+            if (a == null || a.cashbookId != t.cashbookId) p += "transaction ${t.id} has invalid account"
+            if (type == TxnType.TRANSFER) {
+                val to = t.toAccountId?.let { acc[it] }
+                if (to == null || to.cashbookId != t.cashbookId || t.toAccountId == t.accountId) p += "transfer ${t.id} has invalid destination"
+            } else {
+                if (t.toAccountId != null) p += "transaction ${t.id} must not have a destination account"
+                if (t.categoryId != null && t.categoryId !in cat) p += "transaction ${t.id} has unknown category"
+            }
+            if (t.partyId != null && t.partyId !in party) p += "transaction ${t.id} has unknown party"
+        }
+        d.attachments.forEach {
+            if (it.transactionId !in txn) p += "attachment ${it.id} has unknown transaction"
+            if (it.storedName != safeName(it.storedName)) p += "attachment ${it.id} has unsafe file name"
+        }
+        return p
+    }
+}

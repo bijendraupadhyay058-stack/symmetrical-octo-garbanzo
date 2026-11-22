@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Book with a rupee sign, on the 108dp adaptive-icon canvas (safe zone 66dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF" android:pathData="M34,30h36a4,4 0,0 1,4 4v40a4,4 0,0 1,-4 4H34a4,4 0,0 1,-4 -4V34a4,4 0,0 1,4 -4z"/>
+    <path android:fillColor="#2E7D4F" android:pathData="M30,34a4,4 0,0 1,4 -4h4v48h-4a4,4 0,0 1,-4 -4z"/>
+    <path android:fillColor="#1A2B5C"
+        android:pathData="M45,40h20v3.5h-6.2c0.9,1 1.5,2.2 1.8,3.5H65v3.5h-4.4c-0.6,4.3 -4,7.2 -8.9,7.5L63,70h-5.3l-10.4,-11.5V55h4.2c2.8,0 4.8,-1.4 5.3,-4H45v-3.5h11.6c-0.6,-2.3 -2.6,-3.5 -5.4,-3.5H45z"/>
+</vector>
