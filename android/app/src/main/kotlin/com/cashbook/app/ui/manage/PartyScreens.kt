@@ -125,7 +125,30 @@ fun PartyDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
                         }
                         Text(stringResource(R.string.n_entries, txns.size), style = MaterialTheme.typography.bodySmall)
                     }
-                    InfoBanner(stringResource(R.string.rl_party_note), icon = Icons.Filled.Info)
+                    val balances = snap.invoiceBalances().filter { it.invoice.partyId == id && it.outstanding > 0 }
+                    SectionCard(stringResource(R.string.receivables_payables)) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.to_receive), style = MaterialTheme.typography.labelMedium)
+                                Text(f.amount(balances.filter { it.invoice.kind == com.cashbook.core.InvoiceKind.SALE }.sumOf { it.outstanding }), style = MaterialTheme.typography.titleMedium)
+                            }
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.to_pay), style = MaterialTheme.typography.labelMedium)
+                                Text(f.amount(balances.filter { it.invoice.kind == com.cashbook.core.InvoiceKind.PURCHASE }.sumOf { it.outstanding }), style = MaterialTheme.typography.titleMedium)
+                            }
+                        }
+                        balances.forEach { b ->
+                            Row(Modifier.fillMaxWidth().clickable { nav.navigate(Routes.invoice(b.invoice.id)) }.padding(vertical = 4.dp)) {
+                                Text("${b.invoice.number} · ${stringResource(R.string.due_x, f.date(b.invoice.dueDate))}", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                                Text(f.amount(b.outstanding), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { nav.navigate(Routes.invoiceEdit(0, "SALE", id)) }, Modifier.weight(1f)) { Text(stringResource(R.string.new_invoice), maxLines = 1) }
+                            OutlinedButton(onClick = { nav.navigate(Routes.invoiceEdit(0, "PURCHASE", id)) }, Modifier.weight(1f)) { Text(stringResource(R.string.new_bill), maxLines = 1) }
+                        }
+                    }
+                    InfoBanner(stringResource(R.string.party_ledger_note), icon = Icons.Filled.Info)
                     OutlinedButton(onClick = {
                         vm.pendingReportFilter = TxnFilter(partyIds = setOf(id)); vm.pendingReportAllTime = true
                         vm.updateSettings { it.copy(currentCashbookId = com.cashbook.app.data.AppSettings.ALL_CASHBOOKS.takeIf { snap.cashbooks.count { c -> !c.archived } > 1 } ?: it.currentCashbookId) }

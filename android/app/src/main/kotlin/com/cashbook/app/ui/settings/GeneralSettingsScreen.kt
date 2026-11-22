@@ -58,6 +58,14 @@ fun GeneralSettingsScreen(vm: AppViewModel, nav: NavHostController) {
                         onSelect = { id -> vm.updateSettings { it.copy(defaultAccountId = id) } })
                 }
             }
+            SectionCard(stringResource(R.string.notifications)) {
+                val permission = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+                fun ask() { if (android.os.Build.VERSION.SDK_INT >= 33) permission.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
+                SwitchRow(stringResource(R.string.invoice_reminders), s.invoiceReminders, { v -> if (v) ask(); vm.updateSettings { it.copy(invoiceReminders = v) } },
+                    stringResource(R.string.invoice_reminders_desc))
+                SwitchRow(stringResource(R.string.budget_alerts), s.budgetAlerts, { v -> if (v) ask(); vm.updateSettings { it.copy(budgetAlerts = v) } },
+                    stringResource(R.string.budget_alerts_desc))
+            }
             SectionCard(stringResource(R.string.financial)) {
                 DropdownField(stringResource(R.string.currency_display), CurrencyDisplay.entries, s.currencyDisplay,
                     labelOf = { when (it) { CurrencyDisplay.SYMBOL -> "₹1,25,000.00"; CurrencyDisplay.CODE -> "INR 1,25,000.00"; CurrencyDisplay.NONE -> "1,25,000.00" } },

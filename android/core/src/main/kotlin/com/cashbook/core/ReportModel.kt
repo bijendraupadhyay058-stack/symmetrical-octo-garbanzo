@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 enum class ReportType {
     DAILY_CASHBOOK, MONTHLY_SUMMARY, YEARLY_SUMMARY, FINANCIAL_YEAR, CATEGORY_WISE,
-    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM;
+    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING;
 
     /** Balance-based reports only accept an account filter; others accept every filter. */
     val supportsDetailFilters: Boolean
@@ -65,6 +65,7 @@ data class ReportLabels(
         ReportType.INCOME_EXPENSE to "Income and Expense Statement",
         ReportType.TRANSFERS to "Transfer Report",
         ReportType.CUSTOM to "Custom Report",
+        ReportType.OUTSTANDING to "Outstanding & Ageing",
     ),
     val types: Map<TxnType, String> = mapOf(TxnType.INCOME to "Income", TxnType.EXPENSE to "Expense", TxnType.TRANSFER to "Transfer"),
     val modes: Map<PaymentMode, String> = mapOf(
@@ -121,5 +122,20 @@ data class ReportLabels(
     val transferArrow: String = "%s → %s",
     val cashBasisNote: String = "This report reflects recorded cash movements only. It is not an accrual-based profit and loss account.",
     val partyNote: String = "Shows money actually received from and paid to each party. It is not a receivables/payables ledger.",
+    val receivables: String = "Receivable (owed to you)",
+    val payables: String = "Payable (you owe)",
+    val invoiceNo: String = "Invoice / bill no.",
+    val dueDate: String = "Due date",
+    val invoiceAmount: String = "Invoice amount",
+    val paid: String = "Paid",
+    val outstanding: String = "Outstanding",
+    val daysOverdue: String = "Days overdue",
+    val ageing: String = "Ageing",
+    val notDue: String = "Not yet due",
+    val days0to30: String = "1–30 days",
+    val days31to60: String = "31–60 days",
+    val days61to90: String = "61–90 days",
+    val days90plus: String = "Over 90 days",
+    val outstandingNote: String = "Invoices and bills are amounts owed, not cash movements; they do not change account balances until payments are recorded. Report as at the end of the period.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )

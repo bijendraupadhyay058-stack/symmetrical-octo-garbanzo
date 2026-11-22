@@ -81,6 +81,8 @@ import com.cashbook.app.ui.nav.openTab
 import com.cashbook.app.ui.theme.LocalFinanceColors
 import com.cashbook.core.AccountType
 import com.cashbook.core.Budgets
+import com.cashbook.core.InvoiceKind
+import com.cashbook.core.InvoiceStatus
 import com.cashbook.core.DateRange
 import com.cashbook.core.Ledger
 import com.cashbook.core.Money
@@ -214,6 +216,30 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
                         QuickAction(stringResource(R.string.add_expense), typeIcon(TxnType.EXPENSE), fc.expense) { nav.navigate(Routes.newTxn(TxnType.EXPENSE)) }
                         QuickAction(stringResource(R.string.add_transfer), typeIcon(TxnType.TRANSFER), fc.transfer) { nav.navigate(Routes.newTxn(TxnType.TRANSFER)) }
                         QuickAction(stringResource(R.string.view_reports), Icons.Filled.Assessment, MaterialTheme.colorScheme.primary) { nav.openTab(Routes.REPORTS) }
+                    }
+                }
+            }
+            // ----- receivables & payables -----
+            val openInvoices = snap.invoiceBalances(today).filter { it.invoice.cashbookId in scope && it.outstanding > 0 }
+            if (openInvoices.isNotEmpty()) item {
+                val sale = openInvoices.filter { it.invoice.kind == InvoiceKind.SALE }
+                val purchase = openInvoices.filter { it.invoice.kind == InvoiceKind.PURCHASE }
+                SectionCard(stringResource(R.string.receivables_payables), action = {
+                    TextButton(onClick = { nav.navigate(Routes.INVOICES) }) { Text(stringResource(R.string.view_all)) }
+                }) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.to_receive), style = MaterialTheme.typography.labelLarge)
+                            Text(f.amount(sale.sumOf { it.outstanding }), style = MaterialTheme.typography.titleMedium, color = fc.income)
+                            Text(stringResource(R.string.n_overdue, sale.count { it.status == InvoiceStatus.OVERDUE }), style = MaterialTheme.typography.labelSmall,
+                                color = if (sale.any { it.status == InvoiceStatus.OVERDUE }) fc.expense else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                            Text(stringResource(R.string.to_pay), style = MaterialTheme.typography.labelLarge)
+                            Text(f.amount(purchase.sumOf { it.outstanding }), style = MaterialTheme.typography.titleMedium, color = fc.expense)
+                            Text(stringResource(R.string.n_overdue, purchase.count { it.status == InvoiceStatus.OVERDUE }), style = MaterialTheme.typography.labelSmall,
+                                color = if (purchase.any { it.status == InvoiceStatus.OVERDUE }) fc.expense else MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

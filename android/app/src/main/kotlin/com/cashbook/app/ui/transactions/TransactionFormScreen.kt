@@ -67,6 +67,7 @@ import com.cashbook.app.ui.components.AttachmentItem
 import com.cashbook.app.ui.components.AttachmentUi
 import com.cashbook.app.ui.components.DateField
 import com.cashbook.app.ui.components.DropdownField
+import com.cashbook.app.ui.components.InlineChoice
 import com.cashbook.app.ui.components.InfoBanner
 import com.cashbook.app.ui.components.LocalUiFormat
 import com.cashbook.app.ui.components.MoneyField
@@ -156,11 +157,26 @@ fun TransactionFormScreen(vm: AppViewModel, nav: NavHostController, type: TxnTyp
     fun hasInput() = form.amount.isNotBlank() || form.description.isNotBlank() || form.pending.isNotEmpty()
     BackHandler { if (hasInput() && !isEdit) confirmDiscard = true else close() }
 
+    val budgetNear = stringResource(R.string.budget_toast_near)
+    val budgetOver = stringResource(R.string.budget_toast_over)
+    val belowPaid = stringResource(R.string.inv_err_entry_below_applied)
     fun doSave(addAnother: Boolean) {
+        // Warn straight away if this entry pushes a budget to ≥ 80 % or over.
+        val candidate = form.buildTxn()
+        val before = snap.txns.filter { it.id != candidate.id || candidate.id == 0L }
+        val worse = com.cashbook.core.Budgets.worsened(snap.budgets.filter { it.cashbookId == candidate.cashbookId }, before, before + candidate,
+            snap.categoryById, java.time.YearMonth.from(candidate.date))
         form.save(onDone = {
+            worse.firstOrNull()?.let { p ->
+                vm.toast(if (p.status == com.cashbook.core.BudgetStatus.OVER) budgetOver.format(snap.categoryName(p.budget.categoryId), f.amount(-p.remaining))
+                else budgetNear.format(snap.categoryName(p.budget.categoryId), p.percent))
+            }
             if (addAnother) { form.resetForNext(); scope.launch { snackbar.showSnackbar(msgSaved) } }
             else { vm.toast(msgSaved); nav.popBackStack() }
-        }, onError = { e -> scope.launch { snackbar.showSnackbar(e.localizedMessage ?: msgFailed) } })
+        }, onError = { e ->
+            val m = if (e is com.cashbook.app.data.LedgerRepository.InvoiceException) belowPaid else e.localizedMessage ?: msgFailed
+            scope.launch { snackbar.showSnackbar(m) }
+        })
     }
 
     fun attemptSave(addAnother: Boolean) {
@@ -315,7 +331,7 @@ fun TransactionFormScreen(vm: AppViewModel, nav: NavHostController, type: TxnTyp
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.name)) }, singleLine = true)
                     val parents = listOf(0L) + snap.categoriesOf(kind).filter { it.parentId == null && !it.archived }.map { it.id }
-                    DropdownField(stringResource(R.string.parent_category), parents, parent, labelOf = { if (it == 0L) stringResource(R.string.none_top_level) else snap.categoryName(it) },
+                    InlineChoice(stringResource(R.string.parent_category), parents, parent, labelOf = { if (it == 0L) stringResource(R.string.none_top_level) else snap.categoryName(it) },
                         onSelect = { parent = it })
                 }
             },
@@ -339,7 +355,7 @@ fun TransactionFormScreen(vm: AppViewModel, nav: NavHostController, type: TxnTyp
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.name)) }, singleLine = true)
-                    DropdownField(stringResource(R.string.party_type), PartyType.entries, ptype, labelOf = { partyTypeLabel(it) }, onSelect = { ptype = it })
+                    InlineChoice(stringResource(R.string.party_type), PartyType.entries, ptype, labelOf = { partyTypeLabel(it) }, onSelect = { ptype = it })
                     OutlinedTextField(mobile, { mobile = it.filter { c -> c.isDigit() || c == '+' || c == ' ' }.take(16) }, label = { Text(stringResource(R.string.mobile)) },
                         singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Phone))
                 }

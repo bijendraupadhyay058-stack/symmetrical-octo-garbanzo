@@ -5,7 +5,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from strings1 import S
 from strings2 import S2, GUIDE_EN, GUIDE_HI, PRIV_EN, PRIV_HI
 from strings3 import S3
-allS = S + S2 + S3
+from strings4 import S4
+allS = S + S2 + S3 + S4
 keys = [k for k,_,_ in allS]
 dups = {k for k in keys if keys.count(k) > 1}
 assert not dups, dups

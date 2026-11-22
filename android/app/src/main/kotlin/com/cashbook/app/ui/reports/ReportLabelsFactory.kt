@@ -30,6 +30,10 @@ fun reportLabels(c: Context): ReportLabels {
         totalTransactions = s(R.string.rl_total_entries), daySummary = s(R.string.rl_day_summary), dayDetail = s(R.string.rl_day_detail),
         accountBalances = s(R.string.account_balances), monthWise = s(R.string.rl_month_wise), incomeByCategory = s(R.string.rl_income_by_category),
         expenseByCategory = s(R.string.rl_expense_by_category), uncategorised = s(R.string.uncategorised), transferArrow = "%s → %s",
+        receivables = s(R.string.receivables), payables = s(R.string.payables), invoiceNo = s(R.string.inv_number), dueDate = s(R.string.inv_due_date),
+        invoiceAmount = s(R.string.inv_amount), paid = s(R.string.inv_paid_amount), outstanding = s(R.string.inv_outstanding), daysOverdue = s(R.string.rl_days_overdue),
+        ageing = s(R.string.rl_ageing), notDue = s(R.string.rl_not_due), days0to30 = s(R.string.rl_d0_30), days31to60 = s(R.string.rl_d31_60),
+        days61to90 = s(R.string.rl_d61_90), days90plus = s(R.string.rl_d90_plus), outstandingNote = s(R.string.rl_outstanding_note),
         cashBasisNote = s(R.string.rl_cash_basis_note), partyNote = s(R.string.rl_party_note), transferNote = s(R.string.rl_transfer_note),
     )
 }

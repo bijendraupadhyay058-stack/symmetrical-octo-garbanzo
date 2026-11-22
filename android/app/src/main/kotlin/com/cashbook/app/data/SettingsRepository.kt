@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.cashbook.core.CurrencyDisplay
@@ -50,6 +51,13 @@ data class AppSettings(
     val lastAutoBackupAt: Long = 0,
     /** Empty when the last automatic backup succeeded; otherwise a short reason shown in Backup. */
     val lastAutoBackupError: String = "",
+    // ---- alerts & widget (v1.2) ----
+    val invoiceReminders: Boolean = false,
+    val budgetAlerts: Boolean = false,
+    /** Budget alerts already sent, as "budgetId:yyyy-MM:STATUS" keys, so each level is notified once a month. */
+    val sentBudgetAlerts: Set<String> = emptySet(),
+    /** Show the total balance on the home-screen widget (always hidden while the app lock is on). */
+    val widgetShowBalance: Boolean = false,
 ) {
     companion object { const val ALL_CASHBOOKS = -1L }
 }
@@ -84,6 +92,10 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
         val abAttach = booleanPreferencesKey("auto_backup_attachments")
         val abLast = longPreferencesKey("last_auto_backup")
         val abError = stringPreferencesKey("last_auto_backup_error")
+        val invoiceReminders = booleanPreferencesKey("invoice_reminders")
+        val budgetAlerts = booleanPreferencesKey("budget_alerts")
+        val sentBudgetAlerts = stringSetPreferencesKey("sent_budget_alerts")
+        val widgetBalance = booleanPreferencesKey("widget_show_balance")
     }
 
     val settings: Flow<AppSettings> = dataStore.data.map { p -> p.toSettings() }
@@ -116,6 +128,10 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             autoBackupAttachments = this[K.abAttach] ?: d.autoBackupAttachments,
             lastAutoBackupAt = this[K.abLast] ?: d.lastAutoBackupAt,
             lastAutoBackupError = this[K.abError] ?: d.lastAutoBackupError,
+            invoiceReminders = this[K.invoiceReminders] ?: d.invoiceReminders,
+            budgetAlerts = this[K.budgetAlerts] ?: d.budgetAlerts,
+            sentBudgetAlerts = this[K.sentBudgetAlerts] ?: d.sentBudgetAlerts,
+            widgetShowBalance = this[K.widgetBalance] ?: d.widgetShowBalance,
         )
     }
 
@@ -147,6 +163,10 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             p[K.abAttach] = n.autoBackupAttachments
             p[K.abLast] = n.lastAutoBackupAt
             p[K.abError] = n.lastAutoBackupError
+            p[K.invoiceReminders] = n.invoiceReminders
+            p[K.budgetAlerts] = n.budgetAlerts
+            p[K.sentBudgetAlerts] = n.sentBudgetAlerts
+            p[K.widgetBalance] = n.widgetShowBalance
         }
     }
 }

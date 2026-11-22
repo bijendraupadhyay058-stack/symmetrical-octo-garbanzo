@@ -31,6 +31,13 @@ class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
         container.ledger.purgeOlderThan(s.recycleRetentionDays)
         container.ledger.postDueRecurring()
         container.autoBackup.runIfDue(s)
+        val sent = Alerts.run(applicationContext, container.ledger.snapshot.first { it.loaded }, s)
+        if (sent.isNotEmpty()) container.settings.update { st ->
+            // keep only this month's keys so the set stays small
+            val month = java.time.YearMonth.now().toString()
+            st.copy(sentBudgetAlerts = (st.sentBudgetAlerts + sent).filter { it.contains(":$month:") }.toSet())
+        }
+        com.cashbook.app.widget.WidgetUpdater.updateAll(applicationContext)
         if (s.backupReminderDays > 0 && !s.autoBackupEnabled) {
             val due = s.lastBackupAt + s.backupReminderDays * 86_400_000L
             if (System.currentTimeMillis() >= due) notifyBackup(applicationContext)

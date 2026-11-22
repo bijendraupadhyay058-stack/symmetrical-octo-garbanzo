@@ -13,7 +13,8 @@ English and Hindi.
 | Language / UI | Kotlin 2.2, Jetpack Compose (Material 3) |
 | Architecture | MVVM + repository; pure-Kotlin `:core` module for all money/ledger/report logic |
 | Storage | Room on **SQLCipher** (encrypted), key wrapped by the Android Keystore; settings in DataStore |
-| Background | WorkManager (recycle-bin retention, optional backup reminder) |
+| Background | WorkManager (recycle-bin retention, recurring entries, automatic backup, optional alerts) |
+| Widget | Home-screen widget (RemoteViews) with quick add and an opt-in balance |
 | Files | Storage Access Framework, Photo Picker, camera intent (no storage/camera permissions) |
 | Reports | On-screen preview, A4 **PDF** (Android `PdfDocument`), editable **.xlsx** (built-in writer) |
 | Security | PIN (PBKDF2), biometric unlock (AndroidX Biometric), auto-lock, encrypted backups (AES-256-GCM) |
@@ -28,10 +29,14 @@ English and Hindi.
 <img src="docs/screenshots/12_dashboard_due_and_budgets.jpg" width="180">
 <img src="docs/screenshots/13_recurring_list.jpg" width="180">
 <img src="docs/screenshots/15_budgets.jpg" width="180">
+<img src="docs/screenshots/19_invoice_detail_partial.jpg" width="180">
+<img src="docs/screenshots/20_invoices_list.jpg" width="180">
+<img src="docs/screenshots/21_report_outstanding.jpg" width="180">
 </p>
 
-**What's new in 1.1** — recurring entries, monthly budgets, automatic scheduled backups and release
-signing with your own key. See [CHANGELOG.md](CHANGELOG.md).
+**What's new in 1.2** — invoices & bills with outstanding balances and an ageing report, invoice and
+budget alerts, and a home-screen widget. **1.1** added recurring entries, budgets, automatic backups and
+release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 *(Screenshots are rendered by the automated UI tests — see [Testing](#testing).)*
 
@@ -39,11 +44,11 @@ signing with your own key. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.1.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.2.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.1.0-test.apk`.
-   Installing it over 1.0.0 keeps your data (the database upgrades automatically from v1 to v2).
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.2.0-test.apk`.
+   Installing it over 1.0 or 1.1 keeps your data (the database upgrades automatically to v3).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
@@ -88,6 +93,7 @@ android/
 │       ├── ReportModel.kt / ReportEngine.kt   All 10 reports → one ReportDocument model
 │       ├── Recurrence.kt         Recurring rules: drift-free schedule, catch-up, end dates
 │       ├── Budget.kt             Monthly budgets and progress (sub-categories count to the parent)
+│       ├── Invoices.kt           Invoice/bill balances, status, ageing buckets, allocation rules, numbering
 │       ├── Xlsx.kt               Dependency-free .xlsx writer (numeric cells, Indian number format)
 │       └── backup/               Backup DTOs, streaming AES-GCM encryption, archive codec + validation
 └── app/                          Android app
@@ -97,7 +103,8 @@ android/
         ├── data/                 Room entities/DAOs, LedgerRepository, SettingsRepository,
         │                         SecureStore (Keystore), AttachmentStore, BackupManager, defaults
         ├── export/               PdfReportWriter (A4, repeated headers, page x of y), Exporter (save/share)
-        ├── work/                 DailyWorker (recycle-bin retention, recurring entries, automatic backup, reminder)
+        ├── work/                 DailyWorker (retention, recurring entries, automatic backup, reminders) + Alerts
+        ├── widget/               Home-screen widget (quick add, opt-in balance)
         └── ui/                   Compose screens: onboarding, lock, dashboard, transactions (list,
                                   form, detail, filters), reports, settings, backup, recycle bin,
                                   management (cashbooks, accounts, categories, parties), theme
@@ -118,6 +125,8 @@ Business calculations never live in UI code: every screen, report and export cal
 | Attachment (`attachments`) | transaction, file name, MIME type, size, private stored file name |
 | Recurring (`recurring`, v2) | cashbook, type, amount, account(s), category, party, mode, description, reference, frequency (daily/weekly/monthly/quarterly/yearly) × interval, start date, optional end date, next occurrence index, auto-post or confirm, active |
 | Budget (`budgets`, v2) | cashbook, expense category (unique per cashbook), monthly amount |
+| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), number (unique per cashbook + kind), party, issue date, due date, amount, description, notes, cancelled |
+| Allocation (`allocations`, v3) | invoice, payment entry, amount applied (one row per invoice + entry) |
 | BackupHistory (`backup_history`) | time, backup/restore, file name, attachments included, size, success |
 | UserSettings | Jetpack DataStore (language, theme, date format, defaults, week start, negative-balance policy, lock, reminders, retention…) — PIN hash and DB key live in the encrypted `SecureStore` |
 
@@ -129,9 +138,13 @@ Business calculations never live in UI code: every screen, report and export cal
   when unused (categories may be reassigned first); otherwise they are archived. Renaming keeps the id,
   so history shows the new name. Accounts with entries cannot be deleted — only archived.
 * Transactions created by a schedule carry `recurring_id` (v2) so they can be traced back to it.
+* **Invoices and bills never change balances.** A payment is an ordinary income (sale) or expense
+  (purchase) entry, linked through `allocations`. Outstanding = invoice amount − allocations whose entry
+  is live, so moving a payment to the recycle bin re-opens the invoice and restoring it settles it again.
+  An entry can be split across several invoices; it can't be edited below the amount applied.
 * The Room schema is exported to `app/schemas/`. **Migrations** live in `data/db/Migrations.kt` and are
   verified by `MigrationTest` against those exported schemas (v1 → v2 adds `recurring`, `budgets` and
-  `transactions.recurring_id`; existing rows are untouched).
+  `transactions.recurring_id`; v2 → v3 adds `invoices` and `allocations`; existing rows are untouched).
 
 ## 5. Calculation rules
 
@@ -172,6 +185,10 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.2** Invoices & bills: numbering per financial year (INV/26-27/001, BILL/…), due-date presets, status (open / partly paid / overdue n days / paid / cancelled), record receipt or payment (creates the entry), apply existing entries, unlink, cancel, share; dashboard and party outstanding | `core/Invoices.kt`, `ui/invoices` |
+| **1.2** Outstanding & Ageing report (as at a date; not due, 1–30, 31–60, 61–90, 90+ days) in PDF/Excel | `ReportEngine.outstanding()` |
+| **1.2** Alerts: overdue / due-soon invoices and budget 80 % / over notifications (opt-in, once per level per month), plus an immediate in-app warning when an entry crosses a budget level | `work/Alerts.kt` |
+| **1.2** Home-screen widget with Income / Expense / Transfer buttons; balance only when allowed and never while the app lock is on | `widget/CashbookWidget.kt` |
 | **1.1** Automatic backups to a chosen folder (incl. cloud drives) daily or weekly, keeping the latest N copies; password kept in the encrypted store | `data/AutoBackup.kt`, Backup screen |
 
 ## 7. Security & privacy
@@ -193,7 +210,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-77 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+94 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -205,12 +222,18 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `RepositoryTest` (Robolectric + real Room schema) | Sample balances; add/edit/delete/restore; transfer delete/restore moves both sides; category rename/reassign/delete rules; party and account delete protection; archive keeps history; cashbook delete impact + cascade; sample removal keeps user data; recycle-bin purge removes files |
 | `app` `BackupRestoreTest` | Backup → wipe → restore reproduces data and attachment bytes; restore without attachments; wrong password / damaged / truncated / non-backup files fail **and current data is untouched** |
 | `core` `RecurrenceTest`, `BudgetTest` | Month-end schedules don't drift (31 Jan → 28 Feb → 31 Mar), all frequencies/intervals, catch-up with end dates and cap, budget progress incl. sub-categories and thresholds |
-| `app` `MigrationTest` | A v1 database with data upgrades to v2, keeps every row and matches Room's expected schema exactly |
+| `core` `InvoicesTest` | Status transitions incl. a payment moved to the recycle bin, ageing buckets, allocation limits, FY numbering, outstanding report as at past dates |
+| `app` `MigrationTest` | v1 → v2 and v1 → v3 upgrades keep every row and match Room's expected schema exactly |
+| `app` `Phase3Test` | Invoices don't touch balances until paid; recording payments; delete/restore payment re-opens/settles; duplicate numbers, amount below paid, cancel/delete with payments and editing an applied entry are refused; split allocations and their limits; backups include invoices; alert digest and once-per-level budget alerts; widget hides amounts when locked or not allowed |
 | `app` `Phase2Test` | Auto-posting catches up once and is idempotent; manual Post/Skip; paused/ended rules; schedule edits don't repost; rules protect accounts and follow category reassignment; budgets set/update/remove; backups include schedules and budgets; auto-backup retention |
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
-screen, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
+screen, creating an invoice and recording a receipt against it, the Outstanding report, deleting an entry
+through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
-Not automated here (please check on a device): automatic backup into a real folder / cloud provider
+Not automated here (please check on a device): dialogs that contain a text field (new category/party
+inside the entry form, budget amount, applying an existing entry to an invoice) — under the JVM test
+runner these never reach an idle state, so they are covered by repository tests only; the home-screen
+widget on a launcher; notifications; automatic backup into a real folder / cloud provider
 (folder permission handling), WorkManager timing, camera capture, biometric prompt, Android share sheet,
 opening the generated PDF in a viewer, notifications, and choosing a cloud drive in the file picker.
 
@@ -227,5 +250,6 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
 * Recurring entries post on the day they fall due when the app is opened or the daily background job
   runs (Android decides the exact time, usually within a day); auto-posted entries skip the
   negative-balance warning.
-* Suggested next phases: invoices & outstanding receivables/payables, multi-currency conversion,
-  home-screen widget, budget alerts as notifications, and an instrumented test pass on physical devices.
+* Invoices hold a single total (no line items, tax breakdown or GST invoice PDF yet).
+* Suggested next phases: itemised GST invoices with a printable PDF, multi-currency conversion, and an
+  instrumented test pass on physical devices.

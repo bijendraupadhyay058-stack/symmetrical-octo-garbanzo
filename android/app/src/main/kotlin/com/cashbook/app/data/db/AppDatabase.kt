@@ -8,8 +8,8 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Database(
     entities = [CashbookEntity::class, AccountEntity::class, CategoryEntity::class, PartyEntity::class,
-        TransactionEntity::class, AttachmentEntity::class, BackupHistoryEntity::class, RecurringEntity::class, BudgetEntity::class],
-    version = 2,
+        TransactionEntity::class, AttachmentEntity::class, BackupHistoryEntity::class, RecurringEntity::class, BudgetEntity::class, InvoiceEntity::class, AllocationEntity::class],
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -23,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenance(): MaintenanceDao
     abstract fun recurring(): RecurringDao
     abstract fun budgets(): BudgetDao
+    abstract fun invoices(): InvoiceDao
 
     companion object {
         const val NAME = "cashbook.db"

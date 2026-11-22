@@ -166,6 +166,48 @@ data class BudgetEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
+/** Sales invoice (receivable) or purchase bill (payable) — v3. Never changes account balances by itself. */
+@Entity(
+    tableName = "invoices",
+    foreignKeys = [
+        ForeignKey(entity = CashbookEntity::class, parentColumns = ["id"], childColumns = ["cashbook_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = PartyEntity::class, parentColumns = ["id"], childColumns = ["party_id"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index(value = ["cashbook_id", "kind", "number"], unique = true), Index("party_id"), Index("due_date")],
+)
+data class InvoiceEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cashbook_id") val cashbookId: Long,
+    val kind: String,
+    val number: String,
+    @ColumnInfo(name = "party_id") val partyId: Long,
+    @ColumnInfo(name = "issue_date") val issueDate: Long,
+    @ColumnInfo(name = "due_date") val dueDate: Long,
+    val amount: Long,
+    val description: String = "",
+    val notes: String = "",
+    val cancelled: Boolean = false,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/** Part of a payment entry applied to an invoice — v3. Deleting either side removes the link. */
+@Entity(
+    tableName = "allocations",
+    foreignKeys = [
+        ForeignKey(entity = InvoiceEntity::class, parentColumns = ["id"], childColumns = ["invoice_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TransactionEntity::class, parentColumns = ["id"], childColumns = ["transaction_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index(value = ["invoice_id", "transaction_id"], unique = true), Index("transaction_id")],
+)
+data class AllocationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "invoice_id") val invoiceId: Long,
+    @ColumnInfo(name = "transaction_id") val transactionId: Long,
+    val amount: Long,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
 @Entity(
     tableName = "attachments",
     foreignKeys = [ForeignKey(entity = TransactionEntity::class, parentColumns = ["id"], childColumns = ["transaction_id"], onDelete = ForeignKey.CASCADE)],

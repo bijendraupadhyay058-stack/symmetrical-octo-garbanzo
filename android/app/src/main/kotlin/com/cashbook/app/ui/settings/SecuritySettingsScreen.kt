@@ -84,6 +84,8 @@ fun SecuritySettingsScreen(vm: AppViewModel, nav: NavHostController) {
                 }
                 SectionCard(stringResource(R.string.privacy)) {
                     SwitchRow(stringResource(R.string.secure_screen), s.secureScreen, { v -> vm.updateSettings { it.copy(secureScreen = v) } }, stringResource(R.string.secure_screen_desc))
+                    SwitchRow(stringResource(R.string.widget_show_balance), s.widgetShowBalance && !s.lockEnabled, { v -> vm.updateSettings { it.copy(widgetShowBalance = v) } },
+                        stringResource(if (s.lockEnabled) R.string.widget_show_balance_locked else R.string.widget_show_balance_desc), enabled = !s.lockEnabled)
                 }
                 InfoBanner(stringResource(R.string.security_info), icon = Icons.Filled.Info)
             }

@@ -40,4 +40,19 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM recurring").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
         db.close()
     }
+
+    @Test fun migrate1To3KeepsDataAndAddsInvoices() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/1.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-3", 1).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Office', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at) VALUES (1, 'ABC', 'CLIENT', '', '', '', '', '', 0, 1, 1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-3", 3, true, *Migrations.ALL)
+        db.execSQL("INSERT INTO invoices (cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at) VALUES (1, 'SALE', 'INV/26-27/001', 1, 20544, 20560, 100000, '', '', 0, 1, 1)")
+        db.query("SELECT name FROM parties WHERE id = 1").use { c -> c.moveToFirst(); assertEquals("ABC", c.getString(0)) }
+        db.query("SELECT COUNT(*) FROM invoices").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.close()
+    }
 }

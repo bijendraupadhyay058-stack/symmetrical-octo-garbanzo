@@ -176,6 +176,27 @@ object BackupCodec {
             if (b.cashbookId !in cb || b.categoryId !in cat || b.monthlyAmount <= 0) p += "budget ${b.id} is invalid"
             if (!budgetKeys.add(b.cashbookId to b.categoryId)) p += "budget ${b.id} is a duplicate"
         }
+        dupes(d.invoices, { it.id }, "invoice"); dupes(d.allocations, { it.id }, "allocation")
+        val inv = d.invoices.associateBy { it.id }
+        val txnById = d.transactions.associateBy { it.id }
+        val invoiceKeys = HashSet<Triple<Long, String, String>>()
+        d.invoices.forEach { i ->
+            val kind = runCatching { com.cashbook.core.InvoiceKind.valueOf(i.kind) }.getOrNull()
+            if (kind == null) p += "invoice ${i.id} has invalid kind"
+            if (i.cashbookId !in cb) p += "invoice ${i.id} has unknown cashbook"
+            if (i.partyId !in party) p += "invoice ${i.id} has unknown party"
+            if (i.amount <= 0 || i.number.isBlank() || i.dueDate < i.issueDate) p += "invoice ${i.id} has invalid values"
+            if (!invoiceKeys.add(Triple(i.cashbookId, i.kind, i.number.trim().lowercase()))) p += "invoice ${i.id} has a duplicate number"
+        }
+        val perTxn = HashMap<Long, Long>()
+        d.allocations.forEach { a ->
+            val i = inv[a.invoiceId]; val t = txnById[a.transactionId]
+            if (i == null || t == null) { p += "allocation ${a.id} has unknown invoice or entry"; return@forEach }
+            val expected = if (i.kind == "SALE") "INCOME" else "EXPENSE"
+            if (t.type != expected || t.cashbookId != i.cashbookId || a.amount <= 0) p += "allocation ${a.id} is invalid"
+            perTxn[t.id] = (perTxn[t.id] ?: 0) + a.amount
+        }
+        perTxn.forEach { (tid, sum) -> if (sum > (txnById[tid]?.amount ?: 0)) p += "entry $tid is allocated more than its amount" }
         d.attachments.forEach {
             if (it.transactionId !in txn) p += "attachment ${it.id} has unknown transaction"
             if (it.storedName != safeName(it.storedName)) p += "attachment ${it.id} has unsafe file name"

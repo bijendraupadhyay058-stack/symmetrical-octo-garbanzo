@@ -5,6 +5,8 @@ import com.cashbook.app.data.db.AccountEntity
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
 import com.cashbook.app.data.db.BudgetEntity
+import com.cashbook.app.data.db.AllocationEntity
+import com.cashbook.app.data.db.InvoiceEntity
 import com.cashbook.app.data.db.toRule
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
@@ -15,6 +17,9 @@ import com.cashbook.app.data.db.toTxn
 import com.cashbook.core.AccountType
 import com.cashbook.core.CategoryKind
 import com.cashbook.core.PaymentMode
+import com.cashbook.core.InvoiceInfo
+import com.cashbook.core.InvoiceKind
+import com.cashbook.core.Invoices
 import com.cashbook.core.Recurrence
 import com.cashbook.core.RecurringRule
 import com.cashbook.core.Txn
@@ -48,7 +53,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -65,6 +70,8 @@ class LedgerRepository(
             attachmentCounts = db.attachments().getCounts().associate { it.transactionId to it.count },
             recurring = db.recurring().getAll().map { it.toRule() },
             budgets = db.budgets().getAll().map { it.toInfo() },
+            invoices = db.invoices().getAll().map { it.toInfo() },
+            allocations = db.invoices().allocations().map { it.toInfo() },
         )
     }
 
@@ -185,7 +192,7 @@ class LedgerRepository(
         return p.id
     }
 
-    suspend fun partyUsage(id: Long) = db.transactions().countForParty(id) + db.recurring().countForParty(id)
+    suspend fun partyUsage(id: Long) = db.transactions().countForParty(id) + db.recurring().countForParty(id) + db.invoices().countForParty(id)
 
     suspend fun deleteParty(id: Long): Boolean {
         if (partyUsage(id) > 0) return false
@@ -205,6 +212,9 @@ class LedgerRepository(
                 db.transactions().insert(txn.copy(createdAt = now, updatedAt = now, deletedAt = null).toEntity())
             } else {
                 val old = db.transactions().get(txn.id) ?: error("missing")
+            // An entry used to pay invoices can't drop below the amount applied to them.
+            val applied = db.invoices().allocations().filter { it.transactionId == txn.id }.sumOf { it.amount }
+            if (txn.amount < applied) throw InvoiceException(InvoiceException.Reason.BELOW_PAID)
                 db.transactions().update(txn.copy(createdAt = old.createdAt, updatedAt = now, deletedAt = old.deletedAt).toEntity())
                 txn.id
             }
@@ -315,6 +325,78 @@ class LedgerRepository(
             existing == null -> db.budgets().insert(BudgetEntity(cashbookId = cashbookId, categoryId = categoryId, monthlyAmount = monthlyAmount, createdAt = now, updatedAt = now))
             else -> db.budgets().update(existing.copy(monthlyAmount = monthlyAmount, updatedAt = now))
         }
+    }
+
+    // ---------- invoices & bills ----------
+
+    class InvoiceException(val reason: Reason) : Exception(reason.name) {
+        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND }
+    }
+
+    suspend fun nextInvoiceNumber(cashbookId: Long, kind: InvoiceKind, date: LocalDate) =
+        Invoices.nextNumber(kind, db.invoices().numbers(cashbookId, kind.name), date)
+
+    private suspend fun paidOn(invoiceId: Long): Long {
+        val live = db.transactions().getLive().map { it.id }.toSet()
+        return db.invoices().allocationsFor(invoiceId).filter { it.transactionId in live }.sumOf { it.amount }
+    }
+
+    /** Creates or updates an invoice/bill. Numbers are unique per cashbook and kind; the amount can't go below what is already paid. */
+    suspend fun saveInvoice(inv: InvoiceInfo): Long = db.withTransaction {
+        if (db.invoices().countNumber(inv.cashbookId, inv.kind.name, inv.number.trim(), inv.id) > 0) throw InvoiceException(InvoiceException.Reason.DUPLICATE_NUMBER)
+        if (inv.id == 0L) {
+            db.invoices().insert(InvoiceEntity(cashbookId = inv.cashbookId, kind = inv.kind.name, number = inv.number.trim(), partyId = inv.partyId,
+                issueDate = inv.issueDate.toEpochDay(), dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(),
+                notes = inv.notes.trim(), createdAt = now, updatedAt = now))
+        } else {
+            val old = db.invoices().get(inv.id) ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+            if (inv.amount < paidOn(inv.id)) throw InvoiceException(InvoiceException.Reason.BELOW_PAID)
+            db.invoices().update(old.copy(number = inv.number.trim(), partyId = inv.partyId, issueDate = inv.issueDate.toEpochDay(),
+                dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(), notes = inv.notes.trim(), updatedAt = now))
+            inv.id
+        }
+    }
+
+    /** Cancel (void) an invoice. Only possible while no payment is applied to it. */
+    suspend fun setInvoiceCancelled(id: Long, cancelled: Boolean) {
+        val e = db.invoices().get(id) ?: return
+        if (cancelled && db.invoices().allocationsFor(id).isNotEmpty()) throw InvoiceException(InvoiceException.Reason.HAS_PAYMENTS)
+        db.invoices().update(e.copy(cancelled = cancelled, updatedAt = now))
+    }
+
+    /** Deletes an invoice that has no payments applied (payments stay as normal entries otherwise). */
+    suspend fun deleteInvoice(id: Long) {
+        if (db.invoices().allocationsFor(id).isNotEmpty()) throw InvoiceException(InvoiceException.Reason.HAS_PAYMENTS)
+        db.invoices().delete(id)
+    }
+
+    /**
+     * Records money received for an invoice (or paid for a bill): creates the income/expense entry and
+     * applies it to the invoice in one database transaction.
+     */
+    suspend fun recordPayment(invoiceId: Long, accountId: Long, categoryId: Long, amount: Long, date: LocalDate, mode: PaymentMode, reference: String,
+                              description: String): Long = db.withTransaction {
+        val inv = db.invoices().get(invoiceId)?.toInfo() ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+        val outstanding = inv.amount - paidOn(invoiceId)
+        if (inv.cancelled || amount <= 0 || amount > outstanding) throw InvoiceException(InvoiceException.Reason.INVALID_ALLOCATION)
+        val txnId = db.transactions().insert(Txn(0, inv.cashbookId, inv.kind.paymentType, date, amount, accountId, categoryId = categoryId,
+            partyId = inv.partyId, paymentMode = mode, description = description, reference = reference, createdAt = now, updatedAt = now).toEntity())
+        db.invoices().insertAllocation(AllocationEntity(invoiceId = invoiceId, transactionId = txnId, amount = amount, createdAt = now))
+        txnId
+    }
+
+    /** Applies [amount] of an existing payment entry to an invoice (0 removes the link). Validated by [Invoices.validateAllocation]. */
+    suspend fun allocate(invoiceId: Long, txnId: Long, amount: Long) = db.withTransaction {
+        val existing = db.invoices().allocation(invoiceId, txnId)
+        if (amount <= 0) { existing?.let { db.invoices().deleteAllocation(it.id) }; return@withTransaction }
+        val txns = db.transactions().getLive().map { it.toTxn() }
+        val txn = txns.firstOrNull { it.id == txnId } ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+        val inv = db.invoices().get(invoiceId)?.toInfo() ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+        val allocs = db.invoices().allocations().map { it.toInfo() }
+        val bal = Invoices.balances(listOf(inv), allocs, txns.map { it.id }.toSet(), LocalDate.now()).single()
+        if (Invoices.validateAllocation(bal, txn, amount, allocs) != null) throw InvoiceException(InvoiceException.Reason.INVALID_ALLOCATION)
+        if (existing == null) db.invoices().insertAllocation(AllocationEntity(invoiceId = invoiceId, transactionId = txnId, amount = amount, createdAt = now))
+        else db.invoices().updateAllocation(existing.id, amount)
     }
 
     // ---------- sample data ----------

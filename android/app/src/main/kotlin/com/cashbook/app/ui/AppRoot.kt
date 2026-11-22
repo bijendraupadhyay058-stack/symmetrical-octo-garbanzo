@@ -29,7 +29,7 @@ import com.cashbook.app.ui.onboarding.OnboardingScreen
 import com.cashbook.app.ui.theme.CashbookTheme
 
 @Composable
-fun AppRoot(vm: AppViewModel, openTarget: String?) {
+fun AppRoot(vm: AppViewModel) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val state by vm.state.collectAsStateWithLifecycle()
     val locked by vm.locked.collectAsStateWithLifecycle()
@@ -44,7 +44,7 @@ fun AppRoot(vm: AppViewModel, openTarget: String?) {
                     !s.onboarded -> OnboardingScreen(vm)
                     else -> Box(Modifier.fillMaxSize()) {
                         // The app stays composed underneath the lock so navigation and form state survive.
-                        MainNav(vm, openTarget)
+                        MainNav(vm)
                         if (locked && s.lockEnabled) LockScreen(vm)
                     }
                 }

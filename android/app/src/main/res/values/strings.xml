@@ -39,6 +39,13 @@
     <string name="after_days">After %d days</string>
     <string name="after_minutes">After %d minutes</string>
     <string name="after_seconds">After %d seconds</string>
+    <string name="alert_budget_near">%1$s budget: %2$s used this month.</string>
+    <string name="alert_budget_over">%1$s budget exceeded by %2$s this month.</string>
+    <string name="alert_budget_title">Budget alert</string>
+    <string name="alert_due_soon">%d due today or tomorrow.</string>
+    <string name="alert_invoices_title">Invoices &amp; bills need attention</string>
+    <string name="alert_overdue">%1$d overdue (to receive %2$s, to pay %3$s).</string>
+    <string name="alerts_channel">Invoice and budget alerts</string>
     <string name="all_accounts">All accounts</string>
     <string name="all_cashbooks">All cashbooks (combined)</string>
     <string name="allow_negative">Allow negative balances</string>
@@ -93,8 +100,12 @@
     <string name="biometric_unavailable">No biometric unlock is set up on this device.</string>
     <string name="biometric_unlock">Biometric unlock</string>
     <string name="both_sides">Both sides of this transfer</string>
+    <string name="budget_alerts">Budget alerts</string>
+    <string name="budget_alerts_desc">Notify when a category reaches 80% or goes over its monthly budget.</string>
     <string name="budget_left">%s left</string>
     <string name="budget_over">Over by %s</string>
+    <string name="budget_toast_near">%1$s budget: %2$s used</string>
+    <string name="budget_toast_over">%1$s budget exceeded by %2$s</string>
     <string name="budget_total">Spent %1$s of %2$s budgeted</string>
     <string name="budget_zero_removes">Enter 0 to remove the budget.</string>
     <string name="budgets">Budgets</string>
@@ -172,12 +183,14 @@
     <string name="discard_title">Discard this entry?</string>
     <string name="due_on">Due %s</string>
     <string name="due_recurring">Waiting for confirmation</string>
+    <string name="due_x">Due %s</string>
     <string name="duplicate">Duplicate</string>
     <string name="edit">Edit</string>
     <string name="edit_account">Edit account</string>
     <string name="edit_cashbook">Edit cashbook</string>
     <string name="edit_category">Edit category</string>
     <string name="edit_entry">Edit entry</string>
+    <string name="edit_invoice">Edit invoice</string>
     <string name="edit_party">Edit party</string>
     <string name="edit_recurring">Edit recurring entry</string>
     <string name="email">Email</string>
@@ -256,6 +269,59 @@
     <string name="income">Income</string>
     <string name="income_category">Income category *</string>
     <string name="income_minus_expenses">Income %1$s − Expenses %2$s</string>
+    <string name="inv_amount">Invoice amount</string>
+    <string name="inv_applied_to">Invoices paid with this entry</string>
+    <string name="inv_apply_existing">Use an existing entry</string>
+    <string name="inv_cancel">Cancel invoice</string>
+    <string name="inv_cancelled">Cancelled</string>
+    <string name="inv_customer">Customer / client *</string>
+    <string name="inv_delete_text">This invoice will be deleted. No entries are affected.</string>
+    <string name="inv_delete_title">Delete invoice?</string>
+    <string name="inv_due_date">Due date</string>
+    <string name="inv_err_allocation">More than the invoice outstanding or the entry\'s unapplied amount.</string>
+    <string name="inv_err_below_paid">Amount can\'t be less than what has already been paid.</string>
+    <string name="inv_err_due_before">Due date is before the invoice date</string>
+    <string name="inv_err_duplicate">This number is already used. Choose another.</string>
+    <string name="inv_err_entry_below_applied">This entry pays invoices; its amount can\'t be less than the amount applied to them.</string>
+    <string name="inv_err_has_payments">Remove the payments linked to this invoice first.</string>
+    <string name="inv_err_more_than_outstanding">More than the outstanding amount</string>
+    <string name="inv_err_party">Select a party</string>
+    <string name="inv_filter_all">All</string>
+    <string name="inv_filter_unpaid">Unpaid</string>
+    <string name="inv_free_x">%s free</string>
+    <string name="inv_issue_date">Invoice date</string>
+    <string name="inv_kind_purchase">Purchase bill</string>
+    <string name="inv_kind_sale">Sales invoice</string>
+    <string name="inv_net_days">%d days</string>
+    <string name="inv_no_candidates">No unapplied income/expense entries in this cashbook.</string>
+    <string name="inv_no_payments">No payments yet.</string>
+    <string name="inv_not_cash_note">Saving an invoice or bill doesn\'t change any account balance. Balances change when you record the payment.</string>
+    <string name="inv_number">Invoice / bill number</string>
+    <string name="inv_on_receipt">On receipt</string>
+    <string name="inv_open">Open</string>
+    <string name="inv_outstanding">Outstanding</string>
+    <string name="inv_overdue_days">Overdue %d days</string>
+    <string name="inv_paid">Paid</string>
+    <string name="inv_paid_amount">Paid</string>
+    <string name="inv_partial">Partly paid</string>
+    <string name="inv_payment_for">Payment received for %s</string>
+    <string name="inv_payment_in_bin">Entry is in the recycle bin — not counted</string>
+    <string name="inv_payment_of">Payment of %s</string>
+    <string name="inv_payments">Payments</string>
+    <string name="inv_purchase_explain">A bill from a supplier that you still have to pay.</string>
+    <string name="inv_received">Received</string>
+    <string name="inv_record_payment">Record payment</string>
+    <string name="inv_record_receipt">Record receipt</string>
+    <string name="inv_reopen">Reopen invoice</string>
+    <string name="inv_sale_explain">An invoice you raised that a customer still has to pay you.</string>
+    <string name="inv_supplier">Supplier *</string>
+    <string name="inv_unapplied_x">%s of this entry is not applied to any invoice:</string>
+    <string name="inv_unlink">Remove link</string>
+    <string name="invoice_reminders">Invoice and bill reminders</string>
+    <string name="invoice_reminders_desc">Daily notification when invoices are overdue or due today or tomorrow.</string>
+    <string name="invoices_bills">Invoices &amp; bills</string>
+    <string name="invoices_desc">What customers owe you and what you owe suppliers</string>
+    <string name="invoices_intro">Record invoices and bills to track what is owed. Record payments against them as they come in or go out.</string>
     <string name="keep_copies">Keep</string>
     <string name="keep_editing">Keep editing</string>
     <string name="keep_forever">Keep until I delete</string>
@@ -294,6 +360,7 @@
     <string name="moved_to_recycle_bin">Moved to recycle bin</string>
     <string name="n_entries">%d entries</string>
     <string name="n_months">%d months</string>
+    <string name="n_overdue">%d overdue</string>
     <string name="name">Name</string>
     <string name="nav_add">Add</string>
     <string name="nav_dashboard">Dashboard</string>
@@ -306,8 +373,10 @@
     <string name="net_for_period">Net for %s</string>
     <string name="never_backed_up">No backup yet</string>
     <string name="new_account">New account</string>
+    <string name="new_bill">New bill</string>
     <string name="new_cashbook">New cashbook</string>
     <string name="new_category">New category</string>
+    <string name="new_invoice">New invoice</string>
     <string name="new_party">New party</string>
     <string name="new_recurring">New recurring entry</string>
     <string name="next">Next</string>
@@ -320,6 +389,7 @@
     <string name="no_credentials_note">Never enter bank passwords, UPI PINs, card PINs or OTPs. Cashbook only needs a name and, optionally, the last four digits.</string>
     <string name="no_data_period">No entries for the selected period and filters.</string>
     <string name="no_expenses_period">No expenses in this period.</string>
+    <string name="no_invoices">Nothing here yet.</string>
     <string name="no_matches">No entries match your search or filters.</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
@@ -328,6 +398,8 @@
     <string name="no_viewer">No app on this device can open this file.</string>
     <string name="none_top_level">None (top level)</string>
     <string name="notes">Notes</string>
+    <string name="notifications">Notifications</string>
+    <string name="of_x">of %s</string>
     <string name="off">Off</string>
     <string name="ok">OK</string>
     <string name="open_app_settings">Open app settings</string>
@@ -340,6 +412,7 @@
     <string name="operation_failed">Something went wrong. Your existing data has not been changed.</string>
     <string name="optional">Optional</string>
     <string name="out_label">Out</string>
+    <string name="overdue">Overdue</string>
     <string name="page_x_of_y">Page %1$d of %2$d</string>
     <string name="paid_to">Paid to</string>
     <string name="parent_category">Parent category</string>
@@ -350,6 +423,7 @@
     <string name="party_customer">Customer</string>
     <string name="party_employee">Employee</string>
     <string name="party_in_use">This party is linked to %d entries and cannot be deleted. Archive it instead.</string>
+    <string name="party_ledger_note">Outstanding amounts come from invoices and bills you record. Money received/paid without an invoice appears only in the entries below.</string>
     <string name="party_other">Other</string>
     <string name="party_service_provider">Service provider</string>
     <string name="party_supplier">Supplier</string>
@@ -359,6 +433,7 @@
     <string name="passwords_dont_match">Passwords do not match</string>
     <string name="past_start_hint">The first date is in the past: entries for missed dates will be created when you save.</string>
     <string name="paused">Paused</string>
+    <string name="payables">Payables</string>
     <string name="paying_account">Paying account *</string>
     <string name="payment_mode">Payment mode</string>
     <string name="period">Period</string>
@@ -386,6 +461,8 @@
     <string name="provider_optional">Provider (optional)</string>
     <string name="quick_actions">Quick actions</string>
     <string name="ready_body">\"%s\" is ready. You can add more cashbooks, accounts and categories at any time.</string>
+    <string name="receivables">Receivables</string>
+    <string name="receivables_payables">Receivables &amp; payables</string>
     <string name="received_from">Received from</string>
     <string name="receiving_account">Receiving account *</string>
     <string name="recent_transactions">Recent entries</string>
@@ -421,6 +498,8 @@
     <string name="report_monthly">Monthly Summary</string>
     <string name="report_monthly_desc">Totals for a month and closing account balances</string>
     <string name="report_options">Report options</string>
+    <string name="report_outstanding">Outstanding &amp; Ageing</string>
+    <string name="report_outstanding_desc">Unpaid invoices and bills by party, grouped by days overdue, as at a date</string>
     <string name="report_party">Party-wise Transaction Report</string>
     <string name="report_party_desc">Money received from and paid to each party</string>
     <string name="report_transfers">Transfer Report</string>
@@ -443,11 +522,17 @@
     <string name="restore_wrong_password">Wrong password, or the file is damaged.</string>
     <string name="retention_info">Entries in the recycle bin are permanently deleted %d days after deletion.</string>
     <string name="retention_off">Deleted entries stay in the recycle bin until you remove them.</string>
+    <string name="rl_ageing">Ageing</string>
     <string name="rl_balance">Balance</string>
     <string name="rl_cash_basis_note">This report reflects recorded cash movements only. It is not an accrual-based profit and loss account.</string>
     <string name="rl_count">No. of entries</string>
+    <string name="rl_d0_30">1–30 days overdue</string>
+    <string name="rl_d31_60">31–60 days overdue</string>
+    <string name="rl_d61_90">61–90 days overdue</string>
+    <string name="rl_d90_plus">Over 90 days overdue</string>
     <string name="rl_day_detail">Entries</string>
     <string name="rl_day_summary">Date-wise summary</string>
+    <string name="rl_days_overdue">Days overdue</string>
     <string name="rl_expense_by_category">Expenses by category</string>
     <string name="rl_from">From</string>
     <string name="rl_income_by_category">Income by category</string>
@@ -457,7 +542,9 @@
     <string name="rl_net_deficit">Net deficit</string>
     <string name="rl_net_surplus">Net surplus</string>
     <string name="rl_net_surplus_deficit">Net surplus / (deficit)</string>
+    <string name="rl_not_due">Not yet due</string>
     <string name="rl_opening_of">Opening balance – %s</string>
+    <string name="rl_outstanding_note">Invoices and bills are amounts owed, not cash movements; they don\'t change account balances until payments are recorded. Figures are as at the end of the selected period.</string>
     <string name="rl_particulars">Particulars</string>
     <string name="rl_party_note">Shows money actually received from and paid to each party. It is not a receivables/payables ledger.</string>
     <string name="rl_payments">Payments</string>
@@ -546,6 +633,8 @@
     <string name="theme_system">System default</string>
     <string name="to_account">To account *</string>
     <string name="to_date">To</string>
+    <string name="to_pay">To pay</string>
+    <string name="to_receive">To receive</string>
     <string name="today_expenses">Today\'s expenses</string>
     <string name="today_income">Today\'s income</string>
     <string name="too_many_attempts">Too many attempts. Try again in %d s.</string>
@@ -578,6 +667,13 @@
     <string name="welcome_p3">Daily, monthly, yearly and financial-year reports in PDF and Excel</string>
     <string name="welcome_p4">Encrypted backups and an optional PIN lock</string>
     <string name="welcome_title">Welcome to Cashbook</string>
+    <string name="widget_balance_hidden">Balance hidden</string>
+    <string name="widget_description">Quick add and balance</string>
+    <string name="widget_show_balance">Show balance on home-screen widget</string>
+    <string name="widget_show_balance_desc">Anyone who sees your home screen can see it.</string>
+    <string name="widget_show_balance_locked">Always hidden while the app lock is on.</string>
+    <string name="widget_tap_to_add">Tap to add an entry</string>
+    <string name="widget_today">Today: in %1$s · out %2$s</string>
     <string name="with_attachments">With attachments</string>
     <string name="wrong_pin">Incorrect PIN</string>
     <string name="year">Year</string>
@@ -603,6 +699,10 @@
         <item>Settings › Backup &amp; restore creates an encrypted backup file protected by your password. Save it to the phone, an SD card or a cloud drive from the file picker. Keep the password safe — without it the backup cannot be opened.</item>
         <item>## Recurring entries and budgets</item>
         <item>Settings › Recurring entries schedules rent, salary or subscriptions. Choose whether each one is added automatically or waits on the dashboard for Post / Skip. Open any entry and tap Make recurring to start from it. Settings › Budgets sets monthly limits per expense category; the dashboard shows progress for the current month.</item>
+        <item>## Invoices, bills and what is owed</item>
+        <item>Settings › Invoices &amp; bills (or the Receivables &amp; payables card on the dashboard) records sales invoices you raise and purchase bills you receive, with due dates. They don\'t change any balance. When money comes in or goes out, open the invoice and tap Record receipt / Record payment, or apply an entry you already recorded. Status, overdue days and the Outstanding &amp; Ageing report update automatically.</item>
+        <item>## Home-screen widget and alerts</item>
+        <item>Long-press the home screen › Widgets › Cashbook for quick Income / Expense / Transfer buttons. The balance is shown only if you allow it and the app lock is off. Turn on invoice reminders and budget alerts in Settings › General &amp; financial.</item>
         <item>## Automatic backup</item>
         <item>In Backup &amp; restore, choose a folder once (phone, SD card or a cloud drive), set a password and turn on Back up automatically. Cashbook saves a backup daily or weekly and keeps only the latest copies.</item>
         <item>## Security</item>
@@ -618,7 +718,7 @@
         <item>## Backups and exports</item>
         <item>Backups are encrypted with a password you choose and are saved only to the location you pick in Android\'s file picker (which may be a cloud drive you select). PDF and Excel exports are created only when you ask, and shared only through the Android share menu when you choose to share them.</item>
         <item>## Permissions</item>
-        <item>Notifications: only if you turn on backup reminders. Biometrics: only if you turn on fingerprint unlock. Camera photos, gallery images and files are opened through Android\'s system pickers, so Cashbook does not need storage or camera permissions.</item>
+        <item>Notifications: only if you turn on backup reminders, invoice reminders or budget alerts. The optional home-screen widget shows your balance only if you allow it, and never while the app lock is on. Biometrics: only if you turn on fingerprint unlock. Camera photos, gallery images and files are opened through Android\'s system pickers, so Cashbook does not need storage or camera permissions.</item>
         <item>## Deleting your data</item>
         <item>Delete individual entries or whole cashbooks inside the app, or uninstall the app / clear its data from Android settings to remove everything stored on the device. Backup files you saved elsewhere are under your control.</item>
     </string-array>

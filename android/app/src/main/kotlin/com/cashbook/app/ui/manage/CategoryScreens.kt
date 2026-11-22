@@ -54,6 +54,7 @@ import com.cashbook.app.data.DefaultData
 import com.cashbook.app.ui.AppViewModel
 import com.cashbook.app.ui.components.AppScaffold
 import com.cashbook.app.ui.components.DropdownField
+import com.cashbook.app.ui.components.InlineChoice
 import com.cashbook.app.ui.components.InfoBanner
 import com.cashbook.app.ui.components.SwitchRow
 import com.cashbook.app.ui.components.categoryIcon
@@ -152,7 +153,7 @@ fun CategoryEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindN
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (usage > 0) {
                         Text(stringResource(R.string.category_in_use, usage))
-                        DropdownField(stringResource(R.string.move_entries_to), others.map { it.id }, reassignTo.takeIf { it > 0 }, labelOf = { snap.categoryName(it) }, onSelect = { reassignTo = it })
+                        InlineChoice(stringResource(R.string.move_entries_to), others.map { it.id }, reassignTo.takeIf { it > 0 }, labelOf = { snap.categoryName(it) }, onSelect = { reassignTo = it })
                     } else Text(stringResource(R.string.delete_category_text))
                 }
             },

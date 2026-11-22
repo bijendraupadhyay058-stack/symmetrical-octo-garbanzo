@@ -138,3 +138,28 @@ interface BudgetDao {
     @Query("DELETE FROM budgets WHERE id = :id") suspend fun delete(id: Long)
     @Query("DELETE FROM budgets") suspend fun clear()
 }
+
+@Dao
+interface InvoiceDao {
+    @Query("SELECT * FROM invoices ORDER BY due_date, id") suspend fun getAll(): List<InvoiceEntity>
+    @Query("SELECT * FROM invoices WHERE id = :id") suspend fun get(id: Long): InvoiceEntity?
+    @Query("SELECT number FROM invoices WHERE cashbook_id = :cashbookId AND kind = :kind") suspend fun numbers(cashbookId: Long, kind: String): List<String>
+    @Query("SELECT COUNT(*) FROM invoices WHERE cashbook_id = :cashbookId AND kind = :kind AND number = :number COLLATE NOCASE AND id != :exceptId")
+    suspend fun countNumber(cashbookId: Long, kind: String, number: String, exceptId: Long): Int
+    @Query("SELECT COUNT(*) FROM invoices WHERE party_id = :partyId") suspend fun countForParty(partyId: Long): Int
+    @Insert suspend fun insert(e: InvoiceEntity): Long
+    @Insert suspend fun insertAll(e: List<InvoiceEntity>)
+    @Update suspend fun update(e: InvoiceEntity)
+    @Query("DELETE FROM invoices WHERE id = :id") suspend fun delete(id: Long)
+    @Query("DELETE FROM invoices") suspend fun clear()
+
+    @Query("SELECT * FROM allocations") suspend fun allocations(): List<AllocationEntity>
+    @Query("SELECT * FROM allocations WHERE invoice_id = :invoiceId") suspend fun allocationsFor(invoiceId: Long): List<AllocationEntity>
+    @Query("SELECT * FROM allocations WHERE invoice_id = :invoiceId AND transaction_id = :txnId") suspend fun allocation(invoiceId: Long, txnId: Long): AllocationEntity?
+    @Insert suspend fun insertAllocation(e: AllocationEntity): Long
+    @Insert suspend fun insertAllocations(e: List<AllocationEntity>)
+    @Query("UPDATE allocations SET amount = :amount WHERE id = :id") suspend fun updateAllocation(id: Long, amount: Long)
+    @Query("DELETE FROM allocations WHERE id = :id") suspend fun deleteAllocation(id: Long)
+    @Query("DELETE FROM allocations WHERE transaction_id = :txnId") suspend fun deleteAllocationsForTxn(txnId: Long)
+    @Query("DELETE FROM allocations") suspend fun clearAllocations()
+}

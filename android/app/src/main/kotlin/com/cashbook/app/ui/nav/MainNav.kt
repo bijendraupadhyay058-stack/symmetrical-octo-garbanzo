@@ -42,6 +42,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cashbook.app.R
 import com.cashbook.app.ui.AppViewModel
 import com.cashbook.app.ui.components.TypeAvatar
@@ -49,6 +50,10 @@ import com.cashbook.app.ui.components.typeIcon
 import com.cashbook.app.ui.dashboard.DashboardScreen
 import com.cashbook.app.ui.manage.AccountEditScreen
 import com.cashbook.app.ui.manage.BudgetsScreen
+import com.cashbook.app.ui.invoices.InvoiceDetailScreen
+import com.cashbook.app.ui.invoices.InvoiceEditScreen
+import com.cashbook.app.ui.invoices.InvoicesScreen
+import com.cashbook.app.ui.invoices.RecordPaymentScreen
 import com.cashbook.app.ui.recurring.RecurringEditScreen
 import com.cashbook.app.ui.recurring.RecurringListScreen
 import com.cashbook.app.ui.manage.AccountsScreen
@@ -103,6 +108,10 @@ object Routes {
     const val RECURRING = "recurring"
     fun recurringEdit(id: Long, fromTxn: Long = 0) = "recurring/$id/$fromTxn"
     const val BUDGETS = "budgets"
+    const val INVOICES = "invoices"
+    fun invoiceEdit(id: Long, kind: String = "SALE", partyId: Long = 0) = "invoice_edit/$id/$kind/$partyId"
+    fun invoice(id: Long) = "invoice/$id"
+    fun recordPayment(id: Long) = "invoice_pay/$id"
 }
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
@@ -116,7 +125,7 @@ fun NavHostController.openTab(route: String) = navigate(route) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainNav(vm: AppViewModel, openTarget: String?) {
+fun MainNav(vm: AppViewModel) {
     val nav = rememberNavController()
     var addSheet by rememberSaveable { mutableStateOf(false) }
     val tabs = listOf(
@@ -130,7 +139,18 @@ fun MainNav(vm: AppViewModel, openTarget: String?) {
     val current = entry?.destination?.route
     val showBar = current in setOf(Routes.DASHBOARD, Routes.TRANSACTIONS, Routes.REPORTS, Routes.SETTINGS)
 
-    LaunchedEffect(openTarget) { if (openTarget == "backup") nav.navigate(Routes.BACKUP) }
+    val openRequest by vm.openRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(openRequest) {
+        val target = openRequest ?: return@LaunchedEffect
+        vm.consumeOpen()
+        when {
+            target == "backup" -> nav.navigate(Routes.BACKUP)
+            target == "invoices" -> nav.navigate(Routes.INVOICES)
+            target == "budgets" -> nav.navigate(Routes.BUDGETS)
+            target == "dashboard" -> nav.openTab(Routes.DASHBOARD)
+            target.startsWith("add_") -> runCatching { TxnType.valueOf(target.removePrefix("add_")) }.getOrNull()?.let { nav.navigate(Routes.newTxn(it)) }
+        }
+    }
 
     // App-wide confirmations ("Saved", "Moved to recycle bin", errors) from AppViewModel.toast().
     val snackbar = remember { SnackbarHostState() }
@@ -194,6 +214,12 @@ fun MainNav(vm: AppViewModel, openTarget: String?) {
                 RecurringEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments!!.getLong("from"))
             }
             composable(Routes.BUDGETS) { BudgetsScreen(vm, nav) }
+            composable(Routes.INVOICES) { InvoicesScreen(vm, nav) }
+            composable("invoice_pay/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id")) }
+            composable("invoice/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> InvoiceDetailScreen(vm, nav, e.arguments!!.getLong("id")) }
+            composable("invoice_edit/{id}/{kind}/{party}", listOf(navArgument("id") { type = NavType.LongType }, navArgument("party") { type = NavType.LongType })) { e ->
+                InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments?.getString("kind") ?: "SALE", e.arguments!!.getLong("party"))
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.cashbook.app.ui.transactions
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -130,6 +131,34 @@ fun TransactionDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) 
                 Detail(stringResource(R.string.notes), t.notes)
                 Detail(stringResource(R.string.created), f.dateTime(t.createdAt))
                 if (t.updatedAt > t.createdAt + 1000) Detail(stringResource(R.string.modified), f.dateTime(t.updatedAt))
+            }
+            if (t.type != TxnType.TRANSFER) {
+                val links = snap.allocations.filter { it.txnId == t.id }
+                val kind = if (t.type == TxnType.INCOME) com.cashbook.core.InvoiceKind.SALE else com.cashbook.core.InvoiceKind.PURCHASE
+                val open = snap.invoiceBalances().filter { it.invoice.kind == kind && it.invoice.cashbookId == t.cashbookId && it.outstanding > 0 }
+                if (links.isNotEmpty() || (open.isNotEmpty() && t.deletedAt == null)) SectionCard(stringResource(R.string.inv_applied_to)) {
+                    links.forEach { a ->
+                        val inv = snap.invoices.firstOrNull { it.id == a.invoiceId }
+                        Row(Modifier.fillMaxWidth().clickable { nav.navigate(Routes.invoice(a.invoiceId)) }.padding(vertical = 6.dp)) {
+                            Text("${inv?.number ?: ""} · ${snap.names.party(inv?.partyId)}", Modifier.weight(1f))
+                            Text(f.amount(a.amount), style = MaterialTheme.typography.titleSmall)
+                        }
+                    }
+                    val free = com.cashbook.core.Invoices.unallocated(t, snap.allocations)
+                    if (t.deletedAt == null && free > 0 && open.isNotEmpty()) {
+                        Text(stringResource(R.string.inv_unapplied_x, f.amount(free)), style = MaterialTheme.typography.bodySmall)
+                        open.sortedWith(compareBy({ it.invoice.partyId != t.partyId }, { it.invoice.dueDate })).take(5).forEach { b ->
+                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("${b.invoice.number} · ${snap.names.party(b.invoice.partyId)}", maxLines = 1)
+                                    Text(stringResource(R.string.inv_outstanding) + " " + f.amount(b.outstanding), style = MaterialTheme.typography.bodySmall)
+                                }
+                                androidx.compose.material3.TextButton(onClick = { vm.run { ledger.allocate(b.invoice.id, t.id, minOf(free, b.outstanding)) } }) {
+                                    Text(stringResource(R.string.apply)) }
+                            }
+                        }
+                    }
+                }
             }
             if (t.deletedAt == null) {
                 val rule = t.recurringId?.let { rid -> snap.recurring.firstOrNull { it.id == rid } }

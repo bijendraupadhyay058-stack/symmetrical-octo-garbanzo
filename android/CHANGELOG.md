@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.2.0 (versionCode 3)
+
+**New**
+- **Invoices & bills** — record sales invoices (what customers owe you) and purchase bills (what you owe),
+  with automatic numbering per financial year (INV/26-27/001, BILL/26-27/001), invoice and due dates
+  (on receipt / 7 / 15 / 30 / 45 / 60 days) and status: open, partly paid, overdue by n days, paid,
+  cancelled. Invoices never change account balances; **Record receipt / Record payment** creates the
+  income or expense entry and applies it in one step, or apply part of an entry you already recorded.
+  One entry can settle several invoices.
+- **Outstanding & Ageing report** (PDF/Excel) as at any date: party-wise unpaid amounts and an ageing
+  table (not due, 1–30, 31–60, 61–90, 90+ days overdue).
+- Dashboard **Receivables & payables** card, outstanding per party, and invoices linked from entries.
+- **Alerts** (opt-in, Settings › General & financial): daily notification for overdue or due-soon
+  invoices; budget notifications at 80 % and when exceeded (once per level per month). Saving an entry
+  that crosses a budget level also shows an immediate message.
+- **Home-screen widget** with Income / Expense / Transfer buttons. The balance is shown only if you
+  turn it on in Settings › Security, and never while the app lock is on.
+
+**Improved**
+- Recording a payment opens a full screen form instead of a dialog.
+- Choices inside dialogs (parent category, party type, move entries to) expand in place.
+- Widget buttons and notifications open the right screen even when the app is already running.
+
+**Data**
+- Database v2 → v3 adds `invoices` and `allocations` (verified by `MigrationTest`). Backups include
+  them; 1.0 and 1.1 backups still restore.
+
 ## 1.1.0 (versionCode 2)
 
 **New**

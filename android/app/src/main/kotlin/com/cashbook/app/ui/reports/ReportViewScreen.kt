@@ -117,7 +117,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
     val mode = when (type) { ReportType.MONTHLY_SUMMARY -> Mode.MONTH; ReportType.YEARLY_SUMMARY -> Mode.YEAR; ReportType.FINANCIAL_YEAR -> Mode.FY; else -> Mode.PRESET }
     val allTime = remember { vm.pendingReportAllTime.also { vm.pendingReportAllTime = false } }
     val initialFilter = remember { vm.pendingReportFilter.also { vm.pendingReportFilter = null } }
-    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK -> PeriodPreset.TODAY; else -> PeriodPreset.THIS_MONTH }) }
+    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK || type == ReportType.OUTSTANDING -> PeriodPreset.TODAY; else -> PeriodPreset.THIS_MONTH }) }
     var customStart by rememberSaveable { mutableLongStateOf(today.withDayOfMonth(1).toEpochDay()) }
     var customEnd by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today).toString()) }
@@ -152,6 +152,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
                 generatedAt = s.dateFormat.format(LocalDate.now()) + " " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
                 dateFormat = s.dateFormat, labels = labels, cashbookNames = snap.cashbooks.associate { it.id to it.name },
                 locale = Locale.getDefault(), txnsWithAttachments = snap.withAttachments,
+                invoices = snap.invoices.filter { it.cashbookId in cbIds }, allocations = snap.allocations,
             )).build()
         }
     }

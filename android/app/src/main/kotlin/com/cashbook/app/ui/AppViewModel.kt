@@ -54,6 +54,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var pendingReportFilter: TxnFilter? = null
     var pendingReportAllTime: Boolean = false
 
+    /** Screen requested from outside (widget button, notification): "add_INCOME", "invoices", "budgets", "backup"… */
+    private val _openRequest = MutableStateFlow<String?>(null)
+    val openRequest: StateFlow<String?> = _openRequest
+    fun requestOpen(target: String) { _openRequest.value = target }
+    fun consumeOpen() { _openRequest.value = null }
+
     // ----- app lock -----
     private val _locked = MutableStateFlow(true)
     val locked: StateFlow<Boolean> = _locked

@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextClearance
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.cashbook.core.AccountType
@@ -61,6 +62,9 @@ class UiFlowTest {
             throw AssertionError("Text \"$text\" not found. UI tree:\n$tree", e)
         }
     }
+
+    /** Bottom-navigation tab (not a same-named button elsewhere on the screen). */
+    private fun tab(text: String) = compose.onNode(hasText(text) and androidx.compose.ui.test.isSelectable()).performClick()
 
     private fun click(text: String) = compose.onAllNodesWithText(text, useUnmergedTree = true).onFirst().performClick()
 
@@ -223,6 +227,84 @@ class UiFlowTest {
         scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         waitFor("Budgets"); click("Budgets")
         waitFor("Office rent"); shot("15_budgets")
+    }
+
+    @Test fun invoiceToPaymentFlow() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CLIENT", createdAt = 0, updatedAt = 0))
+            val s = d.snap { it.parties.isNotEmpty() }
+            val cb = s.cashbooks.single().id
+            val p = s.parties.single().id
+            // an older overdue bill so the dashboard and ageing have something to show
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.PURCHASE, "BILL/26-27/001", p,
+                LocalDate.now().minusDays(50), LocalDate.now().minusDays(35), 450_000, "Printer toner"))
+        }
+        launch()
+        waitFor("Total balance")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Receivables & payables"))
+        shot("16_dashboard_receivables")
+        click("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        waitFor("New invoice"); click("New invoice")
+        waitFor("Customer / client *")
+        click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        field("Invoice amount").performTextInput("50000")
+        field("Description").performTextInput("Audit fees for FY 2025-26")
+        click("30 days")
+        shot("17_invoice_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Record receipt")
+        shot("18_invoice_detail_open")
+        click("Record receipt")
+        waitFor("Payment mode")
+        field("Amount *").performTextClearance()
+        field("Amount *").performTextInput("20000")
+        shot("19a_record_receipt")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Partly paid")
+        shot("19_invoice_detail_partial")
+        val s = runBlocking { d.snap { it.allocations.size == 1 } }
+        val b = s.invoiceBalances().first { it.invoice.kind == com.cashbook.core.InvoiceKind.SALE }
+        assertEquals(3_000_000L, b.outstanding)
+        assertEquals(LocalDate.now().plusDays(30), b.invoice.dueDate)
+        assertEquals(TxnType.INCOME, s.txns.first { it.id == s.allocations.single().txnId }.type)
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        waitFor("To receive"); shot("20_invoices_list")
+    }
+
+    /** Delete an entry from its detail screen through the confirmation dialog; it moves to the recycle bin. */
+    @Test fun deleteEntryViaDialog() {
+        seed("en")
+        launch()
+        waitFor("Total balance")
+        tab("Transactions"); waitFor("Accounting services"); click("Accounting services")
+        waitFor("Entry details")
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText("Delete", substring = true))
+        compose.onAllNodesWithText("Delete", substring = true, useUnmergedTree = true).onFirst().performClick()
+        waitFor("Delete this entry?")
+        click("Move to recycle bin")
+        compose.waitUntil(10_000) { runBlocking { deps().snap { true } }.deleted.any { it.description == "Accounting services" } }
+    }
+
+    @Test fun outstandingReport() {
+        seed("en")
+        runBlocking {
+            val d = deps()
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CLIENT", createdAt = 0, updatedAt = 0))
+            val s = d.snap { it.parties.isNotEmpty() }
+            val cb = s.cashbooks.single().id; val p = s.parties.single().id
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/001", p, LocalDate.now().minusDays(70), LocalDate.now().minusDays(40), 5_000_000))
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/002", p, LocalDate.now().minusDays(5), LocalDate.now().plusDays(10), 1_200_000))
+            d.snap { it.invoices.size == 2 }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Reports"); waitFor("Daily Cashbook")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Outstanding & Ageing"))
+        click("Outstanding & Ageing")
+        waitFor("INV/26-27/001")
+        shot("21_report_outstanding")
     }
 
     /** Sample cashbook plus a few entries in the current month so charts have data. */

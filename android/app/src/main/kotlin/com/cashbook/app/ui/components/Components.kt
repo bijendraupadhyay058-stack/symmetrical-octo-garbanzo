@@ -73,6 +73,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.verticalScroll
 import com.cashbook.app.R
 import com.cashbook.app.ui.theme.AmountStyle
 import com.cashbook.app.ui.theme.LocalFinanceColors
@@ -366,5 +367,26 @@ fun FullScreenMessage(text: String, content: @Composable ColumnScope.() -> Unit 
         Text(text, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.size(16.dp))
         content()
+    }
+}
+
+/**
+ * Single-choice field that expands its options in place (no popup window). Used inside dialogs,
+ * where a dropdown menu would open a second window on top of the dialog.
+ */
+@Composable
+fun <T> InlineChoice(label: String, options: List<T>, selected: T?, labelOf: @Composable (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
+    var open by remember { mutableStateOf(false) }
+    Column(modifier.fillMaxWidth()) {
+        PickerField(label, selected?.let { labelOf(it) } ?: "", { open = !open })
+        if (open) Surface(tonalElevation = 2.dp, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp)) {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                options.forEach { o ->
+                    Text(labelOf(o), style = MaterialTheme.typography.bodyLarge,
+                        color = if (o == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.fillMaxWidth().clickable { onSelect(o); open = false }.padding(horizontal = 16.dp, vertical = 12.dp))
+                }
+            }
+        }
     }
 }

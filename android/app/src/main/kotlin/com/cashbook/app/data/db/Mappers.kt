@@ -2,6 +2,9 @@ package com.cashbook.app.data.db
 
 import com.cashbook.core.AccountInfo
 import com.cashbook.core.BudgetInfo
+import com.cashbook.core.InvoiceInfo
+import com.cashbook.core.InvoiceKind
+import com.cashbook.core.Allocation
 import com.cashbook.core.Frequency
 import com.cashbook.core.RecurringRule
 import com.cashbook.core.AccountType
@@ -43,3 +46,8 @@ fun RecurringRule.toEntity(createdAt: Long, updatedAt: Long) = RecurringEntity(i
     frequency.name, interval.coerceAtLeast(1), startDate.toEpochDay(), endDate?.toEpochDay(), nextIndex, autoPost, active, createdAt, updatedAt)
 
 fun BudgetEntity.toInfo() = BudgetInfo(id, cashbookId, categoryId, monthlyAmount)
+
+fun InvoiceEntity.toInfo() = InvoiceInfo(id, cashbookId, enumOr(kind, InvoiceKind.SALE), number, partyId, LocalDate.ofEpochDay(issueDate),
+    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled)
+
+fun AllocationEntity.toInfo() = Allocation(id, invoiceId, transactionId, amount)

@@ -23,6 +23,15 @@ class BudgetTest {
         assertEquals(BudgetStatus.OK, p.status)
     }
 
+    @Test fun detectsWorsenedBudgets() {
+        val b = listOf(BudgetInfo(1, 1, 1, 100_000), BudgetInfo(2, 1, 3, 100_000))
+        val before = listOf(e(1, 70_000, 2))
+        val month = YearMonth.of(2026, 4)
+        assertEquals(listOf(1L), Budgets.worsened(b, before, before + e(1, 15_000, 3), cats, month).map { it.budget.id })   // OK → NEAR
+        assertEquals(BudgetStatus.OVER, Budgets.worsened(b, before, before + e(2, 40_000, 3), cats, month).single().status) // child counts → OVER
+        assertEquals(0, Budgets.worsened(b, before, before + e(1, 1_000, 3), cats, month).size)                            // still OK
+    }
+
     @Test fun statusThresholds() {
         fun status(spent: Long) = BudgetProgress(BudgetInfo(1, 1, 1, 100_000), spent).status
         assertEquals(BudgetStatus.OK, status(79_999))

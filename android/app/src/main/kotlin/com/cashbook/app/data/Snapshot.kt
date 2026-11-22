@@ -2,6 +2,10 @@ package com.cashbook.app.data
 
 import com.cashbook.core.AccountInfo
 import com.cashbook.core.BudgetInfo
+import com.cashbook.core.Allocation
+import com.cashbook.core.InvoiceBalance
+import com.cashbook.core.InvoiceInfo
+import com.cashbook.core.Invoices
 import com.cashbook.core.RecurringRule
 import com.cashbook.core.CashbookInfo
 import com.cashbook.core.CategoryInfo
@@ -24,7 +28,12 @@ data class Snapshot(
     val attachmentCounts: Map<Long, Int> = emptyMap(),
     val recurring: List<RecurringRule> = emptyList(),
     val budgets: List<BudgetInfo> = emptyList(),
+    val invoices: List<InvoiceInfo> = emptyList(),
+    val allocations: List<Allocation> = emptyList(),
 ) {
+    /** Invoice balances as of [today]; only payments that are not in the recycle bin count. */
+    fun invoiceBalances(today: java.time.LocalDate = java.time.LocalDate.now()): List<InvoiceBalance> =
+        Invoices.balances(invoices, allocations, txns.map { it.id }.toSet(), today)
     val cashbookById = cashbooks.associateBy { it.id }
     val accountById = accounts.associateBy { it.id }
     val categoryById = categories.associateBy { it.id }

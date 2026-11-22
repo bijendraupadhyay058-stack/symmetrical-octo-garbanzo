@@ -39,6 +39,13 @@
     <string name="after_days">%d दिन बाद</string>
     <string name="after_minutes">%d मिनट बाद</string>
     <string name="after_seconds">%d सेकंड बाद</string>
+    <string name="alert_budget_near">%1$s बजट: इस माह %2$s उपयोग हुआ।</string>
+    <string name="alert_budget_over">%1$s बजट इस माह %2$s से अधिक हो गया।</string>
+    <string name="alert_budget_title">बजट चेतावनी</string>
+    <string name="alert_due_soon">%d आज या कल देय।</string>
+    <string name="alert_invoices_title">इनवॉइस और बिल पर ध्यान दें</string>
+    <string name="alert_overdue">%1$d अतिदेय (प्राप्त करना %2$s, भुगतान करना %3$s)।</string>
+    <string name="alerts_channel">इनवॉइस और बजट सूचनाएँ</string>
     <string name="all_accounts">सभी खाते</string>
     <string name="all_cashbooks">सभी कैशबुक (संयुक्त)</string>
     <string name="allow_negative">ऋणात्मक शेष की अनुमति</string>
@@ -93,8 +100,12 @@
     <string name="biometric_unavailable">इस डिवाइस पर बायोमेट्रिक अनलॉक सेट नहीं है।</string>
     <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
     <string name="both_sides">इस ट्रांसफ़र के दोनों पक्ष</string>
+    <string name="budget_alerts">बजट चेतावनी</string>
+    <string name="budget_alerts_desc">जब कोई श्रेणी अपने मासिक बजट के 80% तक पहुँचे या उससे अधिक हो, तब सूचित करें।</string>
     <string name="budget_left">%s बाकी</string>
     <string name="budget_over">%s अधिक</string>
+    <string name="budget_toast_near">%1$s बजट: %2$s उपयोग हुआ</string>
+    <string name="budget_toast_over">%1$s बजट %2$s से अधिक</string>
     <string name="budget_total">बजट %2$s में से %1$s खर्च</string>
     <string name="budget_zero_removes">बजट हटाने के लिए 0 दर्ज करें।</string>
     <string name="budgets">बजट</string>
@@ -172,12 +183,14 @@
     <string name="discard_title">यह प्रविष्टि छोड़ें?</string>
     <string name="due_on">देय %s</string>
     <string name="due_recurring">पुष्टि की प्रतीक्षा में</string>
+    <string name="due_x">देय %s</string>
     <string name="duplicate">प्रतिलिपि</string>
     <string name="edit">संपादित करें</string>
     <string name="edit_account">खाता संपादित करें</string>
     <string name="edit_cashbook">कैशबुक संपादित करें</string>
     <string name="edit_category">श्रेणी संपादित करें</string>
     <string name="edit_entry">प्रविष्टि संपादित करें</string>
+    <string name="edit_invoice">इनवॉइस संपादित करें</string>
     <string name="edit_party">पक्ष संपादित करें</string>
     <string name="edit_recurring">आवर्ती प्रविष्टि संपादित करें</string>
     <string name="email">ईमेल</string>
@@ -256,6 +269,59 @@
     <string name="income">आय</string>
     <string name="income_category">आय श्रेणी *</string>
     <string name="income_minus_expenses">आय %1$s − व्यय %2$s</string>
+    <string name="inv_amount">इनवॉइस राशि</string>
+    <string name="inv_applied_to">इस प्रविष्टि से भुगतान किए गए इनवॉइस</string>
+    <string name="inv_apply_existing">मौजूदा प्रविष्टि का उपयोग करें</string>
+    <string name="inv_cancel">इनवॉइस रद्द करें</string>
+    <string name="inv_cancelled">रद्द</string>
+    <string name="inv_customer">ग्राहक / क्लाइंट *</string>
+    <string name="inv_delete_text">यह इनवॉइस हटा दिया जाएगा। कोई प्रविष्टि प्रभावित नहीं होगी।</string>
+    <string name="inv_delete_title">इनवॉइस हटाएँ?</string>
+    <string name="inv_due_date">देय तिथि</string>
+    <string name="inv_err_allocation">इनवॉइस की बकाया राशि या प्रविष्टि की शेष राशि से अधिक।</string>
+    <string name="inv_err_below_paid">राशि पहले से भुगतान की गई राशि से कम नहीं हो सकती।</string>
+    <string name="inv_err_due_before">देय तिथि इनवॉइस तिथि से पहले है</string>
+    <string name="inv_err_duplicate">यह संख्या पहले से उपयोग में है। दूसरी चुनें।</string>
+    <string name="inv_err_entry_below_applied">यह प्रविष्टि इनवॉइस का भुगतान करती है; इसकी राशि लागू राशि से कम नहीं हो सकती।</string>
+    <string name="inv_err_has_payments">पहले इस इनवॉइस से जुड़े भुगतान हटाएँ।</string>
+    <string name="inv_err_more_than_outstanding">बकाया राशि से अधिक</string>
+    <string name="inv_err_party">पक्ष चुनें</string>
+    <string name="inv_filter_all">सभी</string>
+    <string name="inv_filter_unpaid">अदत्त</string>
+    <string name="inv_free_x">%s शेष</string>
+    <string name="inv_issue_date">इनवॉइस तिथि</string>
+    <string name="inv_kind_purchase">खरीद बिल</string>
+    <string name="inv_kind_sale">बिक्री इनवॉइस</string>
+    <string name="inv_net_days">%d दिन</string>
+    <string name="inv_no_candidates">इस कैशबुक में कोई अप्रयुक्त आय/व्यय प्रविष्टि नहीं।</string>
+    <string name="inv_no_payments">अभी कोई भुगतान नहीं।</string>
+    <string name="inv_not_cash_note">इनवॉइस या बिल सहेजने से किसी खाते का शेष नहीं बदलता। भुगतान दर्ज करने पर शेष बदलता है।</string>
+    <string name="inv_number">इनवॉइस / बिल संख्या</string>
+    <string name="inv_on_receipt">प्राप्ति पर</string>
+    <string name="inv_open">खुला</string>
+    <string name="inv_outstanding">बकाया</string>
+    <string name="inv_overdue_days">%d दिन अतिदेय</string>
+    <string name="inv_paid">भुगतान हो गया</string>
+    <string name="inv_paid_amount">भुगतान</string>
+    <string name="inv_partial">आंशिक भुगतान</string>
+    <string name="inv_payment_for">%s के लिए प्राप्त भुगतान</string>
+    <string name="inv_payment_in_bin">प्रविष्टि रीसायकल बिन में है — गिनी नहीं गई</string>
+    <string name="inv_payment_of">%s का भुगतान</string>
+    <string name="inv_payments">भुगतान</string>
+    <string name="inv_purchase_explain">आपूर्तिकर्ता का बिल जिसका आपको भुगतान करना है।</string>
+    <string name="inv_received">प्राप्त</string>
+    <string name="inv_record_payment">भुगतान दर्ज करें</string>
+    <string name="inv_record_receipt">प्राप्ति दर्ज करें</string>
+    <string name="inv_reopen">इनवॉइस फिर खोलें</string>
+    <string name="inv_sale_explain">आपका बनाया इनवॉइस जिसका ग्राहक को आपको भुगतान करना है।</string>
+    <string name="inv_supplier">आपूर्तिकर्ता *</string>
+    <string name="inv_unapplied_x">इस प्रविष्टि का %s किसी इनवॉइस पर लागू नहीं है:</string>
+    <string name="inv_unlink">लिंक हटाएँ</string>
+    <string name="invoice_reminders">इनवॉइस और बिल अनुस्मारक</string>
+    <string name="invoice_reminders_desc">इनवॉइस अतिदेय होने या आज/कल देय होने पर दैनिक सूचना।</string>
+    <string name="invoices_bills">इनवॉइस और बिल</string>
+    <string name="invoices_desc">ग्राहकों पर आपका बकाया और आपूर्तिकर्ताओं का आप पर बकाया</string>
+    <string name="invoices_intro">बकाया पर नज़र रखने के लिए इनवॉइस और बिल दर्ज करें। भुगतान आने या जाने पर उनके विरुद्ध दर्ज करें।</string>
     <string name="keep_copies">रखें</string>
     <string name="keep_editing">संपादन जारी रखें</string>
     <string name="keep_forever">जब तक मैं न हटाऊँ</string>
@@ -294,6 +360,7 @@
     <string name="moved_to_recycle_bin">रीसायकल बिन में डाला गया</string>
     <string name="n_entries">%d प्रविष्टियाँ</string>
     <string name="n_months">%d माह</string>
+    <string name="n_overdue">%d अतिदेय</string>
     <string name="name">नाम</string>
     <string name="nav_add">जोड़ें</string>
     <string name="nav_dashboard">डैशबोर्ड</string>
@@ -306,8 +373,10 @@
     <string name="net_for_period">%s का शुद्ध</string>
     <string name="never_backed_up">अभी तक कोई बैकअप नहीं</string>
     <string name="new_account">नया खाता</string>
+    <string name="new_bill">नया बिल</string>
     <string name="new_cashbook">नई कैशबुक</string>
     <string name="new_category">नई श्रेणी</string>
+    <string name="new_invoice">नया इनवॉइस</string>
     <string name="new_party">नया पक्ष</string>
     <string name="new_recurring">नई आवर्ती प्रविष्टि</string>
     <string name="next">आगे</string>
@@ -320,6 +389,7 @@
     <string name="no_credentials_note">कभी भी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP दर्ज न करें। कैशबुक को केवल नाम और वैकल्पिक रूप से अंतिम चार अंक चाहिए।</string>
     <string name="no_data_period">चुनी गई अवधि और फ़िल्टर के लिए कोई प्रविष्टि नहीं।</string>
     <string name="no_expenses_period">इस अवधि में कोई व्यय नहीं।</string>
+    <string name="no_invoices">अभी यहाँ कुछ नहीं।</string>
     <string name="no_matches">आपकी खोज या फ़िल्टर से कोई प्रविष्टि मेल नहीं खाती।</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
@@ -328,6 +398,8 @@
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
     <string name="none_top_level">कोई नहीं (मुख्य श्रेणी)</string>
     <string name="notes">टिप्पणी</string>
+    <string name="notifications">सूचनाएँ</string>
+    <string name="of_x">%s में से</string>
     <string name="off">बंद</string>
     <string name="ok">ठीक है</string>
     <string name="open_app_settings">ऐप सेटिंग खोलें</string>
@@ -340,6 +412,7 @@
     <string name="operation_failed">कुछ गलत हो गया। आपका मौजूदा डेटा नहीं बदला गया।</string>
     <string name="optional">वैकल्पिक</string>
     <string name="out_label">व्यय</string>
+    <string name="overdue">अतिदेय</string>
     <string name="page_x_of_y">पृष्ठ %1$d / %2$d</string>
     <string name="paid_to">किसे भुगतान</string>
     <string name="parent_category">मुख्य श्रेणी</string>
@@ -350,6 +423,7 @@
     <string name="party_customer">ग्राहक</string>
     <string name="party_employee">कर्मचारी</string>
     <string name="party_in_use">यह पक्ष %d प्रविष्टियों से जुड़ा है और हटाया नहीं जा सकता। इसे संग्रहित करें।</string>
+    <string name="party_ledger_note">बकाया राशि आपके दर्ज इनवॉइस और बिल से आती है। बिना इनवॉइस के प्राप्त/भुगतान राशि केवल नीचे की प्रविष्टियों में दिखती है।</string>
     <string name="party_other">अन्य</string>
     <string name="party_service_provider">सेवा प्रदाता</string>
     <string name="party_supplier">आपूर्तिकर्ता</string>
@@ -359,6 +433,7 @@
     <string name="passwords_dont_match">पासवर्ड मेल नहीं खाते</string>
     <string name="past_start_hint">पहली तिथि बीत चुकी है: सहेजने पर छूटी तिथियों की प्रविष्टियाँ बन जाएँगी।</string>
     <string name="paused">रुका हुआ</string>
+    <string name="payables">देय</string>
     <string name="paying_account">भुगतान करने वाला खाता *</string>
     <string name="payment_mode">भुगतान का तरीका</string>
     <string name="period">अवधि</string>
@@ -386,6 +461,8 @@
     <string name="provider_optional">प्रदाता (वैकल्पिक)</string>
     <string name="quick_actions">त्वरित कार्य</string>
     <string name="ready_body">\"%s\" तैयार है। आप कभी भी और कैशबुक, खाते और श्रेणियाँ जोड़ सकते हैं।</string>
+    <string name="receivables">प्राप्य</string>
+    <string name="receivables_payables">प्राप्य और देय</string>
     <string name="received_from">किससे प्राप्त</string>
     <string name="receiving_account">प्राप्त करने वाला खाता *</string>
     <string name="recent_transactions">हाल की प्रविष्टियाँ</string>
@@ -421,6 +498,8 @@
     <string name="report_monthly">मासिक सारांश</string>
     <string name="report_monthly_desc">एक माह के योग और खातों के अंतिम शेष</string>
     <string name="report_options">रिपोर्ट विकल्प</string>
+    <string name="report_outstanding">बकाया और अवधि-विश्लेषण</string>
+    <string name="report_outstanding_desc">किसी तिथि तक पक्ष-वार अदत्त इनवॉइस और बिल, अतिदेय दिनों के अनुसार</string>
     <string name="report_party">पक्ष-वार लेन-देन रिपोर्ट</string>
     <string name="report_party_desc">प्रत्येक पक्ष से प्राप्त और उसे दिया गया पैसा</string>
     <string name="report_transfers">ट्रांसफ़र रिपोर्ट</string>
@@ -443,11 +522,17 @@
     <string name="restore_wrong_password">गलत पासवर्ड, या फ़ाइल क्षतिग्रस्त है।</string>
     <string name="retention_info">रीसायकल बिन की प्रविष्टियाँ हटाने के %d दिन बाद स्थायी रूप से मिट जाती हैं।</string>
     <string name="retention_off">हटाई गई प्रविष्टियाँ तब तक रीसायकल बिन में रहेंगी जब तक आप उन्हें न मिटाएँ।</string>
+    <string name="rl_ageing">अवधि-विश्लेषण</string>
     <string name="rl_balance">शेष</string>
     <string name="rl_cash_basis_note">यह रिपोर्ट केवल दर्ज नकद लेन-देन दर्शाती है। यह उपार्जन-आधारित लाभ-हानि खाता नहीं है।</string>
     <string name="rl_count">प्रविष्टियों की संख्या</string>
+    <string name="rl_d0_30">1–30 दिन अतिदेय</string>
+    <string name="rl_d31_60">31–60 दिन अतिदेय</string>
+    <string name="rl_d61_90">61–90 दिन अतिदेय</string>
+    <string name="rl_d90_plus">90 दिन से अधिक अतिदेय</string>
     <string name="rl_day_detail">प्रविष्टियाँ</string>
     <string name="rl_day_summary">तारीख़-वार सारांश</string>
+    <string name="rl_days_overdue">अतिदेय दिन</string>
     <string name="rl_expense_by_category">श्रेणी-वार व्यय</string>
     <string name="rl_from">से</string>
     <string name="rl_income_by_category">श्रेणी-वार आय</string>
@@ -457,7 +542,9 @@
     <string name="rl_net_deficit">शुद्ध घाटा</string>
     <string name="rl_net_surplus">शुद्ध अधिशेष</string>
     <string name="rl_net_surplus_deficit">शुद्ध अधिशेष / (घाटा)</string>
+    <string name="rl_not_due">अभी देय नहीं</string>
     <string name="rl_opening_of">प्रारंभिक शेष – %s</string>
+    <string name="rl_outstanding_note">इनवॉइस और बिल बकाया राशियाँ हैं, नकद लेन-देन नहीं; भुगतान दर्ज होने तक ये खाता शेष नहीं बदलते। आँकड़े चुनी अवधि के अंत तक के हैं।</string>
     <string name="rl_particulars">विवरण</string>
     <string name="rl_party_note">प्रत्येक पक्ष से वास्तव में प्राप्त और उसे दिया गया पैसा दर्शाती है। यह प्राप्य/देय खाता-बही नहीं है।</string>
     <string name="rl_payments">भुगतान</string>
@@ -546,6 +633,8 @@
     <string name="theme_system">सिस्टम डिफ़ॉल्ट</string>
     <string name="to_account">किस खाते में *</string>
     <string name="to_date">तक</string>
+    <string name="to_pay">भुगतान करना है</string>
+    <string name="to_receive">प्राप्त करना है</string>
     <string name="today_expenses">आज के व्यय</string>
     <string name="today_income">आज की आय</string>
     <string name="too_many_attempts">बहुत अधिक प्रयास। %d सेकंड बाद फिर प्रयास करें।</string>
@@ -578,6 +667,13 @@
     <string name="welcome_p3">PDF और Excel में दैनिक, मासिक, वार्षिक और वित्त-वर्ष रिपोर्ट</string>
     <string name="welcome_p4">एन्क्रिप्टेड बैकअप और वैकल्पिक पिन लॉक</string>
     <string name="welcome_title">कैशबुक में आपका स्वागत है</string>
+    <string name="widget_balance_hidden">शेष छिपा है</string>
+    <string name="widget_description">त्वरित प्रविष्टि और शेष</string>
+    <string name="widget_show_balance">होम-स्क्रीन विजेट पर शेष दिखाएँ</string>
+    <string name="widget_show_balance_desc">आपकी होम स्क्रीन देखने वाला कोई भी इसे देख सकता है।</string>
+    <string name="widget_show_balance_locked">ऐप लॉक चालू होने पर हमेशा छिपा रहता है।</string>
+    <string name="widget_tap_to_add">प्रविष्टि जोड़ने के लिए टैप करें</string>
+    <string name="widget_today">आज: आय %1$s · व्यय %2$s</string>
     <string name="with_attachments">संलग्नक सहित</string>
     <string name="wrong_pin">गलत पिन</string>
     <string name="year">वर्ष</string>
@@ -603,6 +699,10 @@
         <item>सेटिंग › बैकअप और पुनर्स्थापना आपके पासवर्ड से सुरक्षित एन्क्रिप्टेड बैकअप फ़ाइल बनाता है। इसे फ़ाइल पिकर से फ़ोन, SD कार्ड या क्लाउड ड्राइव में सहेजें। पासवर्ड सुरक्षित रखें — इसके बिना बैकअप नहीं खुल सकता।</item>
         <item>## आवर्ती प्रविष्टियाँ और बजट</item>
         <item>सेटिंग › आवर्ती प्रविष्टियाँ में किराया, वेतन या सदस्यता की अनुसूची बनाएँ। तय करें कि हर एक अपने-आप जुड़े या डैशबोर्ड पर दर्ज करें / छोड़ें के लिए प्रतीक्षा करे। किसी भी प्रविष्टि को खोलकर आवर्ती बनाएँ पर टैप करें। सेटिंग › बजट में व्यय श्रेणी-वार मासिक सीमा तय करें; डैशबोर्ड पर इस माह की प्रगति दिखती है।</item>
+        <item>## इनवॉइस, बिल और बकाया</item>
+        <item>सेटिंग › इनवॉइस और बिल (या डैशबोर्ड का प्राप्य और देय कार्ड) में आपके बनाए बिक्री इनवॉइस और मिले खरीद बिल देय तिथि सहित दर्ज होते हैं। ये कोई शेष नहीं बदलते। पैसा आने या जाने पर इनवॉइस खोलें और प्राप्ति / भुगतान दर्ज करें, या पहले से दर्ज प्रविष्टि लागू करें। स्थिति, अतिदेय दिन और बकाया रिपोर्ट अपने-आप अपडेट होते हैं।</item>
+        <item>## होम-स्क्रीन विजेट और सूचनाएँ</item>
+        <item>होम स्क्रीन पर देर तक दबाएँ › विजेट › कैशबुक — त्वरित आय / व्यय / ट्रांसफ़र बटन के लिए। शेष तभी दिखता है जब आप अनुमति दें और ऐप लॉक बंद हो। इनवॉइस अनुस्मारक और बजट चेतावनी सेटिंग › सामान्य और वित्तीय में चालू करें।</item>
         <item>## स्वचालित बैकअप</item>
         <item>बैकअप और पुनर्स्थापना में एक बार फ़ोल्डर चुनें (फ़ोन, SD कार्ड या क्लाउड ड्राइव), पासवर्ड सेट करें और अपने-आप बैकअप लें चालू करें। कैशबुक दैनिक या साप्ताहिक बैकअप सहेजता है और केवल नवीनतम प्रतियाँ रखता है।</item>
         <item>## सुरक्षा</item>
@@ -618,7 +718,7 @@
         <item>## बैकअप और निर्यात</item>
         <item>बैकअप आपके चुने पासवर्ड से एन्क्रिप्ट होते हैं और केवल उसी जगह सहेजे जाते हैं जो आप Android फ़ाइल पिकर में चुनते हैं (जो आपकी चुनी क्लाउड ड्राइव हो सकती है)। PDF और Excel निर्यात केवल आपके कहने पर बनते हैं, और केवल आपके चुनने पर Android शेयर मेनू से साझा होते हैं।</item>
         <item>## अनुमतियाँ</item>
-        <item>सूचनाएँ: केवल तब जब आप बैकअप अनुस्मारक चालू करें। बायोमेट्रिक: केवल तब जब आप फ़िंगरप्रिंट अनलॉक चालू करें। कैमरा फ़ोटो, गैलरी चित्र और फ़ाइलें Android के सिस्टम पिकर से खोली जाती हैं, इसलिए कैशबुक को स्टोरेज या कैमरा अनुमति की आवश्यकता नहीं है।</item>
+        <item>सूचनाएँ: केवल तब जब आप बैकअप अनुस्मारक, इनवॉइस अनुस्मारक या बजट चेतावनी चालू करें। वैकल्पिक होम-स्क्रीन विजेट आपका शेष तभी दिखाता है जब आप अनुमति दें, और ऐप लॉक चालू होने पर कभी नहीं। बायोमेट्रिक: केवल तब जब आप फ़िंगरप्रिंट अनलॉक चालू करें। कैमरा फ़ोटो, गैलरी चित्र और फ़ाइलें Android के सिस्टम पिकर से खोली जाती हैं, इसलिए कैशबुक को स्टोरेज या कैमरा अनुमति की आवश्यकता नहीं है।</item>
         <item>## अपना डेटा हटाना</item>
         <item>ऐप के अंदर अलग-अलग प्रविष्टियाँ या पूरी कैशबुक हटाएँ, या डिवाइस पर संग्रहीत सब कुछ हटाने के लिए ऐप अनइंस्टॉल करें / Android सेटिंग से इसका डेटा साफ़ करें। आपके द्वारा कहीं और सहेजी गई बैकअप फ़ाइलें आपके नियंत्रण में हैं।</item>
     </string-array>

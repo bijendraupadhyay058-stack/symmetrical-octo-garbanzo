@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -54,6 +55,7 @@ fun reportIcon(t: ReportType) = when (t) {
     ReportType.INCOME_EXPENSE -> Icons.Filled.PieChart
     ReportType.TRANSFERS -> Icons.Filled.SwapHoriz
     ReportType.CUSTOM -> Icons.Filled.Tune
+    ReportType.OUTSTANDING -> Icons.Filled.HourglassBottom
 }
 
 @Composable

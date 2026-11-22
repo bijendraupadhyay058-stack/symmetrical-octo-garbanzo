@@ -29,14 +29,20 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ProcessLifecycleOwner.get().lifecycle.addObserver(processObserver)
-        val openTarget = intent?.getStringExtra(EXTRA_OPEN)
+        intent?.getStringExtra(EXTRA_OPEN)?.let { vm.requestOpen(it) }
         lifecycleScope.launch {
             vm.settings.collect { s ->
                 if (s?.secureScreen == true) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }
-        setContent { AppRoot(vm, openTarget) }
+        setContent { AppRoot(vm) }
+    }
+
+    /** Widget buttons and notifications re-use the running activity (singleTop). */
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(EXTRA_OPEN)?.let { vm.requestOpen(it) }
     }
 
     override fun onDestroy() {

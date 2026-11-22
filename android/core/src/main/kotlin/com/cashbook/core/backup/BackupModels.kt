@@ -19,6 +19,7 @@ data class BackupManifest(
     val includesAttachments: Boolean,
     val recurring: Int = 0,
     val budgets: Int = 0,
+    val invoices: Int = 0,
 )
 
 @Serializable
@@ -72,6 +73,15 @@ data class RecurringDto(
 data class BudgetDto(val id: Long, val cashbookId: Long, val categoryId: Long, val monthlyAmount: Long, val createdAt: Long, val updatedAt: Long)
 
 @Serializable
+data class InvoiceDto(
+    val id: Long, val cashbookId: Long, val kind: String, val number: String, val partyId: Long, val issueDate: Long, val dueDate: Long,
+    val amount: Long, val description: String = "", val notes: String = "", val cancelled: Boolean = false, val createdAt: Long, val updatedAt: Long,
+)
+
+@Serializable
+data class AllocationDto(val id: Long, val invoiceId: Long, val transactionId: Long, val amount: Long, val createdAt: Long)
+
+@Serializable
 data class BackupData(
     val cashbooks: List<CashbookDto>,
     val accounts: List<AccountDto>,
@@ -82,4 +92,7 @@ data class BackupData(
     // Added in app 1.1 (database v2). Defaults keep 1.0 backups restorable.
     val recurring: List<RecurringDto> = emptyList(),
     val budgets: List<BudgetDto> = emptyList(),
+    // Added in app 1.2 (database v3).
+    val invoices: List<InvoiceDto> = emptyList(),
+    val allocations: List<AllocationDto> = emptyList(),
 )

@@ -23,5 +23,18 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2)
+    /** v2 → v3 (app 1.2): invoices / bills and the payments applied to them. */
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `invoices` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `cashbook_id` INTEGER NOT NULL, `kind` TEXT NOT NULL, `number` TEXT NOT NULL, `party_id` INTEGER NOT NULL, `issue_date` INTEGER NOT NULL, `due_date` INTEGER NOT NULL, `amount` INTEGER NOT NULL, `description` TEXT NOT NULL, `notes` TEXT NOT NULL, `cancelled` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, FOREIGN KEY(`cashbook_id`) REFERENCES `cashbooks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`party_id`) REFERENCES `parties`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_invoices_cashbook_id_kind_number` ON `invoices` (`cashbook_id`, `kind`, `number`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoices_party_id` ON `invoices` (`party_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoices_due_date` ON `invoices` (`due_date`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `allocations` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `invoice_id` INTEGER NOT NULL, `transaction_id` INTEGER NOT NULL, `amount` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, FOREIGN KEY(`invoice_id`) REFERENCES `invoices`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`transaction_id`) REFERENCES `transactions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_allocations_invoice_id_transaction_id` ON `allocations` (`invoice_id`, `transaction_id`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_allocations_transaction_id` ON `allocations` (`transaction_id`)")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 }

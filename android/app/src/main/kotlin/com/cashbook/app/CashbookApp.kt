@@ -16,6 +16,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 open class CashbookApp : Application() {
@@ -46,6 +48,7 @@ class Dependencies(
 )
 
 /** Manual dependency injection container. */
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class AppContainer(
     context: Context,
     val secure: SecureStore,
@@ -72,6 +75,12 @@ class AppContainer(
                 val ledger = LedgerRepository(db, store, appScope)
                 // Catch up recurring entries that fell due while the app was closed.
                 runCatching { ledger.postDueRecurring() }
+                // Keep home-screen widgets in step with the data (no-op when none are placed).
+                appScope.launch {
+                    combine(ledger.snapshot, settings.settings) { a, b -> a to b }.debounce(1_500).collect {
+                        runCatching { com.cashbook.app.widget.WidgetUpdater.updateAll(context) }
+                    }
+                }
                 State.Ready(Dependencies(db, ledger, settings, secure, store, backup, AutoBackup(context, backup, settings, secure)))
             } catch (t: Throwable) {
                 State.Failed(t)

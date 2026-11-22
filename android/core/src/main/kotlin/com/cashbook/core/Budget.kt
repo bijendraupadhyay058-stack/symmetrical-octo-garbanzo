@@ -22,6 +22,15 @@ data class BudgetProgress(val budget: BudgetInfo, val spent: Long) {
 }
 
 object Budgets {
+    /**
+     * Budgets whose status got worse (OK → NEAR → OVER) because of a change in entries, e.g. after
+     * saving an expense. Used to warn immediately in the app.
+     */
+    fun worsened(budgets: List<BudgetInfo>, before: List<Txn>, after: List<Txn>, categories: Map<Long, CategoryInfo>, month: YearMonth): List<BudgetProgress> {
+        val old = progress(budgets, before, categories, month).associateBy { it.budget.id }
+        return progress(budgets, after, categories, month).filter { p -> (old[p.budget.id]?.status?.ordinal ?: 0) < p.status.ordinal }
+    }
+
     fun progress(budgets: List<BudgetInfo>, txns: List<Txn>, categories: Map<Long, CategoryInfo>, month: YearMonth): List<BudgetProgress> {
         val range = DateRange(month.atDay(1), month.atEndOfMonth())
         return budgets.map { b ->

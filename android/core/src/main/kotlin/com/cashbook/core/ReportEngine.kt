@@ -26,6 +26,9 @@ data class ReportInput(
     val cashbookNames: Map<Long, String> = emptyMap(),
     val locale: Locale = Locale.ENGLISH,
     val txnsWithAttachments: Set<Long> = emptySet(),
+    /** Invoices/bills of the cashbook(s) in scope and their payment allocations (Outstanding report). */
+    val invoices: List<InvoiceInfo> = emptyList(),
+    val allocations: List<Allocation> = emptyList(),
 )
 
 /**
@@ -67,8 +70,13 @@ class ReportEngine(private val input: ReportInput) {
             ReportType.INCOME_EXPENSE -> incomeExpense()
             ReportType.TRANSFERS -> transfers()
             ReportType.CUSTOM -> custom()
+            ReportType.OUTSTANDING -> outstanding()
         }
-        val exportTxns = if (input.type.supportsDetailFilters) detail else inRange
+        val exportTxns = when {
+            input.type == ReportType.OUTSTANDING -> emptyList()
+            input.type.supportsDetailFilters -> detail
+            else -> inRange
+        }
         return ReportDocument(
             type = input.type,
             title = l.titles[input.type] ?: input.type.name,
@@ -359,6 +367,52 @@ class ReportEngine(private val input: ReportInput) {
                 Column(l.income, 1.2f, Align.END), Column(l.expense, 1.2f, Align.END), Column(l.transfer, 1.2f, Align.END)),
                 if (rows.isEmpty()) rows else rows + total)),
             listOf(l.cashBasisNote))
+    }
+
+    /**
+     * Receivables and payables as at the end of the period: only invoices issued by then, and only
+     * payments dated by then, so the report can be re-run for any past date.
+     */
+    private fun outstanding(): Parts {
+        val asOf = range.end
+        val issued = input.invoices.filter { !it.issueDate.isAfter(asOf) && !it.cancelled &&
+            (input.filter.partyIds.isEmpty() || it.partyId in input.filter.partyIds) }
+        val liveByDate = input.txns.filter { !it.date.isAfter(asOf) }.map { it.id }.toSet()
+        val balances = Invoices.balances(issued, input.allocations, liveByDate, asOf).filter { it.outstanding > 0 }
+        val summary = ArrayList<SummaryItem>()
+        val tables = ArrayList<ReportTable>()
+        for (kind in InvoiceKind.entries) {
+            val list = balances.filter { it.invoice.kind == kind }.sortedWith(compareBy({ names.party(it.invoice.partyId).lowercase() }, { it.invoice.dueDate }))
+            val title = if (kind == InvoiceKind.SALE) l.receivables else l.payables
+            summary += SummaryItem(title, Cell.Amount(list.sumOf { it.outstanding }))
+            val rows = ArrayList<Row>()
+            list.groupBy { it.invoice.partyId }.forEach { (pid, items) ->
+                rows += Row(listOf(Cell.Text(names.party(pid)), Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty), RowStyle.HEADING)
+                items.forEach { b ->
+                    rows += Row(listOf(Cell.Text(b.invoice.number), Cell.Day(b.invoice.issueDate), Cell.Day(b.invoice.dueDate), Cell.Amount(b.invoice.amount),
+                        Cell.Amount(b.paid), Cell.Amount(b.outstanding), if (b.daysOverdue > 0) Cell.Count(b.daysOverdue) else Cell.Empty))
+                }
+                rows += Row(listOf(Cell.Text(l.total), Cell.Empty, Cell.Empty, Cell.Amount(items.sumOf { it.invoice.amount }), Cell.Amount(items.sumOf { it.paid }),
+                    Cell.Amount(items.sumOf { it.outstanding }), Cell.Empty), RowStyle.SUBTOTAL)
+            }
+            if (rows.isNotEmpty()) rows += Row(listOf(Cell.Text(l.total), Cell.Empty, Cell.Empty, Cell.Amount(list.sumOf { it.invoice.amount }),
+                Cell.Amount(list.sumOf { it.paid }), Cell.Amount(list.sumOf { it.outstanding }), Cell.Empty), RowStyle.TOTAL)
+            tables += ReportTable(title, listOf(Column(l.invoiceNo, 1.6f), Column(l.date, 1.1f), Column(l.dueDate, 1.1f), Column(l.invoiceAmount, 1.3f, Align.END),
+                Column(l.paid, 1.2f, Align.END), Column(l.outstanding, 1.3f, Align.END), Column(l.daysOverdue, 0.9f, Align.END)), rows)
+        }
+        // ageing summary
+        val bucketLabels = mapOf(AgeBucket.NOT_DUE to l.notDue, AgeBucket.D0_30 to l.days0to30, AgeBucket.D31_60 to l.days31to60,
+            AgeBucket.D61_90 to l.days61to90, AgeBucket.D90_PLUS to l.days90plus)
+        val ageRows = AgeBucket.entries.map { bkt ->
+            val inBkt = balances.filter { Invoices.bucket(it) == bkt }
+            Row(listOf(Cell.Text(bucketLabels[bkt]!!), Cell.Amount(inBkt.filter { it.invoice.kind == InvoiceKind.SALE }.sumOf { it.outstanding }),
+                Cell.Amount(inBkt.filter { it.invoice.kind == InvoiceKind.PURCHASE }.sumOf { it.outstanding })))
+        }
+        val ageTotal = Row(listOf(Cell.Text(l.total), Cell.Amount(balances.filter { it.invoice.kind == InvoiceKind.SALE }.sumOf { it.outstanding }),
+            Cell.Amount(balances.filter { it.invoice.kind == InvoiceKind.PURCHASE }.sumOf { it.outstanding })), RowStyle.TOTAL)
+        tables.add(0, ReportTable(l.ageing, listOf(Column(l.ageing, 2f), Column(l.receivables, 1.6f, Align.END), Column(l.payables, 1.6f, Align.END)),
+            if (balances.isEmpty()) emptyList() else ageRows + ageTotal))
+        return Parts(summary, tables, listOf(l.outstandingNote))
     }
 
     private fun exportTable(txns: List<Txn>): ReportTable {
