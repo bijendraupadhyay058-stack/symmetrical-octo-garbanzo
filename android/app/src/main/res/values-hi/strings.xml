@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generated from one table so English and Hindi stay in sync. -->
 <resources>
+    <string name="ab_err_create">चुने गए फ़ोल्डर में फ़ाइल नहीं बन सकी</string>
+    <string name="ab_err_folder">फ़ोल्डर की अनुमति खो गई — इसे फिर से चुनें</string>
+    <string name="ab_err_password">कोई बैकअप पासवर्ड सेट नहीं है</string>
     <string name="about">ऐप के बारे में</string>
     <string name="about_disclaimer">कैशबुक हाथ से हिसाब रखने का ऐप है। यह किसी बैंक से नहीं जुड़ता, कभी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP नहीं माँगता, और इसकी रिपोर्ट केवल दर्ज नकद लेन-देन दर्शाती हैं — पूर्ण उपार्जन-आधारित लाभ-हानि खाता नहीं। कर और वैधानिक मामलों के लिए योग्य पेशेवर से परामर्श लें।</string>
     <string name="about_disclaimer_title">महत्वपूर्ण</string>
@@ -21,6 +24,8 @@
     <string name="acct_cash">हाथ में नकद</string>
     <string name="acct_other">अन्य</string>
     <string name="acct_wallet">डिजिटल वॉलेट</string>
+    <string name="active">सक्रिय</string>
+    <string name="active_desc">इसे हटाए बिना रोकने के लिए बंद करें।</string>
     <string name="add_another_account">एक और खाता जोड़ें</string>
     <string name="add_entry">प्रविष्टि जोड़ें</string>
     <string name="add_expense">व्यय जोड़ें</string>
@@ -57,6 +62,11 @@
     <string name="attachment_too_large">फ़ाइल 10 MB से बड़ी है।</string>
     <string name="attachment_unsupported">केवल JPG, PNG और PDF फ़ाइलें समर्थित हैं।</string>
     <string name="attachments">बिल और रसीदें</string>
+    <string name="auto_backup">स्वचालित बैकअप</string>
+    <string name="auto_backup_done">स्वचालित बैकअप सहेजा गया।</string>
+    <string name="auto_backup_error">पिछला स्वचालित बैकअप विफल: %s</string>
+    <string name="auto_backup_explain">एक बार फ़ोल्डर चुनें — इस फ़ोन, SD कार्ड या Google Drive जैसी क्लाउड ड्राइव में। फिर कैशबुक तय समय पर वहाँ एन्क्रिप्टेड बैकअप सहेजेगा और केवल नवीनतम प्रतियाँ रखेगा।</string>
+    <string name="auto_backup_on">अपने-आप बैकअप लें</string>
     <string name="auto_delete">अपने-आप हटाएँ</string>
     <string name="auto_lock">स्वतः लॉक</string>
     <string name="back">वापस</string>
@@ -83,6 +93,14 @@
     <string name="biometric_unavailable">इस डिवाइस पर बायोमेट्रिक अनलॉक सेट नहीं है।</string>
     <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
     <string name="both_sides">इस ट्रांसफ़र के दोनों पक्ष</string>
+    <string name="budget_left">%s बाकी</string>
+    <string name="budget_over">%s अधिक</string>
+    <string name="budget_total">बजट %2$s में से %1$s खर्च</string>
+    <string name="budget_zero_removes">बजट हटाने के लिए 0 दर्ज करें।</string>
+    <string name="budgets">बजट</string>
+    <string name="budgets_desc">श्रेणी-वार मासिक खर्च सीमा</string>
+    <string name="budgets_intro">मासिक बजट तय करने के लिए श्रेणी पर टैप करें। उप-श्रेणियों का खर्च मुख्य श्रेणी में गिना जाता है।</string>
+    <string name="budgets_this_month">इस माह के बजट</string>
     <string name="camera">कैमरा</string>
     <string name="cancel">रद्द करें</string>
     <string name="cashbook">कैशबुक</string>
@@ -97,6 +115,8 @@
     <string name="category_in_use">%d प्रविष्टियाँ इस श्रेणी का उपयोग करती हैं। हटाने से पहले उन्हें किस श्रेणी में ले जाना है, चुनें।</string>
     <string name="change_pin">पिन बदलें</string>
     <string name="check_backup">बैकअप जाँचें</string>
+    <string name="choose_folder">बैकअप फ़ोल्डर चुनें</string>
+    <string name="choose_folder_first">पहले बैकअप फ़ोल्डर चुनें।</string>
     <string name="choose_location_backup">जगह चुनें और बैकअप लें</string>
     <string name="choose_pin">4 से 6 अंकों का पिन चुनें</string>
     <string name="clear">साफ़ करें</string>
@@ -112,10 +132,12 @@
     <string name="create_backup">बैकअप बनाएँ</string>
     <string name="create_cashbook">कैशबुक बनाएँ</string>
     <string name="created">बनाया गया</string>
+    <string name="created_by_recurring">आवर्ती अनुसूची द्वारा बनाया गया।</string>
     <string name="created_on">बनाया गया %s</string>
     <string name="currency">मुद्रा</string>
     <string name="currency_display">मुद्रा प्रदर्शन</string>
     <string name="currency_hint">तीन अक्षरों का कोड। राशियाँ हमेशा भारतीय अंक समूहन में दिखती हैं।</string>
+    <string name="daily">दैनिक</string>
     <string name="date">तारीख़</string>
     <string name="date_format">तारीख़ का प्रारूप</string>
     <string name="date_range">तारीख़ सीमा</string>
@@ -138,6 +160,8 @@
     <string name="delete_entry_title">यह प्रविष्टि हटाएँ?</string>
     <string name="delete_permanently">स्थायी रूप से हटाएँ</string>
     <string name="delete_permanently_text">यह प्रविष्टि और इसके संलग्नक हमेशा के लिए हट जाएँगे।</string>
+    <string name="delete_recurring">अनुसूची हटाएँ?</string>
+    <string name="delete_recurring_text">आगे कोई प्रविष्टि नहीं बनेगी। पहले से बनी प्रविष्टियाँ बनी रहेंगी।</string>
     <string name="delete_transfer_text">इस ट्रांसफ़र के दोनों पक्ष एक साथ रीसायकल बिन में जाएँगे और दोनों खातों के शेष फिर से गणना होंगे।</string>
     <string name="deleted_on">हटाया गया %s</string>
     <string name="description">विवरण</string>
@@ -146,6 +170,8 @@
     <string name="discard">छोड़ें</string>
     <string name="discard_text">आपकी बिना सहेजी प्रविष्टि खो जाएगी।</string>
     <string name="discard_title">यह प्रविष्टि छोड़ें?</string>
+    <string name="due_on">देय %s</string>
+    <string name="due_recurring">पुष्टि की प्रतीक्षा में</string>
     <string name="duplicate">प्रतिलिपि</string>
     <string name="edit">संपादित करें</string>
     <string name="edit_account">खाता संपादित करें</string>
@@ -153,11 +179,13 @@
     <string name="edit_category">श्रेणी संपादित करें</string>
     <string name="edit_entry">प्रविष्टि संपादित करें</string>
     <string name="edit_party">पक्ष संपादित करें</string>
+    <string name="edit_recurring">आवर्ती प्रविष्टि संपादित करें</string>
     <string name="email">ईमेल</string>
     <string name="empty_recycle_bin">रीसायकल बिन खाली करें</string>
     <string name="empty_recycle_bin_text">रीसायकल बिन की सभी %d प्रविष्टियाँ स्थायी रूप से हटाएँ?</string>
     <string name="enable_pin">पिन लॉक</string>
     <string name="enable_pin_desc">कैशबुक खोलते समय पिन माँगें</string>
+    <string name="end_date">अंतिम तिथि</string>
     <string name="enter_backup_password">यह बैकअप बनाते समय उपयोग किया गया पासवर्ड दर्ज करें।</string>
     <string name="enter_current_pin">वर्तमान पिन दर्ज करें</string>
     <string name="enter_pin">अपना पिन दर्ज करें</string>
@@ -173,6 +201,7 @@
     <string name="err_category">श्रेणी चुनें</string>
     <string name="err_opening_after_txn">खाते में %s से प्रविष्टियाँ हैं। प्रारंभ तिथि उसी दिन या उससे पहले होनी चाहिए।</string>
     <string name="err_same_account">स्रोत और गंतव्य खाते अलग होने चाहिए</string>
+    <string name="every">हर</string>
     <string name="expense_breakdown">सबसे बड़ी व्यय श्रेणियाँ</string>
     <string name="expense_category">व्यय श्रेणी *</string>
     <string name="expenses">व्यय</string>
@@ -191,8 +220,21 @@
     <string name="financial">वित्तीय</string>
     <string name="financial_year">वित्त वर्ष</string>
     <string name="first_account">कैशबुक का पहला खाता</string>
+    <string name="first_date">पहली तिथि</string>
     <string name="fix_errors">कृपया चिह्नित फ़ील्ड ठीक करें।</string>
+    <string name="folder_x">फ़ोल्डर: %s</string>
     <string name="forgot_pin_hint">पिन भूल गए? Android सेटिंग से ऐप डेटा साफ़ करने पर सारा डेटा हट जाएगा। बैकअप रखें।</string>
+    <string name="freq_daily">दैनिक</string>
+    <string name="freq_every_n_days">हर %d दिन</string>
+    <string name="freq_every_n_months">हर %d माह</string>
+    <string name="freq_every_n_quarters">हर %d तिमाही</string>
+    <string name="freq_every_n_weeks">हर %d सप्ताह</string>
+    <string name="freq_every_n_years">हर %d वर्ष</string>
+    <string name="freq_monthly">मासिक</string>
+    <string name="freq_quarterly">तिमाही</string>
+    <string name="freq_weekly">साप्ताहिक</string>
+    <string name="freq_yearly">वार्षिक</string>
+    <string name="frequency">आवृत्ति</string>
     <string name="from_account">किस खाते से *</string>
     <string name="from_date">से</string>
     <string name="fy_info">वित्त-वर्ष रिपोर्ट और फ़िल्टर भारतीय वित्त वर्ष, 1 अप्रैल से 31 मार्च, का उपयोग करते हैं।</string>
@@ -204,6 +246,7 @@
     <string name="gstin_invalid">GSTIN 15 अक्षरों का होना चाहिए</string>
     <string name="gstin_optional">GSTIN (वैकल्पिक)</string>
     <string name="has_attachment">संलग्नक है</string>
+    <string name="has_end_date">किसी तिथि पर समाप्त</string>
     <string name="history">इतिहास</string>
     <string name="icon">चिह्न</string>
     <string name="in_label">आय</string>
@@ -213,15 +256,19 @@
     <string name="income">आय</string>
     <string name="income_category">आय श्रेणी *</string>
     <string name="income_minus_expenses">आय %1$s − व्यय %2$s</string>
+    <string name="keep_copies">रखें</string>
     <string name="keep_editing">संपादन जारी रखें</string>
     <string name="keep_forever">जब तक मैं न हटाऊँ</string>
     <string name="language">भाषा</string>
     <string name="last4_optional">अंतिम 4 अंक (वैकल्पिक)</string>
+    <string name="last_auto_backup">पिछला स्वचालित बैकअप: %s</string>
     <string name="last_backup">पिछला बैकअप: %s</string>
+    <string name="latest_n">नवीनतम %d प्रतियाँ</string>
     <string name="lock_immediately">तुरंत</string>
     <string name="lock_later_hint">आप बाद में सेटिंग › सुरक्षा में पिन सेट या बदल सकते हैं।</string>
     <string name="lock_now">अभी लॉक करें</string>
     <string name="lock_setup_body">अपने वित्तीय रिकॉर्ड को पिन से सुरक्षित करें। बाद में फ़िंगरप्रिंट अनलॉक भी चालू कर सकते हैं।</string>
+    <string name="make_recurring">आवर्ती बनाएँ</string>
     <string name="manage">प्रबंधित करें</string>
     <string name="manage_cashbooks">कैशबुक प्रबंधित करें</string>
     <string name="max_amount">अधिकतम</string>
@@ -238,6 +285,7 @@
     <string name="month_expenses">इस माह के व्यय</string>
     <string name="month_income">इस माह की आय</string>
     <string name="monthly">मासिक</string>
+    <string name="monthly_budget">मासिक बजट</string>
     <string name="monthly_chart">आय बनाम व्यय</string>
     <string name="more_filters">और फ़िल्टर</string>
     <string name="more_options">और विकल्प</string>
@@ -261,7 +309,13 @@
     <string name="new_cashbook">नई कैशबुक</string>
     <string name="new_category">नई श्रेणी</string>
     <string name="new_party">नया पक्ष</string>
+    <string name="new_recurring">नई आवर्ती प्रविष्टि</string>
     <string name="next">आगे</string>
+    <string name="next_auto">अगला: %s (स्वचालित)</string>
+    <string name="next_confirm">अगला: %s (पुष्टि आवश्यक)</string>
+    <string name="next_month">अगला माह</string>
+    <string name="no_auto_backup_yet">अभी तक कोई स्वचालित बैकअप नहीं।</string>
+    <string name="no_budget_tap">कोई बजट नहीं — सेट करने के लिए टैप करें</string>
     <string name="no_cashbook">अभी कोई कैशबुक नहीं।</string>
     <string name="no_credentials_note">कभी भी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP दर्ज न करें। कैशबुक को केवल नाम और वैकल्पिक रूप से अंतिम चार अंक चाहिए।</string>
     <string name="no_data_period">चुनी गई अवधि और फ़िल्टर के लिए कोई प्रविष्टि नहीं।</string>
@@ -269,6 +323,7 @@
     <string name="no_matches">आपकी खोज या फ़िल्टर से कोई प्रविष्टि मेल नहीं खाती।</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
+    <string name="no_recurring">अभी कोई आवर्ती प्रविष्टि नहीं।</string>
     <string name="no_transactions_yet">अभी कोई प्रविष्टि नहीं। आय, व्यय या ट्रांसफ़र दर्ज करने के लिए जोड़ें पर टैप करें।</string>
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
     <string name="none_top_level">कोई नहीं (मुख्य श्रेणी)</string>
@@ -302,6 +357,8 @@
     <string name="password_loss_warning">यदि आप यह पासवर्ड भूल गए तो बैकअप कोई भी पुनर्स्थापित नहीं कर सकेगा। इसे सुरक्षित रखें।</string>
     <string name="password_too_short">कम से कम %d अक्षर उपयोग करें</string>
     <string name="passwords_dont_match">पासवर्ड मेल नहीं खाते</string>
+    <string name="past_start_hint">पहली तिथि बीत चुकी है: सहेजने पर छूटी तिथियों की प्रविष्टियाँ बन जाएँगी।</string>
+    <string name="paused">रुका हुआ</string>
     <string name="paying_account">भुगतान करने वाला खाता *</string>
     <string name="payment_mode">भुगतान का तरीका</string>
     <string name="period">अवधि</string>
@@ -318,7 +375,12 @@
     <string name="pin_enabled">पिन लॉक चालू है</string>
     <string name="pin_mismatch">पिन मेल नहीं खाए। फिर प्रयास करें।</string>
     <string name="pin_rules">1234 या जन्म वर्ष जैसे आसान पिन से बचें।</string>
+    <string name="post">दर्ज करें</string>
+    <string name="post_automatically">प्रविष्टियाँ अपने-आप बनाएँ</string>
+    <string name="post_automatically_off">हर प्रविष्टि डैशबोर्ड पर आपके दर्ज करने या छोड़ने की प्रतीक्षा करेगी (राशि बदलने पर उपयोगी)।</string>
+    <string name="post_automatically_on">प्रविष्टियाँ देय तिथि पर जुड़ जाती हैं, ऐप बंद होने पर भी।</string>
     <string name="preview_truncated">पूर्वावलोकन %d में से पहली 500 पंक्तियाँ दिखाता है। निर्यात में सभी पंक्तियाँ होती हैं।</string>
+    <string name="previous_month">पिछला माह</string>
     <string name="privacy">गोपनीयता</string>
     <string name="privacy_policy">गोपनीयता नीति</string>
     <string name="provider_optional">प्रदाता (वैकल्पिक)</string>
@@ -327,6 +389,11 @@
     <string name="received_from">किससे प्राप्त</string>
     <string name="receiving_account">प्राप्त करने वाला खाता *</string>
     <string name="recent_transactions">हाल की प्रविष्टियाँ</string>
+    <string name="recurring_desc">%d सक्रिय अनुसूचियाँ (किराया, वेतन, सदस्यता)</string>
+    <string name="recurring_entries">आवर्ती प्रविष्टियाँ</string>
+    <string name="recurring_entry">आवर्ती प्रविष्टि</string>
+    <string name="recurring_finished">समाप्त</string>
+    <string name="recurring_intro">आवर्ती प्रविष्टियाँ नियमित आय, व्यय या ट्रांसफ़र आपके लिए दर्ज करती हैं — अपने-आप या आपकी पुष्टि के बाद।</string>
     <string name="recycle_bin">रीसायकल बिन</string>
     <string name="recycle_bin_count">%d हटाई गई प्रविष्टियाँ</string>
     <string name="recycle_empty">रीसायकल बिन खाली है।</string>
@@ -337,6 +404,7 @@
     <string name="remove_sample">नमूना डेटा हटाएँ</string>
     <string name="remove_sample_text">नमूना कैशबुक और उसकी सभी प्रविष्टियाँ हट जाएँगी। आपकी अपनी कैशबुक प्रभावित नहीं होंगी।</string>
     <string name="rename_category_info">नाम बदलने पर सभी %d जुड़ी प्रविष्टियाँ बनी रहेंगी और नया नाम दिखाएँगी।</string>
+    <string name="repeats">दोहराव</string>
     <string name="replace">बदलें</string>
     <string name="report_account">खाता-वार रिपोर्ट</string>
     <string name="report_account_desc">प्रत्येक खाते का प्रारंभिक शेष, प्रविष्टियाँ, ट्रांसफ़र और अंतिम शेष</string>
@@ -408,6 +476,7 @@
     <string name="rl_transfers">ट्रांसफ़र</string>
     <string name="rl_transfers_net">ट्रांसफ़र (शुद्ध)</string>
     <string name="rl_type">प्रकार</string>
+    <string name="run_backup_now">अभी बैकअप लें</string>
     <string name="running_balance_hint">चालू शेष देखने के लिए \"सबसे पुराने पहले\" से क्रमबद्ध करें (अन्य फ़िल्टर के बिना)।</string>
     <string name="sample">नमूना</string>
     <string name="sample_added">नमूना डेटा जोड़ा गया। इसे कभी भी सेटिंग से हटा सकते हैं।</string>
@@ -424,6 +493,7 @@
     <string name="save_and_add_another">सहेजें और एक और जोड़ें</string>
     <string name="save_anyway">फिर भी सहेजें</string>
     <string name="saved">सहेजा गया</string>
+    <string name="schedule">अनुसूची</string>
     <string name="search">खोजें</string>
     <string name="search_hint">विवरण, पक्ष, श्रेणी, राशि, संदर्भ, टिप्पणी खोजें</string>
     <string name="search_party">नाम या मोबाइल नंबर से खोजें</string>
@@ -453,6 +523,7 @@
     <string name="sort_lowest">सबसे छोटी राशि पहले</string>
     <string name="sort_oldest">सबसे पुराने पहले</string>
     <string name="sorted_by">%s</string>
+    <string name="spent">खर्च</string>
     <string name="start_of_week">सप्ताह का पहला दिन</string>
     <string name="start_using">कैशबुक शुरू करें</string>
     <string name="step_accounts">खाते और प्रारंभिक शेष</string>
@@ -497,6 +568,7 @@
     <string name="version_x">संस्करण %s</string>
     <string name="view_all">सभी देखें</string>
     <string name="view_reports">रिपोर्ट</string>
+    <string name="view_schedule">अनुसूची देखें</string>
     <string name="view_transactions">लेन-देन देखें</string>
     <string name="weekly">साप्ताहिक</string>
     <string name="welcome_body">दैनिक आय और व्यय दर्ज करें, नकद, बैंक और वॉलेट शेष पर नज़र रखें, और स्पष्ट रिपोर्ट पाएँ।</string>
@@ -529,6 +601,10 @@
         <item>हटाई गई प्रविष्टियाँ रीसायकल बिन (सेटिंग › रीसायकल बिन) में जाती हैं, जहाँ से उन्हें पुनर्स्थापित या स्थायी रूप से हटाया जा सकता है। ट्रांसफ़र हमेशा पूरा पुनर्स्थापित होता है।</item>
         <item>## बैकअप</item>
         <item>सेटिंग › बैकअप और पुनर्स्थापना आपके पासवर्ड से सुरक्षित एन्क्रिप्टेड बैकअप फ़ाइल बनाता है। इसे फ़ाइल पिकर से फ़ोन, SD कार्ड या क्लाउड ड्राइव में सहेजें। पासवर्ड सुरक्षित रखें — इसके बिना बैकअप नहीं खुल सकता।</item>
+        <item>## आवर्ती प्रविष्टियाँ और बजट</item>
+        <item>सेटिंग › आवर्ती प्रविष्टियाँ में किराया, वेतन या सदस्यता की अनुसूची बनाएँ। तय करें कि हर एक अपने-आप जुड़े या डैशबोर्ड पर दर्ज करें / छोड़ें के लिए प्रतीक्षा करे। किसी भी प्रविष्टि को खोलकर आवर्ती बनाएँ पर टैप करें। सेटिंग › बजट में व्यय श्रेणी-वार मासिक सीमा तय करें; डैशबोर्ड पर इस माह की प्रगति दिखती है।</item>
+        <item>## स्वचालित बैकअप</item>
+        <item>बैकअप और पुनर्स्थापना में एक बार फ़ोल्डर चुनें (फ़ोन, SD कार्ड या क्लाउड ड्राइव), पासवर्ड सेट करें और अपने-आप बैकअप लें चालू करें। कैशबुक दैनिक या साप्ताहिक बैकअप सहेजता है और केवल नवीनतम प्रतियाँ रखता है।</item>
         <item>## सुरक्षा</item>
         <item>सेटिंग › सुरक्षा में पिन और, यदि फ़ोन समर्थन करता है, फ़िंगरप्रिंट अनलॉक चालू करें। कैशबुक कभी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP नहीं माँगता।</item>
     </string-array>

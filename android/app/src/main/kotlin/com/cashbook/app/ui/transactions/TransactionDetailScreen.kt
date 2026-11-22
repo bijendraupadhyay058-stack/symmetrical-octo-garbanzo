@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -46,6 +47,7 @@ import com.cashbook.app.ui.components.AttachmentItem
 import com.cashbook.app.ui.components.AttachmentUi
 import com.cashbook.app.ui.components.ConfirmDialog
 import com.cashbook.app.ui.components.EmptyState
+import com.cashbook.app.ui.components.InfoBanner
 import com.cashbook.app.ui.components.LocalUiFormat
 import com.cashbook.app.ui.components.SectionCard
 import com.cashbook.app.ui.components.TypeAvatar
@@ -128,6 +130,13 @@ fun TransactionDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) 
                 Detail(stringResource(R.string.notes), t.notes)
                 Detail(stringResource(R.string.created), f.dateTime(t.createdAt))
                 if (t.updatedAt > t.createdAt + 1000) Detail(stringResource(R.string.modified), f.dateTime(t.updatedAt))
+            }
+            if (t.deletedAt == null) {
+                val rule = t.recurringId?.let { rid -> snap.recurring.firstOrNull { it.id == rid } }
+                if (rule != null) InfoBanner(stringResource(R.string.created_by_recurring), icon = Icons.Filled.EventRepeat)
+                OutlinedButton(onClick = { nav.navigate(if (rule != null) Routes.recurringEdit(rule.id) else Routes.recurringEdit(0, id)) }, Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.EventRepeat, null); Text(" " + stringResource(if (rule != null) R.string.view_schedule else R.string.make_recurring))
+                }
             }
             if (attachments.isNotEmpty()) SectionCard(stringResource(R.string.attachments)) {
                 attachments.forEach { a ->

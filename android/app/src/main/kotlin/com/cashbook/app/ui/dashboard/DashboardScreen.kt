@@ -30,6 +30,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,10 +73,14 @@ import com.cashbook.app.ui.components.accountTypeLabel
 import com.cashbook.app.ui.components.periodLabel
 import com.cashbook.app.ui.components.typeIcon
 import com.cashbook.app.ui.currentScope
+import com.cashbook.app.ui.manage.budgetColor
+import com.cashbook.app.ui.manage.budgetStatusText
+import com.cashbook.app.ui.recurring.ruleTitle
 import com.cashbook.app.ui.nav.Routes
 import com.cashbook.app.ui.nav.openTab
 import com.cashbook.app.ui.theme.LocalFinanceColors
 import com.cashbook.core.AccountType
+import com.cashbook.core.Budgets
 import com.cashbook.core.DateRange
 import com.cashbook.core.Ledger
 import com.cashbook.core.Money
@@ -209,6 +214,38 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
                         QuickAction(stringResource(R.string.add_expense), typeIcon(TxnType.EXPENSE), fc.expense) { nav.navigate(Routes.newTxn(TxnType.EXPENSE)) }
                         QuickAction(stringResource(R.string.add_transfer), typeIcon(TxnType.TRANSFER), fc.transfer) { nav.navigate(Routes.newTxn(TxnType.TRANSFER)) }
                         QuickAction(stringResource(R.string.view_reports), Icons.Filled.Assessment, MaterialTheme.colorScheme.primary) { nav.openTab(Routes.REPORTS) }
+                    }
+                }
+            }
+            // ----- recurring entries waiting for confirmation -----
+            val dueRules = snap.recurring.filter { it.cashbookId in scope && it.active && !it.autoPost && it.nextDate?.let { d -> !d.isAfter(today) } == true }
+            if (dueRules.isNotEmpty()) item {
+                val transferLabel = stringResource(R.string.type_transfer)
+                SectionCard(stringResource(R.string.due_recurring), action = {
+                    TextButton(onClick = { nav.navigate(Routes.RECURRING) }) { Text(stringResource(R.string.manage)) }
+                }) {
+                    dueRules.forEach { r ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(ruleTitle(r, snap, transferLabel), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(stringResource(R.string.due_on, f.date(r.nextDate!!)) + " · " + f.amount(r.amount), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            TextButton(onClick = { vm.run { ledger.skipNextOccurrence(r.id) } }) { Text(stringResource(R.string.skip)) }
+                            FilledTonalButton(onClick = { vm.run { ledger.postNextOccurrence(r.id) } }) { Text(stringResource(R.string.post)) }
+                        }
+                    }
+                }
+            }
+            // ----- budgets -----
+            val budgetProgress = Budgets.progress(snap.budgets.filter { it.cashbookId in scope }, txns, snap.categoryById, YearMonth.from(today))
+            if (budgetProgress.isNotEmpty()) item {
+                SectionCard(stringResource(R.string.budgets_this_month), action = {
+                    TextButton(onClick = { nav.navigate(Routes.BUDGETS) }) { Text(stringResource(R.string.manage)) }
+                }) {
+                    budgetProgress.take(5).forEach { p ->
+                        BreakdownBar(snap.categoryName(p.budget.categoryId), "${f.amount(p.spent)} / ${f.amount(p.budget.monthlyAmount)}", budgetStatusText(p),
+                            p.fraction, budgetColor(p))
                     }
                 }
             }

@@ -95,6 +95,10 @@ class SecureStore(context: Context, private val keyProvider: (() -> SecretKey)? 
     /** Number of digits in the PIN (stored encrypted) so the lock screen knows when to check it. */
     val pinLength: Int get() = get(K_PIN_LEN)?.toIntOrNull() ?: 0
 
+    /** Password used for automatic backups (kept only in this encrypted store, never in plain settings). */
+    fun autoBackupPassword(): String? = get(K_AB_PASSWORD)
+    fun setAutoBackupPassword(password: String?) = put(K_AB_PASSWORD, password)
+
     private fun hash(pin: String, salt: ByteArray): ByteArray {
         val spec = PBEKeySpec(pin.toCharArray(), salt, 60_000, 256)
         return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
@@ -106,5 +110,6 @@ class SecureStore(context: Context, private val keyProvider: (() -> SecretKey)? 
         private const val K_PIN_HASH = "pin_hash"
         private const val K_PIN_SALT = "pin_salt"
         private const val K_PIN_LEN = "pin_len"
+        private const val K_AB_PASSWORD = "auto_backup_password"
     }
 }

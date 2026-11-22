@@ -177,6 +177,54 @@ class UiFlowTest {
         click(if (hindi) "सेटिंग" else "Settings"); waitFor(if (hindi) "बैकअप और पुनर्स्थापना" else "Backup & restore"); shot("${prefix}_settings")
     }
 
+    @Test fun recurringEntriesAndBudgets() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            val s = d.snap { true }
+            val cb = s.cashbooks.single().id
+            val bank = s.accounts.first { it.type == AccountType.BANK }.id
+            val exp = s.categories.filter { it.kind == CategoryKind.EXPENSE }
+            // a manual rule due today (amount varies, e.g. electricity) and budgets for the dashboard
+            d.ledger.saveRecurring(com.cashbook.core.RecurringRule(0, cb, TxnType.EXPENSE, 180_000, bank, categoryId = exp.first { it.name == "Electricity" }.id,
+                paymentMode = PaymentMode.UPI, description = "Electricity bill", startDate = LocalDate.now(), autoPost = false))
+            d.ledger.setBudget(cb, exp.first { it.name == "Office rent" }.id, 300_000)
+            d.ledger.setBudget(cb, exp.first { it.name == "Telephone and internet" }.id, 200_000)
+            d.ledger.setBudget(cb, exp.first { it.name == "Travel and conveyance" }.id, 500_000)
+            d.snap { it.recurring.size == 1 && it.budgets.size == 3 }
+        }
+        launch()
+        waitFor("Total balance")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Waiting for confirmation"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Budgets this month"))
+        shot("12_dashboard_due_and_budgets")
+        click("Post")
+        compose.waitUntil(10_000) { runBlocking { d.snap { true } }.txns.any { it.description == "Electricity bill" } }
+        waitFor("Budgets this month")
+
+        click("Settings"); waitFor("Recurring entries"); click("Recurring entries")
+        waitFor("Electricity bill"); shot("13_recurring_list")
+        // create a monthly salary schedule through the form
+        click("New recurring entry")
+        waitFor("Schedule")
+        field("Amount *").performTextInput("25000")
+        click("Expense category *"); waitFor("Select category")
+        compose.onNode(hasSetTextAction() and hasText("Search")).performTextInput("salary")
+        waitFor("Salary and wages"); click("Salary and wages")
+        field("Description").performTextInput("Staff salary")
+        shot("14_recurring_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Staff salary")
+        val rule = runBlocking { d.snap { it.recurring.size == 2 } }.recurring.first { it.description == "Staff salary" }
+        assertEquals(2_500_000L, rule.amount)
+        assertEquals(com.cashbook.core.Frequency.MONTHLY, rule.frequency)
+        assertEquals(LocalDate.now(), runBlocking { d.snap { s -> s.txns.any { it.recurringId == rule.id } } }.txns.first { it.recurringId == rule.id }.date)
+
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        waitFor("Budgets"); click("Budgets")
+        waitFor("Office rent"); shot("15_budgets")
+    }
+
     /** Sample cashbook plus a few entries in the current month so charts have data. */
     private fun seed(lang: String) = runBlocking {
         val d = deps()

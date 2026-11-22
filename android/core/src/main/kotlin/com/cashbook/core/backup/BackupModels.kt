@@ -17,6 +17,8 @@ data class BackupManifest(
     val transactions: Int,
     val attachments: Int,
     val includesAttachments: Boolean,
+    val recurring: Int = 0,
+    val budgets: Int = 0,
 )
 
 @Serializable
@@ -49,7 +51,7 @@ data class TransactionDto(
     val id: Long, val cashbookId: Long, val type: String, val date: Long, val amount: Long, val accountId: Long,
     val toAccountId: Long? = null, val categoryId: Long? = null, val partyId: Long? = null, val paymentMode: String,
     val description: String = "", val reference: String = "", val notes: String = "", val tags: String = "",
-    val createdAt: Long, val updatedAt: Long, val deletedAt: Long? = null,
+    val createdAt: Long, val updatedAt: Long, val deletedAt: Long? = null, val recurringId: Long? = null,
 )
 
 @Serializable
@@ -59,6 +61,17 @@ data class AttachmentDto(
 )
 
 @Serializable
+data class RecurringDto(
+    val id: Long, val cashbookId: Long, val type: String, val amount: Long, val accountId: Long, val toAccountId: Long? = null,
+    val categoryId: Long? = null, val partyId: Long? = null, val paymentMode: String, val description: String = "", val reference: String = "",
+    val notes: String = "", val tags: String = "", val frequency: String, val interval: Int = 1, val startDate: Long, val endDate: Long? = null,
+    val nextIndex: Int = 0, val autoPost: Boolean = true, val active: Boolean = true, val createdAt: Long, val updatedAt: Long,
+)
+
+@Serializable
+data class BudgetDto(val id: Long, val cashbookId: Long, val categoryId: Long, val monthlyAmount: Long, val createdAt: Long, val updatedAt: Long)
+
+@Serializable
 data class BackupData(
     val cashbooks: List<CashbookDto>,
     val accounts: List<AccountDto>,
@@ -66,4 +79,7 @@ data class BackupData(
     val parties: List<PartyDto>,
     val transactions: List<TransactionDto>,
     val attachments: List<AttachmentDto>,
+    // Added in app 1.1 (database v2). Defaults keep 1.0 backups restorable.
+    val recurring: List<RecurringDto> = emptyList(),
+    val budgets: List<BudgetDto> = emptyList(),
 )

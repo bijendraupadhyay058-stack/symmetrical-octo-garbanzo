@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.cashbook.app.data.db.AccountEntity
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
+import com.cashbook.app.data.db.BudgetEntity
+import com.cashbook.app.data.db.toRule
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
 import com.cashbook.app.data.db.PartyEntity
@@ -13,6 +15,8 @@ import com.cashbook.app.data.db.toTxn
 import com.cashbook.core.AccountType
 import com.cashbook.core.CategoryKind
 import com.cashbook.core.PaymentMode
+import com.cashbook.core.Recurrence
+import com.cashbook.core.RecurringRule
 import com.cashbook.core.Txn
 import com.cashbook.core.TxnType
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +48,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -59,6 +63,8 @@ class LedgerRepository(
             txns = db.transactions().getLive().map { it.toTxn() },
             deleted = db.transactions().getDeleted().map { it.toTxn() },
             attachmentCounts = db.attachments().getCounts().associate { it.transactionId to it.count },
+            recurring = db.recurring().getAll().map { it.toRule() },
+            budgets = db.budgets().getAll().map { it.toInfo() },
         )
     }
 
@@ -129,7 +135,7 @@ class LedgerRepository(
 
     /** Only accounts without any entries (including the recycle bin) can be deleted. */
     suspend fun deleteAccount(id: Long): Boolean {
-        if (db.transactions().countForAccount(id) > 0) return false
+        if (db.transactions().countForAccount(id) > 0 || db.recurring().countForAccount(id) > 0) return false
         db.accounts().delete(id); return true
     }
 
@@ -155,14 +161,15 @@ class LedgerRepository(
         db.categories().update(e.copy(archived = archived, updatedAt = now))
     }
 
-    suspend fun categoryUsage(id: Long) = db.transactions().countForCategory(id)
+    suspend fun categoryUsage(id: Long) = db.transactions().countForCategory(id) + db.recurring().countForCategory(id)
 
     /** Deletes a category. Entries that use it must first be moved to [reassignTo]. */
     suspend fun deleteCategory(id: Long, reassignTo: Long?): Boolean = db.withTransaction {
-        val used = db.transactions().countForCategory(id)
+        val used = db.transactions().countForCategory(id) + db.recurring().countForCategory(id)
         if (used > 0) {
             if (reassignTo == null || reassignTo == id) return@withTransaction false
             db.transactions().reassignCategory(id, reassignTo, now)
+            db.recurring().reassignCategory(id, reassignTo, now)
         }
         db.categories().detachChildren(id)
         db.categories().delete(id)
@@ -178,10 +185,10 @@ class LedgerRepository(
         return p.id
     }
 
-    suspend fun partyUsage(id: Long) = db.transactions().countForParty(id)
+    suspend fun partyUsage(id: Long) = db.transactions().countForParty(id) + db.recurring().countForParty(id)
 
     suspend fun deleteParty(id: Long): Boolean {
-        if (db.transactions().countForParty(id) > 0) return false
+        if (partyUsage(id) > 0) return false
         db.parties().delete(id); return true
     }
 
@@ -234,6 +241,80 @@ class LedgerRepository(
     suspend fun purgeOlderThan(days: Int) {
         if (days <= 0) return
         purge(db.transactions().deletedBefore(now - days * 86_400_000L))
+    }
+
+    // ---------- recurring entries ----------
+
+    /** Creates or updates a rule. A new rule whose start date is in the past starts from its first date (catch-up posts the missed ones). */
+    suspend fun saveRecurring(rule: RecurringRule): Long {
+        if (rule.id == 0L) return db.recurring().insert(rule.toEntity(now, now))
+        val old = db.recurring().get(rule.id) ?: return rule.id
+        // Changing the schedule restarts counting from the next occurrence on/after today, so nothing is posted twice.
+        val scheduleChanged = old.startDate != rule.startDate.toEpochDay() || old.frequency != rule.frequency.name || old.interval != rule.interval
+        val next = if (scheduleChanged) Recurrence.firstIndexOnOrAfter(rule, maxOf(LocalDate.now(), rule.startDate)) else old.nextIndex
+        db.recurring().update(rule.copy(nextIndex = next).toEntity(old.createdAt, now))
+        return rule.id
+    }
+
+    suspend fun setRecurringActive(id: Long, active: Boolean) {
+        val e = db.recurring().get(id) ?: return
+        db.recurring().update(e.copy(active = active, updatedAt = now))
+    }
+
+    /** Deletes the rule only; entries it already created stay in the ledger. */
+    suspend fun deleteRecurring(id: Long) = db.recurring().delete(id)
+
+    /**
+     * Posts every due occurrence of auto-post rules up to [today]. Each occurrence is inserted and the
+     * rule advanced in the same transaction, and an existing entry for the same rule and date is never
+     * duplicated, so running this repeatedly (app start, daily worker) is safe. Returns entries created.
+     */
+    suspend fun postDueRecurring(today: LocalDate = LocalDate.now()): Int {
+        var created = 0
+        for (e in db.recurring().getAll()) {
+            val rule = e.toRule()
+            if (!rule.autoPost || !rule.active) continue
+            val due = Recurrence.due(rule, today)
+            if (due.isEmpty()) continue
+            created += db.withTransaction {
+                var n = 0
+                for ((_, date) in due) {
+                    if (db.transactions().countForRuleOn(rule.id, date.toEpochDay()) == 0) {
+                        db.transactions().insert(rule.toTxn(date, now).toEntity()); n++
+                    }
+                }
+                db.recurring().setNextIndex(rule.id, due.last().first + 1, now)
+                n
+            }
+        }
+        return created
+    }
+
+    /** Confirms the next occurrence of a manual rule (optionally with a different amount). */
+    suspend fun postNextOccurrence(ruleId: Long, amount: Long? = null): Long? = db.withTransaction {
+        val rule = db.recurring().get(ruleId)?.toRule() ?: return@withTransaction null
+        val date = rule.nextDate ?: return@withTransaction null
+        val id = db.transactions().insert(rule.toTxn(date, now).copy(amount = amount ?: rule.amount).toEntity())
+        db.recurring().setNextIndex(ruleId, rule.nextIndex + 1, now)
+        id
+    }
+
+    /** Skips the next occurrence of a rule without creating an entry. */
+    suspend fun skipNextOccurrence(ruleId: Long) {
+        val rule = db.recurring().get(ruleId) ?: return
+        db.recurring().setNextIndex(ruleId, rule.nextIndex + 1, now)
+    }
+
+    // ---------- budgets ----------
+
+    /** Sets a category's monthly budget; [monthlyAmount] 0 removes it. */
+    suspend fun setBudget(cashbookId: Long, categoryId: Long, monthlyAmount: Long) {
+        val existing = db.budgets().find(cashbookId, categoryId)
+        when {
+            monthlyAmount <= 0 -> existing?.let { db.budgets().delete(it.id) }
+            existing == null -> db.budgets().insert(BudgetEntity(cashbookId = cashbookId, categoryId = categoryId, monthlyAmount = monthlyAmount, createdAt = now, updatedAt = now))
+            else -> db.budgets().update(existing.copy(monthlyAmount = monthlyAmount, updatedAt = now))
+        }
     }
 
     // ---------- sample data ----------

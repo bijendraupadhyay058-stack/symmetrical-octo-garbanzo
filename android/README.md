@@ -25,7 +25,13 @@ English and Hindi.
 <img src="docs/screenshots/10_report_monthly.jpg" width="180">
 <img src="docs/screenshots/dark_dashboard.jpg" width="180">
 <img src="docs/screenshots/hindi_dashboard.jpg" width="180">
+<img src="docs/screenshots/12_dashboard_due_and_budgets.jpg" width="180">
+<img src="docs/screenshots/13_recurring_list.jpg" width="180">
+<img src="docs/screenshots/15_budgets.jpg" width="180">
 </p>
+
+**What's new in 1.1** — recurring entries, monthly budgets, automatic scheduled backups and release
+signing with your own key. See [CHANGELOG.md](CHANGELOG.md).
 
 *(Screenshots are rendered by the automated UI tests — see [Testing](#testing).)*
 
@@ -33,16 +39,22 @@ English and Hindi.
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.0.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.1.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.0.0-test.apk`.
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.1.0-test.apk`.
+   Installing it over 1.0.0 keeps your data (the database upgrades automatically from v1 to v2).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
-> The test key is public. Before publishing on Google Play, create your own upload key and replace
-> the `test` signing config in `app/build.gradle.kts`. Data is not transferable between the
-> test-signed build and a differently-signed build except through **Backup & restore**.
+> The test key is public. To sign with your own key, create one and copy `keystore.properties.example`
+> to `keystore.properties` (git-ignored); `assembleRelease` then uses it automatically:
+> ```bash
+> keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+> cp keystore.properties.example keystore.properties   # then edit the passwords
+> ```
+> Android only installs an update signed with the same key, so moving from the test-signed build to
+> your own key means uninstalling first — take a **backup** before you do, then restore it.
 
 ## 2. Build from source
 
@@ -74,6 +86,8 @@ android/
 │       ├── Ledger.kt             THE balance rules: effects, balances, totals, running balance, negative check
 │       ├── Filter.kt             Search, filters, sorting
 │       ├── ReportModel.kt / ReportEngine.kt   All 10 reports → one ReportDocument model
+│       ├── Recurrence.kt         Recurring rules: drift-free schedule, catch-up, end dates
+│       ├── Budget.kt             Monthly budgets and progress (sub-categories count to the parent)
 │       ├── Xlsx.kt               Dependency-free .xlsx writer (numeric cells, Indian number format)
 │       └── backup/               Backup DTOs, streaming AES-GCM encryption, archive codec + validation
 └── app/                          Android app
@@ -83,7 +97,7 @@ android/
         ├── data/                 Room entities/DAOs, LedgerRepository, SettingsRepository,
         │                         SecureStore (Keystore), AttachmentStore, BackupManager, defaults
         ├── export/               PdfReportWriter (A4, repeated headers, page x of y), Exporter (save/share)
-        ├── work/                 DailyWorker (retention + backup reminder)
+        ├── work/                 DailyWorker (recycle-bin retention, recurring entries, automatic backup, reminder)
         └── ui/                   Compose screens: onboarding, lock, dashboard, transactions (list,
                                   form, detail, filters), reports, settings, backup, recycle bin,
                                   management (cashbooks, accounts, categories, parties), theme
@@ -102,6 +116,8 @@ Business calculations never live in UI code: every screen, report and export cal
 | Party (`parties`) | name, type, mobile, email, address, GSTIN, notes, archived |
 | Transaction (`transactions`) | cashbook, type (INCOME/EXPENSE/TRANSFER), date, amount (paise), account, **to_account (transfers)**, category, party, payment mode, description, reference, notes, tags, created/updated, **deleted_at (recycle bin)** |
 | Attachment (`attachments`) | transaction, file name, MIME type, size, private stored file name |
+| Recurring (`recurring`, v2) | cashbook, type, amount, account(s), category, party, mode, description, reference, frequency (daily/weekly/monthly/quarterly/yearly) × interval, start date, optional end date, next occurrence index, auto-post or confirm, active |
+| Budget (`budgets`, v2) | cashbook, expense category (unique per cashbook), monthly amount |
 | BackupHistory (`backup_history`) | time, backup/restore, file name, attachments included, size, success |
 | UserSettings | Jetpack DataStore (language, theme, date format, defaults, week start, negative-balance policy, lock, reminders, retention…) — PIN hash and DB key live in the encrypted `SecureStore` |
 
@@ -112,7 +128,10 @@ Business calculations never live in UI code: every screen, report and export cal
   confirmation that shows the counts). Categories and parties are `RESTRICT`: they can only be deleted
   when unused (categories may be reassigned first); otherwise they are archived. Renaming keeps the id,
   so history shows the new name. Accounts with entries cannot be deleted — only archived.
-* The Room schema is exported to `app/schemas/` for future migrations.
+* Transactions created by a schedule carry `recurring_id` (v2) so they can be traced back to it.
+* The Room schema is exported to `app/schemas/`. **Migrations** live in `data/db/Migrations.kt` and are
+  verified by `MigrationTest` against those exported schemas (v1 → v2 adds `recurring`, `budgets` and
+  `transactions.recurring_id`; existing rows are untouched).
 
 ## 5. Calculation rules
 
@@ -151,6 +170,9 @@ Business calculations never live in UI code: every screen, report and export cal
 | Recycle bin: restore, delete permanently, empty, deletion date, retention (off/30/90 days) | `ui/settings/RecycleBinScreen.kt`, `work/` |
 | Settings: language, date format, theme, default cashbook/account, week start, currency display, negative balances, security, data, guide, privacy, about, version, feedback | `ui/settings` |
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
+| **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
+| **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.1** Automatic backups to a chosen folder (incl. cloud drives) daily or weekly, keeping the latest N copies; password kept in the encrypted store | `data/AutoBackup.kt`, Backup screen |
 
 ## 7. Security & privacy
 
@@ -171,7 +193,8 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-57 automated tests, all passing:
+77 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
 |---|---|
@@ -181,17 +204,28 @@ Business calculations never live in UI code: every screen, report and export cal
 | `core` `BackupCodecTest` | Encrypted round trip (multi-chunk attachment); wrong password; damaged, truncated and foreign files rejected; weak password refused; referential validation |
 | `app` `RepositoryTest` (Robolectric + real Room schema) | Sample balances; add/edit/delete/restore; transfer delete/restore moves both sides; category rename/reassign/delete rules; party and account delete protection; archive keeps history; cashbook delete impact + cascade; sample removal keeps user data; recycle-bin purge removes files |
 | `app` `BackupRestoreTest` | Backup → wipe → restore reproduces data and attachment bytes; restore without attachments; wrong password / damaged / truncated / non-backup files fail **and current data is untouched** |
-| `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
+| `core` `RecurrenceTest`, `BudgetTest` | Month-end schedules don't drift (31 Jan → 28 Feb → 31 Mar), all frequencies/intervals, catch-up with end dates and cap, budget progress incl. sub-categories and thresholds |
+| `app` `MigrationTest` | A v1 database with data upgrades to v2, keeps every row and matches Room's expected schema exactly |
+| `app` `Phase2Test` | Auto-posting catches up once and is idempotent; manual Post/Skip; paused/ended rules; schedule edits don't repost; rules protect accounts and follow category reassignment; budgets set/update/remove; backups include schedules and budgets; auto-backup retention |
+| `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
+screen, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
-Not automated here (please check on a device): camera capture, biometric prompt, Android share sheet,
+Not automated here (please check on a device): automatic backup into a real folder / cloud provider
+(folder permission handling), WorkManager timing, camera capture, biometric prompt, Android share sheet,
 opening the generated PDF in a viewer, notifications, and choosing a cloud drive in the file picker.
 
 ## 9. Known limitations / next phases
 
+The string tables for both languages live in `tools/strings/` (`strings1-3.py`); run
+`python3 tools/strings/gen.py app/src/main/res <keys-file>` to regenerate `values/` and `values-hi/`.
+
+
 * Records **cash movements**; it is not an invoicing, receivables/payables or GST-filing system.
   Party reports show money received/paid, not outstanding balances.
 * Combined (all-cashbooks) view sums balances; reports for a combined view use all active cashbooks.
-* Backups are manual or reminder-based; there is no automatic cloud sync.
-* Suggested next phases: recurring entries, budgets, invoice & outstanding tracking, multi-currency
-  conversion, home-screen widget, automatic scheduled backups to a chosen folder, Play Store release
-  signing and an instrumented test pass on physical devices.
+* Automatic backups are file copies into a folder you choose, not live two-way sync between devices.
+* Recurring entries post on the day they fall due when the app is opened or the daily background job
+  runs (Android decides the exact time, usually within a day); auto-posted entries skip the
+  negative-balance warning.
+* Suggested next phases: invoices & outstanding receivables/payables, multi-currency conversion,
+  home-screen widget, budget alerts as notifications, and an instrumented test pass on physical devices.

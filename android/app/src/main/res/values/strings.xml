@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Generated from one table so English and Hindi stay in sync. -->
 <resources>
+    <string name="ab_err_create">could not create a file in the chosen folder</string>
+    <string name="ab_err_folder">access to the folder was lost — choose it again</string>
+    <string name="ab_err_password">no backup password is set</string>
     <string name="about">About</string>
     <string name="about_disclaimer">Cashbook is a manual record-keeping app. It does not connect to any bank, never asks for bank passwords, UPI PINs, card PINs or OTPs, and its reports reflect recorded cash movements only — not a full accrual-based profit and loss account. Consult a qualified professional for tax and statutory matters.</string>
     <string name="about_disclaimer_title">Important</string>
@@ -21,6 +24,8 @@
     <string name="acct_cash">Cash in hand</string>
     <string name="acct_other">Other</string>
     <string name="acct_wallet">Digital wallet</string>
+    <string name="active">Active</string>
+    <string name="active_desc">Turn off to pause this schedule without deleting it.</string>
     <string name="add_another_account">Add another account</string>
     <string name="add_entry">Add entry</string>
     <string name="add_expense">Add Expense</string>
@@ -57,6 +62,11 @@
     <string name="attachment_too_large">File is larger than 10 MB.</string>
     <string name="attachment_unsupported">Only JPG, PNG and PDF files are supported.</string>
     <string name="attachments">Bills &amp; receipts</string>
+    <string name="auto_backup">Automatic backup</string>
+    <string name="auto_backup_done">Automatic backup saved.</string>
+    <string name="auto_backup_error">Last automatic backup failed: %s</string>
+    <string name="auto_backup_explain">Choose a folder once — on this phone, an SD card or a cloud drive such as Google Drive. Cashbook then saves an encrypted backup there on schedule and keeps only the latest copies.</string>
+    <string name="auto_backup_on">Back up automatically</string>
     <string name="auto_delete">Delete automatically</string>
     <string name="auto_lock">Auto-lock</string>
     <string name="back">Back</string>
@@ -83,6 +93,14 @@
     <string name="biometric_unavailable">No biometric unlock is set up on this device.</string>
     <string name="biometric_unlock">Biometric unlock</string>
     <string name="both_sides">Both sides of this transfer</string>
+    <string name="budget_left">%s left</string>
+    <string name="budget_over">Over by %s</string>
+    <string name="budget_total">Spent %1$s of %2$s budgeted</string>
+    <string name="budget_zero_removes">Enter 0 to remove the budget.</string>
+    <string name="budgets">Budgets</string>
+    <string name="budgets_desc">Monthly spending limits by category</string>
+    <string name="budgets_intro">Tap a category to set its monthly budget. Spending in sub-categories counts towards the parent.</string>
+    <string name="budgets_this_month">Budgets this month</string>
     <string name="camera">Camera</string>
     <string name="cancel">Cancel</string>
     <string name="cashbook">Cashbook</string>
@@ -97,6 +115,8 @@
     <string name="category_in_use">%d entries use this category. Choose a category to move them to before deleting.</string>
     <string name="change_pin">Change PIN</string>
     <string name="check_backup">Check backup</string>
+    <string name="choose_folder">Choose backup folder</string>
+    <string name="choose_folder_first">Choose a backup folder first.</string>
     <string name="choose_location_backup">Choose location and back up</string>
     <string name="choose_pin">Choose a 4 to 6 digit PIN</string>
     <string name="clear">Clear</string>
@@ -112,10 +132,12 @@
     <string name="create_backup">Create backup</string>
     <string name="create_cashbook">Create cashbook</string>
     <string name="created">Created</string>
+    <string name="created_by_recurring">Created by a recurring schedule.</string>
     <string name="created_on">Created %s</string>
     <string name="currency">Currency</string>
     <string name="currency_display">Currency display</string>
     <string name="currency_hint">Three-letter code. Amounts always use Indian digit grouping.</string>
+    <string name="daily">Daily</string>
     <string name="date">Date</string>
     <string name="date_format">Date format</string>
     <string name="date_range">Date range</string>
@@ -138,6 +160,8 @@
     <string name="delete_entry_title">Delete this entry?</string>
     <string name="delete_permanently">Delete permanently</string>
     <string name="delete_permanently_text">This entry and its attachments will be removed for ever.</string>
+    <string name="delete_recurring">Delete schedule?</string>
+    <string name="delete_recurring_text">No more entries will be created. Entries already created are kept.</string>
     <string name="delete_transfer_text">Both sides of this transfer will move to the recycle bin together, and both account balances will be recalculated.</string>
     <string name="deleted_on">Deleted %s</string>
     <string name="description">Description</string>
@@ -146,6 +170,8 @@
     <string name="discard">Discard</string>
     <string name="discard_text">Your unsaved entry will be lost.</string>
     <string name="discard_title">Discard this entry?</string>
+    <string name="due_on">Due %s</string>
+    <string name="due_recurring">Waiting for confirmation</string>
     <string name="duplicate">Duplicate</string>
     <string name="edit">Edit</string>
     <string name="edit_account">Edit account</string>
@@ -153,11 +179,13 @@
     <string name="edit_category">Edit category</string>
     <string name="edit_entry">Edit entry</string>
     <string name="edit_party">Edit party</string>
+    <string name="edit_recurring">Edit recurring entry</string>
     <string name="email">Email</string>
     <string name="empty_recycle_bin">Empty recycle bin</string>
     <string name="empty_recycle_bin_text">Permanently delete all %d entries in the recycle bin?</string>
     <string name="enable_pin">PIN lock</string>
     <string name="enable_pin_desc">Ask for a PIN when opening Cashbook</string>
+    <string name="end_date">End date</string>
     <string name="enter_backup_password">Enter the password used when this backup was created.</string>
     <string name="enter_current_pin">Enter current PIN</string>
     <string name="enter_pin">Enter your PIN</string>
@@ -173,6 +201,7 @@
     <string name="err_category">Select a category</string>
     <string name="err_opening_after_txn">The account has entries from %s. The opening date must be on or before that.</string>
     <string name="err_same_account">Source and destination must be different</string>
+    <string name="every">Every</string>
     <string name="expense_breakdown">Largest expense categories</string>
     <string name="expense_category">Expense category *</string>
     <string name="expenses">Expenses</string>
@@ -191,8 +220,21 @@
     <string name="financial">Financial</string>
     <string name="financial_year">Financial year</string>
     <string name="first_account">First account of the cashbook</string>
+    <string name="first_date">First date</string>
     <string name="fix_errors">Please correct the highlighted fields.</string>
+    <string name="folder_x">Folder: %s</string>
     <string name="forgot_pin_hint">Forgot your PIN? Clearing the app\'s data from Android settings removes all data. Keep a backup.</string>
+    <string name="freq_daily">Daily</string>
+    <string name="freq_every_n_days">Every %d days</string>
+    <string name="freq_every_n_months">Every %d months</string>
+    <string name="freq_every_n_quarters">Every %d quarters</string>
+    <string name="freq_every_n_weeks">Every %d weeks</string>
+    <string name="freq_every_n_years">Every %d years</string>
+    <string name="freq_monthly">Monthly</string>
+    <string name="freq_quarterly">Quarterly</string>
+    <string name="freq_weekly">Weekly</string>
+    <string name="freq_yearly">Yearly</string>
+    <string name="frequency">Frequency</string>
     <string name="from_account">From account *</string>
     <string name="from_date">From</string>
     <string name="fy_info">Financial-year reports and filters use the Indian financial year, 1 April to 31 March.</string>
@@ -204,6 +246,7 @@
     <string name="gstin_invalid">GSTIN should be 15 characters</string>
     <string name="gstin_optional">GSTIN (optional)</string>
     <string name="has_attachment">Has attachment</string>
+    <string name="has_end_date">Ends on a date</string>
     <string name="history">History</string>
     <string name="icon">Icon</string>
     <string name="in_label">In</string>
@@ -213,15 +256,19 @@
     <string name="income">Income</string>
     <string name="income_category">Income category *</string>
     <string name="income_minus_expenses">Income %1$s − Expenses %2$s</string>
+    <string name="keep_copies">Keep</string>
     <string name="keep_editing">Keep editing</string>
     <string name="keep_forever">Keep until I delete</string>
     <string name="language">Language</string>
     <string name="last4_optional">Last 4 digits (optional)</string>
+    <string name="last_auto_backup">Last automatic backup: %s</string>
     <string name="last_backup">Last backup: %s</string>
+    <string name="latest_n">Latest %d copies</string>
     <string name="lock_immediately">Immediately</string>
     <string name="lock_later_hint">You can set or change the PIN later in Settings › Security.</string>
     <string name="lock_now">Lock now</string>
     <string name="lock_setup_body">Protect your financial records with a PIN. You can also turn on fingerprint unlock later.</string>
+    <string name="make_recurring">Make recurring</string>
     <string name="manage">Manage</string>
     <string name="manage_cashbooks">Manage cashbooks</string>
     <string name="max_amount">Max</string>
@@ -238,6 +285,7 @@
     <string name="month_expenses">This month\'s expenses</string>
     <string name="month_income">This month\'s income</string>
     <string name="monthly">Monthly</string>
+    <string name="monthly_budget">Monthly budget</string>
     <string name="monthly_chart">Income vs expenses</string>
     <string name="more_filters">More filters</string>
     <string name="more_options">More options</string>
@@ -261,7 +309,13 @@
     <string name="new_cashbook">New cashbook</string>
     <string name="new_category">New category</string>
     <string name="new_party">New party</string>
+    <string name="new_recurring">New recurring entry</string>
     <string name="next">Next</string>
+    <string name="next_auto">Next: %s (automatic)</string>
+    <string name="next_confirm">Next: %s (needs confirmation)</string>
+    <string name="next_month">Next month</string>
+    <string name="no_auto_backup_yet">No automatic backup yet.</string>
+    <string name="no_budget_tap">No budget — tap to set</string>
     <string name="no_cashbook">No cashbook yet.</string>
     <string name="no_credentials_note">Never enter bank passwords, UPI PINs, card PINs or OTPs. Cashbook only needs a name and, optionally, the last four digits.</string>
     <string name="no_data_period">No entries for the selected period and filters.</string>
@@ -269,6 +323,7 @@
     <string name="no_matches">No entries match your search or filters.</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
+    <string name="no_recurring">No recurring entries yet.</string>
     <string name="no_transactions_yet">No entries yet. Tap Add to record income, an expense or a transfer.</string>
     <string name="no_viewer">No app on this device can open this file.</string>
     <string name="none_top_level">None (top level)</string>
@@ -302,6 +357,8 @@
     <string name="password_loss_warning">If you forget this password the backup cannot be restored by anyone. Store it safely.</string>
     <string name="password_too_short">Use at least %d characters</string>
     <string name="passwords_dont_match">Passwords do not match</string>
+    <string name="past_start_hint">The first date is in the past: entries for missed dates will be created when you save.</string>
+    <string name="paused">Paused</string>
     <string name="paying_account">Paying account *</string>
     <string name="payment_mode">Payment mode</string>
     <string name="period">Period</string>
@@ -318,7 +375,12 @@
     <string name="pin_enabled">PIN lock is on</string>
     <string name="pin_mismatch">PINs did not match. Try again.</string>
     <string name="pin_rules">Avoid easy PINs like 1234 or your birth year.</string>
+    <string name="post">Post</string>
+    <string name="post_automatically">Create entries automatically</string>
+    <string name="post_automatically_off">Each entry waits on the dashboard for you to Post or Skip (useful when the amount varies).</string>
+    <string name="post_automatically_on">Entries are added on their due date, even if the app is closed.</string>
     <string name="preview_truncated">Preview shows the first 500 of %d rows. Exports include every row.</string>
+    <string name="previous_month">Previous month</string>
     <string name="privacy">Privacy</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="provider_optional">Provider (optional)</string>
@@ -327,6 +389,11 @@
     <string name="received_from">Received from</string>
     <string name="receiving_account">Receiving account *</string>
     <string name="recent_transactions">Recent entries</string>
+    <string name="recurring_desc">%d active schedules (rent, salary, subscriptions)</string>
+    <string name="recurring_entries">Recurring entries</string>
+    <string name="recurring_entry">Recurring entry</string>
+    <string name="recurring_finished">Finished</string>
+    <string name="recurring_intro">Recurring entries record regular income, expenses or transfers for you — automatically or after you confirm them.</string>
     <string name="recycle_bin">Recycle bin</string>
     <string name="recycle_bin_count">%d deleted entries</string>
     <string name="recycle_empty">The recycle bin is empty.</string>
@@ -337,6 +404,7 @@
     <string name="remove_sample">Remove sample data</string>
     <string name="remove_sample_text">The sample cashbook and all its entries will be deleted. Your own cashbooks are not affected.</string>
     <string name="rename_category_info">Renaming keeps all %d linked entries; they will show the new name.</string>
+    <string name="repeats">Repeats</string>
     <string name="replace">Replace</string>
     <string name="report_account">Account-wise Report</string>
     <string name="report_account_desc">Opening balance, entries, transfers and closing balance for each account</string>
@@ -408,6 +476,7 @@
     <string name="rl_transfers">Transfers</string>
     <string name="rl_transfers_net">Transfers (net)</string>
     <string name="rl_type">Type</string>
+    <string name="run_backup_now">Back up now</string>
     <string name="running_balance_hint">Sort by Oldest first (without other filters) to see the running balance.</string>
     <string name="sample">Sample</string>
     <string name="sample_added">Sample data added. Remove it any time from Settings.</string>
@@ -424,6 +493,7 @@
     <string name="save_and_add_another">Save and add another</string>
     <string name="save_anyway">Save anyway</string>
     <string name="saved">Saved</string>
+    <string name="schedule">Schedule</string>
     <string name="search">Search</string>
     <string name="search_hint">Search description, party, category, amount, reference, notes</string>
     <string name="search_party">Search by name or mobile number</string>
@@ -453,6 +523,7 @@
     <string name="sort_lowest">Lowest amount first</string>
     <string name="sort_oldest">Oldest first</string>
     <string name="sorted_by">%s</string>
+    <string name="spent">Spent</string>
     <string name="start_of_week">Start of week</string>
     <string name="start_using">Start using Cashbook</string>
     <string name="step_accounts">Accounts &amp; opening balances</string>
@@ -497,6 +568,7 @@
     <string name="version_x">Version %s</string>
     <string name="view_all">View all</string>
     <string name="view_reports">Reports</string>
+    <string name="view_schedule">View schedule</string>
     <string name="view_transactions">View transactions</string>
     <string name="weekly">Weekly</string>
     <string name="welcome_body">Record daily income and expenses, track cash, bank and wallet balances, and get clear reports.</string>
@@ -529,6 +601,10 @@
         <item>Deleted entries go to the recycle bin (Settings › Recycle bin), where you can restore them or delete them permanently. A transfer is always restored as a whole.</item>
         <item>## Backups</item>
         <item>Settings › Backup &amp; restore creates an encrypted backup file protected by your password. Save it to the phone, an SD card or a cloud drive from the file picker. Keep the password safe — without it the backup cannot be opened.</item>
+        <item>## Recurring entries and budgets</item>
+        <item>Settings › Recurring entries schedules rent, salary or subscriptions. Choose whether each one is added automatically or waits on the dashboard for Post / Skip. Open any entry and tap Make recurring to start from it. Settings › Budgets sets monthly limits per expense category; the dashboard shows progress for the current month.</item>
+        <item>## Automatic backup</item>
+        <item>In Backup &amp; restore, choose a folder once (phone, SD card or a cloud drive), set a password and turn on Back up automatically. Cashbook saves a backup daily or weekly and keeps only the latest copies.</item>
         <item>## Security</item>
         <item>Turn on a PIN and, if your phone supports it, fingerprint unlock in Settings › Security. Cashbook never asks for bank passwords, UPI PINs, card PINs or OTPs.</item>
     </string-array>

@@ -1,4 +1,11 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+// Optional release key: create android/keystore.properties (never commit it) with
+// storeFile, storePassword, keyAlias, keyPassword. Without it, release builds use the public test key.
+val releaseKeyProps = Properties().apply {
+    rootProject.file("keystore.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -15,8 +22,8 @@ android {
         applicationId = "com.cashbook.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -29,6 +36,12 @@ android {
             keyAlias = "cashbook"
             keyPassword = "cashbook-test"
         }
+        if (releaseKeyProps.isNotEmpty()) create("upload") {
+            storeFile = rootProject.file(releaseKeyProps.getProperty("storeFile"))
+            storePassword = releaseKeyProps.getProperty("storePassword")
+            keyAlias = releaseKeyProps.getProperty("keyAlias")
+            keyPassword = releaseKeyProps.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -40,7 +53,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("test")
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("test")
         }
     }
 
@@ -57,6 +70,8 @@ android {
         generateLocaleConfig = true
         localeFilters += listOf("en", "hi")
     }
+    // Room schemas for MigrationTest (Robolectric reads the merged debug assets; release APKs never include them)
+    sourceSets["debug"].assets.srcDir("$projectDir/schemas")
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -106,6 +121,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.work.runtime.ktx)
     implementation(libs.biometric)
+    implementation(libs.documentfile)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
@@ -114,6 +130,7 @@ dependencies {
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.room.testing)
     debugImplementation(libs.compose.ui.test.manifest)
 }
 

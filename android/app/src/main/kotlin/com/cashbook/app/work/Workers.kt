@@ -29,7 +29,9 @@ class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
         val container = app.container.awaitReady() ?: return Result.success()
         val s = container.settings.settings.first()
         container.ledger.purgeOlderThan(s.recycleRetentionDays)
-        if (s.backupReminderDays > 0) {
+        container.ledger.postDueRecurring()
+        container.autoBackup.runIfDue(s)
+        if (s.backupReminderDays > 0 && !s.autoBackupEnabled) {
             val due = s.lastBackupAt + s.backupReminderDays * 86_400_000L
             if (System.currentTimeMillis() >= due) notifyBackup(applicationContext)
         }

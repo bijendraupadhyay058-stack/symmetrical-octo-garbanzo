@@ -155,6 +155,27 @@ object BackupCodec {
             }
             if (t.partyId != null && t.partyId !in party) p += "transaction ${t.id} has unknown party"
         }
+        dupes(d.recurring, { it.id }, "recurring rule"); dupes(d.budgets, { it.id }, "budget")
+        d.recurring.forEach { r ->
+            val type = runCatching { TxnType.valueOf(r.type) }.getOrNull()
+            if (type == null) p += "recurring ${r.id} has invalid type"
+            if (runCatching { com.cashbook.core.Frequency.valueOf(r.frequency) }.isFailure) p += "recurring ${r.id} has invalid frequency"
+            if (runCatching { PaymentMode.valueOf(r.paymentMode) }.isFailure) p += "recurring ${r.id} has invalid payment mode"
+            if (r.amount <= 0 || r.interval < 1) p += "recurring ${r.id} has invalid amount or interval"
+            if (r.cashbookId !in cb) p += "recurring ${r.id} has unknown cashbook"
+            val a = acc[r.accountId]
+            if (a == null || a.cashbookId != r.cashbookId) p += "recurring ${r.id} has invalid account"
+            if (type == TxnType.TRANSFER) {
+                val to = r.toAccountId?.let { acc[it] }
+                if (to == null || to.cashbookId != r.cashbookId || r.toAccountId == r.accountId) p += "recurring ${r.id} has invalid destination"
+            } else if (r.categoryId != null && r.categoryId !in cat) p += "recurring ${r.id} has unknown category"
+            if (r.partyId != null && r.partyId !in party) p += "recurring ${r.id} has unknown party"
+        }
+        val budgetKeys = HashSet<Pair<Long, Long>>()
+        d.budgets.forEach { b ->
+            if (b.cashbookId !in cb || b.categoryId !in cat || b.monthlyAmount <= 0) p += "budget ${b.id} is invalid"
+            if (!budgetKeys.add(b.cashbookId to b.categoryId)) p += "budget ${b.id} is a duplicate"
+        }
         d.attachments.forEach {
             if (it.transactionId !in txn) p += "attachment ${it.id} has unknown transaction"
             if (it.storedName != safeName(it.storedName)) p += "attachment ${it.id} has unsafe file name"

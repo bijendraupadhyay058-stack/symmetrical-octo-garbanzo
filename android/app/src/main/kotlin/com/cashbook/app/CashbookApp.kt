@@ -3,6 +3,7 @@ package com.cashbook.app
 import android.app.Application
 import android.content.Context
 import com.cashbook.app.data.AttachmentStore
+import com.cashbook.app.data.AutoBackup
 import com.cashbook.app.data.BackupManager
 import com.cashbook.app.data.LedgerRepository
 import com.cashbook.app.data.SettingsRepository
@@ -41,6 +42,7 @@ class Dependencies(
     val secure: SecureStore,
     val attachments: AttachmentStore,
     val backup: BackupManager,
+    val autoBackup: AutoBackup,
 )
 
 /** Manual dependency injection container. */
@@ -66,8 +68,11 @@ class AppContainer(
                 val db = openDatabase(context, secure.databaseKey())
                 db.openHelper.writableDatabase // open now so failures surface here
                 val store = AttachmentStore(context)
-                State.Ready(Dependencies(db, LedgerRepository(db, store, appScope), settings, secure, store,
-                    BackupManager(context, db, store, settings)))
+                val backup = BackupManager(context, db, store, settings)
+                val ledger = LedgerRepository(db, store, appScope)
+                // Catch up recurring entries that fell due while the app was closed.
+                runCatching { ledger.postDueRecurring() }
+                State.Ready(Dependencies(db, ledger, settings, secure, store, backup, AutoBackup(context, backup, settings, secure)))
             } catch (t: Throwable) {
                 State.Failed(t)
             }

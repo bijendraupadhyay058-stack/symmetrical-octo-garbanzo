@@ -76,17 +76,19 @@ private fun Legend(color: androidx.compose.ui.graphics.Color, text: String) {
     }
 }
 
-/** Horizontal bar with label, value and percentage text. */
+/** Labelled progress bar: name and percentage/status on top, bar, then the amount below — long names never collide with amounts. */
 @Composable
 fun BreakdownBar(label: String, value: String, percent: String, fraction: Float, color: androidx.compose.ui.graphics.Color) {
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("$value · $percent", style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.width(8.dp))
+            Text(percent, style = MaterialTheme.typography.labelMedium, color = color, maxLines = 1)
         }
         Spacer(Modifier.height(4.dp))
         Box(Modifier.fillMaxWidth().height(8.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))) {
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0.01f, 1f)).height(8.dp).background(color, RoundedCornerShape(4.dp)))
         }
+        Text(value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
     }
 }

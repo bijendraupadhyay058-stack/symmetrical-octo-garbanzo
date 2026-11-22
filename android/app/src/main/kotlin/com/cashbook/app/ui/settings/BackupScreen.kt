@@ -61,7 +61,7 @@ import com.cashbook.app.ui.theme.LocalFinanceColors
 import com.cashbook.core.backup.BackupCrypto
 import com.cashbook.core.backup.BackupException
 import com.cashbook.core.backup.DecodedBackup
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -147,6 +147,7 @@ fun BackupScreen(vm: AppViewModel, nav: NavHostController) {
                 OutlinedButton(onClick = { vm.allowExternalActivity(); openDoc.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                     Text(stringResource(R.string.select_backup_file)) }
             }
+            AutoBackupSection(vm, s)
             SectionCard(stringResource(R.string.backup_reminders)) {
                 DropdownField(stringResource(R.string.remind_me), listOf(0, 7, 30), s.backupReminderDays, labelOf = {
                     when (it) { 0 -> stringResource(R.string.off); 7 -> stringResource(R.string.weekly); else -> stringResource(R.string.monthly) } },
@@ -236,3 +237,81 @@ fun BackupScreen(vm: AppViewModel, nav: NavHostController) {
             confirmButton = { TextButton(onClick = { result = null }) { Text(stringResource(R.string.ok)) } })
     }
 }
+
+/** Settings for scheduled backups to a folder chosen once with the system folder picker. */
+@Composable
+private fun AutoBackupSection(vm: AppViewModel, s: com.cashbook.app.data.AppSettings) {
+    val deps = vm.deps ?: return
+    val ctx = LocalContext.current
+    val f = LocalUiFormat.current
+    val fc = LocalFinanceColors.current
+    val scope = rememberCoroutineScope()
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var running by remember { mutableStateOf(false) }
+    val hasPassword = remember(s.autoBackupEnabled) { vm.container.secure.autoBackupPassword() != null }
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val flags = android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        runCatching { ctx.contentResolver.takePersistableUriPermission(uri, flags) }
+        val name = androidx.documentfile.provider.DocumentFile.fromTreeUri(ctx, uri)?.name ?: uri.lastPathSegment ?: ""
+        vm.updateSettings { it.copy(autoBackupFolder = uri.toString(), autoBackupFolderName = name, lastAutoBackupError = "") }
+    }
+    val pwOk = password.length >= BackupCrypto.MIN_PASSWORD_LENGTH && password == confirm
+
+    SectionCard(stringResource(R.string.auto_backup)) {
+        Text(stringResource(R.string.auto_backup_explain), style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = { vm.allowExternalActivity(); folderPicker.launch(null) }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text(if (s.autoBackupFolder.isBlank()) stringResource(R.string.choose_folder) else stringResource(R.string.folder_x, s.autoBackupFolderName))
+        }
+        if (!hasPassword || !s.autoBackupEnabled) {
+            OutlinedTextField(password, { password = it }, label = { Text(stringResource(R.string.backup_password)) }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(confirm, { confirm = it }, label = { Text(stringResource(R.string.confirm_password)) }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                isError = confirm.isNotEmpty() && confirm != password, modifier = Modifier.fillMaxWidth())
+        }
+        DropdownField(stringResource(R.string.frequency), listOf(1, 7), s.autoBackupEveryDays,
+            labelOf = { stringResource(if (it == 1) R.string.daily else R.string.weekly) }, onSelect = { d -> vm.updateSettings { it.copy(autoBackupEveryDays = d) } },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+        DropdownField(stringResource(R.string.keep_copies), listOf(3, 5, 10, 30), s.autoBackupKeep, labelOf = { stringResource(R.string.latest_n, it) },
+            onSelect = { k -> vm.updateSettings { it.copy(autoBackupKeep = k) } }, modifier = Modifier.fillMaxWidth())
+        SwitchRow(stringResource(R.string.include_attachments), s.autoBackupAttachments, { v -> vm.updateSettings { it.copy(autoBackupAttachments = v) } })
+        SwitchRow(stringResource(R.string.auto_backup_on), s.autoBackupEnabled, { on ->
+            if (on) {
+                if (s.autoBackupFolder.isBlank()) { vm.toast(ctx.getString(R.string.choose_folder_first)); return@SwitchRow }
+                if (!pwOk && !hasPassword) { vm.toast(ctx.getString(R.string.password_too_short, BackupCrypto.MIN_PASSWORD_LENGTH)); return@SwitchRow }
+                if (pwOk) vm.container.secure.setAutoBackupPassword(password)
+                password = ""; confirm = ""
+                vm.updateSettings { it.copy(autoBackupEnabled = true) }
+            } else {
+                vm.container.secure.setAutoBackupPassword(null)
+                vm.updateSettings { it.copy(autoBackupEnabled = false) }
+            }
+        })
+        val status = when {
+            s.lastAutoBackupError.isNotBlank() -> stringResource(R.string.auto_backup_error, autoBackupErrorText(s.lastAutoBackupError))
+            s.lastAutoBackupAt > 0 -> stringResource(R.string.last_auto_backup, f.dateTime(s.lastAutoBackupAt))
+            else -> stringResource(R.string.no_auto_backup_yet)
+        }
+        Text(status, style = MaterialTheme.typography.bodySmall, color = if (s.lastAutoBackupError.isNotBlank()) fc.expense else MaterialTheme.colorScheme.onSurfaceVariant)
+        if (s.autoBackupEnabled) OutlinedButton(enabled = !running, onClick = {
+            running = true
+            scope.launch {
+                val r = deps.autoBackup.runIfDue(deps.settings.settings.first(), force = true)
+                running = false
+                vm.toast(ctx.getString(if (r is com.cashbook.app.data.AutoBackup.Result.Done) R.string.auto_backup_done else R.string.backup_failed))
+            }
+        }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.run_backup_now)) }
+        InfoBanner(stringResource(R.string.password_loss_warning), Modifier.padding(top = 8.dp), icon = Icons.Filled.Warning)
+    }
+}
+
+@Composable
+private fun autoBackupErrorText(code: String) = stringResource(when (code) {
+    "NO_FOLDER_ACCESS" -> R.string.ab_err_folder
+    "NO_PASSWORD" -> R.string.ab_err_password
+    "CANNOT_CREATE_FILE" -> R.string.ab_err_create
+    else -> R.string.backup_failed
+})

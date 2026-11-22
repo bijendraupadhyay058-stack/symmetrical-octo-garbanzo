@@ -72,6 +72,26 @@ class BackupCodecTest {
         BackupCodec.write(ByteArrayOutputStream(), "123".toCharArray(), manifest, data, emptyList())
     }
 
+    @Test fun recurringAndBudgetsRoundTripAndValidate() {
+        val full = data.copy(
+            recurring = listOf(RecurringDto(1, 1, "EXPENSE", 250_000, 1, categoryId = 1, paymentMode = "CASH", frequency = "MONTHLY", startDate = 20544, createdAt = 1, updatedAt = 1)),
+            budgets = listOf(BudgetDto(1, 1, 1, 500_000, 1, 1)),
+        )
+        assertTrue(BackupCodec.validate(full).isEmpty())
+        val out = ByteArrayOutputStream()
+        BackupCodec.write(out, pw, manifest, full, emptyList(), iterations)
+        assertEquals(full, BackupCodec.read(ByteArrayInputStream(out.toByteArray()), pw) { _, _ -> }.data)
+        val bad = full.copy(recurring = listOf(full.recurring[0].copy(frequency = "HOURLY", accountId = 99)), budgets = full.budgets + full.budgets[0].copy(id = 2))
+        assertEquals(3, BackupCodec.validate(bad).size)
+    }
+
+    @Test fun version10BackupJsonStillDecodes() {
+        // data.json written by app 1.0 has no "recurring"/"budgets" keys
+        val json = BackupCodec.json.encodeToString(BackupData.serializer(), data).replace(",\"recurring\":[]", "").replace(",\"budgets\":[]", "")
+        assertTrue(!json.contains("recurring"))
+        assertEquals(data, BackupCodec.json.decodeFromString(BackupData.serializer(), json))
+    }
+
     @Test fun validationFindsBrokenReferences() {
         val bad = data.copy(transactions = data.transactions + TransactionDto(3, 1, "TRANSFER", 1, 5, 1, toAccountId = 1, paymentMode = "CASH", createdAt = 1, updatedAt = 1))
         assertTrue(BackupCodec.validate(bad).any { it.contains("destination") })

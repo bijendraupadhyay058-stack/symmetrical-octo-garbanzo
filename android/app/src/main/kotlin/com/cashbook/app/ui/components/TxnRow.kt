@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +47,10 @@ fun TxnRow(t: Txn, snap: Snapshot, onClick: () -> Unit, runningBalance: Long? = 
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (t.recurringId != null) {
+                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Filled.EventRepeat, stringResource(R.string.recurring_entry), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 if ((snap.attachmentCounts[t.id] ?: 0) > 0) {
                     Spacer(Modifier.width(4.dp))
                     Icon(Icons.Filled.AttachFile, stringResource(R.string.has_attachment), Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)

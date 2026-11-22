@@ -81,6 +81,8 @@ data class Txn(
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
     val deletedAt: Long? = null,
+    /** Set when the entry was created by a recurring rule. */
+    val recurringId: Long? = null,
 ) {
     val tagList: List<String> get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 }

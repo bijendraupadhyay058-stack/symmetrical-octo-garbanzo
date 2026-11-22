@@ -39,6 +39,17 @@ data class AppSettings(
     /** Days to keep deleted entries; 0 = keep until removed manually. */
     val recycleRetentionDays: Int = 30,
     val secureScreen: Boolean = false,
+    // ---- automatic backup (v1.1) ----
+    val autoBackupEnabled: Boolean = false,
+    /** Folder chosen with the system picker (persisted SAF tree URI). */
+    val autoBackupFolder: String = "",
+    val autoBackupFolderName: String = "",
+    val autoBackupEveryDays: Int = 1,
+    val autoBackupKeep: Int = 5,
+    val autoBackupAttachments: Boolean = true,
+    val lastAutoBackupAt: Long = 0,
+    /** Empty when the last automatic backup succeeded; otherwise a short reason shown in Backup. */
+    val lastAutoBackupError: String = "",
 ) {
     companion object { const val ALL_CASHBOOKS = -1L }
 }
@@ -65,6 +76,14 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
         val reminderDays = intPreferencesKey("backup_reminder_days")
         val retention = intPreferencesKey("recycle_retention_days")
         val secureScreen = booleanPreferencesKey("secure_screen")
+        val abEnabled = booleanPreferencesKey("auto_backup_enabled")
+        val abFolder = stringPreferencesKey("auto_backup_folder")
+        val abFolderName = stringPreferencesKey("auto_backup_folder_name")
+        val abEvery = intPreferencesKey("auto_backup_every_days")
+        val abKeep = intPreferencesKey("auto_backup_keep")
+        val abAttach = booleanPreferencesKey("auto_backup_attachments")
+        val abLast = longPreferencesKey("last_auto_backup")
+        val abError = stringPreferencesKey("last_auto_backup_error")
     }
 
     val settings: Flow<AppSettings> = dataStore.data.map { p -> p.toSettings() }
@@ -89,6 +108,14 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             backupReminderDays = this[K.reminderDays] ?: d.backupReminderDays,
             recycleRetentionDays = this[K.retention] ?: d.recycleRetentionDays,
             secureScreen = this[K.secureScreen] ?: d.secureScreen,
+            autoBackupEnabled = this[K.abEnabled] ?: d.autoBackupEnabled,
+            autoBackupFolder = this[K.abFolder] ?: d.autoBackupFolder,
+            autoBackupFolderName = this[K.abFolderName] ?: d.autoBackupFolderName,
+            autoBackupEveryDays = this[K.abEvery] ?: d.autoBackupEveryDays,
+            autoBackupKeep = this[K.abKeep] ?: d.autoBackupKeep,
+            autoBackupAttachments = this[K.abAttach] ?: d.autoBackupAttachments,
+            lastAutoBackupAt = this[K.abLast] ?: d.lastAutoBackupAt,
+            lastAutoBackupError = this[K.abError] ?: d.lastAutoBackupError,
         )
     }
 
@@ -112,6 +139,14 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             p[K.reminderDays] = n.backupReminderDays
             p[K.retention] = n.recycleRetentionDays
             p[K.secureScreen] = n.secureScreen
+            p[K.abEnabled] = n.autoBackupEnabled
+            p[K.abFolder] = n.autoBackupFolder
+            p[K.abFolderName] = n.autoBackupFolderName
+            p[K.abEvery] = n.autoBackupEveryDays
+            p[K.abKeep] = n.autoBackupKeep
+            p[K.abAttach] = n.autoBackupAttachments
+            p[K.abLast] = n.lastAutoBackupAt
+            p[K.abError] = n.lastAutoBackupError
         }
     }
 }

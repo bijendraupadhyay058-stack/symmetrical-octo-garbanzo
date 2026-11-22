@@ -8,3 +8,4 @@ captures/
 *.keystore
 *.jks
 !app/cashbook-test.keystore
+keystore.properties

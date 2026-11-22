@@ -1,6 +1,8 @@
 package com.cashbook.app.data
 
 import com.cashbook.core.AccountInfo
+import com.cashbook.core.BudgetInfo
+import com.cashbook.core.RecurringRule
 import com.cashbook.core.CashbookInfo
 import com.cashbook.core.CategoryInfo
 import com.cashbook.core.CategoryKind
@@ -20,6 +22,8 @@ data class Snapshot(
     /** Entries in the recycle bin. */
     val deleted: List<Txn> = emptyList(),
     val attachmentCounts: Map<Long, Int> = emptyMap(),
+    val recurring: List<RecurringRule> = emptyList(),
+    val budgets: List<BudgetInfo> = emptyList(),
 ) {
     val cashbookById = cashbooks.associateBy { it.id }
     val accountById = accounts.associateBy { it.id }

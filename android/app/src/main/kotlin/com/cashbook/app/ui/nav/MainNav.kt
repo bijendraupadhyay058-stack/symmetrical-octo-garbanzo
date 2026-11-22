@@ -48,6 +48,9 @@ import com.cashbook.app.ui.components.TypeAvatar
 import com.cashbook.app.ui.components.typeIcon
 import com.cashbook.app.ui.dashboard.DashboardScreen
 import com.cashbook.app.ui.manage.AccountEditScreen
+import com.cashbook.app.ui.manage.BudgetsScreen
+import com.cashbook.app.ui.recurring.RecurringEditScreen
+import com.cashbook.app.ui.recurring.RecurringListScreen
 import com.cashbook.app.ui.manage.AccountsScreen
 import com.cashbook.app.ui.manage.CashbookEditScreen
 import com.cashbook.app.ui.manage.CashbooksScreen
@@ -97,6 +100,9 @@ object Routes {
     const val GUIDE = "guide"
     const val PRIVACY = "privacy"
     const val ABOUT = "about"
+    const val RECURRING = "recurring"
+    fun recurringEdit(id: Long, fromTxn: Long = 0) = "recurring/$id/$fromTxn"
+    const val BUDGETS = "budgets"
 }
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
@@ -183,6 +189,11 @@ fun MainNav(vm: AppViewModel, openTarget: String?) {
             composable(Routes.GUIDE) { GuideScreen(nav) }
             composable(Routes.PRIVACY) { PrivacyScreen(nav) }
             composable(Routes.ABOUT) { AboutScreen(nav) }
+            composable(Routes.RECURRING) { RecurringListScreen(vm, nav) }
+            composable("recurring/{id}/{from}", listOf(navArgument("id") { type = NavType.LongType }, navArgument("from") { type = NavType.LongType })) { e ->
+                RecurringEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments!!.getLong("from"))
+            }
+            composable(Routes.BUDGETS) { BudgetsScreen(vm, nav) }
         }
     }
 

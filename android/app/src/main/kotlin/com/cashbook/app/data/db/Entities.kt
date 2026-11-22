@@ -86,7 +86,8 @@ data class PartyEntity(
         ForeignKey(entity = CategoryEntity::class, parentColumns = ["id"], childColumns = ["category_id"], onDelete = ForeignKey.RESTRICT),
         ForeignKey(entity = PartyEntity::class, parentColumns = ["id"], childColumns = ["party_id"], onDelete = ForeignKey.RESTRICT),
     ],
-    indices = [Index("cashbook_id"), Index("account_id"), Index("to_account_id"), Index("category_id"), Index("party_id"), Index("date"), Index("deleted_at")],
+    indices = [Index("cashbook_id"), Index("account_id"), Index("to_account_id"), Index("category_id"), Index("party_id"), Index("date"), Index("deleted_at"),
+        Index("recurring_id")],
 )
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -106,6 +107,63 @@ data class TransactionEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
+    /** Recurring rule that created this entry (v2). No FK: entries outlive deleted rules. */
+    @ColumnInfo(name = "recurring_id") val recurringId: Long? = null,
+)
+
+/** Schedule that creates entries automatically or on confirmation (v2). */
+@Entity(
+    tableName = "recurring",
+    foreignKeys = [
+        ForeignKey(entity = CashbookEntity::class, parentColumns = ["id"], childColumns = ["cashbook_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = AccountEntity::class, parentColumns = ["id"], childColumns = ["account_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = AccountEntity::class, parentColumns = ["id"], childColumns = ["to_account_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = CategoryEntity::class, parentColumns = ["id"], childColumns = ["category_id"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(entity = PartyEntity::class, parentColumns = ["id"], childColumns = ["party_id"], onDelete = ForeignKey.RESTRICT),
+    ],
+    indices = [Index("cashbook_id"), Index("account_id"), Index("to_account_id"), Index("category_id"), Index("party_id")],
+)
+data class RecurringEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cashbook_id") val cashbookId: Long,
+    val type: String,
+    val amount: Long,
+    @ColumnInfo(name = "account_id") val accountId: Long,
+    @ColumnInfo(name = "to_account_id") val toAccountId: Long? = null,
+    @ColumnInfo(name = "category_id") val categoryId: Long? = null,
+    @ColumnInfo(name = "party_id") val partyId: Long? = null,
+    @ColumnInfo(name = "payment_mode") val paymentMode: String,
+    val description: String = "",
+    val reference: String = "",
+    val notes: String = "",
+    val tags: String = "",
+    val frequency: String,
+    val interval: Int = 1,
+    @ColumnInfo(name = "start_date") val startDate: Long,
+    @ColumnInfo(name = "end_date") val endDate: Long? = null,
+    @ColumnInfo(name = "next_index") val nextIndex: Int = 0,
+    @ColumnInfo(name = "auto_post") val autoPost: Boolean = true,
+    val active: Boolean = true,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/** Monthly limit for an expense category in a cashbook (v2). */
+@Entity(
+    tableName = "budgets",
+    foreignKeys = [
+        ForeignKey(entity = CashbookEntity::class, parentColumns = ["id"], childColumns = ["cashbook_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = CategoryEntity::class, parentColumns = ["id"], childColumns = ["category_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index(value = ["cashbook_id", "category_id"], unique = true), Index("category_id")],
+)
+data class BudgetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "cashbook_id") val cashbookId: Long,
+    @ColumnInfo(name = "category_id") val categoryId: Long,
+    @ColumnInfo(name = "monthly_amount") val monthlyAmount: Long,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
 @Entity(

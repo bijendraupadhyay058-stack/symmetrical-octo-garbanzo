@@ -80,6 +80,7 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE party_id = :partyId") suspend fun countForParty(partyId: Long): Int
     @Query("UPDATE transactions SET category_id = :to, updated_at = :at WHERE category_id = :from") suspend fun reassignCategory(from: Long, to: Long, at: Long)
     @Query("SELECT id FROM transactions WHERE cashbook_id IN (:cashbookIds)") suspend fun idsForCashbooks(cashbookIds: List<Long>): List<Long>
+    @Query("SELECT COUNT(*) FROM transactions WHERE recurring_id = :ruleId AND date = :date") suspend fun countForRuleOn(ruleId: Long, date: Long): Int
 }
 
 @Dao
@@ -109,4 +110,31 @@ interface MaintenanceDao {
     @Query("DELETE FROM cashbooks") suspend fun clearCashbooks()
     @Query("DELETE FROM parties") suspend fun clearParties()
     @Query("DELETE FROM categories") suspend fun clearCategories()
+}
+
+@Dao
+interface RecurringDao {
+    @Query("SELECT * FROM recurring ORDER BY active DESC, id") suspend fun getAll(): List<RecurringEntity>
+    @Query("SELECT * FROM recurring WHERE id = :id") suspend fun get(id: Long): RecurringEntity?
+    @Insert suspend fun insert(e: RecurringEntity): Long
+    @Insert suspend fun insertAll(e: List<RecurringEntity>)
+    @Update suspend fun update(e: RecurringEntity)
+    @Query("DELETE FROM recurring WHERE id = :id") suspend fun delete(id: Long)
+    @Query("UPDATE recurring SET next_index = :next, updated_at = :at WHERE id = :id") suspend fun setNextIndex(id: Long, next: Int, at: Long)
+    @Query("SELECT COUNT(*) FROM recurring WHERE account_id = :accountId OR to_account_id = :accountId") suspend fun countForAccount(accountId: Long): Int
+    @Query("SELECT COUNT(*) FROM recurring WHERE category_id = :categoryId") suspend fun countForCategory(categoryId: Long): Int
+    @Query("SELECT COUNT(*) FROM recurring WHERE party_id = :partyId") suspend fun countForParty(partyId: Long): Int
+    @Query("UPDATE recurring SET category_id = :to, updated_at = :at WHERE category_id = :from") suspend fun reassignCategory(from: Long, to: Long, at: Long)
+    @Query("DELETE FROM recurring") suspend fun clear()
+}
+
+@Dao
+interface BudgetDao {
+    @Query("SELECT * FROM budgets") suspend fun getAll(): List<BudgetEntity>
+    @Query("SELECT * FROM budgets WHERE cashbook_id = :cashbookId AND category_id = :categoryId") suspend fun find(cashbookId: Long, categoryId: Long): BudgetEntity?
+    @Insert suspend fun insert(e: BudgetEntity): Long
+    @Insert suspend fun insertAll(e: List<BudgetEntity>)
+    @Update suspend fun update(e: BudgetEntity)
+    @Query("DELETE FROM budgets WHERE id = :id") suspend fun delete(id: Long)
+    @Query("DELETE FROM budgets") suspend fun clear()
 }

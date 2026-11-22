@@ -10,6 +10,8 @@ import com.cashbook.app.data.db.AccountEntity
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
 import com.cashbook.app.data.db.BackupHistoryEntity
+import com.cashbook.app.data.db.BudgetEntity
+import com.cashbook.app.data.db.RecurringEntity
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
 import com.cashbook.app.data.db.PartyEntity
@@ -21,6 +23,8 @@ import com.cashbook.core.backup.BackupCodec
 import com.cashbook.core.backup.BackupData
 import com.cashbook.core.backup.BackupException
 import com.cashbook.core.backup.BackupManifest
+import com.cashbook.core.backup.BudgetDto
+import com.cashbook.core.backup.RecurringDto
 import com.cashbook.core.backup.CashbookDto
 import com.cashbook.core.backup.CategoryDto
 import com.cashbook.core.backup.DecodedBackup
@@ -50,7 +54,7 @@ class BackupManager(
                 appVersion = BuildConfig.VERSION_NAME, createdAt = System.currentTimeMillis(),
                 cashbooks = data.cashbooks.size, accounts = data.accounts.size, categories = data.categories.size,
                 parties = data.parties.size, transactions = data.transactions.size, attachments = data.attachments.size,
-                includesAttachments = includeAttachments,
+                includesAttachments = includeAttachments, recurring = data.recurring.size, budgets = data.budgets.size,
             )
             val sources = data.attachments.map { a -> AttachmentSource(a.storedName) { store.file(a.storedName).takeIf { it.exists() }?.inputStream() } }
             val out = context.contentResolver.openOutputStream(uri, "wt") ?: error("Cannot open destination")
@@ -102,6 +106,7 @@ class BackupManager(
         try {
             db.withTransaction {
                 // children first
+                db.budgets().clear(); db.recurring().clear()
                 db.maintenance().apply {
                     clearAttachments(); clearTransactions(); clearAccounts(); clearCashbooks(); clearParties(); clearCategories()
                 }
@@ -111,7 +116,11 @@ class BackupManager(
                     CategoryEntity(it.id, it.kind, it.name, it.parentId, it.icon, it.archived, it.createdAt, it.updatedAt) })
                 db.parties().insertAll(d.parties.map { PartyEntity(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt) })
                 db.accounts().insertAll(d.accounts.map { AccountEntity(it.id, it.cashbookId, it.name, it.type, it.openingBalance, it.openingDate, it.bankName, it.last4, it.description, it.archived, it.sortOrder, it.createdAt, it.updatedAt) })
-                db.transactions().insertAll(d.transactions.map { TransactionEntity(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt) })
+                db.transactions().insertAll(d.transactions.map { TransactionEntity(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId) })
+                db.recurring().insertAll(d.recurring.map { RecurringEntity(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId,
+                    it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.frequency, it.interval, it.startDate, it.endDate,
+                    it.nextIndex, it.autoPost, it.active, it.createdAt, it.updatedAt) })
+                db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 // Only keep attachment rows whose file was actually in the backup
                 db.attachments().insertAll(d.attachments.filter { it.storedName in backup.attachmentFiles }.map {
                     AttachmentEntity(it.id, it.transactionId, it.fileName, it.mimeType, it.sizeBytes, it.storedName, it.createdAt) })
@@ -153,7 +162,11 @@ class BackupManager(
         accounts = db.accounts().getAll().map { AccountDto(it.id, it.cashbookId, it.name, it.type, it.openingBalance, it.openingDate, it.bankName, it.last4, it.description, it.archived, it.sortOrder, it.createdAt, it.updatedAt) },
         categories = db.categories().getAll().map { CategoryDto(it.id, it.kind, it.name, it.parentId, it.icon, it.archived, it.createdAt, it.updatedAt) },
         parties = db.parties().getAll().map { PartyDto(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt) },
-        transactions = db.transactions().getAll().map { TransactionDto(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt) },
+        transactions = db.transactions().getAll().map { TransactionDto(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId) },
+        recurring = db.recurring().getAll().map { RecurringDto(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId,
+            it.paymentMode, it.description, it.reference, it.notes, it.tags, it.frequency, it.interval, it.startDate, it.endDate, it.nextIndex, it.autoPost,
+            it.active, it.createdAt, it.updatedAt) },
+        budgets = db.budgets().getAll().map { BudgetDto(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) },
         attachments = if (!includeAttachments) emptyList() else db.attachments().getAll().map { AttachmentDto(it.id, it.transactionId, it.fileName, it.mimeType, it.sizeBytes, it.storedName, it.createdAt) },
     )
 
