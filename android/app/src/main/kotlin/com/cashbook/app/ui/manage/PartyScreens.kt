@@ -147,6 +147,11 @@ fun PartyDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
                             OutlinedButton(onClick = { nav.navigate(Routes.invoiceEdit(0, "SALE", id)) }, Modifier.weight(1f)) { Text(stringResource(R.string.new_invoice), maxLines = 1) }
                             OutlinedButton(onClick = { nav.navigate(Routes.invoiceEdit(0, "PURCHASE", id)) }, Modifier.weight(1f)) { Text(stringResource(R.string.new_bill), maxLines = 1) }
                         }
+                        OutlinedButton(onClick = {
+                            vm.pendingReportFilter = TxnFilter(partyIds = setOf(id))
+                            vm.updateSettings { it.copy(currentCashbookId = com.cashbook.app.data.AppSettings.ALL_CASHBOOKS.takeIf { snap.cashbooks.count { c -> !c.archived } > 1 } ?: it.currentCashbookId) }
+                            nav.navigate(Routes.report("PARTY_STATEMENT"))
+                        }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.report_party_statement), maxLines = 1) }
                     }
                     InfoBanner(stringResource(R.string.party_ledger_note), icon = Icons.Filled.Info)
                     OutlinedButton(onClick = {

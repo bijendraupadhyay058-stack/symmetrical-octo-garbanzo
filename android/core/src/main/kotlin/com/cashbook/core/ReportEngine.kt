@@ -1,5 +1,6 @@
 package com.cashbook.core
 
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -80,9 +81,10 @@ class ReportEngine(private val input: ReportInput) {
             ReportType.GST_SUMMARY -> gstSummary()
             ReportType.STOCK_SUMMARY -> stockSummary()
             ReportType.ITEM_SALES -> itemSales()
+            ReportType.PARTY_STATEMENT -> partyStatement()
         }
         val exportTxns = when {
-            input.type in setOf(ReportType.OUTSTANDING, ReportType.GST_SUMMARY, ReportType.STOCK_SUMMARY, ReportType.ITEM_SALES) -> emptyList()
+            input.type in setOf(ReportType.OUTSTANDING, ReportType.GST_SUMMARY, ReportType.STOCK_SUMMARY, ReportType.ITEM_SALES, ReportType.PARTY_STATEMENT) -> emptyList()
             input.type.supportsDetailFilters -> detail
             else -> inRange
         }
@@ -382,6 +384,71 @@ class ReportEngine(private val input: ReportInput) {
      * Receivables and payables as at the end of the period: only invoices issued by then, and only
      * payments dated by then, so the report can be re-run for any past date.
      */
+    /**
+     * Statement of account per party and side (receivable / payable): opening balance at the start of the period,
+     * then invoices, notes, linked payments and refunds by date with a running balance. The closing balance equals
+     * outstanding minus refund due, so it always agrees with the Outstanding report and the invoice screens.
+     */
+    private fun partyStatement(): Parts {
+        data class Ev(val date: LocalDate, val order: Int, val text: String, val effect: Long)   // effect: + raises what is owed
+        val live = input.txns.associateBy { it.id }
+        val docs = input.invoices.filter { !it.cancelled && it.docType != DocType.QUOTATION &&
+            (input.filter.partyIds.isEmpty() || it.partyId in input.filter.partyIds) }
+        val byId = input.invoices.associateBy { it.id }
+        val summary = ArrayList<SummaryItem>()
+        val tables = ArrayList<ReportTable>()
+        for (kind in InvoiceKind.entries) {
+            val sale = kind == InvoiceKind.SALE
+            val events = HashMap<Long, MutableList<Ev>>()
+            docs.filter { it.kind == kind }.forEach { d ->
+                val text = when (d.docType) {
+                    DocType.CREDIT_NOTE -> l.creditNoteX.format(d.number)
+                    DocType.DEBIT_NOTE -> l.debitNoteX.format(d.number)
+                    else -> (if (sale) l.salesInvoiceX else l.purchaseBillX).format(d.number)
+                }
+                events.getOrPut(d.partyId) { ArrayList() } += Ev(d.issueDate, 0, text, d.docType.sign * d.amount)
+            }
+            input.allocations.forEach { a ->
+                val inv = byId[a.invoiceId]?.takeIf { it.kind == kind && it.docType == DocType.INVOICE && !it.cancelled } ?: return@forEach
+                if (input.filter.partyIds.isNotEmpty() && inv.partyId !in input.filter.partyIds) return@forEach
+                val t = live[a.txnId] ?: return@forEach                   // payments in the recycle bin don't count
+                val payment = t.type == kind.paymentType
+                val mode = l.modes[t.paymentMode] ?: t.paymentMode.name
+                val text = (if (!payment) l.refundX else if (sale) l.paymentReceivedX else l.paymentMadeX).format(mode, inv.number) +
+                    (if (t.reference.isNotBlank()) " · ${t.reference}" else "")
+                events.getOrPut(inv.partyId) { ArrayList() } += Ev(t.date, 1, text, if (payment) -a.amount else a.amount)
+            }
+            val rows = ArrayList<Row>()
+            var total = 0L
+            events.entries.sortedBy { names.party(it.key).lowercase() }.forEach { (pid, evs) ->
+                val opening = evs.filter { it.date.isBefore(range.start) }.sumOf { it.effect }
+                val within = evs.filter { it.date in range }.sortedWith(compareBy({ it.date }, { it.order }))
+                if (within.isEmpty() && opening == 0L) return@forEach
+                fun dr(e: Long) = if (sale == (e > 0)) Cell.Amount(kotlin.math.abs(e)) else Cell.Empty
+                fun cr(e: Long) = if (sale == (e < 0)) Cell.Amount(kotlin.math.abs(e)) else Cell.Empty
+                rows += Row(listOf(Cell.Text(names.party(pid)), Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty), RowStyle.HEADING)
+                rows += Row(listOf(Cell.Day(range.start), Cell.Text(l.opening), Cell.Empty, Cell.Empty, Cell.Amount(opening)))
+                var bal = opening
+                within.forEach { e -> bal += e.effect; rows += Row(listOf(Cell.Day(e.date), Cell.Text(e.text), dr(e.effect), cr(e.effect), Cell.Amount(bal))) }
+                val debits = within.sumOf { if (sale == (it.effect > 0)) kotlin.math.abs(it.effect) else 0L }
+                val credits = within.sumOf { if (sale == (it.effect < 0)) kotlin.math.abs(it.effect) else 0L }
+                rows += Row(listOf(Cell.Day(range.end), Cell.Text(l.closing), Cell.Amount(debits), Cell.Amount(credits), Cell.Amount(bal)), RowStyle.SUBTOTAL)
+                total += bal
+            }
+            val title = if (sale) l.receivables else l.payables
+            if (rows.isNotEmpty() || kind == InvoiceKind.SALE) summary += SummaryItem(title, Cell.Amount(total))
+            tables += ReportTable(title, listOf(Column(l.date, 1.4f), Column(l.particulars, 3f), Column(l.debit, 1.2f, Align.END),
+                Column(l.credit, 1.2f, Align.END), Column(l.balance, 1.3f, Align.END)), rows)
+        }
+        // income/expense entries for these parties in the period that aren't applied to any invoice
+        val allocated = input.allocations.map { it.txnId }.toSet()
+        val loose = inRange.filter { it.partyId != null && it.id !in allocated && it.type != TxnType.TRANSFER &&
+            (input.filter.partyIds.isEmpty() || it.partyId in input.filter.partyIds) }
+        loose.filter { it.type == TxnType.INCOME }.sumOf { it.amount }.takeIf { it > 0 }?.let { summary += SummaryItem(l.unlinkedReceipts, Cell.Amount(it)) }
+        loose.filter { it.type == TxnType.EXPENSE }.sumOf { it.amount }.takeIf { it > 0 }?.let { summary += SummaryItem(l.unlinkedPayments, Cell.Amount(it)) }
+        return Parts(summary, tables, listOf(l.statementNote))
+    }
+
     private fun outstanding(): Parts {
         val asOf = range.end
         val issued = input.invoices.filter { !it.issueDate.isAfter(asOf) && !it.cancelled &&

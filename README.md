@@ -1,6 +1,6 @@
 # FIN TAX PRO – CashBook
 
-> **Native Android app:** an offline-first Kotlin/Jetpack Compose **Cashbook** app (English/Hindi, encrypted storage, PDF/Excel reports, encrypted backups) lives in [`android/`](android/README.md). A test APK is at [`android/dist/`](android/dist/) (version 1.6: quotations convertible to invoices, UPI payment QR on invoices; 1.5: products & services with stock, low-stock alerts, stock and item-wise sales reports; 1.4: credit/debit notes, refunds, logo & signature; 1.3: GST tax invoices with PDF and GST summary; earlier: invoices & outstanding, alerts, widget, recurring entries, budgets, automatic backups).
+> **Native Android app:** an offline-first Kotlin/Jetpack Compose **Cashbook** app (English/Hindi, encrypted storage, PDF/Excel reports, encrypted backups) lives in [`android/`](android/README.md). A test APK is at [`android/dist/`](android/dist/) (version 1.7: purchase orders, statement of account, WhatsApp payment reminders; 1.6: quotations convertible to invoices, UPI payment QR on invoices; 1.5: products & services with stock, low-stock alerts, stock and item-wise sales reports; 1.4: credit/debit notes, refunds, logo & signature; 1.3: GST tax invoices with PDF and GST summary; earlier: invoices & outstanding, alerts, widget, recurring entries, budgets, automatic backups).
 
 A secure, mobile-first **cash income & expense management PWA** for an accounting, GST, TDS, income-tax and audit practice. Built to be installed on an Android phone through Chrome and used every day, with laptop/tablet support.
 

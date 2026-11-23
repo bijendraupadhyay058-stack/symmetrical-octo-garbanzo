@@ -10,7 +10,8 @@ from strings5 import S5
 from strings6 import S6
 from strings7 import S7
 from strings8 import S8
-allS = S + S2 + S3 + S4 + S5 + S6 + S7 + S8
+from strings9 import S9
+allS = S + S2 + S3 + S4 + S5 + S6 + S7 + S8 + S9
 keys = [k for k,_,_ in allS]
 dups = {k for k in keys if keys.count(k) > 1}
 assert not dups, dups

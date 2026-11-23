@@ -51,3 +51,26 @@ object Qr {
         return QrMatrix(n, BooleanArray(n * n) { m.get(it % n, it / n).toInt() == 1 })
     }
 }
+
+/** Payment reminders sent through WhatsApp's click-to-chat link. */
+object Reminders {
+    /**
+     * International number for wa.me (digits only, country code first) from a mobile number as people type it:
+     * "98765 43210", "+91-98765-43210", "098765 43210" → "919876543210". Other countries need the "+" prefix.
+     * Returns null when it isn't a usable mobile number.
+     */
+    fun whatsappNumber(mobile: String): String? {
+        val t = mobile.trim()
+        val digits = t.filter { it.isDigit() }
+        return when {
+            t.startsWith("+") || t.startsWith("00") -> digits.removePrefix(if (t.startsWith("00")) "00" else "").takeIf { it.length in 8..15 && it[0] != '0' }
+            digits.length == 10 && digits[0] in '6'..'9' -> "91$digits"
+            digits.length == 11 && digits[0] == '0' && digits[1] in '6'..'9' -> "91" + digits.drop(1)
+            digits.length == 12 && digits.startsWith("91") && digits[2] in '6'..'9' -> digits
+            else -> null
+        }
+    }
+
+    /** Click-to-chat link that opens WhatsApp on [number] with [text] typed in (the user still taps send). */
+    fun whatsappLink(number: String, text: String) = "https://wa.me/$number?text=" + Upi.encode(text).replace("/", "%2F")
+}

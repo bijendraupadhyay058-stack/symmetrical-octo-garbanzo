@@ -366,8 +366,7 @@ class LedgerRepository(
      */
     suspend fun saveInvoice(input: InvoiceInfo, items: List<InvoiceItem>? = null, sellerState: String = ""): Long = db.withTransaction {
         // A note always belongs to the original invoice's cashbook, kind, party and place of supply.
-        val base = if (input.docType == DocType.QUOTATION) input.copy(kind = InvoiceKind.SALE, refInvoiceId = null)
-        else if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
+        val base = if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
             val original = input.refInvoiceId?.let { db.invoices().get(it)?.toInfo() }?.takeIf { it.docType == DocType.INVOICE }
                 ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
             input.copy(cashbookId = original.cashbookId, kind = original.kind, partyId = original.partyId,
@@ -429,7 +428,7 @@ class LedgerRepository(
     }
 
     /**
-     * Turns a quotation into a sales invoice dated [date] (due after [dueDays]): same customer, place of supply,
+     * Turns a quotation into a sales invoice (or a purchase order into a bill) dated [date] (due after [dueDays]): same customer, place of supply,
      * round-off, description, notes and items (the amount is recalculated from the items). The quotation is
      * marked converted; deleting that invoice re-opens it.
      */
@@ -438,7 +437,7 @@ class LedgerRepository(
         if (q.convertedInvoiceId?.let { db.invoices().get(it) } != null) throw InvoiceException(InvoiceException.Reason.ALREADY_CONVERTED)
         if (q.cancelled) throw InvoiceException(InvoiceException.Reason.DECLINED)
         val items = db.invoices().items().filter { it.invoiceId == quoteId }.map { it.toItem().copy(id = 0) }
-        val number = nextInvoiceNumber(q.cashbookId, InvoiceKind.SALE, date)
+        val number = nextInvoiceNumber(q.cashbookId, q.kind, date)
         val invId = saveInvoice(q.copy(id = 0, number = number, issueDate = date, dueDate = date.plusDays(dueDays), docType = DocType.INVOICE,
             refInvoiceId = null, convertedInvoiceId = null, cancelled = false), items, sellerState)
         db.invoices().linkQuote(quoteId, invId, now)

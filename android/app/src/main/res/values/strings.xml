@@ -56,6 +56,7 @@
     <string name="alerts_channel">Invoice and budget alerts</string>
     <string name="all_accounts">All accounts</string>
     <string name="all_cashbooks">All cashbooks (combined)</string>
+    <string name="all_parties">All parties</string>
     <string name="allow_negative">Allow negative balances</string>
     <string name="allow_negative_off">Entries that would make a balance negative are blocked.</string>
     <string name="allow_negative_on">You will be warned, and can still save.</string>
@@ -165,8 +166,11 @@
     <string name="confirm_pin">Enter the same PIN again</string>
     <string name="confirm_restore">Restore this backup?</string>
     <string name="continued">continued</string>
+    <string name="convert_to_bill">Convert to bill</string>
     <string name="convert_to_invoice">Convert to invoice</string>
+    <string name="converted_bill_explain">Deleting that bill re-opens this purchase order.</string>
     <string name="converted_explain">Deleting that invoice re-opens this quotation.</string>
+    <string name="converted_to_bill_x">Converted to bill %s</string>
     <string name="converted_to_x">Converted to invoice %s</string>
     <string name="create">Create</string>
     <string name="create_backup">Create backup</string>
@@ -211,6 +215,7 @@
     <string name="delete_note_title">Delete note?</string>
     <string name="delete_permanently">Delete permanently</string>
     <string name="delete_permanently_text">This entry and its attachments will be removed for ever.</string>
+    <string name="delete_po_title">Delete purchase order?</string>
     <string name="delete_quote_text">The quotation and its items will be deleted.</string>
     <string name="delete_quote_title">Delete quotation?</string>
     <string name="delete_recurring">Delete schedule?</string>
@@ -236,6 +241,7 @@
     <string name="edit_item">Edit item</string>
     <string name="edit_note">Edit note</string>
     <string name="edit_party">Edit party</string>
+    <string name="edit_purchase_order">Edit purchase order</string>
     <string name="edit_quotation">Edit quotation</string>
     <string name="edit_recurring">Edit recurring entry</string>
     <string name="email">Email</string>
@@ -261,6 +267,7 @@
     <string name="err_opening_after_txn">The account has entries from %s. The opening date must be on or before that.</string>
     <string name="err_same_account">Source and destination must be different</string>
     <string name="every">Every</string>
+    <string name="expected_by_x">Expected by %s</string>
     <string name="expense_breakdown">Largest expense categories</string>
     <string name="expense_category">Expense category *</string>
     <string name="expenses">Expenses</string>
@@ -296,6 +303,7 @@
     <string name="frequency">Frequency</string>
     <string name="from_account">From account *</string>
     <string name="from_date">From</string>
+    <string name="from_po_x">From purchase order %s</string>
     <string name="from_quotation_x">From quotation %s</string>
     <string name="fy_info">Financial-year reports and filters use the Indian financial year, 1 April to 31 March.</string>
     <string name="gallery">Gallery</string>
@@ -453,6 +461,7 @@
     <string name="new_invoice">New invoice</string>
     <string name="new_item">New item</string>
     <string name="new_party">New party</string>
+    <string name="new_purchase_order">New purchase order</string>
     <string name="new_quotation">New quotation</string>
     <string name="new_recurring">New recurring entry</string>
     <string name="next">Next</string>
@@ -471,6 +480,7 @@
     <string name="no_notes">No credit or debit notes.</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
+    <string name="no_purchase_orders">No purchase orders yet.</string>
     <string name="no_quotations">No quotations yet.</string>
     <string name="no_recurring">No recurring entries yet.</string>
     <string name="no_stock_moves">No stock movements yet.</string>
@@ -490,6 +500,7 @@
     <string name="open_app_settings">Open app settings</string>
     <string name="open_in_app">Open in another app</string>
     <string name="open_pdf">Open PDF</string>
+    <string name="open_purchase_orders">Open purchase orders</string>
     <string name="open_quotations">Open quotations</string>
     <string name="opening_balance">Opening balance</string>
     <string name="opening_date">Opening date</string>
@@ -544,11 +555,14 @@
     <string name="pdf_invoice">INVOICE</string>
     <string name="pdf_invoice_no">Invoice no.</string>
     <string name="pdf_note_no">Note no.</string>
+    <string name="pdf_po_no">PO no.</string>
+    <string name="pdf_purchase_order">PURCHASE ORDER</string>
     <string name="pdf_quotation">QUOTATION</string>
     <string name="pdf_quotation_no">Quotation no.</string>
     <string name="pdf_scan_to_pay">Scan to pay with any UPI app</string>
     <string name="pdf_set_profile_hint">Add your business name, GSTIN and state in Settings › Business profile so they print on the invoice.</string>
     <string name="pdf_sr">#</string>
+    <string name="pdf_supplier">Supplier</string>
     <string name="pdf_tax_invoice">TAX INVOICE</string>
     <string name="pdf_tax_summary">GST summary</string>
     <string name="pdf_terms">Terms</string>
@@ -568,6 +582,14 @@
     <string name="pin_mismatch">PINs did not match. Try again.</string>
     <string name="pin_rules">Avoid easy PINs like 1234 or your birth year.</string>
     <string name="place_of_supply">Place of supply</string>
+    <string name="po_billed">Billed</string>
+    <string name="po_cancel">Cancel order</string>
+    <string name="po_date">Order date</string>
+    <string name="po_expected_by">Expected by</string>
+    <string name="po_explain">An order you place with a supplier. Convert it to a bill when the goods or bill arrive.</string>
+    <string name="po_intro">Send suppliers a purchase order with items and GST. When the goods and bill arrive, convert it to a bill in one tap.</string>
+    <string name="po_not_cash_note">A purchase order doesn\'t change balances, payables, stock or GST. Nothing is owed until you convert it to a bill.</string>
+    <string name="po_number">PO number</string>
     <string name="post">Post</string>
     <string name="post_automatically">Create entries automatically</string>
     <string name="post_automatically_off">Each entry waits on the dashboard for you to Post or Skip (useful when the amount varies).</string>
@@ -579,6 +601,8 @@
     <string name="products_services">Products &amp; services</string>
     <string name="products_services_desc">Saved items with HSN/SAC, rates, GST and stock</string>
     <string name="provider_optional">Provider (optional)</string>
+    <string name="purchase_order">Purchase order</string>
+    <string name="purchase_orders">Purchase orders</string>
     <string name="purchase_rate">Purchase rate</string>
     <string name="quick_actions">Quick actions</string>
     <string name="quotation">Quotation</string>
@@ -593,6 +617,7 @@
     <string name="quote_not_cash_note">A quotation doesn\'t change balances, receivables, stock or GST. Nothing is owed until you convert it to an invoice.</string>
     <string name="quote_number">Quotation number</string>
     <string name="quote_open">Open</string>
+    <string name="quotes_and_orders">Quotes &amp; orders</string>
     <string name="quotes_intro">Send customers a quotation (estimate) with GST and items. When they accept, convert it to an invoice in one tap.</string>
     <string name="ready_body">\"%s\" is ready. You can add more cashbooks, accounts and categories at any time.</string>
     <string name="receivables">Receivables</string>
@@ -615,6 +640,12 @@
     <string name="refund_from_supplier_for">Refund received against %s</string>
     <string name="refund_to_customer_for">Refund paid against %s</string>
     <string name="remind_me">Remind me to back up</string>
+    <string name="reminder_balance">Balance due: %s</string>
+    <string name="reminder_due">This is a friendly reminder that invoice %1$s dated %2$s for %3$s is due on %4$s.</string>
+    <string name="reminder_greeting">Dear %s,</string>
+    <string name="reminder_ignore">Please ignore this message if you have already paid.</string>
+    <string name="reminder_overdue">This is a friendly reminder that invoice %1$s dated %2$s for %3$s was due on %4$s (%5$d days ago).</string>
+    <string name="reminder_thanks">Thank you,</string>
     <string name="remove">Remove</string>
     <string name="remove_item">Remove item</string>
     <string name="remove_pin">Remove PIN</string>
@@ -647,6 +678,8 @@
     <string name="report_outstanding_desc">Unpaid invoices and bills by party, grouped by days overdue, as at a date</string>
     <string name="report_party">Party-wise Transaction Report</string>
     <string name="report_party_desc">Money received from and paid to each party</string>
+    <string name="report_party_statement">Statement of account</string>
+    <string name="report_party_statement_desc">A customer\'s or supplier\'s invoices, notes and payments with running balance</string>
     <string name="report_stock">Stock Summary</string>
     <string name="report_stock_desc">Opening, in, out, adjustments and closing stock with value</string>
     <string name="report_transfers">Transfer Report</string>
@@ -672,9 +705,12 @@
     <string name="rl_adjusted">Adjusted</string>
     <string name="rl_ageing">Ageing</string>
     <string name="rl_balance">Balance</string>
+    <string name="rl_bill_x">Bill %s</string>
     <string name="rl_cash_basis_note">This report reflects recorded cash movements only. It is not an accrual-based profit and loss account.</string>
     <string name="rl_closing_stock">Closing</string>
     <string name="rl_count">No. of entries</string>
+    <string name="rl_credit">Credit</string>
+    <string name="rl_credit_note_x">Credit note %s</string>
     <string name="rl_d0_30">1–30 days overdue</string>
     <string name="rl_d31_60">31–60 days overdue</string>
     <string name="rl_d61_90">61–90 days overdue</string>
@@ -682,12 +718,15 @@
     <string name="rl_day_detail">Entries</string>
     <string name="rl_day_summary">Date-wise summary</string>
     <string name="rl_days_overdue">Days overdue</string>
+    <string name="rl_debit">Debit</string>
+    <string name="rl_debit_note_x">Debit note %s</string>
     <string name="rl_expense_by_category">Expenses by category</string>
     <string name="rl_from">From</string>
     <string name="rl_gst_note">Based on itemised invoices and bills by invoice date (cancelled ones excluded). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.</string>
     <string name="rl_in">In</string>
     <string name="rl_income_by_category">Income by category</string>
     <string name="rl_input_tax">Input tax (purchase bills)</string>
+    <string name="rl_invoice_x">Invoice %s</string>
     <string name="rl_invoices_counted">Itemised invoices counted</string>
     <string name="rl_item">Item</string>
     <string name="rl_item_sales_note">Sales invoices in the period, net of sales credit notes. Lines not picked from saved items are grouped by description.</string>
@@ -704,12 +743,16 @@
     <string name="rl_out">Out</string>
     <string name="rl_output_tax">Output tax (sales invoices)</string>
     <string name="rl_outstanding_note">Invoices and bills are amounts owed, not cash movements; they don\'t change account balances until payments are recorded. Figures are as at the end of the selected period.</string>
+    <string name="rl_paid_x">Paid – %1$s (%2$s)</string>
     <string name="rl_particulars">Particulars</string>
     <string name="rl_party_note">Shows money actually received from and paid to each party. It is not a receivables/payables ledger.</string>
     <string name="rl_payments">Payments</string>
     <string name="rl_percent">% of total</string>
     <string name="rl_quantity">Quantity</string>
     <string name="rl_receipts">Receipts</string>
+    <string name="rl_received_x">Received – %1$s (%2$s)</string>
+    <string name="rl_refund_x">Refund – %1$s (%2$s)</string>
+    <string name="rl_statement_note">Built from invoices, bills, credit/debit notes and the payments linked to them. For a customer, debit = amount billed and credit = amount received (balance = owed to you); for a supplier, credit = amount billed and debit = amount paid (balance = you owe). A negative balance is an advance or refund due. Entries not linked to an invoice are shown separately in the summary.</string>
     <string name="rl_stock_note">Stock is worked out from purchase bills (in), sales invoices (out), credit notes for returns, and manual adjustments. Only lines picked from saved goods are counted. Value uses each item\'s purchase rate.</string>
     <string name="rl_stock_value">Value (purchase rate)</string>
     <string name="rl_to">To</string>
@@ -726,6 +769,8 @@
     <string name="rl_transfers">Transfers</string>
     <string name="rl_transfers_net">Transfers (net)</string>
     <string name="rl_type">Type</string>
+    <string name="rl_unlinked_payments">Payments not linked to invoices</string>
+    <string name="rl_unlinked_receipts">Receipts not linked to invoices</string>
     <string name="round_off">Round off</string>
     <string name="round_off_total">Round total to the nearest rupee</string>
     <string name="run_backup_now">Back up now</string>
@@ -760,6 +805,7 @@
     <string name="select_backup_file">Select backup file</string>
     <string name="select_category">Select category</string>
     <string name="select_party">Select party</string>
+    <string name="send_reminder">Send payment reminder</string>
     <string name="set_business_state">Set your state in Business profile to split GST correctly.</string>
     <string name="set_default">Set as default</string>
     <string name="set_pin">Set PIN</string>
@@ -852,6 +898,7 @@
     <string name="welcome_p3">Daily, monthly, yearly and financial-year reports in PDF and Excel</string>
     <string name="welcome_p4">Encrypted backups and an optional PIN lock</string>
     <string name="welcome_title">Welcome to Cashbook</string>
+    <string name="whatsapp_reminder">WhatsApp payment reminder</string>
     <string name="widget_balance_hidden">Balance hidden</string>
     <string name="widget_description">Quick add and balance</string>
     <string name="widget_show_balance">Show balance on home-screen widget</string>

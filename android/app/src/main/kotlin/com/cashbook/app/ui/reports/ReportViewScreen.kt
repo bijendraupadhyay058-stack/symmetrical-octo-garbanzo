@@ -117,7 +117,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
     val mode = when (type) { ReportType.MONTHLY_SUMMARY -> Mode.MONTH; ReportType.YEARLY_SUMMARY -> Mode.YEAR; ReportType.FINANCIAL_YEAR -> Mode.FY; else -> Mode.PRESET }
     val allTime = remember { vm.pendingReportAllTime.also { vm.pendingReportAllTime = false } }
     val initialFilter = remember { vm.pendingReportFilter.also { vm.pendingReportFilter = null } }
-    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK || type == ReportType.OUTSTANDING -> PeriodPreset.TODAY; else -> PeriodPreset.THIS_MONTH }) }
+    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK || type == ReportType.OUTSTANDING -> PeriodPreset.TODAY; type == ReportType.PARTY_STATEMENT -> PeriodPreset.THIS_FY; else -> PeriodPreset.THIS_MONTH }) }
     var customStart by rememberSaveable { mutableLongStateOf(today.withDayOfMonth(1).toEpochDay()) }
     var customEnd by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today).toString()) }
@@ -243,6 +243,15 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
                         }
                     }
                 }
+                if (type == ReportType.PARTY_STATEMENT || type == ReportType.OUTSTANDING) {
+                    // parties that have invoices or bills in scope
+                    val withDocs = snap.invoices.filter { it.cashbookId in cbIds }.map { it.partyId }.toSet()
+                    val options = listOf(0L) + snap.parties.filter { it.id in withDocs || it.id in detailFilter.partyIds }.sortedBy { it.name.lowercase() }.map { it.id }
+                    DropdownField(stringResource(R.string.party), options, detailFilter.partyIds.singleOrNull() ?: 0L,
+                        labelOf = { if (it == 0L) stringResource(R.string.all_parties) else snap.names.party(it) },
+                        onSelect = { detailFilter = detailFilter.copy(partyIds = if (it == 0L) emptySet() else setOf(it)) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
                 if (type.supportsDetailFilters) {
                     TextButton(onClick = { showFilters = true }) { Icon(Icons.Filled.FilterList, null); Text(" " + stringResource(R.string.more_filters) +
                         if (detailFilter.isActive) " ✓" else "") }
@@ -320,6 +329,13 @@ private fun PreviewTable(t: ReportTable, f: UiFormat) {
             }
             t.rows.take(500).forEach { r ->
                 val bg = when (r.style) { RowStyle.HEADING -> MaterialTheme.colorScheme.surfaceVariant; RowStyle.TOTAL -> MaterialTheme.colorScheme.secondaryContainer; else -> MaterialTheme.colorScheme.surface }
+                // a group heading (text in the first cell only) spans the whole table instead of wrapping in one column
+                if (r.style == RowStyle.HEADING && r.cells.drop(1).all { it == Cell.Empty }) {
+                    Text(cellText(r.cells.first(), f), Modifier.background(bg).width(unit * t.columns.sumOf { it.weight.toDouble() }.toFloat()).padding(horizontal = 4.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    HorizontalDivider()
+                    return@forEach
+                }
                 Row(Modifier.background(bg).padding(vertical = 5.dp), verticalAlignment = Alignment.Top) {
                     r.cells.forEachIndexed { i, c ->
                         val col = t.columns.getOrNull(i) ?: return@forEachIndexed

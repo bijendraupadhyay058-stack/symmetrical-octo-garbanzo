@@ -56,6 +56,7 @@
     <string name="alerts_channel">इनवॉइस और बजट सूचनाएँ</string>
     <string name="all_accounts">सभी खाते</string>
     <string name="all_cashbooks">सभी कैशबुक (संयुक्त)</string>
+    <string name="all_parties">सभी पक्ष</string>
     <string name="allow_negative">ऋणात्मक शेष की अनुमति</string>
     <string name="allow_negative_off">जिन प्रविष्टियों से शेष ऋणात्मक हो, वे रोकी जाएँगी।</string>
     <string name="allow_negative_on">आपको चेतावनी मिलेगी, फिर भी सहेज सकेंगे।</string>
@@ -165,8 +166,11 @@
     <string name="confirm_pin">वही पिन फिर से दर्ज करें</string>
     <string name="confirm_restore">यह बैकअप पुनर्स्थापित करें?</string>
     <string name="continued">जारी</string>
+    <string name="convert_to_bill">बिल में बदलें</string>
     <string name="convert_to_invoice">इनवॉइस में बदलें</string>
+    <string name="converted_bill_explain">वह बिल हटाने पर यह खरीद आदेश फिर से खुल जाएगा।</string>
     <string name="converted_explain">वह इनवॉइस हटाने पर यह कोटेशन फिर से खुल जाएगा।</string>
+    <string name="converted_to_bill_x">बिल %s में बदला गया</string>
     <string name="converted_to_x">इनवॉइस %s में बदला गया</string>
     <string name="create">बनाएँ</string>
     <string name="create_backup">बैकअप बनाएँ</string>
@@ -211,6 +215,7 @@
     <string name="delete_note_title">नोट हटाएँ?</string>
     <string name="delete_permanently">स्थायी रूप से हटाएँ</string>
     <string name="delete_permanently_text">यह प्रविष्टि और इसके संलग्नक हमेशा के लिए हट जाएँगे।</string>
+    <string name="delete_po_title">खरीद आदेश हटाएँ?</string>
     <string name="delete_quote_text">कोटेशन और उसके आइटम हटा दिए जाएँगे।</string>
     <string name="delete_quote_title">कोटेशन हटाएँ?</string>
     <string name="delete_recurring">अनुसूची हटाएँ?</string>
@@ -236,6 +241,7 @@
     <string name="edit_item">आइटम संपादित करें</string>
     <string name="edit_note">नोट संपादित करें</string>
     <string name="edit_party">पक्ष संपादित करें</string>
+    <string name="edit_purchase_order">खरीद आदेश संपादित करें</string>
     <string name="edit_quotation">कोटेशन संपादित करें</string>
     <string name="edit_recurring">आवर्ती प्रविष्टि संपादित करें</string>
     <string name="email">ईमेल</string>
@@ -261,6 +267,7 @@
     <string name="err_opening_after_txn">खाते में %s से प्रविष्टियाँ हैं। प्रारंभ तिथि उसी दिन या उससे पहले होनी चाहिए।</string>
     <string name="err_same_account">स्रोत और गंतव्य खाते अलग होने चाहिए</string>
     <string name="every">हर</string>
+    <string name="expected_by_x">%s तक अपेक्षित</string>
     <string name="expense_breakdown">सबसे बड़ी व्यय श्रेणियाँ</string>
     <string name="expense_category">व्यय श्रेणी *</string>
     <string name="expenses">व्यय</string>
@@ -296,6 +303,7 @@
     <string name="frequency">आवृत्ति</string>
     <string name="from_account">किस खाते से *</string>
     <string name="from_date">से</string>
+    <string name="from_po_x">खरीद आदेश %s से</string>
     <string name="from_quotation_x">कोटेशन %s से</string>
     <string name="fy_info">वित्त-वर्ष रिपोर्ट और फ़िल्टर भारतीय वित्त वर्ष, 1 अप्रैल से 31 मार्च, का उपयोग करते हैं।</string>
     <string name="gallery">गैलरी</string>
@@ -453,6 +461,7 @@
     <string name="new_invoice">नया इनवॉइस</string>
     <string name="new_item">नया आइटम</string>
     <string name="new_party">नया पक्ष</string>
+    <string name="new_purchase_order">नया खरीद आदेश</string>
     <string name="new_quotation">नया कोटेशन</string>
     <string name="new_recurring">नई आवर्ती प्रविष्टि</string>
     <string name="next">आगे</string>
@@ -471,6 +480,7 @@
     <string name="no_notes">कोई क्रेडिट या डेबिट नोट नहीं।</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
+    <string name="no_purchase_orders">अभी कोई खरीद आदेश नहीं।</string>
     <string name="no_quotations">अभी कोई कोटेशन नहीं।</string>
     <string name="no_recurring">अभी कोई आवर्ती प्रविष्टि नहीं।</string>
     <string name="no_stock_moves">अभी कोई स्टॉक गतिविधि नहीं।</string>
@@ -490,6 +500,7 @@
     <string name="open_app_settings">ऐप सेटिंग खोलें</string>
     <string name="open_in_app">दूसरे ऐप में खोलें</string>
     <string name="open_pdf">PDF खोलें</string>
+    <string name="open_purchase_orders">खुले खरीद आदेश</string>
     <string name="open_quotations">खुले कोटेशन</string>
     <string name="opening_balance">प्रारंभिक शेष</string>
     <string name="opening_date">प्रारंभ तिथि</string>
@@ -544,11 +555,14 @@
     <string name="pdf_invoice">इनवॉइस</string>
     <string name="pdf_invoice_no">इनवॉइस सं.</string>
     <string name="pdf_note_no">नोट सं.</string>
+    <string name="pdf_po_no">PO नं.</string>
+    <string name="pdf_purchase_order">खरीद आदेश</string>
     <string name="pdf_quotation">कोटेशन</string>
     <string name="pdf_quotation_no">कोटेशन नं.</string>
     <string name="pdf_scan_to_pay">किसी भी UPI ऐप से स्कैन करके भुगतान करें</string>
     <string name="pdf_set_profile_hint">सेटिंग › व्यवसाय प्रोफ़ाइल में अपना व्यवसाय नाम, GSTIN और राज्य जोड़ें ताकि वे इनवॉइस पर छपें।</string>
     <string name="pdf_sr">क्र.</string>
+    <string name="pdf_supplier">सप्लायर</string>
     <string name="pdf_tax_invoice">कर बीजक</string>
     <string name="pdf_tax_summary">GST सारांश</string>
     <string name="pdf_terms">शर्तें</string>
@@ -568,6 +582,14 @@
     <string name="pin_mismatch">पिन मेल नहीं खाए। फिर प्रयास करें।</string>
     <string name="pin_rules">1234 या जन्म वर्ष जैसे आसान पिन से बचें।</string>
     <string name="place_of_supply">आपूर्ति का स्थान</string>
+    <string name="po_billed">बिल बना</string>
+    <string name="po_cancel">ऑर्डर रद्द करें</string>
+    <string name="po_date">ऑर्डर तारीख</string>
+    <string name="po_expected_by">अपेक्षित तारीख</string>
+    <string name="po_explain">सप्लायर को दिया गया ऑर्डर। माल या बिल आने पर इसे बिल में बदलें।</string>
+    <string name="po_intro">सप्लायर को आइटम और GST सहित खरीद आदेश भेजें। माल और बिल आने पर एक टैप में बिल में बदलें।</string>
+    <string name="po_not_cash_note">खरीद आदेश से बैलेंस, देनदारी, स्टॉक या GST नहीं बदलते। बिल में बदलने तक कुछ भी बकाया नहीं होता।</string>
+    <string name="po_number">PO नंबर</string>
     <string name="post">दर्ज करें</string>
     <string name="post_automatically">प्रविष्टियाँ अपने-आप बनाएँ</string>
     <string name="post_automatically_off">हर प्रविष्टि डैशबोर्ड पर आपके दर्ज करने या छोड़ने की प्रतीक्षा करेगी (राशि बदलने पर उपयोगी)।</string>
@@ -579,6 +601,8 @@
     <string name="products_services">उत्पाद और सेवाएँ</string>
     <string name="products_services_desc">HSN/SAC, दर, GST और स्टॉक सहित सहेजे गए आइटम</string>
     <string name="provider_optional">प्रदाता (वैकल्पिक)</string>
+    <string name="purchase_order">खरीद आदेश</string>
+    <string name="purchase_orders">खरीद आदेश</string>
     <string name="purchase_rate">खरीद दर</string>
     <string name="quick_actions">त्वरित कार्य</string>
     <string name="quotation">कोटेशन</string>
@@ -593,6 +617,7 @@
     <string name="quote_not_cash_note">कोटेशन से बैलेंस, लेनदारी, स्टॉक या GST नहीं बदलते। इनवॉइस में बदलने तक कुछ भी बकाया नहीं होता।</string>
     <string name="quote_number">कोटेशन नंबर</string>
     <string name="quote_open">खुला</string>
+    <string name="quotes_and_orders">कोटेशन व ऑर्डर</string>
     <string name="quotes_intro">ग्राहकों को GST और आइटम सहित कोटेशन (अनुमान) भेजें। स्वीकार होने पर एक टैप में इनवॉइस में बदलें।</string>
     <string name="ready_body">\"%s\" तैयार है। आप कभी भी और कैशबुक, खाते और श्रेणियाँ जोड़ सकते हैं।</string>
     <string name="receivables">प्राप्य</string>
@@ -615,6 +640,12 @@
     <string name="refund_from_supplier_for">%s के विरुद्ध प्राप्त रिफंड</string>
     <string name="refund_to_customer_for">%s के विरुद्ध दिया गया रिफंड</string>
     <string name="remind_me">बैकअप की याद दिलाएँ</string>
+    <string name="reminder_balance">बकाया राशि: %s</string>
+    <string name="reminder_due">यह एक विनम्र रिमाइंडर है कि %2$s का इनवॉइस %1$s, राशि %3$s, %4$s को देय है।</string>
+    <string name="reminder_greeting">प्रिय %s,</string>
+    <string name="reminder_ignore">यदि आप भुगतान कर चुके हैं तो कृपया इस संदेश को अनदेखा करें।</string>
+    <string name="reminder_overdue">यह एक विनम्र रिमाइंडर है कि %2$s का इनवॉइस %1$s, राशि %3$s, %4$s को देय था (%5$d दिन पहले)।</string>
+    <string name="reminder_thanks">धन्यवाद,</string>
     <string name="remove">हटाएँ</string>
     <string name="remove_item">आइटम हटाएँ</string>
     <string name="remove_pin">पिन हटाएँ</string>
@@ -647,6 +678,8 @@
     <string name="report_outstanding_desc">किसी तिथि तक पक्ष-वार अदत्त इनवॉइस और बिल, अतिदेय दिनों के अनुसार</string>
     <string name="report_party">पक्ष-वार लेन-देन रिपोर्ट</string>
     <string name="report_party_desc">प्रत्येक पक्ष से प्राप्त और उसे दिया गया पैसा</string>
+    <string name="report_party_statement">खाता विवरण</string>
+    <string name="report_party_statement_desc">ग्राहक या सप्लायर के इनवॉइस, नोट और भुगतान, चालू बैलेंस सहित</string>
     <string name="report_stock">स्टॉक सारांश</string>
     <string name="report_stock_desc">प्रारंभिक, आवक, जावक, समायोजन और अंतिम स्टॉक, मूल्य सहित</string>
     <string name="report_transfers">ट्रांसफ़र रिपोर्ट</string>
@@ -672,9 +705,12 @@
     <string name="rl_adjusted">समायोजित</string>
     <string name="rl_ageing">अवधि-विश्लेषण</string>
     <string name="rl_balance">शेष</string>
+    <string name="rl_bill_x">बिल %s</string>
     <string name="rl_cash_basis_note">यह रिपोर्ट केवल दर्ज नकद लेन-देन दर्शाती है। यह उपार्जन-आधारित लाभ-हानि खाता नहीं है।</string>
     <string name="rl_closing_stock">अंतिम</string>
     <string name="rl_count">प्रविष्टियों की संख्या</string>
+    <string name="rl_credit">जमा</string>
+    <string name="rl_credit_note_x">क्रेडिट नोट %s</string>
     <string name="rl_d0_30">1–30 दिन अतिदेय</string>
     <string name="rl_d31_60">31–60 दिन अतिदेय</string>
     <string name="rl_d61_90">61–90 दिन अतिदेय</string>
@@ -682,12 +718,15 @@
     <string name="rl_day_detail">प्रविष्टियाँ</string>
     <string name="rl_day_summary">तारीख़-वार सारांश</string>
     <string name="rl_days_overdue">अतिदेय दिन</string>
+    <string name="rl_debit">नामे</string>
+    <string name="rl_debit_note_x">डेबिट नोट %s</string>
     <string name="rl_expense_by_category">श्रेणी-वार व्यय</string>
     <string name="rl_from">से</string>
     <string name="rl_gst_note">इनवॉइस तिथि के अनुसार आइटम-वार इनवॉइस और बिल पर आधारित (रद्द शामिल नहीं)। एक राशि वाले इनवॉइस में कर विवरण नहीं होता, इसलिए शामिल नहीं। यह समीक्षा के लिए सारांश है, GST रिटर्न नहीं।</string>
     <string name="rl_in">आवक</string>
     <string name="rl_income_by_category">श्रेणी-वार आय</string>
     <string name="rl_input_tax">इनपुट कर (खरीद बिल)</string>
+    <string name="rl_invoice_x">इनवॉइस %s</string>
     <string name="rl_invoices_counted">गिने गए आइटम-वार इनवॉइस</string>
     <string name="rl_item">आइटम</string>
     <string name="rl_item_sales_note">अवधि के बिक्री इनवॉइस, बिक्री क्रेडिट नोट घटाकर। जो आइटम सहेजे आइटम से नहीं चुने गए, वे विवरण के अनुसार समूहित हैं।</string>
@@ -704,12 +743,16 @@
     <string name="rl_out">जावक</string>
     <string name="rl_output_tax">आउटपुट कर (बिक्री इनवॉइस)</string>
     <string name="rl_outstanding_note">इनवॉइस और बिल बकाया राशियाँ हैं, नकद लेन-देन नहीं; भुगतान दर्ज होने तक ये खाता शेष नहीं बदलते। आँकड़े चुनी अवधि के अंत तक के हैं।</string>
+    <string name="rl_paid_x">भुगतान – %1$s (%2$s)</string>
     <string name="rl_particulars">विवरण</string>
     <string name="rl_party_note">प्रत्येक पक्ष से वास्तव में प्राप्त और उसे दिया गया पैसा दर्शाती है। यह प्राप्य/देय खाता-बही नहीं है।</string>
     <string name="rl_payments">भुगतान</string>
     <string name="rl_percent">कुल का %</string>
     <string name="rl_quantity">मात्रा</string>
     <string name="rl_receipts">प्राप्तियाँ</string>
+    <string name="rl_received_x">प्राप्त – %1$s (%2$s)</string>
+    <string name="rl_refund_x">रिफंड – %1$s (%2$s)</string>
+    <string name="rl_statement_note">इनवॉइस, बिल, क्रेडिट/डेबिट नोट और उनसे जुड़े भुगतानों से बना। ग्राहक के लिए नामे = बिल की गई राशि और जमा = प्राप्त राशि (बैलेंस = आपको मिलना है); सप्लायर के लिए जमा = बिल की गई राशि और नामे = भुगतान (बैलेंस = आपको देना है)। ऋणात्मक बैलेंस अग्रिम या देय रिफंड है। इनवॉइस से न जुड़ी प्रविष्टियाँ सारांश में अलग दिखाई गई हैं।</string>
     <string name="rl_stock_note">स्टॉक खरीद बिल (आवक), बिक्री इनवॉइस (जावक), वापसी के क्रेडिट नोट और मैनुअल समायोजन से निकाला जाता है। केवल सहेजे गए माल से चुने गए आइटम गिने जाते हैं। मूल्य प्रत्येक आइटम की खरीद दर पर है।</string>
     <string name="rl_stock_value">मूल्य (खरीद दर)</string>
     <string name="rl_to">को</string>
@@ -726,6 +769,8 @@
     <string name="rl_transfers">ट्रांसफ़र</string>
     <string name="rl_transfers_net">ट्रांसफ़र (शुद्ध)</string>
     <string name="rl_type">प्रकार</string>
+    <string name="rl_unlinked_payments">इनवॉइस से न जुड़े भुगतान</string>
+    <string name="rl_unlinked_receipts">इनवॉइस से न जुड़ी प्राप्तियाँ</string>
     <string name="round_off">पूर्णांकन</string>
     <string name="round_off_total">कुल को निकटतम रुपये तक पूर्णांकित करें</string>
     <string name="run_backup_now">अभी बैकअप लें</string>
@@ -760,6 +805,7 @@
     <string name="select_backup_file">बैकअप फ़ाइल चुनें</string>
     <string name="select_category">श्रेणी चुनें</string>
     <string name="select_party">पक्ष चुनें</string>
+    <string name="send_reminder">भुगतान रिमाइंडर भेजें</string>
     <string name="set_business_state">GST सही बाँटने के लिए व्यवसाय प्रोफ़ाइल में अपना राज्य सेट करें।</string>
     <string name="set_default">डिफ़ॉल्ट बनाएँ</string>
     <string name="set_pin">पिन सेट करें</string>
@@ -852,6 +898,7 @@
     <string name="welcome_p3">PDF और Excel में दैनिक, मासिक, वार्षिक और वित्त-वर्ष रिपोर्ट</string>
     <string name="welcome_p4">एन्क्रिप्टेड बैकअप और वैकल्पिक पिन लॉक</string>
     <string name="welcome_title">कैशबुक में आपका स्वागत है</string>
+    <string name="whatsapp_reminder">WhatsApp भुगतान रिमाइंडर</string>
     <string name="widget_balance_hidden">शेष छिपा है</string>
     <string name="widget_description">त्वरित प्रविष्टि और शेष</string>
     <string name="widget_show_balance">होम-स्क्रीन विजेट पर शेष दिखाएँ</string>

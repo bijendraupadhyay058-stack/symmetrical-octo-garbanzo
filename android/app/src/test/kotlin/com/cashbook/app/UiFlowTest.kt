@@ -13,6 +13,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -445,7 +446,7 @@ class UiFlowTest {
         launch()
         waitFor("Total balance")
         tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
-        waitFor("Receivables"); tab("Quotations")
+        waitFor("Receivables"); tab("Quotes & orders")
         waitFor("No quotations yet.")
         click("New quotation")
         waitFor("Customer / client *")
@@ -481,6 +482,81 @@ class UiFlowTest {
         scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         waitFor("Open quotations"); waitFor("Converted")
         shot("40_quotations_list")
+    }
+
+    @Test fun purchaseOrderStatementAndReminder() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.settings.updateBusinessProfile(com.cashbook.core.backup.BusinessProfileDto(name = "Sharma & Associates", stateCode = "27", upiId = "sharma.assoc@oksbi"))
+            val customer = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", mobile = "98765 43210",
+                createdAt = 0, updatedAt = 0, stateCode = "27"))
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "Office Mart", type = "SUPPLIER", createdAt = 0, updatedAt = 0, stateCode = "27"))
+            d.ledger.saveCatalogItem(com.cashbook.core.CatalogItem(0, "Toner cartridge", com.cashbook.core.ItemKind.GOODS, "8443", "Nos", 250_000, 180_000, 1800,
+                openingStockMilli = 2_000, openingDate = LocalDate.now().minusDays(30), reorderLevelMilli = 3_000))
+            val s = d.snap { it.parties.size == 2 && it.catalog.isNotEmpty() }
+            val cb = s.cashbooks.single().id
+            val inv = d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/007", customer,
+                LocalDate.now().minusDays(40), LocalDate.now().minusDays(25), 1_180_000))
+            d.ledger.recordPayment(inv, s.accounts.first().id, s.categories.first { it.kind == com.cashbook.core.CategoryKind.INCOME }.id, 500_000,
+                LocalDate.now().minusDays(20), com.cashbook.core.PaymentMode.UPI, "UTR123", "Part payment")
+            d.snap { it.allocations.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        // payment reminder on the overdue invoice (the customer has a mobile number, so it goes to WhatsApp)
+        waitFor("INV/26-27/007", substring = true); click("ABC Enterprises")
+        waitFor("Record receipt")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("WhatsApp payment reminder", substring = true))
+        shot("45_invoice_reminder")
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        // purchase order → bill
+        waitFor("Receivables"); tab("Quotes & orders")
+        waitFor("Purchase orders"); click("Purchase orders")
+        waitFor("No purchase orders yet."); click("New purchase order")
+        waitFor("Supplier *"); click("Supplier *"); waitFor("Office Mart"); click("Office Mart")
+        waitFor("Expected by")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Add a saved item", substring = true))
+        compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("Pick a saved item"))[0].performClick()
+        waitFor("Toner cartridge"); click("Toner cartridge")
+        field("Qty").performTextClearance(); field("Qty").performTextInput("10")
+        shot("42_purchase_order_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Convert to bill")
+        var s = runBlocking { d.snap { it.quotations.isNotEmpty() } }
+        assertTrue(s.quotations.single().number.startsWith("PO/"))
+        assertEquals(2_000L, s.onHand(s.catalog.single()))
+        shot("43_purchase_order_detail")
+        compose.onNodeWithText("Convert to bill", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Record payment"); waitFor("From purchase order", substring = true)
+        s = runBlocking { d.snap { it.invoices.size == 2 } }
+        assertEquals(12_000L, s.onHand(s.catalog.single()))
+        repeat(2) { scenario?.onActivity { a -> a.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }
+        waitFor("Open purchase orders"); waitFor("Billed")
+        shot("44_purchase_orders_list")
+        repeat(2) { scenario?.onActivity { a -> a.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }   // list → Settings → Dashboard
+
+        // statement of account for the customer
+        tab("Reports")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Statement of account"))
+        click("Statement of account")
+        waitFor("All parties"); waitFor("Closing balance")
+        // the preview is recomposed while the report builds, which can swallow the first tap on the dropdown: retry it
+        val menuItem = hasText("ABC Enterprises") and androidx.compose.ui.test.hasClickAction()
+        for (attempt in 1..3) {
+            compose.onNode(hasText("All parties") and androidx.compose.ui.test.hasClickAction()).performClick()
+            compose.waitForIdle()
+            if (runCatching { compose.waitUntil(2_000) { compose.onAllNodes(menuItem).fetchSemanticsNodes().isNotEmpty() } }.isSuccess) break
+        }
+        compose.onAllNodes(hasText("ABC Enterprises") and androidx.compose.ui.test.hasClickAction()).onFirst().performClick()
+        waitFor("Received – UPI (INV/26-27/007) · UTR123", substring = true)
+        waitFor("Closing balance")
+        compose.onAllNodesWithText("Office Mart", useUnmergedTree = true).assertCountEquals(0)          // only the chosen party
+        shot("46_statement_of_account")
     }
 
     @Test fun outstandingReport() {

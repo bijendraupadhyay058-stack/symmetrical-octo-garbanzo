@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +65,7 @@ import com.cashbook.app.ui.theme.LocalFinanceColors
 import com.cashbook.core.GstCalc
 import com.cashbook.core.InvoiceBalance
 import com.cashbook.core.InvoiceInfo
+import com.cashbook.core.InvoiceKind
 import com.cashbook.core.InvoiceStatus
 import com.cashbook.core.Qr
 import com.cashbook.core.QuoteStatus
@@ -76,53 +78,61 @@ fun quoteStatusColor(s: QuoteStatus): Color = LocalFinanceColors.current.let {
         QuoteStatus.DECLINED -> MaterialTheme.colorScheme.outline }
 }
 
+/** Purchase orders read Open / Overdue (expected date passed) / Billed / Cancelled. */
 @Composable
-fun quoteStatusLabel(s: QuoteStatus) = stringResource(when (s) {
+fun quoteStatusLabel(s: QuoteStatus, kind: InvoiceKind = InvoiceKind.SALE) = stringResource(if (kind == InvoiceKind.SALE) when (s) {
     QuoteStatus.OPEN -> R.string.quote_open; QuoteStatus.EXPIRED -> R.string.quote_expired
-    QuoteStatus.CONVERTED -> R.string.quote_converted; QuoteStatus.DECLINED -> R.string.quote_declined })
+    QuoteStatus.CONVERTED -> R.string.quote_converted; QuoteStatus.DECLINED -> R.string.quote_declined } else when (s) {
+    QuoteStatus.OPEN -> R.string.quote_open; QuoteStatus.EXPIRED -> R.string.overdue
+    QuoteStatus.CONVERTED -> R.string.po_billed; QuoteStatus.DECLINED -> R.string.inv_cancelled })
 
 @Composable
-fun QuoteStatusChip(s: QuoteStatus) {
+fun QuoteStatusChip(s: QuoteStatus, kind: InvoiceKind = InvoiceKind.SALE) {
     val c = quoteStatusColor(s)
-    Text(quoteStatusLabel(s), style = MaterialTheme.typography.labelSmall, color = c,
+    Text(quoteStatusLabel(s, kind), style = MaterialTheme.typography.labelSmall, color = c,
         modifier = Modifier.background(c.copy(alpha = 0.12f), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp))
 }
 
-/** Quotations tab of the invoices screen: open ones first (by valid-until date), then the rest, newest first. */
+/** Quotations & orders tab: sales quotations or purchase orders; open ones first (by date), then the rest, newest first. */
 @Composable
-fun QuotationList(snap: Snapshot, nav: NavHostController, cashbookIds: Set<Long>) {
+fun QuotationList(snap: Snapshot, nav: NavHostController, cashbookIds: Set<Long>, kind: InvoiceKind, onKind: (InvoiceKind) -> Unit) {
     val f = LocalUiFormat.current
     val today = LocalDate.now()
-    val quotes = snap.quotations.filter { it.cashbookId in cashbookIds }.map { it to Quotations.status(it, today) }
+    val sale = kind == InvoiceKind.SALE
+    val quotes = snap.quotations.filter { it.cashbookId in cashbookIds && it.kind == kind }.map { it to Quotations.status(it, today) }
         .sortedWith(compareBy({ it.second != QuoteStatus.OPEN }, { if (it.second == QuoteStatus.OPEN) it.first.dueDate.toEpochDay() else -it.first.issueDate.toEpochDay() }))
     val open = quotes.filter { it.second == QuoteStatus.OPEN }
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(sale, { onKind(InvoiceKind.SALE) }, { Text(stringResource(R.string.quotations)) })
+                    FilterChip(!sale, { onKind(InvoiceKind.PURCHASE) }, { Text(stringResource(R.string.purchase_orders)) })
+                }
                 SectionCard {
                     Row {
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.open_quotations), style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(if (sale) R.string.open_quotations else R.string.open_purchase_orders), style = MaterialTheme.typography.labelLarge)
                             Text(f.amount(open.sumOf { it.first.amount }), style = MaterialTheme.typography.titleLarge)
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text(stringResource(R.string.quote_converted), style = MaterialTheme.typography.labelLarge)
+                            Text(quoteStatusLabel(QuoteStatus.CONVERTED, kind), style = MaterialTheme.typography.labelLarge)
                             Text(quotes.count { it.second == QuoteStatus.CONVERTED }.toString() + " / " + quotes.size, style = MaterialTheme.typography.titleLarge)
                         }
                     }
                 }
-                InfoBanner(stringResource(R.string.quotes_intro), icon = Icons.Filled.Info)
+                InfoBanner(stringResource(if (sale) R.string.quotes_intro else R.string.po_intro), icon = Icons.Filled.Info)
             }
         }
-        if (quotes.isEmpty()) item { EmptyState(Icons.Filled.Description, stringResource(R.string.no_quotations)) }
+        if (quotes.isEmpty()) item { EmptyState(Icons.Filled.Description, stringResource(if (sale) R.string.no_quotations else R.string.no_purchase_orders)) }
         items(quotes, key = { it.first.id }) { (q, st) ->
             Row(Modifier.fillMaxWidth().clickable { nav.navigate(Routes.invoice(q.id)) }.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(snap.names.party(q.partyId), style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${q.number} · ${stringResource(R.string.valid_until_x, f.date(q.dueDate))}", style = MaterialTheme.typography.bodySmall,
+                    Text("${q.number} · ${stringResource(if (sale) R.string.valid_until_x else R.string.expected_by_x, f.date(q.dueDate))}", style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(2.dp)); QuoteStatusChip(st)
+                    Spacer(Modifier.height(2.dp)); QuoteStatusChip(st, kind)
                 }
                 Text(f.amount(q.amount), style = MaterialTheme.typography.titleSmall)
             }
@@ -143,30 +153,33 @@ fun QuotationDetailScreen(vm: AppViewModel, nav: NavHostController, q: InvoiceIn
     val status = Quotations.status(q, LocalDate.now())
     val converted = q.convertedInvoiceId?.let { c -> snap.invoices.firstOrNull { it.id == c } }
     val msgDeclined = stringResource(R.string.quote_err_declined)
+    val sale = q.kind == InvoiceKind.SALE
+    val docLabel = stringResource(if (sale) R.string.quotation else R.string.purchase_order)
+    val dateLabel = stringResource(if (sale) R.string.quote_date else R.string.po_date)
+    val untilLabel = stringResource(if (sale) R.string.valid_until else R.string.po_expected_by)
     AppScaffold(title = q.number, onBack = { nav.popBackStack() }, actions = {
         IconButton(onClick = {
             vm.allowExternalActivity()
             Exporter.shareText(ctx, buildString {
-                appendLine(ctx.getString(R.string.quotation) + " " + q.number)
+                appendLine("$docLabel ${q.number}")
                 appendLine(snap.names.party(q.partyId))
-                appendLine("${ctx.getString(R.string.quote_date)}: ${f.date(q.issueDate)}")
-                appendLine("${ctx.getString(R.string.valid_until)}: ${f.date(q.dueDate)}")
+                appendLine("$dateLabel: ${f.date(q.issueDate)}")
+                appendLine("$untilLabel: ${f.date(q.dueDate)}")
                 appendLine("${ctx.getString(R.string.amount)}: ${f.amount(q.amount)}")
                 if (q.description.isNotBlank()) appendLine(q.description)
             }.trim(), ctx.getString(R.string.share))
         }) { Icon(Icons.Filled.Share, stringResource(R.string.share)) }
-        if (converted == null) IconButton(onClick = { nav.navigate(Routes.quoteEdit(q.id)) }) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
+        if (converted == null) IconButton(onClick = { nav.navigate(Routes.quoteEdit(q.id, q.kind.name)) }) { Icon(Icons.Filled.Edit, stringResource(R.string.edit)) }
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.quotation), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(docLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Text(snap.names.party(q.partyId), style = MaterialTheme.typography.titleLarge)
-                        Text("${stringResource(R.string.quote_date)}: ${f.date(q.issueDate)} · ${stringResource(R.string.valid_until_x, f.date(q.dueDate))}",
-                            style = MaterialTheme.typography.bodySmall)
+                        Text("$dateLabel: ${f.date(q.issueDate)} · $untilLabel ${f.date(q.dueDate)}", style = MaterialTheme.typography.bodySmall)
                     }
-                    QuoteStatusChip(status)
+                    QuoteStatusChip(status, q.kind)
                 }
                 HorizontalDivider(Modifier.padding(vertical = 8.dp))
                 Row(Modifier.fillMaxWidth()) {
@@ -198,12 +211,12 @@ fun QuotationDetailScreen(vm: AppViewModel, nav: NavHostController, q: InvoiceIn
             InvoicePdfButtons(vm, snap, InvoiceBalance(q, 0, InvoiceStatus.OPEN, 0))
             if (converted != null) {
                 SectionCard {
-                    Text(stringResource(R.string.converted_to_x, converted.number), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary,
+                    Text(stringResource(if (sale) R.string.converted_to_x else R.string.converted_to_bill_x, converted.number), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth().clickable { nav.navigate(Routes.invoice(converted.id)) }.padding(vertical = 4.dp))
-                    Text(stringResource(R.string.converted_explain), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(if (sale) R.string.converted_explain else R.string.converted_bill_explain), style = MaterialTheme.typography.bodySmall)
                 }
             } else {
-                InfoBanner(stringResource(R.string.quote_not_cash_note), icon = Icons.Filled.Info)
+                InfoBanner(stringResource(if (sale) R.string.quote_not_cash_note else R.string.po_not_cash_note), icon = Icons.Filled.Info)
                 if (!q.cancelled) Button(onClick = {
                     vm.run(onError = { e ->
                         vm.toast(if ((e as? LedgerRepository.InvoiceException)?.reason == LedgerRepository.InvoiceException.Reason.DECLINED) msgDeclined else e.localizedMessage ?: "")
@@ -211,17 +224,17 @@ fun QuotationDetailScreen(vm: AppViewModel, nav: NavHostController, q: InvoiceIn
                         val invId = ledger.convertQuotation(q.id, LocalDate.now(), 15, seller.stateCode)
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { nav.navigate(Routes.invoice(invId)) }
                     }
-                }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.convert_to_invoice)) }
+                }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(if (sale) R.string.convert_to_invoice else R.string.convert_to_bill)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { vm.run { ledger.setInvoiceCancelled(q.id, !q.cancelled) } }, modifier = Modifier.weight(1f)) {
-                        Text(stringResource(if (q.cancelled) R.string.inv_reopen else R.string.quote_decline), maxLines = 1) }
+                        Text(stringResource(if (q.cancelled) R.string.inv_reopen else if (sale) R.string.quote_decline else R.string.po_cancel), maxLines = 1) }
                     OutlinedButton(onClick = { confirmDelete = true }, modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                 }
             }
         }
     }
-    if (confirmDelete) ConfirmDialog(stringResource(R.string.delete_quote_title), stringResource(R.string.delete_quote_text), stringResource(R.string.delete),
+    if (confirmDelete) ConfirmDialog(stringResource(if (sale) R.string.delete_quote_title else R.string.delete_po_title), stringResource(R.string.delete_quote_text), stringResource(R.string.delete),
         onConfirm = { vm.run { ledger.deleteInvoice(q.id) }; nav.popBackStack() }, onDismiss = { confirmDelete = false }, destructive = true)
 }
 

@@ -36,6 +36,8 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val noteNo: String = "Note no.", val noteDate: String = "Note date",
         val quotation: String = "QUOTATION", val quotationNo: String = "Quotation no.", val quotationDate: String = "Quotation date",
         val validUntil: String = "Valid until", val scanToPay: String = "Scan to pay with any UPI app",
+        val purchaseOrder: String = "PURCHASE ORDER", val poNo: String = "PO no.", val poDate: String = "Order date", val expectedBy: String = "Expected by",
+        val supplier: String = "Supplier",
     )
 
     private val navy = Color.rgb(0x1A, 0x2B, 0x5C)
@@ -99,7 +101,7 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val title = when (inv.docType) {
             com.cashbook.core.DocType.CREDIT_NOTE -> s.creditNote
             com.cashbook.core.DocType.DEBIT_NOTE -> s.debitNote
-            com.cashbook.core.DocType.QUOTATION -> s.quotation
+            com.cashbook.core.DocType.QUOTATION -> if (inv.kind == com.cashbook.core.InvoiceKind.SALE) s.quotation else s.purchaseOrder
             else -> if (seller.gstin.isNotBlank() && totals != null) s.taxInvoice else s.invoice
         }
         branding.logo?.let { logo ->
@@ -121,10 +123,11 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val meta = buildList {
             val isNote = inv.docType.isNote
             val isQuote = inv.docType == com.cashbook.core.DocType.QUOTATION
-            add((if (isNote) s.noteNo else if (isQuote) s.quotationNo else s.invoiceNo) to inv.number)
-            add((if (isNote) s.noteDate else if (isQuote) s.quotationDate else s.invoiceDate) to dates.format(inv.issueDate))
+            val isPo = isQuote && inv.kind == com.cashbook.core.InvoiceKind.PURCHASE
+            add((if (isNote) s.noteNo else if (isPo) s.poNo else if (isQuote) s.quotationNo else s.invoiceNo) to inv.number)
+            add((if (isNote) s.noteDate else if (isPo) s.poDate else if (isQuote) s.quotationDate else s.invoiceDate) to dates.format(inv.issueDate))
             if (inv.docType == com.cashbook.core.DocType.INVOICE) add(s.dueDate to dates.format(inv.dueDate))
-            if (isQuote) add(s.validUntil to dates.format(inv.dueDate))
+            if (isQuote) add((if (isPo) s.expectedBy else s.validUntil) to dates.format(inv.dueDate))
             if (inv.placeOfSupply.isNotBlank()) add(s.placeOfSupply to Gst.stateLabel(inv.placeOfSupply))
             reference?.let { add(s.originalInvoice to "${it.number} (${dates.format(it.date)})") }
         }
@@ -137,7 +140,8 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         y += 10f
 
         // ----- bill to -----
-        text(s.billTo.uppercase(), M, y + 8f, pSmall); y += 12f
+        val toLabel = if (inv.docType == com.cashbook.core.DocType.QUOTATION && inv.kind == com.cashbook.core.InvoiceKind.PURCHASE) s.supplier else s.billTo
+        text(toLabel.uppercase(), M, y + 8f, pSmall); y += 12f
         text(buyer?.name ?: "", M, y + 10f, pBold); y += 13f
         buildList {
             addAll(wrap(buyer?.address ?: "", pText, CW * 0.6f))

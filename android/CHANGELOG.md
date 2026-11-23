@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.0 (versionCode 8)
+
+**New**
+- **Purchase orders** (Invoices & bills › Quotes & orders › Purchase orders): itemised with GST, numbered
+  PO/26-27/001, with an expected-by date and a PURCHASE ORDER PDF addressed to the supplier. **Convert to bill**
+  when the goods arrive; stock comes in with the bill. Status Open, Overdue, Billed or Cancelled.
+- **Statement of account** report for a customer or supplier: opening balance, invoices, credit/debit notes,
+  payments and refunds with a running balance; the closing balance matches what is outstanding. Open it from
+  Reports (pick the party) or from the party's screen. PDF and Excel.
+- **Payment reminder** on unpaid sales invoices: opens WhatsApp on the customer's mobile with a polite message
+  (amount, due date or days overdue, balance, your UPI ID), or the share sheet when there is no mobile number.
+- Report tables: party headings span the full width in the preview.
+
+**Data**
+- No database change (purchase orders use the 1.6 quotation storage with kind = purchase).
+
 ## 1.6.0 (versionCode 7)
 
 **New**

@@ -117,7 +117,7 @@ fun docTypeLabel(t: com.cashbook.core.DocType, kind: InvoiceKind) = when (t) {
     com.cashbook.core.DocType.CREDIT_NOTE -> stringResource(R.string.credit_note)
     com.cashbook.core.DocType.DEBIT_NOTE -> stringResource(R.string.debit_note)
     com.cashbook.core.DocType.INVOICE -> kindLabel(kind)
-    com.cashbook.core.DocType.QUOTATION -> stringResource(R.string.quotation)
+    com.cashbook.core.DocType.QUOTATION -> stringResource(if (kind == InvoiceKind.SALE) R.string.quotation else R.string.purchase_order)
 }
 
 /** Text status chip (never colour alone). */
@@ -141,6 +141,7 @@ fun InvoicesScreen(vm: AppViewModel, nav: NavHostController) {
     val f = LocalUiFormat.current
     val fc = LocalFinanceColors.current
     var tab by rememberSaveable { mutableStateOf(0) }
+    var quoteKind by rememberSaveable { mutableStateOf(InvoiceKind.SALE) }
     var filter by rememberSaveable { mutableStateOf(Filter.OPEN) }
     val kind = if (tab == 0) InvoiceKind.SALE else InvoiceKind.PURCHASE
     val scope = currentScope(snap, s)
@@ -154,8 +155,8 @@ fun InvoicesScreen(vm: AppViewModel, nav: NavHostController) {
         }
     }.sortedWith(compareBy({ it.outstanding == 0L }, { it.invoice.dueDate }))
     AppScaffold(title = stringResource(R.string.invoices_bills), onBack = { nav.popBackStack() }, floating = {
-        if (tab == 2) ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.quoteEdit(0)) }, icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text(stringResource(R.string.new_quotation)) })
+        if (tab == 2) ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.quoteEdit(0, quoteKind.name)) }, icon = { Icon(Icons.Filled.Add, null) },
+            text = { Text(stringResource(if (quoteKind == InvoiceKind.SALE) R.string.new_quotation else R.string.new_purchase_order)) })
         else ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.invoiceEdit(0, kind.name)) }, icon = { Icon(Icons.Filled.Add, null) },
             text = { Text(stringResource(if (kind == InvoiceKind.SALE) R.string.new_invoice else R.string.new_bill)) })
     }) { pad ->
@@ -163,9 +164,9 @@ fun InvoicesScreen(vm: AppViewModel, nav: NavHostController) {
             TabRow(tab) {
                 Tab(tab == 0, { tab = 0 }, text = { Text(stringResource(R.string.receivables), maxLines = 1) })
                 Tab(tab == 1, { tab = 1 }, text = { Text(stringResource(R.string.payables), maxLines = 1) })
-                Tab(tab == 2, { tab = 2 }, text = { Text(stringResource(R.string.quotations), maxLines = 1) })
+                Tab(tab == 2, { tab = 2 }, text = { Text(stringResource(R.string.quotes_and_orders), maxLines = 1) })
             }
-            if (tab == 2) { QuotationList(snap, nav, scope); return@Column }
+            if (tab == 2) { QuotationList(snap, nav, scope, quoteKind) { quoteKind = it }; return@Column }
             LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -295,6 +296,7 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     val msgNoteTooLarge = stringResource(R.string.note_err_too_large)
 
     val screenTitle = when {
+        isQuote && kind == InvoiceKind.PURCHASE -> stringResource(if (id == 0L) R.string.new_purchase_order else R.string.edit_purchase_order)
         isQuote -> stringResource(if (id == 0L) R.string.new_quotation else R.string.edit_quotation)
         isNote -> stringResource(if (id == 0L) (if (noteType == com.cashbook.core.DocType.CREDIT_NOTE) R.string.new_credit_note else R.string.new_debit_note) else R.string.edit_note)
         id == 0L -> stringResource(if (kind == InvoiceKind.SALE) R.string.new_invoice else R.string.new_bill)
@@ -312,20 +314,20 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                     }, shape = SegmentedButtonDefaults.itemShape(i, 2)) { Text(kindLabel(k), maxLines = 1) }
                 }
             }
-            if (!isNote) Text(stringResource(if (isQuote) R.string.quote_explain else if (kind == InvoiceKind.SALE) R.string.inv_sale_explain else R.string.inv_purchase_explain), style = MaterialTheme.typography.bodySmall,
+            if (!isNote) Text(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_explain else R.string.po_explain) else if (kind == InvoiceKind.SALE) R.string.inv_sale_explain else R.string.inv_purchase_explain), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             val cbs = snap.cashbooks.filter { !it.archived || it.id == cashbookId }
             if (cbs.size > 1 && id == 0L && !isNote) DropdownField(stringResource(R.string.cashbook), cbs.map { it.id }, cashbookId.takeIf { it != 0L },
                 labelOf = { snap.cashbookById[it]?.name ?: "" }, onSelect = { cashbookId = it })
             PickerField(stringResource(if (kind == InvoiceKind.SALE) R.string.inv_customer else R.string.inv_supplier), snap.names.party(partyId.takeIf { it > 0 }),
                 { if (!isNote) partyPicker = true }, isError = showErrors && errParty, supporting = if (showErrors && errParty) stringResource(R.string.inv_err_party) else null)
-            OutlinedTextField(number, { number = it }, label = { Text(stringResource(if (isQuote) R.string.quote_number else R.string.inv_number)) }, singleLine = true, isError = showErrors && number.isBlank(),
+            OutlinedTextField(number, { number = it }, label = { Text(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_number else R.string.po_number) else R.string.inv_number)) }, singleLine = true, isError = showErrors && number.isBlank(),
                 modifier = Modifier.fillMaxWidth())
             com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.itemised_gst), itemised, { itemised = it }, stringResource(R.string.itemised_gst_desc))
             if (!itemised) MoneyField(amount, { amount = it }, stringResource(R.string.inv_amount),
                 error = if (showErrors && errAmount) (if (paid > 0) stringResource(R.string.inv_err_below_paid) else stringResource(R.string.err_amount_invalid)) else null)
-            DateField(stringResource(if (isNote) R.string.note_date else if (isQuote) R.string.quote_date else R.string.inv_issue_date), LocalDate.ofEpochDay(issue), { issue = it.toEpochDay(); if (isNote) due = issue })
-            if (!isNote) DateField(stringResource(if (isQuote) R.string.valid_until else R.string.inv_due_date), LocalDate.ofEpochDay(due), { due = it.toEpochDay() }, isError = errDates,
+            DateField(stringResource(if (isNote) R.string.note_date else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_date else R.string.po_date) else R.string.inv_issue_date), LocalDate.ofEpochDay(issue), { issue = it.toEpochDay(); if (isNote) due = issue })
+            if (!isNote) DateField(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.valid_until else R.string.po_expected_by) else R.string.inv_due_date), LocalDate.ofEpochDay(due), { due = it.toEpochDay() }, isError = errDates,
                 supporting = if (errDates) stringResource(R.string.inv_err_due_before) else null)
             if (!isNote) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (if (isQuote) listOf(7, 15, 30, 60) else listOf(0, 7, 15, 30, 45, 60)).forEach { d ->
@@ -345,7 +347,7 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
             OutlinedTextField(description, { description = it }, label = { Text(stringResource(if (isNote) R.string.note_reason else R.string.description)) },
                 modifier = Modifier.fillMaxWidth(), maxLines = 3)
             OutlinedTextField(notes, { notes = it }, label = { Text(stringResource(R.string.notes)) }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
-            InfoBanner(stringResource(if (isQuote) R.string.quote_not_cash_note else R.string.inv_not_cash_note), icon = Icons.Filled.Info)
+            InfoBanner(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_not_cash_note else R.string.po_not_cash_note) else R.string.inv_not_cash_note), icon = Icons.Filled.Info)
             Button(onClick = {
                 showErrors = true
                 if (errAmount || errParty || errDates || number.isBlank() || cashbookId == 0L) return@Button
@@ -436,7 +438,7 @@ fun InvoiceDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
                     style = MaterialTheme.typography.bodySmall)
                 if (inv.notes.isNotBlank()) Text(inv.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 com.cashbook.core.Quotations.sourceOf(id, snap.quotations)?.let { q ->
-                    Text(stringResource(R.string.from_quotation_x, q.number), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                    Text(stringResource(if (q.kind == InvoiceKind.SALE) R.string.from_quotation_x else R.string.from_po_x, q.number), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.clickable { nav.navigate(Routes.invoice(q.id)) }.padding(vertical = 4.dp))
                 }
             }
@@ -463,6 +465,19 @@ fun InvoiceDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
             if (inv.kind == InvoiceKind.SALE) InvoicePdfButtons(vm, snap, b)
             if (inv.kind == InvoiceKind.SALE && !inv.cancelled && b.outstanding > 0 && com.cashbook.core.Upi.isValidVpa(seller.upiId))
                 UpiQrCard(com.cashbook.core.Upi.payUri(seller.upiId, seller.name, b.outstanding, inv.number), seller.upiId, b.outstanding)
+            if (inv.kind == InvoiceKind.SALE && !inv.cancelled && b.outstanding > 0) {
+                val party = snap.partyById[inv.partyId]
+                val wa = party?.mobile?.let { com.cashbook.core.Reminders.whatsappNumber(it) }
+                OutlinedButton(onClick = {
+                    val text = reminderText(ctx, b, snap, f, seller)
+                    vm.allowExternalActivity()
+                    val opened = wa != null && runCatching {
+                        ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(com.cashbook.core.Reminders.whatsappLink(wa, text))))
+                    }.isSuccess
+                    if (!opened) Exporter.shareText(ctx, text, ctx.getString(R.string.send_reminder))
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Share, null); Text(" " + stringResource(if (wa != null) R.string.whatsapp_reminder else R.string.send_reminder), maxLines = 1) }
+            }
             if (b.outstanding > 0) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { nav.navigate(Routes.recordPayment(id)) }, modifier = Modifier.weight(1f)) {
                     Text(stringResource(if (inv.kind == InvoiceKind.SALE) R.string.inv_record_receipt else R.string.inv_record_payment)) }
@@ -628,6 +643,25 @@ private fun ApplyEntryDialog(vm: AppViewModel, snap: Snapshot, b: InvoiceBalance
     )
 }
 
+/** Polite payment reminder for a sales invoice: amount, dates, balance, UPI ID and the business name. */
+fun reminderText(ctx: android.content.Context, b: InvoiceBalance, snap: Snapshot, f: com.cashbook.app.ui.components.UiFormat,
+                 seller: com.cashbook.core.backup.BusinessProfileDto, today: LocalDate = LocalDate.now()): String {
+    val inv = b.invoice
+    val overdue = java.time.temporal.ChronoUnit.DAYS.between(inv.dueDate, today)
+    return buildString {
+        appendLine(ctx.getString(R.string.reminder_greeting, snap.names.party(inv.partyId)))
+        appendLine()
+        appendLine(if (overdue > 0) ctx.getString(R.string.reminder_overdue, inv.number, f.date(inv.issueDate), f.amount(inv.amount), f.date(inv.dueDate), overdue.toInt())
+            else ctx.getString(R.string.reminder_due, inv.number, f.date(inv.issueDate), f.amount(inv.amount), f.date(inv.dueDate)))
+        appendLine(ctx.getString(R.string.reminder_balance, f.amount(b.outstanding)))
+        if (com.cashbook.core.Upi.isValidVpa(seller.upiId)) appendLine(ctx.getString(R.string.pay_by_upi_x, seller.upiId.trim()))
+        appendLine()
+        appendLine(ctx.getString(R.string.reminder_ignore))
+        append(ctx.getString(R.string.reminder_thanks))
+        if (seller.name.isNotBlank()) append("\n" + seller.name)
+    }.trim()
+}
+
 private fun shareText(ctx: android.content.Context, b: InvoiceBalance, snap: Snapshot, f: com.cashbook.app.ui.components.UiFormat, upiId: String = ""): String {
     val inv = b.invoice
     return buildString {
@@ -659,6 +693,8 @@ fun invoicePdfStrings(c: android.content.Context) = com.cashbook.app.export.Invo
     c.getString(R.string.pdf_note_no), c.getString(R.string.note_date),
     c.getString(R.string.pdf_quotation), c.getString(R.string.pdf_quotation_no), c.getString(R.string.quote_date), c.getString(R.string.valid_until),
     c.getString(R.string.pdf_scan_to_pay),
+    c.getString(R.string.pdf_purchase_order), c.getString(R.string.pdf_po_no), c.getString(R.string.po_date), c.getString(R.string.po_expected_by),
+    c.getString(R.string.pdf_supplier),
 )
 
 /** Save or share the invoice as a printable PDF. */

@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 enum class ReportType {
     DAILY_CASHBOOK, MONTHLY_SUMMARY, YEARLY_SUMMARY, FINANCIAL_YEAR, CATEGORY_WISE,
-    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY, STOCK_SUMMARY, ITEM_SALES;
+    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY, STOCK_SUMMARY, ITEM_SALES, PARTY_STATEMENT;
 
     /** Balance-based reports only accept an account filter; others accept every filter. */
     val supportsDetailFilters: Boolean
@@ -69,6 +69,7 @@ data class ReportLabels(
         ReportType.GST_SUMMARY to "GST Summary",
         ReportType.STOCK_SUMMARY to "Stock Summary",
         ReportType.ITEM_SALES to "Item-wise Sales",
+        ReportType.PARTY_STATEMENT to "Statement of Account",
     ),
     val types: Map<TxnType, String> = mapOf(TxnType.INCOME to "Income", TxnType.EXPENSE to "Expense", TxnType.TRANSFER to "Transfer"),
     val modes: Map<PaymentMode, String> = mapOf(
@@ -163,5 +164,17 @@ data class ReportLabels(
     val lowStock: String = "Low stock",
     val stockNote: String = "Stock is worked out from purchase bills (in), sales invoices (out), credit notes for returns, and manual adjustments. Only lines picked from saved goods are counted. Value uses each item's purchase rate.",
     val itemSalesNote: String = "Sales invoices in the period, net of sales credit notes. Lines not picked from saved items are grouped by description.",
+    val debit: String = "Debit",
+    val credit: String = "Credit",
+    val salesInvoiceX: String = "Invoice %s",
+    val purchaseBillX: String = "Bill %s",
+    val creditNoteX: String = "Credit note %s",
+    val debitNoteX: String = "Debit note %s",
+    val paymentReceivedX: String = "Received – %1${"$"}s (%2${"$"}s)",
+    val paymentMadeX: String = "Paid – %1${"$"}s (%2${"$"}s)",
+    val refundX: String = "Refund – %1${"$"}s (%2${"$"}s)",
+    val unlinkedReceipts: String = "Receipts not linked to invoices",
+    val unlinkedPayments: String = "Payments not linked to invoices",
+    val statementNote: String = "Built from invoices, bills, credit/debit notes and the payments linked to them. For a customer, debit = amount billed and credit = amount received (balance = owed to you); for a supplier, credit = amount billed and debit = amount paid (balance = you owe). A negative balance is an advance or refund due. Entries not linked to an invoice are shown separately in the summary.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )

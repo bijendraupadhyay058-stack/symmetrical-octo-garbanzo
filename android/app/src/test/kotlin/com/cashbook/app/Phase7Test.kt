@@ -64,7 +64,7 @@ class Phase7Test {
     @Test fun quotationConvertsToInvoice(): Unit = runBlocking {
         val f = fixture()
         assertEquals("QT/" , repo.nextInvoiceNumber(f.cb, InvoiceKind.SALE, today, DocType.QUOTATION).take(3))
-        val q = quote(f, kind = InvoiceKind.PURCHASE)                                             // always a sale
+        val q = quote(f)
         var s = d.snap { it.quotations.size == 1 }
         val qi = s.quotations.single()
         assertEquals(InvoiceKind.SALE, qi.kind)

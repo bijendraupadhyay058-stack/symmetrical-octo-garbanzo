@@ -190,7 +190,6 @@ object BackupCodec {
             val dt = runCatching { com.cashbook.core.DocType.valueOf(i.docType) }.getOrNull()
             if (dt == null) p += "invoice ${i.id} has invalid document type"
             if (dt == com.cashbook.core.DocType.QUOTATION) {
-                if (i.kind != "SALE") p += "quotation ${i.id} must be a sale"
                 val conv = i.convertedInvoiceId?.let { c -> d.invoices.firstOrNull { o -> o.id == c } }
                 if (i.convertedInvoiceId != null && (conv == null || conv.docType != "INVOICE" || conv.cashbookId != i.cashbookId)) p += "quotation ${i.id} has an invalid converted invoice"
             }

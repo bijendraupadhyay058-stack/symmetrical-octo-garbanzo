@@ -16,7 +16,10 @@ enum class InvoiceStatus { OPEN, PARTIAL, OVERDUE, PAID, REFUND_DUE, CANCELLED }
  * (return, discount, overcharge); DEBIT_NOTE raises it (extra charge). Notes are never cash movements.
  */
 enum class DocType { INVOICE, CREDIT_NOTE, DEBIT_NOTE,
-    /** A sales quotation / estimate: an offer only. Nothing is owed and stock and GST don't change until it is converted. */
+    /**
+     * An offer only, converted later into an invoice: a sales quotation / estimate (kind SALE) or a purchase order to a
+     * supplier (kind PURCHASE). Nothing is owed and stock and GST don't change until it is converted.
+     */
     QUOTATION;
     /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation). */
     val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION -> 0; else -> 1 }
@@ -175,7 +178,7 @@ object Invoices {
             DocType.INVOICE -> if (kind == InvoiceKind.SALE) "INV" else "BILL"
             DocType.CREDIT_NOTE -> if (kind == InvoiceKind.SALE) "CN" else "CN-IN"
             DocType.DEBIT_NOTE -> if (kind == InvoiceKind.SALE) "DN" else "DN-IN"
-            DocType.QUOTATION -> "QT"
+            DocType.QUOTATION -> if (kind == InvoiceKind.SALE) "QT" else "PO"
         }
         val prefix = series + "/" + yy(fy.startYear) + "-" + yy(fy.startYear + 1) + "/"
         val max = existing.filter { it.startsWith(prefix) }.mapNotNull { it.removePrefix(prefix).toIntOrNull() }.maxOrNull() ?: 0

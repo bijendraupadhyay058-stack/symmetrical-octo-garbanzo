@@ -60,6 +60,7 @@ fun reportIcon(t: ReportType) = when (t) {
     ReportType.GST_SUMMARY -> Icons.Filled.AccountBalance
     ReportType.STOCK_SUMMARY -> Icons.Filled.Inventory2
     ReportType.ITEM_SALES -> Icons.Filled.BarChart
+    ReportType.PARTY_STATEMENT -> Icons.Filled.People
 }
 
 @Composable

@@ -39,6 +39,10 @@ fun reportLabels(c: Context): ReportLabels {
         item = s(R.string.rl_item), unit = s(R.string.item_unit), inward = s(R.string.rl_in), outward = s(R.string.rl_out), adjusted = s(R.string.rl_adjusted),
         closingStock = s(R.string.rl_closing_stock), stockValue = s(R.string.rl_stock_value), quantity = s(R.string.rl_quantity), itemsCounted = s(R.string.rl_items),
         lowStock = s(R.string.low_stock), stockNote = s(R.string.rl_stock_note), itemSalesNote = s(R.string.rl_item_sales_note),
+        debit = s(R.string.rl_debit), credit = s(R.string.rl_credit), salesInvoiceX = s(R.string.rl_invoice_x), purchaseBillX = s(R.string.rl_bill_x),
+        creditNoteX = s(R.string.rl_credit_note_x), debitNoteX = s(R.string.rl_debit_note_x), paymentReceivedX = s(R.string.rl_received_x),
+        paymentMadeX = s(R.string.rl_paid_x), refundX = s(R.string.rl_refund_x), unlinkedReceipts = s(R.string.rl_unlinked_receipts),
+        unlinkedPayments = s(R.string.rl_unlinked_payments), statementNote = s(R.string.rl_statement_note),
         cashBasisNote = s(R.string.rl_cash_basis_note), partyNote = s(R.string.rl_party_note), transferNote = s(R.string.rl_transfer_note),
     )
 }
