@@ -78,6 +78,7 @@ data class InvoiceDto(
     val id: Long, val cashbookId: Long, val kind: String, val number: String, val partyId: Long, val issueDate: Long, val dueDate: Long,
     val amount: Long, val description: String = "", val notes: String = "", val cancelled: Boolean = false, val createdAt: Long, val updatedAt: Long,
     val placeOfSupply: String = "", val roundOff: Boolean = true,
+    val docType: String = "INVOICE", val refInvoiceId: Long? = null,
 )
 
 @Serializable

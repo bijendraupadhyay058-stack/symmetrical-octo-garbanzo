@@ -175,7 +175,7 @@ data class BudgetEntity(
         ForeignKey(entity = CashbookEntity::class, parentColumns = ["id"], childColumns = ["cashbook_id"], onDelete = ForeignKey.CASCADE),
         ForeignKey(entity = PartyEntity::class, parentColumns = ["id"], childColumns = ["party_id"], onDelete = ForeignKey.RESTRICT),
     ],
-    indices = [Index(value = ["cashbook_id", "kind", "number"], unique = true), Index("party_id"), Index("due_date")],
+    indices = [Index(value = ["cashbook_id", "kind", "doc_type", "number"], unique = true), Index("party_id"), Index("due_date"), Index("ref_invoice_id")],
 )
 data class InvoiceEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -194,6 +194,10 @@ data class InvoiceEntity(
     /** GST place of supply (state code) — v4. */
     @ColumnInfo(name = "place_of_supply", defaultValue = "") val placeOfSupply: String = "",
     @ColumnInfo(name = "round_off", defaultValue = "1") val roundOff: Boolean = true,
+    /** INVOICE, CREDIT_NOTE or DEBIT_NOTE (v5). */
+    @ColumnInfo(name = "doc_type", defaultValue = "INVOICE") val docType: String = "INVOICE",
+    /** Original invoice for a credit/debit note (v5; enforced in the repository). */
+    @ColumnInfo(name = "ref_invoice_id") val refInvoiceId: Long? = null,
 )
 
 /** Invoice line (v4). Quantity in thousandths, rate in paise, discount and GST in basis points. */

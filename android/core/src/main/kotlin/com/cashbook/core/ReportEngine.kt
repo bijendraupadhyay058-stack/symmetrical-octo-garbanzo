@@ -381,7 +381,7 @@ class ReportEngine(private val input: ReportInput) {
         val asOf = range.end
         val issued = input.invoices.filter { !it.issueDate.isAfter(asOf) && !it.cancelled &&
             (input.filter.partyIds.isEmpty() || it.partyId in input.filter.partyIds) }
-        val liveByDate = input.txns.filter { !it.date.isAfter(asOf) }.map { it.id }.toSet()
+        val liveByDate = input.txns.filter { !it.date.isAfter(asOf) }.associate { it.id to it.type }
         val balances = Invoices.balances(issued, input.allocations, liveByDate, asOf).filter { it.outstanding > 0 }
         val summary = ArrayList<SummaryItem>()
         val tables = ArrayList<ReportTable>()
@@ -425,10 +425,12 @@ class ReportEngine(private val input: ReportInput) {
         val taxByKind = HashMap<InvoiceKind, Long>()
         var counted = 0
         for (kind in InvoiceKind.entries) {
+            // invoices plus their debit notes add tax; credit notes take it away (by document date)
             val invs = input.invoices.filter { it.kind == kind && !it.cancelled && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
             counted += invs.size
             val breakups = invs.flatMap { inv ->
                 GstCalc.totals(input.invoiceItems[inv.id]!!, GstCalc.isInterState(input.sellerState, inv.placeOfSupply), false).breakup
+                    .map { b -> val s = inv.docType.sign.toLong(); RateBreakup(b.gstBp, b.taxable * s, b.cgst * s, b.sgst * s, b.igst * s) }
             }.groupBy { it.gstBp }.toSortedMap().map { (bp, l) -> RateBreakup(bp, l.sumOf { it.taxable }, l.sumOf { it.cgst }, l.sumOf { it.sgst }, l.sumOf { it.igst }) }
             val rows = breakups.map { b -> Row(listOf(Cell.Text(Gst.rateLabel(b.gstBp)), Cell.Amount(b.taxable), Cell.Amount(b.cgst), Cell.Amount(b.sgst),
                 Cell.Amount(b.igst), Cell.Amount(b.tax))) }

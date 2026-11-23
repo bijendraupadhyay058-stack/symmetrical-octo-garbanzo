@@ -27,6 +27,7 @@
     <string name="active">सक्रिय</string>
     <string name="active_desc">इसे हटाए बिना रोकने के लिए बंद करें।</string>
     <string name="add_another_account">एक और खाता जोड़ें</string>
+    <string name="add_debit_notes">जोड़ें: डेबिट नोट</string>
     <string name="add_entry">प्रविष्टि जोड़ें</string>
     <string name="add_expense">व्यय जोड़ें</string>
     <string name="add_expense_desc">किसी खाते से दिया गया पैसा</string>
@@ -40,6 +41,7 @@
     <string name="after_days">%d दिन बाद</string>
     <string name="after_minutes">%d मिनट बाद</string>
     <string name="after_seconds">%d सेकंड बाद</string>
+    <string name="against_x">%2$s दिनांकित %1$s के विरुद्ध</string>
     <string name="alert_budget_near">%1$s बजट: इस माह %2$s उपयोग हुआ।</string>
     <string name="alert_budget_over">%1$s बजट इस माह %2$s से अधिक हो गया।</string>
     <string name="alert_budget_title">बजट चेतावनी</string>
@@ -103,11 +105,15 @@
     <string name="both_sides">इस ट्रांसफ़र के दोनों पक्ष</string>
     <string name="bp_account_name">खाताधारक का नाम</string>
     <string name="bp_account_number">खाता संख्या (ग्राहकों के भुगतान हेतु)</string>
+    <string name="bp_branding">लोगो और हस्ताक्षर</string>
+    <string name="bp_branding_hint">इनवॉइस और नोट पर छपने वाले वैकल्पिक चित्र। पारदर्शी पृष्ठभूमि वाला PNG सबसे अच्छा दिखता है।</string>
     <string name="bp_ifsc">IFSC</string>
+    <string name="bp_logo">लोगो</string>
     <string name="bp_name">व्यवसाय / व्यापार नाम</string>
     <string name="bp_payment_details">भुगतान विवरण</string>
     <string name="bp_payment_hint">आपके इनवॉइस पर छपते हैं ताकि ग्राहक जानें कहाँ भुगतान करें। केवल वही विवरण दर्ज करें जो आप ग्राहकों से साझा करना चाहते हैं।</string>
     <string name="bp_signatory">अधिकृत हस्ताक्षरकर्ता का नाम</string>
+    <string name="bp_signature_image">हस्ताक्षर</string>
     <string name="bp_terms">इनवॉइस पर शर्तें और टिप्पणी</string>
     <string name="bp_upi">UPI ID</string>
     <string name="budget_alerts">बजट चेतावनी</string>
@@ -141,6 +147,7 @@
     <string name="check_backup">बैकअप जाँचें</string>
     <string name="choose_folder">बैकअप फ़ोल्डर चुनें</string>
     <string name="choose_folder_first">पहले बैकअप फ़ोल्डर चुनें।</string>
+    <string name="choose_image">चित्र चुनें</string>
     <string name="choose_location_backup">जगह चुनें और बैकअप लें</string>
     <string name="choose_pin">4 से 6 अंकों का पिन चुनें</string>
     <string name="clear">साफ़ करें</string>
@@ -158,6 +165,10 @@
     <string name="created">बनाया गया</string>
     <string name="created_by_recurring">आवर्ती अनुसूची द्वारा बनाया गया।</string>
     <string name="created_on">बनाया गया %s</string>
+    <string name="credit_debit_notes">क्रेडिट / डेबिट नोट</string>
+    <string name="credit_note">क्रेडिट नोट</string>
+    <string name="credit_note_effect">क्रेडिट नोट मूल इनवॉइस पर बकाया और (आइटम-वार हो तो) उसका GST घटाता है। यह नकद प्रविष्टि नहीं है; यदि इनवॉइस का भुगतान हो चुका है तो इनवॉइस से रिफंड दर्ज करें।</string>
+    <string name="credit_note_explain">%1$s (%2$s) के विरुद्ध क्रेडिट नोट: लौटाए गए माल, बाद की छूट या अधिक राशि के लिए। यह बकाया घटाता है।</string>
     <string name="currency">मुद्रा</string>
     <string name="currency_display">मुद्रा प्रदर्शन</string>
     <string name="currency_hint">तीन अक्षरों का कोड। राशियाँ हमेशा भारतीय अंक समूहन में दिखती हैं।</string>
@@ -166,6 +177,9 @@
     <string name="date_format">तारीख़ का प्रारूप</string>
     <string name="date_range">तारीख़ सीमा</string>
     <string name="date_required">तारीख़ *</string>
+    <string name="debit_note">डेबिट नोट</string>
+    <string name="debit_note_effect">डेबिट नोट मूल इनवॉइस पर बकाया और (आइटम-वार हो तो) उसका GST बढ़ाता है। यह नकद प्रविष्टि नहीं है।</string>
+    <string name="debit_note_explain">%1$s (%2$s) के विरुद्ध डेबिट नोट: कम ली गई राशि या अतिरिक्त शुल्क के लिए। यह बकाया बढ़ाता है।</string>
     <string name="default_account">डिफ़ॉल्ट खाता</string>
     <string name="default_bank_name">बैंक खाता</string>
     <string name="default_cash_name">नकद</string>
@@ -182,6 +196,8 @@
     <string name="delete_category_text">यह श्रेणी किसी प्रविष्टि में उपयोग नहीं हुई है और हटा दी जाएगी।</string>
     <string name="delete_entry_text">प्रविष्टि रीसायकल बिन में चली जाएगी और शेष फिर से गणना होंगे। आप इसे बाद में पुनर्स्थापित कर सकते हैं।</string>
     <string name="delete_entry_title">यह प्रविष्टि हटाएँ?</string>
+    <string name="delete_note_text">नोट हटा दिया जाएगा और मूल इनवॉइस का बकाया फिर से गणना होगा।</string>
+    <string name="delete_note_title">नोट हटाएँ?</string>
     <string name="delete_permanently">स्थायी रूप से हटाएँ</string>
     <string name="delete_permanently_text">यह प्रविष्टि और इसके संलग्नक हमेशा के लिए हट जाएँगे।</string>
     <string name="delete_recurring">अनुसूची हटाएँ?</string>
@@ -204,6 +220,7 @@
     <string name="edit_category">श्रेणी संपादित करें</string>
     <string name="edit_entry">प्रविष्टि संपादित करें</string>
     <string name="edit_invoice">इनवॉइस संपादित करें</string>
+    <string name="edit_note">नोट संपादित करें</string>
     <string name="edit_party">पक्ष संपादित करें</string>
     <string name="edit_recurring">आवर्ती प्रविष्टि संपादित करें</string>
     <string name="email">ईमेल</string>
@@ -225,6 +242,7 @@
     <string name="err_amount_required">राशि दर्ज करें</string>
     <string name="err_before_opening">तारीख़ खाते की प्रारंभ तिथि से पहले है</string>
     <string name="err_category">श्रेणी चुनें</string>
+    <string name="err_more_than_refund_due">देय रिफंड से अधिक</string>
     <string name="err_opening_after_txn">खाते में %s से प्रविष्टियाँ हैं। प्रारंभ तिथि उसी दिन या उससे पहले होनी चाहिए।</string>
     <string name="err_same_account">स्रोत और गंतव्य खाते अलग होने चाहिए</string>
     <string name="every">हर</string>
@@ -298,7 +316,7 @@
     <string name="inv_err_due_before">देय तिथि इनवॉइस तिथि से पहले है</string>
     <string name="inv_err_duplicate">यह संख्या पहले से उपयोग में है। दूसरी चुनें।</string>
     <string name="inv_err_entry_below_applied">यह प्रविष्टि इनवॉइस का भुगतान करती है; इसकी राशि लागू राशि से कम नहीं हो सकती।</string>
-    <string name="inv_err_has_payments">पहले इस इनवॉइस से जुड़े भुगतान हटाएँ।</string>
+    <string name="inv_err_has_payments_or_notes">पहले इस इनवॉइस से जुड़े भुगतान और क्रेडिट/डेबिट नोट हटाएँ।</string>
     <string name="inv_err_more_than_outstanding">बकाया राशि से अधिक</string>
     <string name="inv_err_party">पक्ष चुनें</string>
     <string name="inv_filter_all">सभी</string>
@@ -327,6 +345,7 @@
     <string name="inv_received">प्राप्त</string>
     <string name="inv_record_payment">भुगतान दर्ज करें</string>
     <string name="inv_record_receipt">प्राप्ति दर्ज करें</string>
+    <string name="inv_refund_due_x">रिफंड देय %s</string>
     <string name="inv_reopen">इनवॉइस फिर खोलें</string>
     <string name="inv_sale_explain">आपका बनाया इनवॉइस जिसका ग्राहक को आपको भुगतान करना है।</string>
     <string name="inv_supplier">आपूर्तिकर्ता *</string>
@@ -356,6 +375,7 @@
     <string name="last_auto_backup">पिछला स्वचालित बैकअप: %s</string>
     <string name="last_backup">पिछला बैकअप: %s</string>
     <string name="latest_n">नवीनतम %d प्रतियाँ</string>
+    <string name="less_credit_notes">घटाएँ: क्रेडिट नोट</string>
     <string name="lock_immediately">तुरंत</string>
     <string name="lock_later_hint">आप बाद में सेटिंग › सुरक्षा में पिन सेट या बदल सकते हैं।</string>
     <string name="lock_now">अभी लॉक करें</string>
@@ -396,12 +416,15 @@
     <string name="negative_blocked">इसे सहेजने से %1$s का शेष %2$s हो जाएगा। सेटिंग में ऋणात्मक शेष की अनुमति नहीं है।</string>
     <string name="negative_title">शेष ऋणात्मक हो जाएगा</string>
     <string name="negative_warn">इसे सहेजने से %1$s का शेष %2$s हो जाएगा। फिर भी सहेजें?</string>
+    <string name="net_amount">शुद्ध राशि</string>
     <string name="net_for_period">%s का शुद्ध</string>
     <string name="never_backed_up">अभी तक कोई बैकअप नहीं</string>
     <string name="new_account">नया खाता</string>
     <string name="new_bill">नया बिल</string>
     <string name="new_cashbook">नई कैशबुक</string>
     <string name="new_category">नई श्रेणी</string>
+    <string name="new_credit_note">नया क्रेडिट नोट</string>
+    <string name="new_debit_note">नया डेबिट नोट</string>
     <string name="new_invoice">नया इनवॉइस</string>
     <string name="new_party">नया पक्ष</string>
     <string name="new_recurring">नई आवर्ती प्रविष्टि</string>
@@ -417,13 +440,18 @@
     <string name="no_expenses_period">इस अवधि में कोई व्यय नहीं।</string>
     <string name="no_invoices">अभी यहाँ कुछ नहीं।</string>
     <string name="no_matches">आपकी खोज या फ़िल्टर से कोई प्रविष्टि मेल नहीं खाती।</string>
+    <string name="no_notes">कोई क्रेडिट या डेबिट नोट नहीं।</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
     <string name="no_recurring">अभी कोई आवर्ती प्रविष्टि नहीं।</string>
     <string name="no_transactions_yet">अभी कोई प्रविष्टि नहीं। आय, व्यय या ट्रांसफ़र दर्ज करने के लिए जोड़ें पर टैप करें।</string>
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
+    <string name="none">कोई नहीं</string>
     <string name="none_top_level">कोई नहीं (मुख्य श्रेणी)</string>
     <string name="not_set">सेट नहीं</string>
+    <string name="note_date">नोट तिथि</string>
+    <string name="note_err_too_large">क्रेडिट नोट इनवॉइस राशि (और डेबिट नोट) से अधिक नहीं हो सकते।</string>
+    <string name="note_reason">कारण</string>
     <string name="notes">टिप्पणी</string>
     <string name="notifications">सूचनाएँ</string>
     <string name="of_x">%s में से</string>
@@ -466,17 +494,21 @@
     <string name="payment_mode">भुगतान का तरीका</string>
     <string name="pdf_account_name">खाते का नाम</string>
     <string name="pdf_account_no">खाता सं.</string>
+    <string name="pdf_against_invoice">इनवॉइस के विरुद्ध</string>
     <string name="pdf_amount_in_words">राशि शब्दों में</string>
     <string name="pdf_authorised_signatory">अधिकृत हस्ताक्षरकर्ता</string>
     <string name="pdf_balance_due">शेष देय</string>
     <string name="pdf_bank">बैंक</string>
     <string name="pdf_bill_to">बिल प्राप्तकर्ता</string>
+    <string name="pdf_credit_note">क्रेडिट नोट</string>
+    <string name="pdf_debit_note">डेबिट नोट</string>
     <string name="pdf_disc">छूट</string>
     <string name="pdf_for">कृते</string>
     <string name="pdf_generated_by">कैशबुक से बनाया गया</string>
     <string name="pdf_gst">GST</string>
     <string name="pdf_invoice">इनवॉइस</string>
     <string name="pdf_invoice_no">इनवॉइस सं.</string>
+    <string name="pdf_note_no">नोट सं.</string>
     <string name="pdf_set_profile_hint">सेटिंग › व्यवसाय प्रोफ़ाइल में अपना व्यवसाय नाम, GSTIN और राज्य जोड़ें ताकि वे इनवॉइस पर छपें।</string>
     <string name="pdf_sr">क्र.</string>
     <string name="pdf_tax_invoice">कर बीजक</string>
@@ -513,6 +545,8 @@
     <string name="received_from">किससे प्राप्त</string>
     <string name="receiving_account">प्राप्त करने वाला खाता *</string>
     <string name="recent_transactions">हाल की प्रविष्टियाँ</string>
+    <string name="record_refund_customer">ग्राहक को रिफंड दर्ज करें</string>
+    <string name="record_refund_supplier">आपूर्तिकर्ता से रिफंड दर्ज करें</string>
     <string name="recurring_desc">%d सक्रिय अनुसूचियाँ (किराया, वेतन, सदस्यता)</string>
     <string name="recurring_entries">आवर्ती प्रविष्टियाँ</string>
     <string name="recurring_entry">आवर्ती प्रविष्टि</string>
@@ -522,6 +556,9 @@
     <string name="recycle_bin_count">%d हटाई गई प्रविष्टियाँ</string>
     <string name="recycle_empty">रीसायकल बिन खाली है।</string>
     <string name="reference_number">संदर्भ संख्या</string>
+    <string name="refund_due">रिफंड देय</string>
+    <string name="refund_from_supplier_for">%s के विरुद्ध प्राप्त रिफंड</string>
+    <string name="refund_to_customer_for">%s के विरुद्ध दिया गया रिफंड</string>
     <string name="remind_me">बैकअप की याद दिलाएँ</string>
     <string name="remove">हटाएँ</string>
     <string name="remove_item">आइटम हटाएँ</string>
@@ -768,6 +805,8 @@
         <item>सेटिंग › इनवॉइस और बिल (या डैशबोर्ड का प्राप्य और देय कार्ड) में आपके बनाए बिक्री इनवॉइस और मिले खरीद बिल देय तिथि सहित दर्ज होते हैं। ये कोई शेष नहीं बदलते। पैसा आने या जाने पर इनवॉइस खोलें और प्राप्ति / भुगतान दर्ज करें, या पहले से दर्ज प्रविष्टि लागू करें। स्थिति, अतिदेय दिन और बकाया रिपोर्ट अपने-आप अपडेट होते हैं।</item>
         <item>## GST इनवॉइस</item>
         <item>सेटिंग › व्यवसाय प्रोफ़ाइल भरें (नाम, GSTIN, राज्य, बैंक/UPI, शर्तें)। फिर इनवॉइस में GST सहित आइटम-वार चालू करें और HSN/SAC, मात्रा, दर, छूट तथा GST दर के साथ आइटम जोड़ें। राज्य के भीतर आपूर्ति CGST + SGST में बँटती है; अन्य राज्यों पर आपूर्ति स्थान के अनुसार IGST लगता है। इनवॉइस से कर बीजक PDF सहेजें या साझा करें। रिपोर्ट › GST सारांश आउटपुट और इनपुट कर की तुलना करता है।</item>
+        <item>## क्रेडिट नोट, डेबिट नोट और रिफंड</item>
+        <item>इनवॉइस या बिल खोलें और क्रेडिट नोट (माल वापसी, छूट, अधिक राशि) या डेबिट नोट (कम ली गई राशि) पर टैप करें। क्रेडिट नोट इनवॉइस के आइटम से शुरू होता है ताकि आप मात्रा घटा सकें। नोट बकाया और GST सारांश बदलते हैं, खाता शेष कभी नहीं। यदि क्रेडिट नोट के बाद भुगतान बकाया से अधिक हो, तो इनवॉइस पर रिफंड देय दिखता है — लौटाई गई राशि दर्ज करने के लिए रिफंड दर्ज करें पर टैप करें। इनवॉइस और नोट पर छापने के लिए व्यवसाय प्रोफ़ाइल में लोगो और हस्ताक्षर चित्र जोड़ें।</item>
         <item>## होम-स्क्रीन विजेट और सूचनाएँ</item>
         <item>होम स्क्रीन पर देर तक दबाएँ › विजेट › कैशबुक — त्वरित आय / व्यय / ट्रांसफ़र बटन के लिए। शेष तभी दिखता है जब आप अनुमति दें और ऐप लॉक बंद हो। इनवॉइस अनुस्मारक और बजट चेतावनी सेटिंग › सामान्य और वित्तीय में चालू करें।</item>
         <item>## स्वचालित बैकअप</item>

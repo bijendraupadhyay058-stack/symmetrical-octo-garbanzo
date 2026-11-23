@@ -32,6 +32,8 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val balanceDue: String, val amountInWords: String, val paymentDetails: String, val bank: String, val accountName: String, val accountNo: String,
         val ifsc: String, val upi: String, val terms: String, val forBusiness: String, val authorisedSignatory: String, val page: String,
         val generatedBy: String, val reverseNote: String,
+        val creditNote: String = "CREDIT NOTE", val debitNote: String = "DEBIT NOTE", val originalInvoice: String = "Against invoice",
+        val noteNo: String = "Note no.", val noteDate: String = "Note date",
     )
 
     private val navy = Color.rgb(0x1A, 0x2B, 0x5C)
@@ -52,7 +54,14 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
     class Pages { val pages = ArrayList<ArrayList<(Canvas) -> Unit>>() }
 
     /** Lays out all pages (page count is known before drawing so footers can show "Page x of y"). */
-    fun layout(b: InvoiceBalance, items: List<InvoiceItem>, seller: BusinessProfileDto, buyer: PartyInfo?): Pages {
+    /** Optional images printed on the document. */
+    data class Branding(val logo: android.graphics.Bitmap? = null, val signature: android.graphics.Bitmap? = null)
+
+    /** For a credit/debit note: the original invoice's number and date, printed under the title. */
+    data class Reference(val number: String, val date: java.time.LocalDate)
+
+    fun layout(b: InvoiceBalance, items: List<InvoiceItem>, seller: BusinessProfileDto, buyer: PartyInfo?, branding: Branding = Branding(),
+               reference: Reference? = null): Pages {
         val inv = b.invoice
         val totals: InvoiceTotals? = if (items.isEmpty()) null else GstCalc.totals(items, GstCalc.isInterState(seller.stateCode, inv.placeOfSupply), inv.roundOff)
         val out = Pages()
@@ -81,7 +90,18 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         fun ensure(h: Float) { if (y + h > bottom) newPage() }
 
         // ----- header -----
-        val title = if (seller.gstin.isNotBlank() && totals != null) s.taxInvoice else s.invoice
+        val title = when (inv.docType) {
+            com.cashbook.core.DocType.CREDIT_NOTE -> s.creditNote
+            com.cashbook.core.DocType.DEBIT_NOTE -> s.debitNote
+            else -> if (seller.gstin.isNotBlank() && totals != null) s.taxInvoice else s.invoice
+        }
+        branding.logo?.let { logo ->
+            // logo fits a 140 × 46 pt box at the top left; the seller block starts below it
+            val sc = minOf(46f / logo.height, 140f / logo.width)
+            val w = logo.width * sc; val h = logo.height * sc; val yy = y
+            ops += { c -> c.drawBitmap(logo, null, android.graphics.RectF(M, yy, M + w, yy + h), Paint(Paint.FILTER_BITMAP_FLAG)) }
+            y += h + 6f
+        }
         text(seller.name.ifBlank { "—" }, M, y + 14f, pName)
         text(title, M + CW, y + 14f, pTitle, right = true)
         y += 22f
@@ -92,8 +112,11 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
             listOf(seller.phone, seller.email).filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
         }
         val meta = buildList {
-            add(s.invoiceNo to inv.number); add(s.invoiceDate to dates.format(inv.issueDate)); add(s.dueDate to dates.format(inv.dueDate))
+            val isNote = inv.docType != com.cashbook.core.DocType.INVOICE
+            add((if (isNote) s.noteNo else s.invoiceNo) to inv.number); add((if (isNote) s.noteDate else s.invoiceDate) to dates.format(inv.issueDate))
+            if (inv.docType == com.cashbook.core.DocType.INVOICE) add(s.dueDate to dates.format(inv.dueDate))
             if (inv.placeOfSupply.isNotBlank()) add(s.placeOfSupply to Gst.stateLabel(inv.placeOfSupply))
+            reference?.let { add(s.originalInvoice to "${it.number} (${dates.format(it.date)})") }
         }
         val startY = y
         sellerLines.forEach { text(it, M, y + 9f, pText); y += 11f }
@@ -222,6 +245,11 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         if (terms.isNotEmpty()) { text(s.terms, M, y + 9f, pBold); y += 12f; terms.forEach { text(it, M, y + 9f, pSmall); y += 10f } }
         val sigY = blockY
         text("${s.forBusiness} ${seller.name}".trim(), M + CW, sigY + 9f, pBold, right = true)
+        branding.signature?.let { sig ->
+            val sc = minOf(30f / sig.height, 120f / sig.width)
+            val w = sig.width * sc; val h = sig.height * sc
+            ops += { c -> c.drawBitmap(sig, null, android.graphics.RectF(M + CW - w, sigY + 14f, M + CW, sigY + 14f + h), Paint(Paint.FILTER_BITMAP_FLAG)) }
+        }
         text(seller.signatory.ifBlank { " " }, M + CW, sigY + 48f, pText, right = true)
         run { val yy = sigY + 52f; ops += { c -> c.drawLine(M + CW * 0.68f, yy, M + CW, yy, stroke) } }
         text(s.authorisedSignatory, M + CW, sigY + 62f, pSmall, right = true)
@@ -238,8 +266,9 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         c.drawText(pn, W - M - pSmall.measureText(pn), H - M + 4f, pSmall)
     }
 
-    fun write(b: InvoiceBalance, items: List<InvoiceItem>, seller: BusinessProfileDto, buyer: PartyInfo?, out: OutputStream) {
-        val pages = layout(b, items, seller, buyer)
+    fun write(b: InvoiceBalance, items: List<InvoiceItem>, seller: BusinessProfileDto, buyer: PartyInfo?, out: OutputStream,
+              branding: Branding = Branding(), reference: Reference? = null) {
+        val pages = layout(b, items, seller, buyer, branding, reference)
         val pdf = PdfDocument()
         try {
             pages.pages.indices.forEach { i ->

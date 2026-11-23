@@ -2,6 +2,7 @@ package com.cashbook.app.data.db
 
 import com.cashbook.core.AccountInfo
 import com.cashbook.core.BudgetInfo
+import com.cashbook.core.DocType
 import com.cashbook.core.InvoiceItem
 import com.cashbook.core.InvoiceInfo
 import com.cashbook.core.InvoiceKind
@@ -49,7 +50,7 @@ fun RecurringRule.toEntity(createdAt: Long, updatedAt: Long) = RecurringEntity(i
 fun BudgetEntity.toInfo() = BudgetInfo(id, cashbookId, categoryId, monthlyAmount)
 
 fun InvoiceEntity.toInfo() = InvoiceInfo(id, cashbookId, enumOr(kind, InvoiceKind.SALE), number, partyId, LocalDate.ofEpochDay(issueDate),
-    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff)
+    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff, enumOr(docType, DocType.INVOICE), refInvoiceId)
 
 fun InvoiceItemEntity.toItem() = InvoiceItem(id, description, hsn, quantityMilli, unit, rate, discountBp, gstBp)
 

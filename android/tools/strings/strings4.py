@@ -27,7 +27,6 @@ S4 = [
 ("inv_err_due_before","Due date is before the invoice date","देय तिथि इनवॉइस तिथि से पहले है"),
 ("inv_err_duplicate","This number is already used. Choose another.","यह संख्या पहले से उपयोग में है। दूसरी चुनें।"),
 ("inv_err_entry_below_applied","This entry pays invoices; its amount can't be less than the amount applied to them.","यह प्रविष्टि इनवॉइस का भुगतान करती है; इसकी राशि लागू राशि से कम नहीं हो सकती।"),
-("inv_err_has_payments","Remove the payments linked to this invoice first.","पहले इस इनवॉइस से जुड़े भुगतान हटाएँ।"),
 ("inv_err_more_than_outstanding","More than the outstanding amount","बकाया राशि से अधिक"),
 ("inv_err_party","Select a party","पक्ष चुनें"),
 ("inv_filter_all","All","सभी"),

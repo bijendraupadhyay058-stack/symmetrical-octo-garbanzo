@@ -63,7 +63,9 @@ class BackupManager(
                 parties = data.parties.size, transactions = data.transactions.size, attachments = data.attachments.size,
                 includesAttachments = includeAttachments, recurring = data.recurring.size, budgets = data.budgets.size, invoices = data.invoices.size,
             )
-            val sources = data.attachments.map { a -> AttachmentSource(a.storedName) { store.file(a.storedName).takeIf { it.exists() }?.inputStream() } }
+            // invoice logo / signature images always travel with the backup (they're small)
+            val sources = data.attachments.map { a -> AttachmentSource(a.storedName) { store.file(a.storedName).takeIf { it.exists() }?.inputStream() } } +
+                AttachmentStore.Brand.entries.filter { store.brandFile(it).exists() }.map { b -> AttachmentSource(b.fileName) { store.brandFile(b).inputStream() } }
             val out = context.contentResolver.openOutputStream(uri, "wt") ?: error("Cannot open destination")
             BackupCodec.write(out, password, manifest, data, sources)
             val size = querySize(uri)
@@ -129,7 +131,7 @@ class BackupManager(
                     it.nextIndex, it.autoPost, it.active, it.createdAt, it.updatedAt) })
                 db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 db.invoices().insertAll(d.invoices.map { InvoiceEntity(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff) })
+                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) })
                 db.invoices().insertItems(d.invoiceItems.map { InvoiceItemEntity(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit,
                     it.rate, it.discountBp, it.gstBp) })
                 db.invoices().insertAllocations(d.allocations.map { AllocationEntity(it.id, it.invoiceId, it.transactionId, it.amount, it.createdAt) })
@@ -181,7 +183,7 @@ class BackupManager(
             it.active, it.createdAt, it.updatedAt) },
         budgets = db.budgets().getAll().map { BudgetDto(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) },
         invoices = db.invoices().getAll().map { InvoiceDto(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff) },
+            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) },
         invoiceItems = db.invoices().items().map { InvoiceItemDto(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit, it.rate,
             it.discountBp, it.gstBp) },
         businessProfile = settings.businessProfile.first(),

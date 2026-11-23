@@ -113,6 +113,9 @@ object Routes {
     fun invoice(id: Long) = "invoice/$id"
     fun recordPayment(id: Long) = "invoice_pay/$id"
     const val BUSINESS = "business_profile"
+    /** New/edit credit or debit note [doc] against invoice [ref]. */
+    fun noteEdit(id: Long, doc: String, ref: Long) = "note_edit/$id/$doc/$ref"
+    fun recordRefund(id: Long) = "invoice_refund/$id"
 }
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
@@ -216,6 +219,12 @@ fun MainNav(vm: AppViewModel) {
             }
             composable(Routes.BUDGETS) { BudgetsScreen(vm, nav) }
             composable(Routes.INVOICES) { InvoicesScreen(vm, nav) }
+            composable("note_edit/{id}/{doc}/{ref}", listOf(navArgument("id") { type = NavType.LongType }, navArgument("ref") { type = NavType.LongType })) { e ->
+                InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), "SALE", 0,
+                    docType = runCatching { com.cashbook.core.DocType.valueOf(e.arguments?.getString("doc") ?: "") }.getOrDefault(com.cashbook.core.DocType.CREDIT_NOTE),
+                    refInvoiceId = e.arguments!!.getLong("ref"))
+            }
+            composable("invoice_refund/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id"), refund = true) }
             composable(Routes.BUSINESS) { com.cashbook.app.ui.settings.BusinessProfileScreen(vm, nav) }
             composable("invoice_pay/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id")) }
             composable("invoice/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> InvoiceDetailScreen(vm, nav, e.arguments!!.getLong("id")) }

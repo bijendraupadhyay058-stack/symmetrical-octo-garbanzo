@@ -49,5 +49,16 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+    /** v4 → v5 (app 1.4): credit / debit notes stored with invoices, linked to the original invoice. */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `doc_type` TEXT NOT NULL DEFAULT 'INVOICE'")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `ref_invoice_id` INTEGER")
+            db.execSQL("DROP INDEX IF EXISTS `index_invoices_cashbook_id_kind_number`")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_invoices_cashbook_id_kind_doc_type_number` ON `invoices` (`cashbook_id`, `kind`, `doc_type`, `number`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoices_ref_invoice_id` ON `invoices` (`ref_invoice_id`)")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 }

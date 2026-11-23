@@ -329,6 +329,53 @@ class UiFlowTest {
         shot("26_invoice_detail_items")
     }
 
+    @Test fun creditNoteAndRefundFlow() {
+        seed("en")
+        val d = deps()
+        var invoiceId = 0L
+        runBlocking {
+            d.settings.updateBusinessProfile(com.cashbook.core.backup.BusinessProfileDto(name = "Sharma & Associates", gstin = "27AAPFU0939F1ZV", stateCode = "27"))
+            val p = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", createdAt = 0, updatedAt = 0, stateCode = "27"))
+            val s = d.snap { it.parties.isNotEmpty() }
+            val cb = s.cashbooks.single().id
+            invoiceId = d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/001", p, LocalDate.now(),
+                LocalDate.now().plusDays(15), 1, placeOfSupply = "27"), listOf(
+                com.cashbook.core.InvoiceItem(description = "Laser printer", quantityMilli = 1000, rate = 1_500_000, gstBp = 1800),
+                com.cashbook.core.InvoiceItem(description = "Toner cartridge", quantityMilli = 2000, rate = 250_000, gstBp = 1800)), "27")   // 23,600
+            d.ledger.recordPayment(invoiceId, s.accounts.first { it.type == AccountType.BANK }.id, s.categories.first { it.kind == CategoryKind.INCOME }.id,
+                2_360_000, LocalDate.now(), PaymentMode.UPI, "", "Paid")
+            d.snap { it.allocations.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        waitFor("Unpaid"); click("Paid"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        waitFor("Credit / debit notes", timeout = 10_000)
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText("Credit note"))
+        click("Credit note")
+        waitFor("New credit note")
+        // starts from the invoice's items: drop the printer line, keep one toner returned
+        compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("Remove item"))[0].performClick()
+        field("Qty").performTextClearance(); field("Qty").performTextInput("1")
+        field("Reason").performTextInput("One toner returned damaged")
+        shot("28_credit_note_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Against INV/26-27/001", substring = true)
+        compose.onAllNodesWithText("Against INV/26-27/001", substring = true, useUnmergedTree = true).onFirst().performClick()
+        waitFor("Refund due", substring = true)
+        shot("29_invoice_refund_due")
+        val b = runBlocking { d.snap { it.invoices.size == 2 } }.invoiceBalances().single()
+        assertEquals(295_000L, b.refundDue)                                   // 2,500 + 18 %
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText("Record refund to customer"))
+        click("Record refund to customer")
+        waitFor("Payment mode")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        compose.waitUntil(10_000) { runBlocking { d.snap { true } }.invoiceBalances().single().status == com.cashbook.core.InvoiceStatus.PAID }
+        val s2 = runBlocking { d.snap { true } }
+        assertEquals(TxnType.EXPENSE, s2.txns.first { t -> s2.allocations.any { it.txnId == t.id && t.type == TxnType.EXPENSE } }.type)
+        assertEquals(invoiceId, s2.invoices.first { it.docType == com.cashbook.core.DocType.CREDIT_NOTE }.refInvoiceId)
+    }
+
     @Test fun outstandingReport() {
         seed("en")
         runBlocking {

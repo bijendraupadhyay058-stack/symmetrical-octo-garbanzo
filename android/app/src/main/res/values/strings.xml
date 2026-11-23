@@ -27,6 +27,7 @@
     <string name="active">Active</string>
     <string name="active_desc">Turn off to pause this schedule without deleting it.</string>
     <string name="add_another_account">Add another account</string>
+    <string name="add_debit_notes">Add: debit notes</string>
     <string name="add_entry">Add entry</string>
     <string name="add_expense">Add Expense</string>
     <string name="add_expense_desc">Money paid out of an account</string>
@@ -40,6 +41,7 @@
     <string name="after_days">After %d days</string>
     <string name="after_minutes">After %d minutes</string>
     <string name="after_seconds">After %d seconds</string>
+    <string name="against_x">Against %1$s dated %2$s</string>
     <string name="alert_budget_near">%1$s budget: %2$s used this month.</string>
     <string name="alert_budget_over">%1$s budget exceeded by %2$s this month.</string>
     <string name="alert_budget_title">Budget alert</string>
@@ -103,11 +105,15 @@
     <string name="both_sides">Both sides of this transfer</string>
     <string name="bp_account_name">Account holder name</string>
     <string name="bp_account_number">Account number (for customers to pay you)</string>
+    <string name="bp_branding">Logo and signature</string>
+    <string name="bp_branding_hint">Optional images printed on invoices and notes. PNG with a transparent background looks best.</string>
     <string name="bp_ifsc">IFSC</string>
+    <string name="bp_logo">Logo</string>
     <string name="bp_name">Business / trade name</string>
     <string name="bp_payment_details">Payment details</string>
     <string name="bp_payment_hint">Printed on your invoices so customers know where to pay. Only enter details you are happy to share with customers.</string>
     <string name="bp_signatory">Authorised signatory name</string>
+    <string name="bp_signature_image">Signature</string>
     <string name="bp_terms">Terms &amp; notes on invoices</string>
     <string name="bp_upi">UPI ID</string>
     <string name="budget_alerts">Budget alerts</string>
@@ -141,6 +147,7 @@
     <string name="check_backup">Check backup</string>
     <string name="choose_folder">Choose backup folder</string>
     <string name="choose_folder_first">Choose a backup folder first.</string>
+    <string name="choose_image">Choose image</string>
     <string name="choose_location_backup">Choose location and back up</string>
     <string name="choose_pin">Choose a 4 to 6 digit PIN</string>
     <string name="clear">Clear</string>
@@ -158,6 +165,10 @@
     <string name="created">Created</string>
     <string name="created_by_recurring">Created by a recurring schedule.</string>
     <string name="created_on">Created %s</string>
+    <string name="credit_debit_notes">Credit / debit notes</string>
+    <string name="credit_note">Credit note</string>
+    <string name="credit_note_effect">A credit note reduces what is owed on the original invoice and, if itemised, its GST. It is not a cash entry; if the invoice was already paid, record the refund from the invoice.</string>
+    <string name="credit_note_explain">Credit note against %1$s (%2$s): for goods returned, a discount after invoicing, or an overcharge. It lowers what is owed.</string>
     <string name="currency">Currency</string>
     <string name="currency_display">Currency display</string>
     <string name="currency_hint">Three-letter code. Amounts always use Indian digit grouping.</string>
@@ -166,6 +177,9 @@
     <string name="date_format">Date format</string>
     <string name="date_range">Date range</string>
     <string name="date_required">Date *</string>
+    <string name="debit_note">Debit note</string>
+    <string name="debit_note_effect">A debit note increases what is owed on the original invoice and, if itemised, its GST. It is not a cash entry.</string>
+    <string name="debit_note_explain">Debit note against %1$s (%2$s): for an amount charged short or an extra charge. It raises what is owed.</string>
     <string name="default_account">Default account</string>
     <string name="default_bank_name">Bank Account</string>
     <string name="default_cash_name">Cash</string>
@@ -182,6 +196,8 @@
     <string name="delete_category_text">This category is not used by any entry and will be deleted.</string>
     <string name="delete_entry_text">The entry will move to the recycle bin and balances will be recalculated. You can restore it later.</string>
     <string name="delete_entry_title">Delete this entry?</string>
+    <string name="delete_note_text">The note will be deleted and the original invoice\'s amount owed recalculated.</string>
+    <string name="delete_note_title">Delete note?</string>
     <string name="delete_permanently">Delete permanently</string>
     <string name="delete_permanently_text">This entry and its attachments will be removed for ever.</string>
     <string name="delete_recurring">Delete schedule?</string>
@@ -204,6 +220,7 @@
     <string name="edit_category">Edit category</string>
     <string name="edit_entry">Edit entry</string>
     <string name="edit_invoice">Edit invoice</string>
+    <string name="edit_note">Edit note</string>
     <string name="edit_party">Edit party</string>
     <string name="edit_recurring">Edit recurring entry</string>
     <string name="email">Email</string>
@@ -225,6 +242,7 @@
     <string name="err_amount_required">Enter the amount</string>
     <string name="err_before_opening">Date is before the account\'s opening date</string>
     <string name="err_category">Select a category</string>
+    <string name="err_more_than_refund_due">More than the refund due</string>
     <string name="err_opening_after_txn">The account has entries from %s. The opening date must be on or before that.</string>
     <string name="err_same_account">Source and destination must be different</string>
     <string name="every">Every</string>
@@ -298,7 +316,7 @@
     <string name="inv_err_due_before">Due date is before the invoice date</string>
     <string name="inv_err_duplicate">This number is already used. Choose another.</string>
     <string name="inv_err_entry_below_applied">This entry pays invoices; its amount can\'t be less than the amount applied to them.</string>
-    <string name="inv_err_has_payments">Remove the payments linked to this invoice first.</string>
+    <string name="inv_err_has_payments_or_notes">Remove the payments and credit/debit notes linked to this invoice first.</string>
     <string name="inv_err_more_than_outstanding">More than the outstanding amount</string>
     <string name="inv_err_party">Select a party</string>
     <string name="inv_filter_all">All</string>
@@ -327,6 +345,7 @@
     <string name="inv_received">Received</string>
     <string name="inv_record_payment">Record payment</string>
     <string name="inv_record_receipt">Record receipt</string>
+    <string name="inv_refund_due_x">Refund due %s</string>
     <string name="inv_reopen">Reopen invoice</string>
     <string name="inv_sale_explain">An invoice you raised that a customer still has to pay you.</string>
     <string name="inv_supplier">Supplier *</string>
@@ -356,6 +375,7 @@
     <string name="last_auto_backup">Last automatic backup: %s</string>
     <string name="last_backup">Last backup: %s</string>
     <string name="latest_n">Latest %d copies</string>
+    <string name="less_credit_notes">Less: credit notes</string>
     <string name="lock_immediately">Immediately</string>
     <string name="lock_later_hint">You can set or change the PIN later in Settings › Security.</string>
     <string name="lock_now">Lock now</string>
@@ -396,12 +416,15 @@
     <string name="negative_blocked">Saving this would make %1$s go down to %2$s. Negative balances are not allowed in Settings.</string>
     <string name="negative_title">Balance will go negative</string>
     <string name="negative_warn">Saving this would make %1$s go down to %2$s. Save anyway?</string>
+    <string name="net_amount">Net amount</string>
     <string name="net_for_period">Net for %s</string>
     <string name="never_backed_up">No backup yet</string>
     <string name="new_account">New account</string>
     <string name="new_bill">New bill</string>
     <string name="new_cashbook">New cashbook</string>
     <string name="new_category">New category</string>
+    <string name="new_credit_note">New credit note</string>
+    <string name="new_debit_note">New debit note</string>
     <string name="new_invoice">New invoice</string>
     <string name="new_party">New party</string>
     <string name="new_recurring">New recurring entry</string>
@@ -417,13 +440,18 @@
     <string name="no_expenses_period">No expenses in this period.</string>
     <string name="no_invoices">Nothing here yet.</string>
     <string name="no_matches">No entries match your search or filters.</string>
+    <string name="no_notes">No credit or debit notes.</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
     <string name="no_recurring">No recurring entries yet.</string>
     <string name="no_transactions_yet">No entries yet. Tap Add to record income, an expense or a transfer.</string>
     <string name="no_viewer">No app on this device can open this file.</string>
+    <string name="none">None</string>
     <string name="none_top_level">None (top level)</string>
     <string name="not_set">Not set</string>
+    <string name="note_date">Note date</string>
+    <string name="note_err_too_large">Credit notes can\'t exceed the invoice amount (plus any debit notes).</string>
+    <string name="note_reason">Reason</string>
     <string name="notes">Notes</string>
     <string name="notifications">Notifications</string>
     <string name="of_x">of %s</string>
@@ -466,17 +494,21 @@
     <string name="payment_mode">Payment mode</string>
     <string name="pdf_account_name">Account name</string>
     <string name="pdf_account_no">A/c no.</string>
+    <string name="pdf_against_invoice">Against invoice</string>
     <string name="pdf_amount_in_words">Amount in words</string>
     <string name="pdf_authorised_signatory">Authorised Signatory</string>
     <string name="pdf_balance_due">Balance due</string>
     <string name="pdf_bank">Bank</string>
     <string name="pdf_bill_to">Bill to</string>
+    <string name="pdf_credit_note">CREDIT NOTE</string>
+    <string name="pdf_debit_note">DEBIT NOTE</string>
     <string name="pdf_disc">Disc.</string>
     <string name="pdf_for">For</string>
     <string name="pdf_generated_by">Generated with Cashbook</string>
     <string name="pdf_gst">GST</string>
     <string name="pdf_invoice">INVOICE</string>
     <string name="pdf_invoice_no">Invoice no.</string>
+    <string name="pdf_note_no">Note no.</string>
     <string name="pdf_set_profile_hint">Add your business name, GSTIN and state in Settings › Business profile so they print on the invoice.</string>
     <string name="pdf_sr">#</string>
     <string name="pdf_tax_invoice">TAX INVOICE</string>
@@ -513,6 +545,8 @@
     <string name="received_from">Received from</string>
     <string name="receiving_account">Receiving account *</string>
     <string name="recent_transactions">Recent entries</string>
+    <string name="record_refund_customer">Record refund to customer</string>
+    <string name="record_refund_supplier">Record refund from supplier</string>
     <string name="recurring_desc">%d active schedules (rent, salary, subscriptions)</string>
     <string name="recurring_entries">Recurring entries</string>
     <string name="recurring_entry">Recurring entry</string>
@@ -522,6 +556,9 @@
     <string name="recycle_bin_count">%d deleted entries</string>
     <string name="recycle_empty">The recycle bin is empty.</string>
     <string name="reference_number">Reference number</string>
+    <string name="refund_due">Refund due</string>
+    <string name="refund_from_supplier_for">Refund received against %s</string>
+    <string name="refund_to_customer_for">Refund paid against %s</string>
     <string name="remind_me">Remind me to back up</string>
     <string name="remove">Remove</string>
     <string name="remove_item">Remove item</string>
@@ -768,6 +805,8 @@
         <item>Settings › Invoices &amp; bills (or the Receivables &amp; payables card on the dashboard) records sales invoices you raise and purchase bills you receive, with due dates. They don\'t change any balance. When money comes in or goes out, open the invoice and tap Record receipt / Record payment, or apply an entry you already recorded. Status, overdue days and the Outstanding &amp; Ageing report update automatically.</item>
         <item>## GST invoices</item>
         <item>Fill in Settings › Business profile (name, GSTIN, state, bank/UPI, terms). Then turn on Itemised with GST on an invoice and add lines with HSN/SAC, quantity, rate, discount and GST rate. Supplies within your state are split into CGST + SGST; other states get IGST, based on the place of supply. Save or share the tax invoice as a PDF from the invoice. Reports › GST Summary compares output tax with input tax.</item>
+        <item>## Credit notes, debit notes and refunds</item>
+        <item>Open an invoice or bill and tap Credit note (goods returned, discount, overcharge) or Debit note (amount charged short). A credit note starts from the invoice\'s items so you can reduce quantities. Notes change what is owed and the GST summary, never account balances. If a credit note leaves more paid than owed, the invoice shows Refund due — tap Record refund to enter the money returned. Add a logo and signature image in Business profile to print them on invoices and notes.</item>
         <item>## Home-screen widget and alerts</item>
         <item>Long-press the home screen › Widgets › Cashbook for quick Income / Expense / Transfer buttons. The balance is shown only if you allow it and the app lock is off. Turn on invoice reminders and budget alerts in Settings › General &amp; financial.</item>
         <item>## Automatic backup</item>

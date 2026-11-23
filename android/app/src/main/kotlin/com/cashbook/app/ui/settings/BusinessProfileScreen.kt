@@ -15,6 +15,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.asImageBitmap
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -79,6 +85,7 @@ fun BusinessProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(email, { email = it }, label = { Text(stringResource(R.string.email)) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
+            BrandingSection(vm)
             Text(stringResource(R.string.bp_payment_details), style = MaterialTheme.typography.titleMedium)
             Text(stringResource(R.string.bp_payment_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(bank, { bank = it }, label = { Text(stringResource(R.string.bank_name_optional)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -95,6 +102,47 @@ fun BusinessProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 vm.run { settings.updateBusinessProfile(BusinessProfileDto(name, address, gstin, state, phone, email, bank, accName, accNo, ifsc.uppercase(), upi, terms, signatory)) }
                 vm.toast(ctx.getString(R.string.saved)); nav.popBackStack()
             }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }
+        }
+    }
+}
+
+
+/** Logo and signature images printed on invoices and notes (picked from the gallery, no permission needed). */
+@Composable
+private fun BrandingSection(vm: AppViewModel) {
+    val store = vm.deps?.attachments ?: return
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var version by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val failed = stringResource(R.string.attachment_failed)
+    var target by androidx.compose.runtime.remember { mutableStateOf(com.cashbook.app.data.AttachmentStore.Brand.LOGO) }
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            val ok = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { store.importBrand(target, uri) } }.isSuccess
+            if (!ok) vm.toast(failed)
+            version++
+        }
+    }
+    Text(stringResource(R.string.bp_branding), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.bp_branding_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    com.cashbook.app.data.AttachmentStore.Brand.entries.forEach { brand ->
+        val bmp = androidx.compose.runtime.remember(version) { store.brandBitmap(brand) }
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            androidx.compose.foundation.layout.Box(Modifier.size(width = 120.dp, height = 56.dp)
+                .background(androidx.compose.ui.graphics.Color.White, MaterialTheme.shapes.small)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                if (bmp != null) androidx.compose.foundation.Image(bmp.asImageBitmap(), stringResource(if (brand == com.cashbook.app.data.AttachmentStore.Brand.LOGO) R.string.bp_logo else R.string.bp_signature_image),
+                    Modifier.padding(4.dp).fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
+                else Text(stringResource(R.string.none), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            }
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(stringResource(if (brand == com.cashbook.app.data.AttachmentStore.Brand.LOGO) R.string.bp_logo else R.string.bp_signature_image), style = MaterialTheme.typography.bodyLarge)
+                androidx.compose.foundation.layout.Row {
+                    TextButton(onClick = { target = brand; vm.allowExternalActivity()
+                        picker.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                        Text(stringResource(if (bmp == null) R.string.choose_image else R.string.replace)) }
+                    if (bmp != null) TextButton(onClick = { store.removeBrand(brand); version++ }) { Text(stringResource(R.string.remove)) }
+                }
+            }
         }
     }
 }

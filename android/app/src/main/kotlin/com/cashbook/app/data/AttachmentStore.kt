@@ -87,6 +87,33 @@ class AttachmentStore(private val context: Context) {
 
     fun delete(storedName: String) { file(storedName).delete() }
 
+    // ---- branding images for invoices (kept here so backups carry them) ----
+    enum class Brand(val fileName: String) { LOGO("branding-logo.png"), SIGNATURE("branding-signature.png") }
+
+    fun brandFile(b: Brand) = file(b.fileName)
+    fun brandBitmap(b: Brand): Bitmap? = brandFile(b).takeIf { it.exists() }?.let { BitmapFactory.decodeFile(it.path) }
+
+    /** Imports a JPG/PNG as the logo or signature, scaled to at most 800 px and saved as PNG (keeps transparency). */
+    fun importBrand(b: Brand, uri: Uri) {
+        val cr = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        // (decodeStream returns null in bounds-only mode by design, so check that the stream opened instead)
+        val input = cr.openInputStream(uri) ?: throw ImportError.Failed()
+        input.use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0) throw ImportError.Unsupported()
+        var sample = 1
+        while (bounds.outWidth / sample > 1600 || bounds.outHeight / sample > 1600) sample *= 2
+        val src = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) }
+            ?: throw ImportError.Unsupported()
+        val scale = minOf(1f, 800f / maxOf(src.width, src.height))
+        val bmp = if (scale < 1f) Bitmap.createScaledBitmap(src, (src.width * scale).toInt().coerceAtLeast(1), (src.height * scale).toInt().coerceAtLeast(1), true) else src
+        val tmp = File(dir, b.fileName + ".tmp")
+        tmp.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        if (!tmp.renameTo(brandFile(b))) { brandFile(b).delete(); tmp.renameTo(brandFile(b)) }
+    }
+
+    fun removeBrand(b: Brand) { brandFile(b).delete() }
+
     companion object {
         /** Maximum stored size of one attachment: 10 MB. */
         const val MAX_BYTES = 10L * 1024 * 1024

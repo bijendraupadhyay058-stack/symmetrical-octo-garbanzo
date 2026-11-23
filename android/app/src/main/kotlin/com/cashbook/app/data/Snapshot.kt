@@ -35,7 +35,10 @@ data class Snapshot(
 ) {
     /** Invoice balances as of [today]; only payments that are not in the recycle bin count. */
     fun invoiceBalances(today: java.time.LocalDate = java.time.LocalDate.now()): List<InvoiceBalance> =
-        Invoices.balances(invoices, allocations, txns.map { it.id }.toSet(), today)
+        Invoices.balances(invoices, allocations, txns.associate { it.id to it.type }, today)
+
+    /** Credit/debit notes issued against an invoice. */
+    fun notesOf(invoiceId: Long) = invoices.filter { it.refInvoiceId == invoiceId }
     val cashbookById = cashbooks.associateBy { it.id }
     val accountById = accounts.associateBy { it.id }
     val categoryById = categories.associateBy { it.id }

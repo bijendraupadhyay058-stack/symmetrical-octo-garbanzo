@@ -186,14 +186,20 @@ object BackupCodec {
             if (i.cashbookId !in cb) p += "invoice ${i.id} has unknown cashbook"
             if (i.partyId !in party) p += "invoice ${i.id} has unknown party"
             if (i.amount <= 0 || i.number.isBlank() || i.dueDate < i.issueDate) p += "invoice ${i.id} has invalid values"
-            if (!invoiceKeys.add(Triple(i.cashbookId, i.kind, i.number.trim().lowercase()))) p += "invoice ${i.id} has a duplicate number"
+            if (!invoiceKeys.add(Triple(i.cashbookId, i.kind + "/" + i.docType, i.number.trim().lowercase()))) p += "invoice ${i.id} has a duplicate number"
+            val dt = runCatching { com.cashbook.core.DocType.valueOf(i.docType) }.getOrNull()
+            if (dt == null) p += "invoice ${i.id} has invalid document type"
+            if (dt != null && dt != com.cashbook.core.DocType.INVOICE) {
+                val ref = i.refInvoiceId?.let { d.invoices.firstOrNull { o -> o.id == it } }
+                if (ref == null || ref.docType != "INVOICE" || ref.cashbookId != i.cashbookId || ref.kind != i.kind) p += "note ${i.id} has an invalid original invoice"
+            }
         }
         val perTxn = HashMap<Long, Long>()
         d.allocations.forEach { a ->
             val i = inv[a.invoiceId]; val t = txnById[a.transactionId]
             if (i == null || t == null) { p += "allocation ${a.id} has unknown invoice or entry"; return@forEach }
-            val expected = if (i.kind == "SALE") "INCOME" else "EXPENSE"
-            if (t.type != expected || t.cashbookId != i.cashbookId || a.amount <= 0) p += "allocation ${a.id} is invalid"
+            // payment (income for sales, expense for purchases) or refund (the opposite)
+            if (t.type == "TRANSFER" || i.docType != "INVOICE" || t.cashbookId != i.cashbookId || a.amount <= 0) p += "allocation ${a.id} is invalid"
             perTxn[t.id] = (perTxn[t.id] ?: 0) + a.amount
         }
         perTxn.forEach { (tid, sum) -> if (sum > (txnById[tid]?.amount ?: 0)) p += "entry $tid is allocated more than its amount" }

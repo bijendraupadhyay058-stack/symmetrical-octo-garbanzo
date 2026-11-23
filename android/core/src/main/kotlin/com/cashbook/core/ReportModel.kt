@@ -148,6 +148,6 @@ data class ReportLabels(
     val inputTax: String = "Input tax (purchase bills)",
     val netTaxPayable: String = "Net tax (output − input)",
     val invoicesCounted: String = "Itemised invoices counted",
-    val gstNote: String = "Based on itemised invoices and bills by invoice date (cancelled ones excluded). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.",
+    val gstNote: String = "Based on itemised invoices, bills and credit/debit notes by document date (cancelled ones excluded; credit notes reduce tax). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )
