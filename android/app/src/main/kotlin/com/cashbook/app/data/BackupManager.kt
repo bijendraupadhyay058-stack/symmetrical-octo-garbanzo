@@ -14,6 +14,8 @@ import com.cashbook.app.data.db.BudgetEntity
 import com.cashbook.app.data.db.AllocationEntity
 import com.cashbook.app.data.db.InvoiceEntity
 import com.cashbook.app.data.db.InvoiceItemEntity
+import com.cashbook.app.data.db.CatalogItemEntity
+import com.cashbook.app.data.db.StockAdjustmentEntity
 import com.cashbook.app.data.db.RecurringEntity
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
@@ -30,6 +32,8 @@ import com.cashbook.core.backup.BudgetDto
 import com.cashbook.core.backup.AllocationDto
 import com.cashbook.core.backup.InvoiceDto
 import com.cashbook.core.backup.InvoiceItemDto
+import com.cashbook.core.backup.CatalogItemDto
+import com.cashbook.core.backup.StockAdjustmentDto
 import com.cashbook.core.backup.RecurringDto
 import com.cashbook.core.backup.CashbookDto
 import com.cashbook.core.backup.CategoryDto
@@ -115,7 +119,7 @@ class BackupManager(
         try {
             db.withTransaction {
                 // children first
-                db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
+                db.catalog().clearAdjustments(); db.catalog().clear(); db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
                 db.maintenance().apply {
                     clearAttachments(); clearTransactions(); clearAccounts(); clearCashbooks(); clearParties(); clearCategories()
                 }
@@ -132,8 +136,11 @@ class BackupManager(
                 db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 db.invoices().insertAll(d.invoices.map { InvoiceEntity(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
                     it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) })
+                db.catalog().insertAll(d.catalog.map { CatalogItemEntity(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp,
+                    it.description, it.openingStockMilli, it.openingDate, it.reorderLevelMilli, it.archived, it.createdAt, it.updatedAt) })
+                db.catalog().insertAdjustments(d.stockAdjustments.map { StockAdjustmentEntity(it.id, it.itemId, it.date, it.quantityMilli, it.reason, it.createdAt) })
                 db.invoices().insertItems(d.invoiceItems.map { InvoiceItemEntity(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit,
-                    it.rate, it.discountBp, it.gstBp) })
+                    it.rate, it.discountBp, it.gstBp, it.itemId) })
                 db.invoices().insertAllocations(d.allocations.map { AllocationEntity(it.id, it.invoiceId, it.transactionId, it.amount, it.createdAt) })
                 // Only keep attachment rows whose file was actually in the backup
                 db.attachments().insertAll(d.attachments.filter { it.storedName in backup.attachmentFiles }.map {
@@ -185,7 +192,10 @@ class BackupManager(
         invoices = db.invoices().getAll().map { InvoiceDto(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
             it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) },
         invoiceItems = db.invoices().items().map { InvoiceItemDto(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit, it.rate,
-            it.discountBp, it.gstBp) },
+            it.discountBp, it.gstBp, it.itemId) },
+        catalog = db.catalog().getAll().map { CatalogItemDto(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp, it.description,
+            it.openingStockMilli, it.openingDate, it.reorderLevelMilli, it.archived, it.createdAt, it.updatedAt) },
+        stockAdjustments = db.catalog().adjustments().map { StockAdjustmentDto(it.id, it.itemId, it.date, it.quantityMilli, it.reason, it.createdAt) },
         businessProfile = settings.businessProfile.first(),
         allocations = db.invoices().allocations().map { AllocationDto(it.id, it.invoiceId, it.transactionId, it.amount, it.createdAt) },
         attachments = if (!includeAttachments) emptyList() else db.attachments().getAll().map { AttachmentDto(it.id, it.transactionId, it.fileName, it.mimeType, it.sizeBytes, it.storedName, it.createdAt) },

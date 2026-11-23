@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.0 (versionCode 6)
+
+**New**
+- **Products & services** (Settings › Products & services): name, goods or service, HSN/SAC, unit, sale and
+  purchase rate, GST rate, opening stock and reorder level. Search, "Low stock only" filter, archive.
+- On an invoice or bill line, **pick an item** to fill description, HSN/SAC, unit, rate and GST rate. The line
+  shows stock in hand and warns when a sale is more than you have.
+- **Stock on hand** derived from purchase bills (+), sales (−), credit notes (back in) and **stock adjustments**
+  (damage, counting differences). Debit notes and cancelled documents don't move stock.
+- **Low stock** card on the dashboard.
+- Reports: **Stock summary** (opening, in, out, closing, value) and **Item-wise sales** (quantity, taxable
+  value, GST), with PDF and Excel export.
+
+**Data**
+- Database v5 → v6 adds `catalog_items`, `stock_adjustments` and an optional item link on invoice lines.
+  Backups include items and adjustments; older backups still restore.
+
 ## 1.4.0 (versionCode 5)
 
 **New**

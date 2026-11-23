@@ -129,6 +129,25 @@ interface RecurringDao {
 }
 
 @Dao
+interface CatalogDao {
+    @Query("SELECT * FROM catalog_items ORDER BY archived, name COLLATE NOCASE") suspend fun getAll(): List<CatalogItemEntity>
+    @Query("SELECT * FROM catalog_items WHERE id = :id") suspend fun get(id: Long): CatalogItemEntity?
+    @Query("SELECT COUNT(*) FROM catalog_items WHERE name = :name COLLATE NOCASE AND id != :exceptId") suspend fun countName(name: String, exceptId: Long): Int
+    @Insert suspend fun insert(e: CatalogItemEntity): Long
+    @Insert suspend fun insertAll(e: List<CatalogItemEntity>)
+    @Update suspend fun update(e: CatalogItemEntity)
+    @Query("DELETE FROM catalog_items WHERE id = :id") suspend fun delete(id: Long)
+    @Query("DELETE FROM catalog_items") suspend fun clear()
+    @Query("SELECT COUNT(*) FROM invoice_items WHERE item_id = :id") suspend fun countLines(id: Long): Int
+
+    @Query("SELECT * FROM stock_adjustments ORDER BY date, id") suspend fun adjustments(): List<StockAdjustmentEntity>
+    @Insert suspend fun insertAdjustment(e: StockAdjustmentEntity): Long
+    @Insert suspend fun insertAdjustments(e: List<StockAdjustmentEntity>)
+    @Query("DELETE FROM stock_adjustments WHERE id = :id") suspend fun deleteAdjustment(id: Long)
+    @Query("DELETE FROM stock_adjustments") suspend fun clearAdjustments()
+}
+
+@Dao
 interface BudgetDao {
     @Query("SELECT * FROM budgets") suspend fun getAll(): List<BudgetEntity>
     @Query("SELECT * FROM budgets WHERE cashbook_id = :cashbookId AND category_id = :categoryId") suspend fun find(cashbookId: Long, categoryId: Long): BudgetEntity?

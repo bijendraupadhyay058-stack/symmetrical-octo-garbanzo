@@ -376,6 +376,59 @@ class UiFlowTest {
         assertEquals(invoiceId, s2.invoices.first { it.docType == com.cashbook.core.DocType.CREDIT_NOTE }.refInvoiceId)
     }
 
+    @Test fun productsAndStockFlow() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", createdAt = 0, updatedAt = 0, stateCode = "27"))
+            d.ledger.saveCatalogItem(com.cashbook.core.CatalogItem(0, "A4 paper ream", com.cashbook.core.ItemKind.GOODS, "4802", "Ream", 32_000, 26_000, 1200,
+                openingStockMilli = 40_000, openingDate = LocalDate.now().minusDays(10), reorderLevelMilli = 10_000))
+            d.ledger.saveCatalogItem(com.cashbook.core.CatalogItem(0, "GST return filing", com.cashbook.core.ItemKind.SERVICE, "998231", "Month", 250_000, 0, 1800))
+            d.snap { it.catalog.size == 2 && it.parties.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Products & services"); click("Products & services")
+        waitFor("New item"); click("New item")
+        waitFor("Item name")
+        field("Item name").performTextInput("Toner cartridge")
+        field("HSN / SAC").performTextInput("8443")
+        field("Unit").performTextInput("Nos")
+        field("Sale rate").performTextInput("2500")
+        field("Purchase rate").performTextInput("1800")
+        field("Opening stock").performTextInput("6")
+        field("Reorder level").performTextInput("5")
+        shot("30_item_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Toner cartridge")
+        shot("31_products_list")
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        waitFor("Invoices & bills"); click("Invoices & bills")
+        waitFor("New invoice"); click("New invoice")
+        waitFor("Customer / client *")
+        click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Add a saved item", substring = true))
+        compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("Pick a saved item"))[0].performClick()   // fill line 1
+        waitFor("Toner cartridge"); click("Toner cartridge")
+        waitFor("In stock: 6 Nos")
+        field("Qty").performTextClearance(); field("Qty").performTextInput("2")
+        shot("32_invoice_pick_item")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Record receipt")
+        val s = runBlocking { d.snap { it.invoiceItems.isNotEmpty() } }
+        val toner = s.catalog.first { it.name == "Toner cartridge" }
+        assertEquals(toner.id, s.invoiceItems.values.single().single().itemId)
+        assertEquals(590_000L, s.invoices.single().amount)                                     // 2 × 2,500 + 18 %
+        assertEquals(4_000L, s.onHand(toner))                                                    // 6 − 2: now below the reorder level of 5
+        repeat(2) { scenario?.onActivity { a -> a.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }   // invoice → list → Settings
+        tab("Dashboard"); waitFor("Total balance")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Low stock"))
+        waitFor("4 left (reorder at 5 Nos)", substring = true)
+        shot("33_dashboard_low_stock")
+    }
+
     @Test fun outstandingReport() {
         seed("en")
         runBlocking {

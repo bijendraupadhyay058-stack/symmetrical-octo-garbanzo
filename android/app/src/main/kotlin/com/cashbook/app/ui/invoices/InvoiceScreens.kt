@@ -327,7 +327,8 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                 DropdownField(stringResource(R.string.place_of_supply), listOf("") + com.cashbook.core.Gst.STATES.keys, placeOfSupply,
                     labelOf = { if (it.isEmpty()) stringResource(R.string.not_set) else com.cashbook.core.Gst.stateLabel(it) }, onSelect = { placeOfSupply = it },
                     supporting = if (seller.stateCode.isBlank()) stringResource(R.string.set_business_state) else null, modifier = Modifier.fillMaxWidth())
-                InvoiceItemsEditor(items, { items = it }, showErrors, totals)
+                InvoiceItemsEditor(items, { items = it }, showErrors, totals, snap.catalog, purchase = kind == InvoiceKind.PURCHASE, onHand = { snap.onHand(it) },
+                    stockOut = (kind == InvoiceKind.SALE && (!isNote)) || (kind == InvoiceKind.PURCHASE && isNote && noteType == com.cashbook.core.DocType.CREDIT_NOTE))
                 com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.round_off_total), roundOff, { roundOff = it })
                 totals?.let { TotalsCard(it) }
                 if (showErrors && errAmount && paid > 0 && itemsValid) Text(stringResource(R.string.inv_err_below_paid), color = MaterialTheme.colorScheme.error)

@@ -35,9 +35,14 @@
     <string name="add_income_desc">Money received into an account</string>
     <string name="add_item">Add item</string>
     <string name="add_sample">Add sample data</string>
+    <string name="add_saved_item">Add a saved item</string>
     <string name="add_transfer">Transfer</string>
     <string name="add_transfer_desc">Move money between your own accounts</string>
     <string name="address">Address</string>
+    <string name="adj_add">Add stock</string>
+    <string name="adj_reason_hint">e.g. damaged, counted, own use</string>
+    <string name="adj_reduce">Reduce stock</string>
+    <string name="adjust_stock">Stock adjustment</string>
     <string name="after_days">After %d days</string>
     <string name="after_minutes">After %d minutes</string>
     <string name="after_seconds">After %d seconds</string>
@@ -196,6 +201,8 @@
     <string name="delete_category_text">This category is not used by any entry and will be deleted.</string>
     <string name="delete_entry_text">The entry will move to the recycle bin and balances will be recalculated. You can restore it later.</string>
     <string name="delete_entry_title">Delete this entry?</string>
+    <string name="delete_item_text">The item will be deleted. Invoice lines that used it are not affected.</string>
+    <string name="delete_item_title">Delete item?</string>
     <string name="delete_note_text">The note will be deleted and the original invoice\'s amount owed recalculated.</string>
     <string name="delete_note_title">Delete note?</string>
     <string name="delete_permanently">Delete permanently</string>
@@ -220,6 +227,7 @@
     <string name="edit_category">Edit category</string>
     <string name="edit_entry">Edit entry</string>
     <string name="edit_invoice">Edit invoice</string>
+    <string name="edit_item">Edit item</string>
     <string name="edit_note">Edit note</string>
     <string name="edit_party">Edit party</string>
     <string name="edit_recurring">Edit recurring entry</string>
@@ -297,6 +305,7 @@
     <string name="icon">Icon</string>
     <string name="in_label">In</string>
     <string name="in_recycle_bin_since">In the recycle bin since %s</string>
+    <string name="in_stock_x">In stock: %1$s %2$s</string>
     <string name="include_attachments">Include attachments</string>
     <string name="include_attachments_desc">Bills and receipts make the backup larger.</string>
     <string name="income">Income</string>
@@ -356,13 +365,19 @@
     <string name="invoices_bills">Invoices &amp; bills</string>
     <string name="invoices_desc">What customers owe you and what you owe suppliers</string>
     <string name="invoices_intro">Record invoices and bills to track what is owed. Record payments against them as they come in or go out.</string>
+    <string name="item_archive_desc">Hidden when picking items; history and stock are kept.</string>
     <string name="item_description">Item / service</string>
     <string name="item_discount">Discount</string>
+    <string name="item_err_duplicate">An item with this name already exists.</string>
+    <string name="item_err_in_use">This item is used on invoices. Archive it instead.</string>
+    <string name="item_goods">Goods</string>
     <string name="item_hsn">HSN / SAC</string>
     <string name="item_line_total">Taxable %1$s + GST %2$s = %3$s</string>
     <string name="item_n">Item %d</string>
+    <string name="item_name">Item name</string>
     <string name="item_qty">Qty</string>
     <string name="item_rate">Rate</string>
+    <string name="item_service">Service</string>
     <string name="item_unit">Unit</string>
     <string name="itemised_gst">Itemised with GST</string>
     <string name="itemised_gst_desc">Add line items; GST and the total are calculated for you. Turn off to enter a single amount.</string>
@@ -380,6 +395,8 @@
     <string name="lock_later_hint">You can set or change the PIN later in Settings › Security.</string>
     <string name="lock_now">Lock now</string>
     <string name="lock_setup_body">Protect your financial records with a PIN. You can also turn on fingerprint unlock later.</string>
+    <string name="low_stock">Low stock</string>
+    <string name="low_stock_only">Low stock only</string>
     <string name="make_recurring">Make recurring</string>
     <string name="manage">Manage</string>
     <string name="manage_cashbooks">Manage cashbooks</string>
@@ -426,6 +443,7 @@
     <string name="new_credit_note">New credit note</string>
     <string name="new_debit_note">New debit note</string>
     <string name="new_invoice">New invoice</string>
+    <string name="new_item">New item</string>
     <string name="new_party">New party</string>
     <string name="new_recurring">New recurring entry</string>
     <string name="next">Next</string>
@@ -439,11 +457,13 @@
     <string name="no_data_period">No entries for the selected period and filters.</string>
     <string name="no_expenses_period">No expenses in this period.</string>
     <string name="no_invoices">Nothing here yet.</string>
+    <string name="no_items">No saved items yet. Add products and services you bill often.</string>
     <string name="no_matches">No entries match your search or filters.</string>
     <string name="no_notes">No credit or debit notes.</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
     <string name="no_recurring">No recurring entries yet.</string>
+    <string name="no_stock_moves">No stock movements yet.</string>
     <string name="no_transactions_yet">No entries yet. Tap Add to record income, an expense or a transfer.</string>
     <string name="no_viewer">No app on this device can open this file.</string>
     <string name="none">None</string>
@@ -463,6 +483,9 @@
     <string name="opening_balance">Opening balance</string>
     <string name="opening_date">Opening date</string>
     <string name="opening_date_hint">Opening balances are counted from this date.</string>
+    <string name="opening_stock">Opening stock</string>
+    <string name="opening_stock_date">Opening stock as on</string>
+    <string name="opening_stock_on">Opening stock %1$s on %2$s</string>
     <string name="opening_x_on_y">Opening %1$s on %2$s</string>
     <string name="operation_failed">Something went wrong. Your existing data has not been changed.</string>
     <string name="optional">Optional</string>
@@ -524,6 +547,7 @@
     <string name="period_this_week">This week</string>
     <string name="period_this_year">This year</string>
     <string name="period_today">Today</string>
+    <string name="pick_item">Pick a saved item</string>
     <string name="pin_changed">PIN changed</string>
     <string name="pin_enabled">PIN lock is on</string>
     <string name="pin_mismatch">PINs did not match. Try again.</string>
@@ -537,7 +561,10 @@
     <string name="previous_month">Previous month</string>
     <string name="privacy">Privacy</string>
     <string name="privacy_policy">Privacy policy</string>
+    <string name="products_services">Products &amp; services</string>
+    <string name="products_services_desc">Saved items with HSN/SAC, rates, GST and stock</string>
     <string name="provider_optional">Provider (optional)</string>
+    <string name="purchase_rate">Purchase rate</string>
     <string name="quick_actions">Quick actions</string>
     <string name="ready_body">\"%s\" is ready. You can add more cashbooks, accounts and categories at any time.</string>
     <string name="receivables">Receivables</string>
@@ -566,6 +593,7 @@
     <string name="remove_sample">Remove sample data</string>
     <string name="remove_sample_text">The sample cashbook and all its entries will be deleted. Your own cashbooks are not affected.</string>
     <string name="rename_category_info">Renaming keeps all %d linked entries; they will show the new name.</string>
+    <string name="reorder_level">Reorder level</string>
     <string name="repeats">Repeats</string>
     <string name="replace">Replace</string>
     <string name="report_account">Account-wise Report</string>
@@ -582,6 +610,8 @@
     <string name="report_gst_desc">Output tax on sales invoices vs input tax on purchase bills, by rate (CGST, SGST, IGST)</string>
     <string name="report_income_expense">Income and Expense Statement</string>
     <string name="report_income_expense_desc">Income and expenses grouped by category with net surplus or deficit</string>
+    <string name="report_item_sales">Item-wise Sales</string>
+    <string name="report_item_sales_desc">Quantity and value sold per item, net of returns</string>
     <string name="report_monthly">Monthly Summary</string>
     <string name="report_monthly_desc">Totals for a month and closing account balances</string>
     <string name="report_options">Report options</string>
@@ -589,6 +619,8 @@
     <string name="report_outstanding_desc">Unpaid invoices and bills by party, grouped by days overdue, as at a date</string>
     <string name="report_party">Party-wise Transaction Report</string>
     <string name="report_party_desc">Money received from and paid to each party</string>
+    <string name="report_stock">Stock Summary</string>
+    <string name="report_stock_desc">Opening, in, out, adjustments and closing stock with value</string>
     <string name="report_transfers">Transfer Report</string>
     <string name="report_transfers_desc">All movements between your own accounts</string>
     <string name="report_yearly">Yearly Summary</string>
@@ -609,9 +641,11 @@
     <string name="restore_wrong_password">Wrong password, or the file is damaged.</string>
     <string name="retention_info">Entries in the recycle bin are permanently deleted %d days after deletion.</string>
     <string name="retention_off">Deleted entries stay in the recycle bin until you remove them.</string>
+    <string name="rl_adjusted">Adjusted</string>
     <string name="rl_ageing">Ageing</string>
     <string name="rl_balance">Balance</string>
     <string name="rl_cash_basis_note">This report reflects recorded cash movements only. It is not an accrual-based profit and loss account.</string>
+    <string name="rl_closing_stock">Closing</string>
     <string name="rl_count">No. of entries</string>
     <string name="rl_d0_30">1–30 days overdue</string>
     <string name="rl_d31_60">31–60 days overdue</string>
@@ -623,9 +657,13 @@
     <string name="rl_expense_by_category">Expenses by category</string>
     <string name="rl_from">From</string>
     <string name="rl_gst_note">Based on itemised invoices and bills by invoice date (cancelled ones excluded). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.</string>
+    <string name="rl_in">In</string>
     <string name="rl_income_by_category">Income by category</string>
     <string name="rl_input_tax">Input tax (purchase bills)</string>
     <string name="rl_invoices_counted">Itemised invoices counted</string>
+    <string name="rl_item">Item</string>
+    <string name="rl_item_sales_note">Sales invoices in the period, net of sales credit notes. Lines not picked from saved items are grouped by description.</string>
+    <string name="rl_items">Items</string>
     <string name="rl_month">Month</string>
     <string name="rl_month_wise">Month-wise totals</string>
     <string name="rl_net">Net</string>
@@ -635,13 +673,17 @@
     <string name="rl_net_tax">Net tax (output − input)</string>
     <string name="rl_not_due">Not yet due</string>
     <string name="rl_opening_of">Opening balance – %s</string>
+    <string name="rl_out">Out</string>
     <string name="rl_output_tax">Output tax (sales invoices)</string>
     <string name="rl_outstanding_note">Invoices and bills are amounts owed, not cash movements; they don\'t change account balances until payments are recorded. Figures are as at the end of the selected period.</string>
     <string name="rl_particulars">Particulars</string>
     <string name="rl_party_note">Shows money actually received from and paid to each party. It is not a receivables/payables ledger.</string>
     <string name="rl_payments">Payments</string>
     <string name="rl_percent">% of total</string>
+    <string name="rl_quantity">Quantity</string>
     <string name="rl_receipts">Receipts</string>
+    <string name="rl_stock_note">Stock is worked out from purchase bills (in), sales invoices (out), credit notes for returns, and manual adjustments. Only lines picked from saved goods are counted. Value uses each item\'s purchase rate.</string>
+    <string name="rl_stock_value">Value (purchase rate)</string>
     <string name="rl_to">To</string>
     <string name="rl_total">Total</string>
     <string name="rl_total_entries">Total (%d entries)</string>
@@ -660,6 +702,7 @@
     <string name="round_off_total">Round total to the nearest rupee</string>
     <string name="run_backup_now">Back up now</string>
     <string name="running_balance_hint">Sort by Oldest first (without other filters) to see the running balance.</string>
+    <string name="sale_rate">Sale rate</string>
     <string name="sample">Sample</string>
     <string name="sample_added">Sample data added. Remove it any time from Settings.</string>
     <string name="sample_bank">SBI Bank</string>
@@ -679,6 +722,7 @@
     <string name="schedule">Schedule</string>
     <string name="search">Search</string>
     <string name="search_hint">Search description, party, category, amount, reference, notes</string>
+    <string name="search_items">Search by name or HSN/SAC</string>
     <string name="search_party">Search by name or mobile number</string>
     <string name="secure_screen">Hide in recent apps</string>
     <string name="secure_screen_desc">Blocks screenshots and hides the app preview in the recent-apps screen.</string>
@@ -719,6 +763,11 @@
     <string name="step_lock">App lock (optional)</string>
     <string name="step_theme">Appearance</string>
     <string name="step_welcome">Welcome</string>
+    <string name="stock">Stock</string>
+    <string name="stock_explain">Stock goes up with purchase bills and down with sales invoices that use this item, and back with credit notes for returns. Use stock adjustments for damage or counting differences.</string>
+    <string name="stock_history">Stock history</string>
+    <string name="stock_short">Only %1$s %2$s in stock</string>
+    <string name="stock_vs_reorder">%1$s left (reorder at %2$s %3$s)</string>
     <string name="storage_error">Cashbook could not open its encrypted storage on this device. Your data has not been deleted. Restarting the phone usually helps; if not, contact support before clearing app data.</string>
     <string name="success">Success</string>
     <string name="sunday">Sunday</string>
@@ -807,6 +856,8 @@
         <item>Fill in Settings › Business profile (name, GSTIN, state, bank/UPI, terms). Then turn on Itemised with GST on an invoice and add lines with HSN/SAC, quantity, rate, discount and GST rate. Supplies within your state are split into CGST + SGST; other states get IGST, based on the place of supply. Save or share the tax invoice as a PDF from the invoice. Reports › GST Summary compares output tax with input tax.</item>
         <item>## Credit notes, debit notes and refunds</item>
         <item>Open an invoice or bill and tap Credit note (goods returned, discount, overcharge) or Debit note (amount charged short). A credit note starts from the invoice\'s items so you can reduce quantities. Notes change what is owed and the GST summary, never account balances. If a credit note leaves more paid than owed, the invoice shows Refund due — tap Record refund to enter the money returned. Add a logo and signature image in Business profile to print them on invoices and notes.</item>
+        <item>## Products, services and stock</item>
+        <item>Settings › Products &amp; services keeps items you bill often with HSN/SAC, unit, sale and purchase rates and GST. On an invoice line tap the box icon (or Add a saved item) to fill it in. For goods, stock is worked out automatically: purchase bills add, sales invoices remove, credit notes for returns reverse them; set an opening stock and a reorder level, and use Stock adjustment for damage or counting differences. Reports › Stock Summary and Item-wise Sales show the details.</item>
         <item>## Home-screen widget and alerts</item>
         <item>Long-press the home screen › Widgets › Cashbook for quick Income / Expense / Transfer buttons. The balance is shown only if you allow it and the app lock is off. Turn on invoice reminders and budget alerts in Settings › General &amp; financial.</item>
         <item>## Automatic backup</item>

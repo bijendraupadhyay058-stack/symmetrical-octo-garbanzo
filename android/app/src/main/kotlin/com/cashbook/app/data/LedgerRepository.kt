@@ -8,6 +8,8 @@ import com.cashbook.app.data.db.BudgetEntity
 import com.cashbook.app.data.db.AllocationEntity
 import com.cashbook.app.data.db.InvoiceEntity
 import com.cashbook.app.data.db.InvoiceItemEntity
+import com.cashbook.app.data.db.CatalogItemEntity
+import com.cashbook.app.data.db.StockAdjustmentEntity
 import com.cashbook.app.data.db.toItem
 import com.cashbook.app.data.db.toRule
 import com.cashbook.app.data.db.CashbookEntity
@@ -22,6 +24,7 @@ import com.cashbook.core.PaymentMode
 import com.cashbook.core.InvoiceInfo
 import com.cashbook.core.DocType
 import com.cashbook.core.InvoiceItem
+import com.cashbook.core.CatalogItem
 import com.cashbook.core.GstCalc
 import com.cashbook.core.InvoiceKind
 import com.cashbook.core.Invoices
@@ -58,7 +61,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -78,6 +81,8 @@ class LedgerRepository(
             invoices = db.invoices().getAll().map { it.toInfo() },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
+            catalog = db.catalog().getAll().map { it.toInfo() },
+            stockAdjustments = db.catalog().adjustments().map { it.toInfo() },
         )
     }
 
@@ -376,7 +381,8 @@ class LedgerRepository(
         if (items != null) {
             db.invoices().deleteItems(id)
             db.invoices().insertItems(items.mapIndexed { i, it -> InvoiceItemEntity(invoiceId = id, position = i, description = it.description.trim(),
-                hsn = it.hsn.trim(), quantityMilli = it.quantityMilli, unit = it.unit.trim(), rate = it.rate, discountBp = it.discountBp, gstBp = it.gstBp) })
+                hsn = it.hsn.trim(), quantityMilli = it.quantityMilli, unit = it.unit.trim(), rate = it.rate, discountBp = it.discountBp, gstBp = it.gstBp,
+                itemId = it.itemId) })
         }
         id
     }
@@ -459,6 +465,37 @@ class LedgerRepository(
         if (existing == null) db.invoices().insertAllocation(AllocationEntity(invoiceId = invoiceId, transactionId = txnId, amount = amount, createdAt = now))
         else db.invoices().updateAllocation(existing.id, amount)
     }
+
+    // ---------- products & services ----------
+
+    class CatalogException(val reason: Reason) : Exception(reason.name) { enum class Reason { DUPLICATE_NAME, IN_USE } }
+
+    /** Creates or updates a saved product/service. Names are unique (ignoring case). */
+    suspend fun saveCatalogItem(item: CatalogItem): Long = db.withTransaction {
+        if (db.catalog().countName(item.name.trim(), item.id) > 0) throw CatalogException(CatalogException.Reason.DUPLICATE_NAME)
+        val e = CatalogItemEntity(item.id, item.name.trim(), item.kind.name, item.hsn.trim(), item.unit.trim(), item.saleRate, item.purchaseRate, item.gstBp,
+            item.description.trim(), item.openingStockMilli, item.openingDate.toEpochDay(), item.reorderLevelMilli, item.archived, now, now)
+        if (item.id == 0L) db.catalog().insert(e)
+        else { db.catalog().update(e.copy(createdAt = db.catalog().get(item.id)?.createdAt ?: now)); item.id }
+    }
+
+    suspend fun setCatalogItemArchived(id: Long, archived: Boolean) {
+        val e = db.catalog().get(id) ?: return
+        db.catalog().update(e.copy(archived = archived, updatedAt = now))
+    }
+
+    /** Deletes an item only if no invoice line uses it (archive it otherwise); its adjustments go with it. */
+    suspend fun deleteCatalogItem(id: Long) {
+        if (db.catalog().countLines(id) > 0) throw CatalogException(CatalogException.Reason.IN_USE)
+        db.catalog().delete(id)
+    }
+
+    suspend fun addStockAdjustment(itemId: Long, date: LocalDate, quantityMilli: Long, reason: String): Long {
+        require(quantityMilli != 0L)
+        return db.catalog().insertAdjustment(StockAdjustmentEntity(itemId = itemId, date = date.toEpochDay(), quantityMilli = quantityMilli, reason = reason.trim(), createdAt = now))
+    }
+
+    suspend fun deleteStockAdjustment(id: Long) = db.catalog().deleteAdjustment(id)
 
     // ---------- sample data ----------
 

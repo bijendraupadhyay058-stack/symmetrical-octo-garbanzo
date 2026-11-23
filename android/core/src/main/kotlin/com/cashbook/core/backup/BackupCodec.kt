@@ -203,7 +203,14 @@ object BackupCodec {
             perTxn[t.id] = (perTxn[t.id] ?: 0) + a.amount
         }
         perTxn.forEach { (tid, sum) -> if (sum > (txnById[tid]?.amount ?: 0)) p += "entry $tid is allocated more than its amount" }
-        dupes(d.invoiceItems, { it.id }, "invoice item")
+        dupes(d.invoiceItems, { it.id }, "invoice item"); dupes(d.catalog, { it.id }, "catalogue item"); dupes(d.stockAdjustments, { it.id }, "stock adjustment")
+        val catalogIds = d.catalog.map { it.id }.toSet()
+        d.catalog.forEach { c ->
+            if (c.name.isBlank() || runCatching { com.cashbook.core.ItemKind.valueOf(c.kind) }.isFailure || c.saleRate < 0 || c.purchaseRate < 0 ||
+                c.gstBp !in 0..10_000 || c.reorderLevelMilli < 0) p += "catalogue item ${c.id} is invalid"
+        }
+        d.stockAdjustments.forEach { if (it.itemId !in catalogIds || it.quantityMilli == 0L) p += "stock adjustment ${it.id} is invalid" }
+        d.invoiceItems.forEach { li -> if (li.itemId != null && li.itemId !in catalogIds) p += "invoice item ${li.id} has unknown catalogue item" }
         d.invoiceItems.forEach { li ->
             if (li.invoiceId !in inv) p += "invoice item ${li.id} has unknown invoice"
             if (li.quantityMilli <= 0 || li.rate < 0 || li.discountBp !in 0..10_000 || li.gstBp !in 0..10_000 || li.description.isBlank()) p += "invoice item ${li.id} is invalid"

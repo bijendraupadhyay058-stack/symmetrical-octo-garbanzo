@@ -82,6 +82,8 @@ data class InvoiceItem(
     val rate: Long,
     val discountBp: Int = 0,
     val gstBp: Int = 0,
+    /** Saved product/service this line came from (stock and item-wise reports). */
+    val itemId: Long? = null,
 )
 
 data class LineTotals(val item: InvoiceItem, val gross: Long, val discount: Long, val taxable: Long, val cgst: Long, val sgst: Long, val igst: Long) {

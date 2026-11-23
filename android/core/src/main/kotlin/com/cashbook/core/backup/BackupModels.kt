@@ -84,8 +84,18 @@ data class InvoiceDto(
 @Serializable
 data class InvoiceItemDto(
     val id: Long, val invoiceId: Long, val position: Int, val description: String, val hsn: String = "", val quantityMilli: Long, val unit: String = "",
-    val rate: Long, val discountBp: Int = 0, val gstBp: Int = 0,
+    val rate: Long, val discountBp: Int = 0, val gstBp: Int = 0, val itemId: Long? = null,
 )
+
+@Serializable
+data class CatalogItemDto(
+    val id: Long, val name: String, val kind: String = "GOODS", val hsn: String = "", val unit: String = "", val saleRate: Long = 0, val purchaseRate: Long = 0,
+    val gstBp: Int = 0, val description: String = "", val openingStockMilli: Long = 0, val openingDate: Long, val reorderLevelMilli: Long = 0,
+    val archived: Boolean = false, val createdAt: Long, val updatedAt: Long,
+)
+
+@Serializable
+data class StockAdjustmentDto(val id: Long, val itemId: Long, val date: Long, val quantityMilli: Long, val reason: String = "", val createdAt: Long)
 
 /** Seller details printed on invoices (from Settings › Business profile). */
 @Serializable
@@ -115,4 +125,7 @@ data class BackupData(
     // Added in app 1.3 (database v4).
     val invoiceItems: List<InvoiceItemDto> = emptyList(),
     val businessProfile: BusinessProfileDto? = null,
+    // Added in app 1.5 (database v6).
+    val catalog: List<CatalogItemDto> = emptyList(),
+    val stockAdjustments: List<StockAdjustmentDto> = emptyList(),
 )

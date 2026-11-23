@@ -204,7 +204,7 @@ data class InvoiceEntity(
 @Entity(
     tableName = "invoice_items",
     foreignKeys = [ForeignKey(entity = InvoiceEntity::class, parentColumns = ["id"], childColumns = ["invoice_id"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("invoice_id")],
+    indices = [Index("invoice_id"), Index("item_id")],
 )
 data class InvoiceItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -217,6 +217,43 @@ data class InvoiceItemEntity(
     val rate: Long,
     @ColumnInfo(name = "discount_bp") val discountBp: Int = 0,
     @ColumnInfo(name = "gst_bp") val gstBp: Int = 0,
+    /** Saved product/service (v6; no FK — items in use are archived, not deleted). */
+    @ColumnInfo(name = "item_id") val itemId: Long? = null,
+)
+
+/** Saved product or service (v6). Quantities in thousandths, rates in paise, GST in basis points. */
+@Entity(tableName = "catalog_items")
+data class CatalogItemEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val kind: String,
+    val hsn: String = "",
+    val unit: String = "",
+    @ColumnInfo(name = "sale_rate") val saleRate: Long = 0,
+    @ColumnInfo(name = "purchase_rate") val purchaseRate: Long = 0,
+    @ColumnInfo(name = "gst_bp") val gstBp: Int = 0,
+    val description: String = "",
+    @ColumnInfo(name = "opening_stock_milli") val openingStockMilli: Long = 0,
+    @ColumnInfo(name = "opening_date") val openingDate: Long,
+    @ColumnInfo(name = "reorder_level_milli") val reorderLevelMilli: Long = 0,
+    val archived: Boolean = false,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/** Manual stock change (v6). */
+@Entity(
+    tableName = "stock_adjustments",
+    foreignKeys = [ForeignKey(entity = CatalogItemEntity::class, parentColumns = ["id"], childColumns = ["item_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("item_id")],
+)
+data class StockAdjustmentEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "item_id") val itemId: Long,
+    val date: Long,
+    @ColumnInfo(name = "quantity_milli") val quantityMilli: Long,
+    val reason: String = "",
+    @ColumnInfo(name = "created_at") val createdAt: Long,
 )
 
 /** Part of a payment entry applied to an invoice — v3. Deleting either side removes the link. */

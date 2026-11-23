@@ -243,6 +243,19 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                 }
             }
+            // ----- low stock -----
+            val lowStock = snap.catalog.filter { it.tracksStock && !it.archived && it.reorderLevelMilli > 0 && snap.onHand(it) <= it.reorderLevelMilli }
+            if (lowStock.isNotEmpty()) item {
+                SectionCard(stringResource(R.string.low_stock), action = { TextButton(onClick = { nav.navigate(Routes.CATALOG) }) { Text(stringResource(R.string.view_all)) } }) {
+                    lowStock.take(5).forEach { c ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Text(c.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(stringResource(R.string.stock_vs_reorder, com.cashbook.core.Gst.formatQuantity(snap.onHand(c)), com.cashbook.core.Gst.formatQuantity(c.reorderLevelMilli), c.unit),
+                                color = fc.expense, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
             // ----- recurring entries waiting for confirmation -----
             val dueRules = snap.recurring.filter { it.cashbookId in scope && it.active && !it.autoPost && it.nextDate?.let { d -> !d.isAfter(today) } == true }
             if (dueRules.isNotEmpty()) item {

@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 enum class ReportType {
     DAILY_CASHBOOK, MONTHLY_SUMMARY, YEARLY_SUMMARY, FINANCIAL_YEAR, CATEGORY_WISE,
-    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY;
+    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY, STOCK_SUMMARY, ITEM_SALES;
 
     /** Balance-based reports only accept an account filter; others accept every filter. */
     val supportsDetailFilters: Boolean
@@ -67,6 +67,8 @@ data class ReportLabels(
         ReportType.CUSTOM to "Custom Report",
         ReportType.OUTSTANDING to "Outstanding & Ageing",
         ReportType.GST_SUMMARY to "GST Summary",
+        ReportType.STOCK_SUMMARY to "Stock Summary",
+        ReportType.ITEM_SALES to "Item-wise Sales",
     ),
     val types: Map<TxnType, String> = mapOf(TxnType.INCOME to "Income", TxnType.EXPENSE to "Expense", TxnType.TRANSFER to "Transfer"),
     val modes: Map<PaymentMode, String> = mapOf(
@@ -149,5 +151,17 @@ data class ReportLabels(
     val netTaxPayable: String = "Net tax (output − input)",
     val invoicesCounted: String = "Itemised invoices counted",
     val gstNote: String = "Based on itemised invoices, bills and credit/debit notes by document date (cancelled ones excluded; credit notes reduce tax). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.",
+    val item: String = "Item",
+    val unit: String = "Unit",
+    val inward: String = "In",
+    val outward: String = "Out",
+    val adjusted: String = "Adjusted",
+    val closingStock: String = "Closing",
+    val stockValue: String = "Value (purchase rate)",
+    val quantity: String = "Quantity",
+    val itemsCounted: String = "Items",
+    val lowStock: String = "Low stock",
+    val stockNote: String = "Stock is worked out from purchase bills (in), sales invoices (out), credit notes for returns, and manual adjustments. Only lines picked from saved goods are counted. Value uses each item's purchase rate.",
+    val itemSalesNote: String = "Sales invoices in the period, net of sales credit notes. Lines not picked from saved items are grouped by description.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )

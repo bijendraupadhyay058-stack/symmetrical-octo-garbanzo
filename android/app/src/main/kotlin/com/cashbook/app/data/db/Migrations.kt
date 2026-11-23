@@ -60,5 +60,16 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    /** v5 → v6 (app 1.5): saved products/services, stock adjustments, and invoice lines linked to items. */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `catalog_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `kind` TEXT NOT NULL, `hsn` TEXT NOT NULL, `unit` TEXT NOT NULL, `sale_rate` INTEGER NOT NULL, `purchase_rate` INTEGER NOT NULL, `gst_bp` INTEGER NOT NULL, `description` TEXT NOT NULL, `opening_stock_milli` INTEGER NOT NULL, `opening_date` INTEGER NOT NULL, `reorder_level_milli` INTEGER NOT NULL, `archived` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `stock_adjustments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `item_id` INTEGER NOT NULL, `date` INTEGER NOT NULL, `quantity_milli` INTEGER NOT NULL, `reason` TEXT NOT NULL, `created_at` INTEGER NOT NULL, FOREIGN KEY(`item_id`) REFERENCES `catalog_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_stock_adjustments_item_id` ON `stock_adjustments` (`item_id`)")
+            db.execSQL("ALTER TABLE `invoice_items` ADD COLUMN `item_id` INTEGER")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoice_items_item_id` ON `invoice_items` (`item_id`)")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

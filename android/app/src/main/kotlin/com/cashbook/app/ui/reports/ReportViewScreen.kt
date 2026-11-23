@@ -154,6 +154,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
                 locale = Locale.getDefault(), txnsWithAttachments = snap.withAttachments,
                 invoices = snap.invoices.filter { it.cashbookId in cbIds }, allocations = snap.allocations,
                 invoiceItems = snap.invoiceItems, sellerState = vm.businessProfile.value.stateCode,
+                catalog = snap.catalog, adjustments = snap.stockAdjustments,
             )).build()
         }
     }

@@ -32,6 +32,9 @@ data class ReportInput(
     /** Line items per invoice id and the seller's GST state (GST summary). */
     val invoiceItems: Map<Long, List<InvoiceItem>> = emptyMap(),
     val sellerState: String = "",
+    /** Saved products/services and stock adjustments (stock and item-wise reports). */
+    val catalog: List<CatalogItem> = emptyList(),
+    val adjustments: List<StockAdjustment> = emptyList(),
 )
 
 /**
@@ -75,9 +78,11 @@ class ReportEngine(private val input: ReportInput) {
             ReportType.CUSTOM -> custom()
             ReportType.OUTSTANDING -> outstanding()
             ReportType.GST_SUMMARY -> gstSummary()
+            ReportType.STOCK_SUMMARY -> stockSummary()
+            ReportType.ITEM_SALES -> itemSales()
         }
         val exportTxns = when {
-            input.type == ReportType.OUTSTANDING || input.type == ReportType.GST_SUMMARY -> emptyList()
+            input.type in setOf(ReportType.OUTSTANDING, ReportType.GST_SUMMARY, ReportType.STOCK_SUMMARY, ReportType.ITEM_SALES) -> emptyList()
             input.type.supportsDetailFilters -> detail
             else -> inRange
         }
@@ -444,6 +449,36 @@ class ReportEngine(private val input: ReportInput) {
         val out = taxByKind[InvoiceKind.SALE] ?: 0; val inp = taxByKind[InvoiceKind.PURCHASE] ?: 0
         return Parts(listOf(SummaryItem(l.outputTax, Cell.Amount(out)), SummaryItem(l.inputTax, Cell.Amount(inp)),
             SummaryItem(l.netTaxPayable, Cell.Amount(out - inp)), SummaryItem(l.invoicesCounted, Cell.Count(counted))), tables, listOf(l.gstNote))
+    }
+
+    private fun qty(milli: Long) = Gst.formatQuantity(milli)
+
+    private fun stockSummary(): Parts {
+        val lines = Stock.summary(input.catalog.filter { !it.archived || it.openingStockMilli != 0L }, Stock.moves(input.invoices, input.invoiceItems, input.adjustments), range)
+            .sortedBy { it.item.name.lowercase() }
+        val rows = lines.map { s ->
+            Row(listOf(Cell.Text(s.item.name + if (s.low) " ⚠" else ""), Cell.Text(s.item.unit), Cell.Text(qty(s.opening)), Cell.Text(qty(s.inward)),
+                Cell.Text(qty(s.outward)), Cell.Text(qty(s.adjusted)), Cell.Text(qty(s.closing)), Cell.Amount(s.value)))
+        }
+        val total = lines.sumOf { it.value }
+        return Parts(listOf(SummaryItem(l.itemsCounted, Cell.Count(lines.size)), SummaryItem(l.stockValue, Cell.Amount(total)),
+            SummaryItem(l.lowStock, Cell.Count(lines.count { it.low }))),
+            listOf(ReportTable(null, listOf(Column(l.item, 2.4f), Column(l.unit, 0.8f), Column(l.opening, 1f, Align.END), Column(l.inward, 0.9f, Align.END),
+                Column(l.outward, 0.9f, Align.END), Column(l.adjusted, 1f, Align.END), Column(l.closingStock, 1f, Align.END), Column(l.stockValue, 1.4f, Align.END)),
+                if (rows.isEmpty()) rows else rows + Row(listOf(Cell.Text(l.total), Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty, Cell.Empty, Cell.Amount(total)), RowStyle.TOTAL))),
+            listOf(l.stockNote))
+    }
+
+    private fun itemSales(): Parts {
+        val sales = Stock.itemSales(input.invoices, input.invoiceItems, input.catalog.associateBy { it.id }, input.sellerState, range)
+        val rows = sales.map { s -> Row(listOf(Cell.Text(s.name), Cell.Text(qty(s.quantityMilli) + if (s.unit.isNotBlank()) " ${s.unit}" else ""),
+            Cell.Amount(s.taxable), Cell.Amount(s.tax), Cell.Amount(s.taxable + s.tax), Cell.Text(Money.percent(s.taxable, sales.sumOf { it.taxable })))) }
+        val tx = sales.sumOf { it.taxable }; val tt = sales.sumOf { it.tax }
+        return Parts(listOf(SummaryItem(l.taxableValue, Cell.Amount(tx)), SummaryItem(l.totalTax, Cell.Amount(tt)), SummaryItem(l.itemsCounted, Cell.Count(sales.size))),
+            listOf(ReportTable(null, listOf(Column(l.item, 2.6f), Column(l.quantity, 1.2f, Align.END), Column(l.taxableValue, 1.4f, Align.END),
+                Column(l.totalTax, 1.2f, Align.END), Column(l.total, 1.4f, Align.END), Column(l.percent, 0.9f, Align.END)),
+                if (rows.isEmpty()) rows else rows + Row(listOf(Cell.Text(l.total), Cell.Empty, Cell.Amount(tx), Cell.Amount(tt), Cell.Amount(tx + tt), Cell.Empty), RowStyle.TOTAL))),
+            listOf(l.itemSalesNote))
     }
 
     private fun exportTable(txns: List<Txn>): ReportTable {

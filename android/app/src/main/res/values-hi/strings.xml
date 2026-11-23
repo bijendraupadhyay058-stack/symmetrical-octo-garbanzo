@@ -35,9 +35,14 @@
     <string name="add_income_desc">किसी खाते में प्राप्त पैसा</string>
     <string name="add_item">आइटम जोड़ें</string>
     <string name="add_sample">नमूना डेटा जोड़ें</string>
+    <string name="add_saved_item">सहेजा गया आइटम जोड़ें</string>
     <string name="add_transfer">ट्रांसफ़र</string>
     <string name="add_transfer_desc">अपने ही खातों के बीच पैसा भेजें</string>
     <string name="address">पता</string>
+    <string name="adj_add">स्टॉक जोड़ें</string>
+    <string name="adj_reason_hint">जैसे क्षतिग्रस्त, गिनती, स्वयं उपयोग</string>
+    <string name="adj_reduce">स्टॉक घटाएँ</string>
+    <string name="adjust_stock">स्टॉक समायोजन</string>
     <string name="after_days">%d दिन बाद</string>
     <string name="after_minutes">%d मिनट बाद</string>
     <string name="after_seconds">%d सेकंड बाद</string>
@@ -196,6 +201,8 @@
     <string name="delete_category_text">यह श्रेणी किसी प्रविष्टि में उपयोग नहीं हुई है और हटा दी जाएगी।</string>
     <string name="delete_entry_text">प्रविष्टि रीसायकल बिन में चली जाएगी और शेष फिर से गणना होंगे। आप इसे बाद में पुनर्स्थापित कर सकते हैं।</string>
     <string name="delete_entry_title">यह प्रविष्टि हटाएँ?</string>
+    <string name="delete_item_text">आइटम हटा दिया जाएगा। जिन इनवॉइस आइटम में इसका उपयोग हुआ, वे प्रभावित नहीं होंगे।</string>
+    <string name="delete_item_title">आइटम हटाएँ?</string>
     <string name="delete_note_text">नोट हटा दिया जाएगा और मूल इनवॉइस का बकाया फिर से गणना होगा।</string>
     <string name="delete_note_title">नोट हटाएँ?</string>
     <string name="delete_permanently">स्थायी रूप से हटाएँ</string>
@@ -220,6 +227,7 @@
     <string name="edit_category">श्रेणी संपादित करें</string>
     <string name="edit_entry">प्रविष्टि संपादित करें</string>
     <string name="edit_invoice">इनवॉइस संपादित करें</string>
+    <string name="edit_item">आइटम संपादित करें</string>
     <string name="edit_note">नोट संपादित करें</string>
     <string name="edit_party">पक्ष संपादित करें</string>
     <string name="edit_recurring">आवर्ती प्रविष्टि संपादित करें</string>
@@ -297,6 +305,7 @@
     <string name="icon">चिह्न</string>
     <string name="in_label">आय</string>
     <string name="in_recycle_bin_since">%s से रीसायकल बिन में</string>
+    <string name="in_stock_x">स्टॉक में: %1$s %2$s</string>
     <string name="include_attachments">संलग्नक शामिल करें</string>
     <string name="include_attachments_desc">बिल और रसीदें बैकअप को बड़ा बनाती हैं।</string>
     <string name="income">आय</string>
@@ -356,13 +365,19 @@
     <string name="invoices_bills">इनवॉइस और बिल</string>
     <string name="invoices_desc">ग्राहकों पर आपका बकाया और आपूर्तिकर्ताओं का आप पर बकाया</string>
     <string name="invoices_intro">बकाया पर नज़र रखने के लिए इनवॉइस और बिल दर्ज करें। भुगतान आने या जाने पर उनके विरुद्ध दर्ज करें।</string>
+    <string name="item_archive_desc">आइटम चुनते समय छिपा रहेगा; इतिहास और स्टॉक बने रहेंगे।</string>
     <string name="item_description">वस्तु / सेवा</string>
     <string name="item_discount">छूट</string>
+    <string name="item_err_duplicate">इस नाम का आइटम पहले से मौजूद है।</string>
+    <string name="item_err_in_use">यह आइटम इनवॉइस में उपयोग हुआ है। इसके बजाय संग्रहित करें।</string>
+    <string name="item_goods">माल</string>
     <string name="item_hsn">HSN / SAC</string>
     <string name="item_line_total">कर योग्य %1$s + GST %2$s = %3$s</string>
     <string name="item_n">आइटम %d</string>
+    <string name="item_name">आइटम का नाम</string>
     <string name="item_qty">मात्रा</string>
     <string name="item_rate">दर</string>
+    <string name="item_service">सेवा</string>
     <string name="item_unit">इकाई</string>
     <string name="itemised_gst">GST सहित आइटम-वार</string>
     <string name="itemised_gst_desc">आइटम जोड़ें; GST और कुल अपने-आप गणना होंगे। एक ही राशि दर्ज करने के लिए बंद करें।</string>
@@ -380,6 +395,8 @@
     <string name="lock_later_hint">आप बाद में सेटिंग › सुरक्षा में पिन सेट या बदल सकते हैं।</string>
     <string name="lock_now">अभी लॉक करें</string>
     <string name="lock_setup_body">अपने वित्तीय रिकॉर्ड को पिन से सुरक्षित करें। बाद में फ़िंगरप्रिंट अनलॉक भी चालू कर सकते हैं।</string>
+    <string name="low_stock">कम स्टॉक</string>
+    <string name="low_stock_only">केवल कम स्टॉक</string>
     <string name="make_recurring">आवर्ती बनाएँ</string>
     <string name="manage">प्रबंधित करें</string>
     <string name="manage_cashbooks">कैशबुक प्रबंधित करें</string>
@@ -426,6 +443,7 @@
     <string name="new_credit_note">नया क्रेडिट नोट</string>
     <string name="new_debit_note">नया डेबिट नोट</string>
     <string name="new_invoice">नया इनवॉइस</string>
+    <string name="new_item">नया आइटम</string>
     <string name="new_party">नया पक्ष</string>
     <string name="new_recurring">नई आवर्ती प्रविष्टि</string>
     <string name="next">आगे</string>
@@ -439,11 +457,13 @@
     <string name="no_data_period">चुनी गई अवधि और फ़िल्टर के लिए कोई प्रविष्टि नहीं।</string>
     <string name="no_expenses_period">इस अवधि में कोई व्यय नहीं।</string>
     <string name="no_invoices">अभी यहाँ कुछ नहीं।</string>
+    <string name="no_items">अभी कोई सहेजा आइटम नहीं। अक्सर बिल होने वाले उत्पाद और सेवाएँ जोड़ें।</string>
     <string name="no_matches">आपकी खोज या फ़िल्टर से कोई प्रविष्टि मेल नहीं खाती।</string>
     <string name="no_notes">कोई क्रेडिट या डेबिट नोट नहीं।</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
     <string name="no_recurring">अभी कोई आवर्ती प्रविष्टि नहीं।</string>
+    <string name="no_stock_moves">अभी कोई स्टॉक गतिविधि नहीं।</string>
     <string name="no_transactions_yet">अभी कोई प्रविष्टि नहीं। आय, व्यय या ट्रांसफ़र दर्ज करने के लिए जोड़ें पर टैप करें।</string>
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
     <string name="none">कोई नहीं</string>
@@ -463,6 +483,9 @@
     <string name="opening_balance">प्रारंभिक शेष</string>
     <string name="opening_date">प्रारंभ तिथि</string>
     <string name="opening_date_hint">प्रारंभिक शेष इसी तारीख़ से गिने जाते हैं।</string>
+    <string name="opening_stock">प्रारंभिक स्टॉक</string>
+    <string name="opening_stock_date">प्रारंभिक स्टॉक की तिथि</string>
+    <string name="opening_stock_on">%2$s को प्रारंभिक स्टॉक %1$s</string>
     <string name="opening_x_on_y">प्रारंभिक %1$s, %2$s को</string>
     <string name="operation_failed">कुछ गलत हो गया। आपका मौजूदा डेटा नहीं बदला गया।</string>
     <string name="optional">वैकल्पिक</string>
@@ -524,6 +547,7 @@
     <string name="period_this_week">यह सप्ताह</string>
     <string name="period_this_year">यह वर्ष</string>
     <string name="period_today">आज</string>
+    <string name="pick_item">सहेजा गया आइटम चुनें</string>
     <string name="pin_changed">पिन बदला गया</string>
     <string name="pin_enabled">पिन लॉक चालू है</string>
     <string name="pin_mismatch">पिन मेल नहीं खाए। फिर प्रयास करें।</string>
@@ -537,7 +561,10 @@
     <string name="previous_month">पिछला माह</string>
     <string name="privacy">गोपनीयता</string>
     <string name="privacy_policy">गोपनीयता नीति</string>
+    <string name="products_services">उत्पाद और सेवाएँ</string>
+    <string name="products_services_desc">HSN/SAC, दर, GST और स्टॉक सहित सहेजे गए आइटम</string>
     <string name="provider_optional">प्रदाता (वैकल्पिक)</string>
+    <string name="purchase_rate">खरीद दर</string>
     <string name="quick_actions">त्वरित कार्य</string>
     <string name="ready_body">\"%s\" तैयार है। आप कभी भी और कैशबुक, खाते और श्रेणियाँ जोड़ सकते हैं।</string>
     <string name="receivables">प्राप्य</string>
@@ -566,6 +593,7 @@
     <string name="remove_sample">नमूना डेटा हटाएँ</string>
     <string name="remove_sample_text">नमूना कैशबुक और उसकी सभी प्रविष्टियाँ हट जाएँगी। आपकी अपनी कैशबुक प्रभावित नहीं होंगी।</string>
     <string name="rename_category_info">नाम बदलने पर सभी %d जुड़ी प्रविष्टियाँ बनी रहेंगी और नया नाम दिखाएँगी।</string>
+    <string name="reorder_level">पुनः ऑर्डर स्तर</string>
     <string name="repeats">दोहराव</string>
     <string name="replace">बदलें</string>
     <string name="report_account">खाता-वार रिपोर्ट</string>
@@ -582,6 +610,8 @@
     <string name="report_gst_desc">बिक्री इनवॉइस पर आउटपुट कर बनाम खरीद बिल पर इनपुट कर, दर-वार (CGST, SGST, IGST)</string>
     <string name="report_income_expense">आय और व्यय विवरण</string>
     <string name="report_income_expense_desc">श्रेणी-वार आय और व्यय, शुद्ध अधिशेष या घाटा</string>
+    <string name="report_item_sales">आइटम-वार बिक्री</string>
+    <string name="report_item_sales_desc">प्रत्येक आइटम की बेची गई मात्रा और मूल्य, वापसी घटाकर</string>
     <string name="report_monthly">मासिक सारांश</string>
     <string name="report_monthly_desc">एक माह के योग और खातों के अंतिम शेष</string>
     <string name="report_options">रिपोर्ट विकल्प</string>
@@ -589,6 +619,8 @@
     <string name="report_outstanding_desc">किसी तिथि तक पक्ष-वार अदत्त इनवॉइस और बिल, अतिदेय दिनों के अनुसार</string>
     <string name="report_party">पक्ष-वार लेन-देन रिपोर्ट</string>
     <string name="report_party_desc">प्रत्येक पक्ष से प्राप्त और उसे दिया गया पैसा</string>
+    <string name="report_stock">स्टॉक सारांश</string>
+    <string name="report_stock_desc">प्रारंभिक, आवक, जावक, समायोजन और अंतिम स्टॉक, मूल्य सहित</string>
     <string name="report_transfers">ट्रांसफ़र रिपोर्ट</string>
     <string name="report_transfers_desc">आपके अपने खातों के बीच सभी लेन-देन</string>
     <string name="report_yearly">वार्षिक सारांश</string>
@@ -609,9 +641,11 @@
     <string name="restore_wrong_password">गलत पासवर्ड, या फ़ाइल क्षतिग्रस्त है।</string>
     <string name="retention_info">रीसायकल बिन की प्रविष्टियाँ हटाने के %d दिन बाद स्थायी रूप से मिट जाती हैं।</string>
     <string name="retention_off">हटाई गई प्रविष्टियाँ तब तक रीसायकल बिन में रहेंगी जब तक आप उन्हें न मिटाएँ।</string>
+    <string name="rl_adjusted">समायोजित</string>
     <string name="rl_ageing">अवधि-विश्लेषण</string>
     <string name="rl_balance">शेष</string>
     <string name="rl_cash_basis_note">यह रिपोर्ट केवल दर्ज नकद लेन-देन दर्शाती है। यह उपार्जन-आधारित लाभ-हानि खाता नहीं है।</string>
+    <string name="rl_closing_stock">अंतिम</string>
     <string name="rl_count">प्रविष्टियों की संख्या</string>
     <string name="rl_d0_30">1–30 दिन अतिदेय</string>
     <string name="rl_d31_60">31–60 दिन अतिदेय</string>
@@ -623,9 +657,13 @@
     <string name="rl_expense_by_category">श्रेणी-वार व्यय</string>
     <string name="rl_from">से</string>
     <string name="rl_gst_note">इनवॉइस तिथि के अनुसार आइटम-वार इनवॉइस और बिल पर आधारित (रद्द शामिल नहीं)। एक राशि वाले इनवॉइस में कर विवरण नहीं होता, इसलिए शामिल नहीं। यह समीक्षा के लिए सारांश है, GST रिटर्न नहीं।</string>
+    <string name="rl_in">आवक</string>
     <string name="rl_income_by_category">श्रेणी-वार आय</string>
     <string name="rl_input_tax">इनपुट कर (खरीद बिल)</string>
     <string name="rl_invoices_counted">गिने गए आइटम-वार इनवॉइस</string>
+    <string name="rl_item">आइटम</string>
+    <string name="rl_item_sales_note">अवधि के बिक्री इनवॉइस, बिक्री क्रेडिट नोट घटाकर। जो आइटम सहेजे आइटम से नहीं चुने गए, वे विवरण के अनुसार समूहित हैं।</string>
+    <string name="rl_items">आइटम</string>
     <string name="rl_month">माह</string>
     <string name="rl_month_wise">माह-वार योग</string>
     <string name="rl_net">शुद्ध</string>
@@ -635,13 +673,17 @@
     <string name="rl_net_tax">शुद्ध कर (आउटपुट − इनपुट)</string>
     <string name="rl_not_due">अभी देय नहीं</string>
     <string name="rl_opening_of">प्रारंभिक शेष – %s</string>
+    <string name="rl_out">जावक</string>
     <string name="rl_output_tax">आउटपुट कर (बिक्री इनवॉइस)</string>
     <string name="rl_outstanding_note">इनवॉइस और बिल बकाया राशियाँ हैं, नकद लेन-देन नहीं; भुगतान दर्ज होने तक ये खाता शेष नहीं बदलते। आँकड़े चुनी अवधि के अंत तक के हैं।</string>
     <string name="rl_particulars">विवरण</string>
     <string name="rl_party_note">प्रत्येक पक्ष से वास्तव में प्राप्त और उसे दिया गया पैसा दर्शाती है। यह प्राप्य/देय खाता-बही नहीं है।</string>
     <string name="rl_payments">भुगतान</string>
     <string name="rl_percent">कुल का %</string>
+    <string name="rl_quantity">मात्रा</string>
     <string name="rl_receipts">प्राप्तियाँ</string>
+    <string name="rl_stock_note">स्टॉक खरीद बिल (आवक), बिक्री इनवॉइस (जावक), वापसी के क्रेडिट नोट और मैनुअल समायोजन से निकाला जाता है। केवल सहेजे गए माल से चुने गए आइटम गिने जाते हैं। मूल्य प्रत्येक आइटम की खरीद दर पर है।</string>
+    <string name="rl_stock_value">मूल्य (खरीद दर)</string>
     <string name="rl_to">को</string>
     <string name="rl_total">कुल</string>
     <string name="rl_total_entries">कुल (%d प्रविष्टियाँ)</string>
@@ -660,6 +702,7 @@
     <string name="round_off_total">कुल को निकटतम रुपये तक पूर्णांकित करें</string>
     <string name="run_backup_now">अभी बैकअप लें</string>
     <string name="running_balance_hint">चालू शेष देखने के लिए \"सबसे पुराने पहले\" से क्रमबद्ध करें (अन्य फ़िल्टर के बिना)।</string>
+    <string name="sale_rate">बिक्री दर</string>
     <string name="sample">नमूना</string>
     <string name="sample_added">नमूना डेटा जोड़ा गया। इसे कभी भी सेटिंग से हटा सकते हैं।</string>
     <string name="sample_bank">SBI बैंक</string>
@@ -679,6 +722,7 @@
     <string name="schedule">अनुसूची</string>
     <string name="search">खोजें</string>
     <string name="search_hint">विवरण, पक्ष, श्रेणी, राशि, संदर्भ, टिप्पणी खोजें</string>
+    <string name="search_items">नाम या HSN/SAC से खोजें</string>
     <string name="search_party">नाम या मोबाइल नंबर से खोजें</string>
     <string name="secure_screen">हाल के ऐप्स में छिपाएँ</string>
     <string name="secure_screen_desc">स्क्रीनशॉट रोकता है और हाल के ऐप्स में पूर्वावलोकन छिपाता है।</string>
@@ -719,6 +763,11 @@
     <string name="step_lock">ऐप लॉक (वैकल्पिक)</string>
     <string name="step_theme">रूप</string>
     <string name="step_welcome">स्वागत है</string>
+    <string name="stock">स्टॉक</string>
+    <string name="stock_explain">इस आइटम वाले खरीद बिल से स्टॉक बढ़ता है, बिक्री इनवॉइस से घटता है, और वापसी के क्रेडिट नोट से लौटता है। क्षति या गिनती के अंतर के लिए स्टॉक समायोजन करें।</string>
+    <string name="stock_history">स्टॉक इतिहास</string>
+    <string name="stock_short">स्टॉक में केवल %1$s %2$s</string>
+    <string name="stock_vs_reorder">%1$s बचे (%2$s %3$s पर पुनः ऑर्डर)</string>
     <string name="storage_error">कैशबुक इस डिवाइस पर अपना एन्क्रिप्टेड स्टोरेज नहीं खोल सका। आपका डेटा नहीं हटाया गया है। फ़ोन रीस्टार्ट करने से अक्सर ठीक हो जाता है; न हो तो ऐप डेटा साफ़ करने से पहले सहायता से संपर्क करें।</string>
     <string name="success">सफल</string>
     <string name="sunday">रविवार</string>
@@ -807,6 +856,8 @@
         <item>सेटिंग › व्यवसाय प्रोफ़ाइल भरें (नाम, GSTIN, राज्य, बैंक/UPI, शर्तें)। फिर इनवॉइस में GST सहित आइटम-वार चालू करें और HSN/SAC, मात्रा, दर, छूट तथा GST दर के साथ आइटम जोड़ें। राज्य के भीतर आपूर्ति CGST + SGST में बँटती है; अन्य राज्यों पर आपूर्ति स्थान के अनुसार IGST लगता है। इनवॉइस से कर बीजक PDF सहेजें या साझा करें। रिपोर्ट › GST सारांश आउटपुट और इनपुट कर की तुलना करता है।</item>
         <item>## क्रेडिट नोट, डेबिट नोट और रिफंड</item>
         <item>इनवॉइस या बिल खोलें और क्रेडिट नोट (माल वापसी, छूट, अधिक राशि) या डेबिट नोट (कम ली गई राशि) पर टैप करें। क्रेडिट नोट इनवॉइस के आइटम से शुरू होता है ताकि आप मात्रा घटा सकें। नोट बकाया और GST सारांश बदलते हैं, खाता शेष कभी नहीं। यदि क्रेडिट नोट के बाद भुगतान बकाया से अधिक हो, तो इनवॉइस पर रिफंड देय दिखता है — लौटाई गई राशि दर्ज करने के लिए रिफंड दर्ज करें पर टैप करें। इनवॉइस और नोट पर छापने के लिए व्यवसाय प्रोफ़ाइल में लोगो और हस्ताक्षर चित्र जोड़ें।</item>
+        <item>## उत्पाद, सेवाएँ और स्टॉक</item>
+        <item>सेटिंग › उत्पाद और सेवाएँ में अक्सर बिल होने वाले आइटम HSN/SAC, इकाई, बिक्री और खरीद दर तथा GST के साथ रखें। इनवॉइस आइटम पर बॉक्स चिह्न (या सहेजा गया आइटम जोड़ें) टैप करके भरें। माल का स्टॉक अपने-आप निकलता है: खरीद बिल जोड़ते हैं, बिक्री इनवॉइस घटाते हैं, वापसी के क्रेडिट नोट उन्हें उलटते हैं; प्रारंभिक स्टॉक और पुनः ऑर्डर स्तर सेट करें, और क्षति या गिनती के अंतर के लिए स्टॉक समायोजन करें। रिपोर्ट › स्टॉक सारांश और आइटम-वार बिक्री विवरण दिखाते हैं।</item>
         <item>## होम-स्क्रीन विजेट और सूचनाएँ</item>
         <item>होम स्क्रीन पर देर तक दबाएँ › विजेट › कैशबुक — त्वरित आय / व्यय / ट्रांसफ़र बटन के लिए। शेष तभी दिखता है जब आप अनुमति दें और ऐप लॉक बंद हो। इनवॉइस अनुस्मारक और बजट चेतावनी सेटिंग › सामान्य और वित्तीय में चालू करें।</item>
         <item>## स्वचालित बैकअप</item>

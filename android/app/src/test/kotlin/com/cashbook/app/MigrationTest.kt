@@ -89,4 +89,20 @@ class MigrationTest {
         db.execSQL("INSERT INTO invoices (cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type, ref_invoice_id) VALUES (1, 'SALE', 'INV/1', 1, 20550, 20550, 10000, '', '', 0, 1, 1, '27', 1, 'CREDIT_NOTE', 1)")
         db.close()
     }
+
+    @Test fun migrate5To6AddsCatalogue() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/5.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-6", 5).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Shop', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at, state_code) VALUES (1, 'ABC', 'CLIENT', '', '', '', '', '', 0, 1, 1, '')")
+            execSQL("INSERT INTO invoices (id, cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type) VALUES (1, 1, 'SALE', 'INV/1', 1, 20544, 20560, 118000, '', '', 0, 1, 1, '27', 1, 'INVOICE')")
+            execSQL("INSERT INTO invoice_items (id, invoice_id, position, description, hsn, quantity_milli, unit, rate, discount_bp, gst_bp) VALUES (1, 1, 0, 'Toner', '8443', 1000, 'Nos', 100000, 0, 1800)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-6", 6, true, *Migrations.ALL)
+        db.query("SELECT description, item_id FROM invoice_items WHERE id = 1").use { c -> c.moveToFirst(); assertEquals("Toner", c.getString(0)); assertTrue(c.isNull(1)) }
+        db.execSQL("INSERT INTO catalog_items (name, kind, hsn, unit, sale_rate, purchase_rate, gst_bp, description, opening_stock_milli, opening_date, reorder_level_milli, archived, created_at, updated_at) VALUES ('Toner', 'GOODS', '8443', 'Nos', 100000, 70000, 1800, '', 5000, 20544, 2000, 0, 1, 1)")
+        db.close()
+    }
 }

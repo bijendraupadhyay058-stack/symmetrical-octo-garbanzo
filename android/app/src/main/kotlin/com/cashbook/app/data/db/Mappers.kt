@@ -2,6 +2,9 @@ package com.cashbook.app.data.db
 
 import com.cashbook.core.AccountInfo
 import com.cashbook.core.BudgetInfo
+import com.cashbook.core.CatalogItem
+import com.cashbook.core.ItemKind
+import com.cashbook.core.StockAdjustment
 import com.cashbook.core.DocType
 import com.cashbook.core.InvoiceItem
 import com.cashbook.core.InvoiceInfo
@@ -52,6 +55,11 @@ fun BudgetEntity.toInfo() = BudgetInfo(id, cashbookId, categoryId, monthlyAmount
 fun InvoiceEntity.toInfo() = InvoiceInfo(id, cashbookId, enumOr(kind, InvoiceKind.SALE), number, partyId, LocalDate.ofEpochDay(issueDate),
     LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff, enumOr(docType, DocType.INVOICE), refInvoiceId)
 
-fun InvoiceItemEntity.toItem() = InvoiceItem(id, description, hsn, quantityMilli, unit, rate, discountBp, gstBp)
+fun InvoiceItemEntity.toItem() = InvoiceItem(id, description, hsn, quantityMilli, unit, rate, discountBp, gstBp, itemId)
+
+fun CatalogItemEntity.toInfo() = CatalogItem(id, name, enumOr(kind, ItemKind.GOODS), hsn, unit, saleRate, purchaseRate, gstBp, description,
+    openingStockMilli, LocalDate.ofEpochDay(openingDate), reorderLevelMilli, archived)
+
+fun StockAdjustmentEntity.toInfo() = StockAdjustment(id, itemId, LocalDate.ofEpochDay(date), quantityMilli, reason)
 
 fun AllocationEntity.toInfo() = Allocation(id, invoiceId, transactionId, amount)
