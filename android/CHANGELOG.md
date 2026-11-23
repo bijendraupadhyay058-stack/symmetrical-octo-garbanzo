@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.4.0 (versionCode 5)
+
+**New**
+- **Credit notes and debit notes** against an invoice or bill: open the invoice and tap Credit note (goods
+  returned, discount, overcharge) or Debit note (amount charged short, extra charge). Itemised with GST like
+  invoices — a credit note starts from the invoice's items so you just reduce quantities. Numbered per
+  financial year (CN/26-27/001, DN/26-27/001). Notes adjust what is owed and the GST summary, never balances.
+- **Refunds**: when a credit note leaves more paid than owed, the invoice shows **Refund due**; Record refund
+  creates the money-out entry (or money-in, for a supplier refund) and links it.
+- **CREDIT NOTE / DEBIT NOTE PDF** showing the original invoice number and date, labelled "Note no." / "Note date".
+- **Logo and signature** images (Business profile) printed on invoices and notes; included in backups.
+
+**Data**
+- Database v4 → v5 adds document type and original-invoice link to `invoices`. Backups include notes and
+  branding images; older backups still restore.
+
 ## 1.3.0 (versionCode 4)
 
 **New**

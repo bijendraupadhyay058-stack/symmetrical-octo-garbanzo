@@ -35,9 +35,12 @@ English and Hindi.
 <img src="docs/screenshots/25_invoice_items.jpg" width="180">
 <img src="docs/screenshots/26_invoice_detail_items.jpg" width="180">
 </p>
-<p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"></p>
+<p><img src="docs/screenshots/29_invoice_refund_due.jpg" width="180"> <img src="docs/screenshots/28_credit_note_form.jpg" width="180"></p>
+<p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.3** — business profile, itemised GST invoices (CGST/SGST or IGST by place of supply),
+**What's new in 1.4** — credit and debit notes (itemised with GST, own PDF), refunds when a credit note
+follows payment, and your logo and signature on invoices and notes.
+**1.3** — business profile, itemised GST invoices (CGST/SGST or IGST by place of supply),
 printable tax-invoice PDF, GST summary report and GSTIN check-digit validation.
 **1.2** — invoices & bills with outstanding balances and an ageing report, invoice and
 budget alerts, and a home-screen widget. **1.1** added recurring entries, budgets, automatic backups and
@@ -49,11 +52,11 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.3.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.4.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.3.0-test.apk`.
-   Installing it over any earlier version keeps your data (the database upgrades automatically to v4).
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.4.0-test.apk`.
+   Installing it over any earlier version keeps your data (the database upgrades automatically to v5).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
@@ -131,7 +134,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Attachment (`attachments`) | transaction, file name, MIME type, size, private stored file name |
 | Recurring (`recurring`, v2) | cashbook, type, amount, account(s), category, party, mode, description, reference, frequency (daily/weekly/monthly/quarterly/yearly) × interval, start date, optional end date, next occurrence index, auto-post or confirm, active |
 | Budget (`budgets`, v2) | cashbook, expense category (unique per cashbook), monthly amount |
-| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), number (unique per cashbook + kind), party, issue date, due date, amount, description, notes, cancelled |
+| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5), **ref invoice** (for notes, v5), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
 | InvoiceItem (`invoice_items`, v4) | invoice, position, description, HSN/SAC, quantity (thousandths), unit, rate (paise), discount and GST rate (basis points) |
 | Allocation (`allocations`, v3) | invoice, payment entry, amount applied (one row per invoice + entry) |
 | BackupHistory (`backup_history`) | time, backup/restore, file name, attachments included, size, success |
@@ -152,7 +155,14 @@ Business calculations never live in UI code: every screen, report and export cal
 * The Room schema is exported to `app/schemas/`. **Migrations** live in `data/db/Migrations.kt` and are
   verified by `MigrationTest` against those exported schemas (v1 → v2 adds `recurring`, `budgets` and
   `transactions.recurring_id`; v2 → v3 adds `invoices` and `allocations`; v3 → v4 adds `invoice_items`, `invoices.place_of_supply`, `invoices.round_off`
-  and `parties.state_code`, filling party states from existing GSTINs; existing rows are untouched).
+  and `parties.state_code`, filling party states from existing GSTINs; v4 → v5 adds `invoices.doc_type` and
+  `invoices.ref_invoice_id` and widens number uniqueness to include the doc type; existing rows are untouched).
+* **Credit / debit notes** are rows in `invoices` with `doc_type` and `ref_invoice_id`, so numbering
+  (CN/…, DN/…), line items, GST, PDF and backup reuse the invoice code. A note takes the original's cashbook,
+  kind, party and place of supply. Net owed = amount + debit notes − credit notes; credit notes can't exceed
+  amount + debit notes. Payments minus **refunds** (an entry of the opposite type linked to the invoice) give
+  "paid"; when paid exceeds the net amount the invoice is **Refund due**. Invoices with notes can't be cancelled
+  or deleted until the notes are removed. In the GST summary, credit notes reduce and debit notes add tax.
 * **GST calculation** (`core/Gst.kt`): line taxable = qty × rate − discount, each rounded to the paisa; tax per
   line at the GST rate — CGST and SGST each at half the rate when the place of supply is the seller's state,
   otherwise IGST; optional round-off of the grand total to the nearest rupee. An itemised invoice's amount is
@@ -198,6 +208,8 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.4** Credit and debit notes (itemised with GST, starting from the invoice's items), refunds, invoice status "Refund due", notes in the GST summary; CREDIT NOTE / DEBIT NOTE PDF referring to the original invoice | `core/Invoices.kt`, `ui/invoices` |
+| **1.4** Logo and signature images on invoices and notes (gallery picker, scaled, included in backups) | `AttachmentStore.importBrand`, `BusinessProfileScreen` |
 | **1.3** Business profile; itemised invoices/bills with HSN/SAC, qty, unit, rate, discount, GST rate (0, 0.25, 3, 5, 12, 18, 28, 40 %); place of supply; live totals | `ui/settings/BusinessProfileScreen.kt`, `ui/invoices/InvoiceItemsEditor.kt` |
 | **1.3** Tax invoice PDF (A4): seller/buyer GSTIN and state, items with repeated headings, GST summary by rate, totals, round-off, paid/balance, amount in words (Indian system), bank/UPI, terms, signatory | `export/InvoicePdfWriter.kt` |
 | **1.3** GST Summary report (output vs input tax by rate, CGST/SGST/IGST) and GSTIN check-digit validation with state auto-fill | `ReportEngine.gstSummary()`, `core/Gst.kt` |
@@ -226,7 +238,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-109 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+120 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -241,12 +253,14 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `core` `InvoicesTest` | Status transitions incl. a payment moved to the recycle bin, ageing buckets, allocation limits, FY numbering, outstanding report as at past dates |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
 | `app` `MigrationTest` | v1 → v2, v1 → v3 and v3 → v4 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `Phase5Test` | Credit note lowers outstanding and inherits party/place of supply; debit note raises it; FY note numbering; credit can't exceed invoice; invoices with notes can't be deleted or cancelled; notes can't reference notes; credit after full payment → refund due → refund recorded as an expense → paid; invoice can't drop below what stays paid; backups carry notes and logo images; credit-note PDF with logo and signature rendered |
 | `app` `Phase4Test` | Item totals become the invoice amount for intra- and inter-state supply; editing replaces items and simple mode clears them; totals can't drop below paid or to zero; backups include items, party state and business profile; tax-invoice pages rendered (incl. a 45-line invoice over two pages) |
 | `app` `Phase3Test` | Invoices don't touch balances until paid; recording payments; delete/restore payment re-opens/settles; duplicate numbers, amount below paid, cancel/delete with payments and editing an applied entry are refused; split allocations and their limits; backups include invoices; alert digest and once-per-level budget alerts; widget hides amounts when locked or not allowed |
 | `app` `Phase2Test` | Auto-posting catches up once and is idempotent; manual Post/Skip; paused/ended rules; schedule edits don't repost; rules protect accounts and follow category reassignment; budgets set/update/remove; backups include schedules and budgets; auto-backup retention |
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
 screen, creating a simple invoice and recording a receipt against it, filling the business profile and creating an
-itemised GST invoice (IGST for another state), the Outstanding report, deleting an entry
+itemised GST invoice (IGST for another state), issuing a credit note from a paid invoice and recording the
+refund, the Outstanding report, deleting an entry
 through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
 Not automated here (please check on a device): writing the PDF file itself (Android's native `PdfDocument`
@@ -270,8 +284,8 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
 * Recurring entries post on the day they fall due when the app is opened or the daily background job
   runs (Android decides the exact time, usually within a day); auto-posted entries skip the
   negative-balance warning.
-* GST support covers tax invoices and a review summary. Not included: e-invoicing (IRN/QR from the IRP),
-  e-way bills, reverse charge, cess, composition-scheme bills of supply, credit/debit notes, TDS/TCS, or filing
-  GSTR returns. The amount in words is in English.
-* Suggested next phases: credit/debit notes, a business logo on invoices, multi-currency, and an instrumented
-  test pass on physical devices.
+* GST support covers tax invoices, credit/debit notes and a review summary. Not included: e-invoicing (IRN/QR
+  from the IRP), e-way bills, reverse charge, cess, composition-scheme bills of supply, TDS/TCS, or filing GSTR
+  returns. The amount in words is in English. A credit note is tied to one invoice (no unlinked/advance credits).
+* Suggested next phases: a stock/item master (saved products with HSN and rates), multi-currency, and an
+  instrumented test pass on physical devices.
