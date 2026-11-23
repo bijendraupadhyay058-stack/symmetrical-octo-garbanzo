@@ -197,6 +197,11 @@ object BackupCodec {
             perTxn[t.id] = (perTxn[t.id] ?: 0) + a.amount
         }
         perTxn.forEach { (tid, sum) -> if (sum > (txnById[tid]?.amount ?: 0)) p += "entry $tid is allocated more than its amount" }
+        dupes(d.invoiceItems, { it.id }, "invoice item")
+        d.invoiceItems.forEach { li ->
+            if (li.invoiceId !in inv) p += "invoice item ${li.id} has unknown invoice"
+            if (li.quantityMilli <= 0 || li.rate < 0 || li.discountBp !in 0..10_000 || li.gstBp !in 0..10_000 || li.description.isBlank()) p += "invoice item ${li.id} is invalid"
+        }
         d.attachments.forEach {
             if (it.transactionId !in txn) p += "attachment ${it.id} has unknown transaction"
             if (it.storedName != safeName(it.storedName)) p += "attachment ${it.id} has unsafe file name"

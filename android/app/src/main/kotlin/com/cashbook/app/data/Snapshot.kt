@@ -30,6 +30,8 @@ data class Snapshot(
     val budgets: List<BudgetInfo> = emptyList(),
     val invoices: List<InvoiceInfo> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
+    /** Line items per invoice id (empty list = invoice entered as a single amount). */
+    val invoiceItems: Map<Long, List<com.cashbook.core.InvoiceItem>> = emptyMap(),
 ) {
     /** Invoice balances as of [today]; only payments that are not in the recycle bin count. */
     fun invoiceBalances(today: java.time.LocalDate = java.time.LocalDate.now()): List<InvoiceBalance> =

@@ -7,6 +7,8 @@ import com.cashbook.app.data.db.AttachmentEntity
 import com.cashbook.app.data.db.BudgetEntity
 import com.cashbook.app.data.db.AllocationEntity
 import com.cashbook.app.data.db.InvoiceEntity
+import com.cashbook.app.data.db.InvoiceItemEntity
+import com.cashbook.app.data.db.toItem
 import com.cashbook.app.data.db.toRule
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
@@ -18,6 +20,8 @@ import com.cashbook.core.AccountType
 import com.cashbook.core.CategoryKind
 import com.cashbook.core.PaymentMode
 import com.cashbook.core.InvoiceInfo
+import com.cashbook.core.InvoiceItem
+import com.cashbook.core.GstCalc
 import com.cashbook.core.InvoiceKind
 import com.cashbook.core.Invoices
 import com.cashbook.core.Recurrence
@@ -53,7 +57,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -72,6 +76,7 @@ class LedgerRepository(
             budgets = db.budgets().getAll().map { it.toInfo() },
             invoices = db.invoices().getAll().map { it.toInfo() },
             allocations = db.invoices().allocations().map { it.toInfo() },
+            invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
         )
     }
 
@@ -330,7 +335,7 @@ class LedgerRepository(
     // ---------- invoices & bills ----------
 
     class InvoiceException(val reason: Reason) : Exception(reason.name) {
-        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND }
+        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND, INVALID_AMOUNT }
     }
 
     suspend fun nextInvoiceNumber(cashbookId: Long, kind: InvoiceKind, date: LocalDate) =
@@ -341,18 +346,36 @@ class LedgerRepository(
         return db.invoices().allocationsFor(invoiceId).filter { it.transactionId in live }.sumOf { it.amount }
     }
 
-    /** Creates or updates an invoice/bill. Numbers are unique per cashbook and kind; the amount can't go below what is already paid. */
-    suspend fun saveInvoice(inv: InvoiceInfo): Long = db.withTransaction {
+    /**
+     * Creates or updates an invoice/bill. With [items] the amount is the GST grand total (tax split from
+     * [sellerState] vs the place of supply); without items the entered amount is kept. Numbers are unique
+     * per cashbook and kind; the amount can't go below what is already paid. Items are replaced atomically.
+     */
+    suspend fun saveInvoice(input: InvoiceInfo, items: List<InvoiceItem>? = null, sellerState: String = ""): Long = db.withTransaction {
+        val inv = if (items.isNullOrEmpty()) input
+            else input.copy(amount = GstCalc.totals(items, GstCalc.isInterState(sellerState, input.placeOfSupply), input.roundOff).grandTotal)
+        val id = saveInvoiceRow(inv)
+        if (items != null) {
+            db.invoices().deleteItems(id)
+            db.invoices().insertItems(items.mapIndexed { i, it -> InvoiceItemEntity(invoiceId = id, position = i, description = it.description.trim(),
+                hsn = it.hsn.trim(), quantityMilli = it.quantityMilli, unit = it.unit.trim(), rate = it.rate, discountBp = it.discountBp, gstBp = it.gstBp) })
+        }
+        id
+    }
+
+    private suspend fun saveInvoiceRow(inv: InvoiceInfo): Long = db.withTransaction {
+        if (inv.amount <= 0) throw InvoiceException(InvoiceException.Reason.INVALID_AMOUNT)
         if (db.invoices().countNumber(inv.cashbookId, inv.kind.name, inv.number.trim(), inv.id) > 0) throw InvoiceException(InvoiceException.Reason.DUPLICATE_NUMBER)
         if (inv.id == 0L) {
             db.invoices().insert(InvoiceEntity(cashbookId = inv.cashbookId, kind = inv.kind.name, number = inv.number.trim(), partyId = inv.partyId,
                 issueDate = inv.issueDate.toEpochDay(), dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(),
-                notes = inv.notes.trim(), createdAt = now, updatedAt = now))
+                notes = inv.notes.trim(), createdAt = now, updatedAt = now, placeOfSupply = inv.placeOfSupply, roundOff = inv.roundOff))
         } else {
             val old = db.invoices().get(inv.id) ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
             if (inv.amount < paidOn(inv.id)) throw InvoiceException(InvoiceException.Reason.BELOW_PAID)
             db.invoices().update(old.copy(number = inv.number.trim(), partyId = inv.partyId, issueDate = inv.issueDate.toEpochDay(),
-                dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(), notes = inv.notes.trim(), updatedAt = now))
+                dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(), notes = inv.notes.trim(), updatedAt = now,
+                placeOfSupply = inv.placeOfSupply, roundOff = inv.roundOff))
             inv.id
         }
     }

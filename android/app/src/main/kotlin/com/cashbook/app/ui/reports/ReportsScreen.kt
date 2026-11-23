@@ -56,6 +56,7 @@ fun reportIcon(t: ReportType) = when (t) {
     ReportType.TRANSFERS -> Icons.Filled.SwapHoriz
     ReportType.CUSTOM -> Icons.Filled.Tune
     ReportType.OUTSTANDING -> Icons.Filled.HourglassBottom
+    ReportType.GST_SUMMARY -> Icons.Filled.AccountBalance
 }
 
 @Composable

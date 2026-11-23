@@ -70,6 +70,8 @@ data class PartyEntity(
     val archived: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** GST state code (v4). */
+    @ColumnInfo(name = "state_code", defaultValue = "") val stateCode: String = "",
 )
 
 /**
@@ -189,6 +191,28 @@ data class InvoiceEntity(
     val cancelled: Boolean = false,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    /** GST place of supply (state code) — v4. */
+    @ColumnInfo(name = "place_of_supply", defaultValue = "") val placeOfSupply: String = "",
+    @ColumnInfo(name = "round_off", defaultValue = "1") val roundOff: Boolean = true,
+)
+
+/** Invoice line (v4). Quantity in thousandths, rate in paise, discount and GST in basis points. */
+@Entity(
+    tableName = "invoice_items",
+    foreignKeys = [ForeignKey(entity = InvoiceEntity::class, parentColumns = ["id"], childColumns = ["invoice_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("invoice_id")],
+)
+data class InvoiceItemEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "invoice_id") val invoiceId: Long,
+    val position: Int,
+    val description: String,
+    val hsn: String = "",
+    @ColumnInfo(name = "quantity_milli") val quantityMilli: Long,
+    val unit: String = "",
+    val rate: Long,
+    @ColumnInfo(name = "discount_bp") val discountBp: Int = 0,
+    @ColumnInfo(name = "gst_bp") val gstBp: Int = 0,
 )
 
 /** Part of a payment entry applied to an invoice — v3. Deleting either side removes the link. */

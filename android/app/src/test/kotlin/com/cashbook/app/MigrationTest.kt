@@ -55,4 +55,22 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM invoices").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
         db.close()
     }
+
+    @Test fun migrate3To4AddsItemsAndFillsPartyState() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/3.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-4", 3).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Office', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at) VALUES (1, 'ABC', 'CLIENT', '', '', '', '29AAGCB7383J1Z4', '', 0, 1, 1)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at) VALUES (2, 'No GST', 'CLIENT', '', '', '', '', '', 0, 1, 1)")
+            execSQL("INSERT INTO invoices (id, cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at) VALUES (1, 1, 'SALE', 'INV/1', 1, 20544, 20560, 100000, '', '', 0, 1, 1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-4", 4, true, *Migrations.ALL)
+        db.query("SELECT state_code FROM parties ORDER BY id").use { c -> c.moveToFirst(); assertEquals("29", c.getString(0)); c.moveToNext(); assertEquals("", c.getString(0)) }
+        db.query("SELECT amount, place_of_supply, round_off FROM invoices WHERE id = 1").use { c ->
+            c.moveToFirst(); assertEquals(100000L, c.getLong(0)); assertEquals("", c.getString(1)); assertEquals(1, c.getInt(2))
+        }
+        db.close()
+    }
 }

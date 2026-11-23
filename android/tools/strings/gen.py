@@ -6,7 +6,8 @@ from strings1 import S
 from strings2 import S2, GUIDE_EN, GUIDE_HI, PRIV_EN, PRIV_HI
 from strings3 import S3
 from strings4 import S4
-allS = S + S2 + S3 + S4
+from strings5 import S5
+allS = S + S2 + S3 + S4 + S5
 keys = [k for k,_,_ in allS]
 dups = {k for k in keys if keys.count(k) > 1}
 assert not dups, dups

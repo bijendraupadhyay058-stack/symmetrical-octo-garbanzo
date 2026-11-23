@@ -199,7 +199,6 @@ S = [
 ("general_desc","Language, theme, date format, defaults, currency","भाषा, थीम, तारीख़ प्रारूप, डिफ़ॉल्ट, मुद्रा"),
 ("general_financial","General & financial","सामान्य और वित्तीय"),
 ("generated","Generated","बनाया गया"),
-("gstin_invalid","GSTIN should be 15 characters","GSTIN 15 अक्षरों का होना चाहिए"),
 ("gstin_optional","GSTIN (optional)","GSTIN (वैकल्पिक)"),
 ("has_attachment","Has attachment","संलग्नक है"),
 ("history","History","इतिहास"),

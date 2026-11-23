@@ -13,6 +13,7 @@ import com.cashbook.app.data.db.BackupHistoryEntity
 import com.cashbook.app.data.db.BudgetEntity
 import com.cashbook.app.data.db.AllocationEntity
 import com.cashbook.app.data.db.InvoiceEntity
+import com.cashbook.app.data.db.InvoiceItemEntity
 import com.cashbook.app.data.db.RecurringEntity
 import com.cashbook.app.data.db.CashbookEntity
 import com.cashbook.app.data.db.CategoryEntity
@@ -28,6 +29,7 @@ import com.cashbook.core.backup.BackupManifest
 import com.cashbook.core.backup.BudgetDto
 import com.cashbook.core.backup.AllocationDto
 import com.cashbook.core.backup.InvoiceDto
+import com.cashbook.core.backup.InvoiceItemDto
 import com.cashbook.core.backup.RecurringDto
 import com.cashbook.core.backup.CashbookDto
 import com.cashbook.core.backup.CategoryDto
@@ -36,6 +38,7 @@ import com.cashbook.core.backup.PartyDto
 import com.cashbook.core.backup.TransactionDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 import java.io.File
 
 /**
@@ -110,7 +113,7 @@ class BackupManager(
         try {
             db.withTransaction {
                 // children first
-                db.invoices().clearAllocations(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
+                db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
                 db.maintenance().apply {
                     clearAttachments(); clearTransactions(); clearAccounts(); clearCashbooks(); clearParties(); clearCategories()
                 }
@@ -118,7 +121,7 @@ class BackupManager(
                 // parents before sub-categories (parent_id has no FK, but keep order tidy)
                 db.categories().insertAll(d.categories.sortedBy { if (it.parentId == null) 0 else 1 }.map {
                     CategoryEntity(it.id, it.kind, it.name, it.parentId, it.icon, it.archived, it.createdAt, it.updatedAt) })
-                db.parties().insertAll(d.parties.map { PartyEntity(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt) })
+                db.parties().insertAll(d.parties.map { PartyEntity(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt, it.stateCode) })
                 db.accounts().insertAll(d.accounts.map { AccountEntity(it.id, it.cashbookId, it.name, it.type, it.openingBalance, it.openingDate, it.bankName, it.last4, it.description, it.archived, it.sortOrder, it.createdAt, it.updatedAt) })
                 db.transactions().insertAll(d.transactions.map { TransactionEntity(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId) })
                 db.recurring().insertAll(d.recurring.map { RecurringEntity(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId,
@@ -126,7 +129,9 @@ class BackupManager(
                     it.nextIndex, it.autoPost, it.active, it.createdAt, it.updatedAt) })
                 db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 db.invoices().insertAll(d.invoices.map { InvoiceEntity(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt) })
+                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff) })
+                db.invoices().insertItems(d.invoiceItems.map { InvoiceItemEntity(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit,
+                    it.rate, it.discountBp, it.gstBp) })
                 db.invoices().insertAllocations(d.allocations.map { AllocationEntity(it.id, it.invoiceId, it.transactionId, it.amount, it.createdAt) })
                 // Only keep attachment rows whose file was actually in the backup
                 db.attachments().insertAll(d.attachments.filter { it.storedName in backup.attachmentFiles }.map {
@@ -150,6 +155,7 @@ class BackupManager(
         }
         old.deleteRecursively()
         val firstCb = d.cashbooks.firstOrNull { !it.archived }?.id ?: d.cashbooks.firstOrNull()?.id ?: 0
+        d.businessProfile?.let { settings.updateBusinessProfile(it) }
         settings.update { s ->
             val ids = d.cashbooks.map { it.id }.toSet()
             s.copy(
@@ -168,14 +174,17 @@ class BackupManager(
         cashbooks = db.cashbooks().getAll().map { CashbookDto(it.id, it.name, it.description, it.openingDate, it.currency, it.createdAt, it.updatedAt, it.archived, it.isSample) },
         accounts = db.accounts().getAll().map { AccountDto(it.id, it.cashbookId, it.name, it.type, it.openingBalance, it.openingDate, it.bankName, it.last4, it.description, it.archived, it.sortOrder, it.createdAt, it.updatedAt) },
         categories = db.categories().getAll().map { CategoryDto(it.id, it.kind, it.name, it.parentId, it.icon, it.archived, it.createdAt, it.updatedAt) },
-        parties = db.parties().getAll().map { PartyDto(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt) },
+        parties = db.parties().getAll().map { PartyDto(it.id, it.name, it.type, it.mobile, it.email, it.address, it.gstin, it.notes, it.archived, it.createdAt, it.updatedAt, it.stateCode) },
         transactions = db.transactions().getAll().map { TransactionDto(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId) },
         recurring = db.recurring().getAll().map { RecurringDto(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId,
             it.paymentMode, it.description, it.reference, it.notes, it.tags, it.frequency, it.interval, it.startDate, it.endDate, it.nextIndex, it.autoPost,
             it.active, it.createdAt, it.updatedAt) },
         budgets = db.budgets().getAll().map { BudgetDto(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) },
         invoices = db.invoices().getAll().map { InvoiceDto(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt) },
+            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff) },
+        invoiceItems = db.invoices().items().map { InvoiceItemDto(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit, it.rate,
+            it.discountBp, it.gstBp) },
+        businessProfile = settings.businessProfile.first(),
         allocations = db.invoices().allocations().map { AllocationDto(it.id, it.invoiceId, it.transactionId, it.amount, it.createdAt) },
         attachments = if (!includeAttachments) emptyList() else db.attachments().getAll().map { AttachmentDto(it.id, it.transactionId, it.fileName, it.mimeType, it.sizeBytes, it.storedName, it.createdAt) },
     )

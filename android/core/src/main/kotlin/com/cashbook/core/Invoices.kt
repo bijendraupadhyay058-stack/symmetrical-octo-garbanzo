@@ -29,6 +29,9 @@ data class InvoiceInfo(
     val description: String = "",
     val notes: String = "",
     val cancelled: Boolean = false,
+    /** GST state code where the supply is made; decides CGST+SGST (same state) vs IGST. */
+    val placeOfSupply: String = "",
+    val roundOff: Boolean = true,
 )
 
 /** Part (or all) of a payment entry applied to an invoice. */

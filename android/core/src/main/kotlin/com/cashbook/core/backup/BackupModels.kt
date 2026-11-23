@@ -45,6 +45,7 @@ data class CategoryDto(
 data class PartyDto(
     val id: Long, val name: String, val type: String, val mobile: String = "", val email: String = "", val address: String = "",
     val gstin: String = "", val notes: String = "", val archived: Boolean = false, val createdAt: Long, val updatedAt: Long,
+    val stateCode: String = "",
 )
 
 @Serializable
@@ -76,6 +77,21 @@ data class BudgetDto(val id: Long, val cashbookId: Long, val categoryId: Long, v
 data class InvoiceDto(
     val id: Long, val cashbookId: Long, val kind: String, val number: String, val partyId: Long, val issueDate: Long, val dueDate: Long,
     val amount: Long, val description: String = "", val notes: String = "", val cancelled: Boolean = false, val createdAt: Long, val updatedAt: Long,
+    val placeOfSupply: String = "", val roundOff: Boolean = true,
+)
+
+@Serializable
+data class InvoiceItemDto(
+    val id: Long, val invoiceId: Long, val position: Int, val description: String, val hsn: String = "", val quantityMilli: Long, val unit: String = "",
+    val rate: Long, val discountBp: Int = 0, val gstBp: Int = 0,
+)
+
+/** Seller details printed on invoices (from Settings › Business profile). */
+@Serializable
+data class BusinessProfileDto(
+    val name: String = "", val address: String = "", val gstin: String = "", val stateCode: String = "", val phone: String = "", val email: String = "",
+    val bankName: String = "", val accountName: String = "", val accountNumber: String = "", val ifsc: String = "", val upiId: String = "",
+    val terms: String = "", val signatory: String = "",
 )
 
 @Serializable
@@ -95,4 +111,7 @@ data class BackupData(
     // Added in app 1.2 (database v3).
     val invoices: List<InvoiceDto> = emptyList(),
     val allocations: List<AllocationDto> = emptyList(),
+    // Added in app 1.3 (database v4).
+    val invoiceItems: List<InvoiceItemDto> = emptyList(),
+    val businessProfile: BusinessProfileDto? = null,
 )

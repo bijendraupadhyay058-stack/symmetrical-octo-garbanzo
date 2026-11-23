@@ -40,6 +40,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (s is AppContainer.State.Ready) s.deps.ledger.snapshot else flowOf(Snapshot())
     }.stateIn(viewModelScope, SharingStarted.Eagerly, Snapshot())
 
+    val businessProfile: StateFlow<com.cashbook.core.backup.BusinessProfileDto> = container.settings.businessProfile
+        .stateIn(viewModelScope, SharingStarted.Eagerly, com.cashbook.core.backup.BusinessProfileDto())
+
     val deps: Dependencies? get() = (state.value as? AppContainer.State.Ready)?.deps
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)

@@ -218,11 +218,18 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     var amount by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var notes by rememberSaveable { mutableStateOf("") }
+    var itemised by rememberSaveable { mutableStateOf(true) }
+    var items by rememberSaveable(stateSaver = ItemDraft.ListSaver) { mutableStateOf(listOf(ItemDraft())) }
+    var placeOfSupply by rememberSaveable { mutableStateOf("") }
+    var roundOff by rememberSaveable { mutableStateOf(true) }
+    val seller by vm.businessProfile.collectAsStateWithLifecycle()
     var loaded by rememberSaveable { mutableStateOf(false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
     var partyPicker by rememberSaveable { mutableStateOf(false) }
     var newParty by rememberSaveable { mutableStateOf<String?>(null) }
 
+    // New invoice: once the business profile has loaded, default the place of supply to the seller's state.
+    LaunchedEffect(seller.stateCode) { if (id == 0L && placeOfSupply.isBlank() && snap.partyById[partyId]?.stateCode.isNullOrBlank()) placeOfSupply = seller.stateCode }
     LaunchedEffect(snap.loaded) {
         if (loaded || !snap.loaded) return@LaunchedEffect
         val existing = snap.invoices.firstOrNull { it.id == id }
@@ -230,7 +237,12 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
             kind = existing.kind; cashbookId = existing.cashbookId; number = existing.number; partyId = existing.partyId
             issue = existing.issueDate.toEpochDay(); due = existing.dueDate.toEpochDay(); amount = Money.toPlain(existing.amount)
             description = existing.description; notes = existing.notes
+            placeOfSupply = existing.placeOfSupply; roundOff = existing.roundOff
+            val existingItems = snap.invoiceItems[id].orEmpty()
+            itemised = existingItems.isNotEmpty()
+            items = if (existingItems.isEmpty()) listOf(ItemDraft()) else existingItems.map { ItemDraft.from(it) }
         } else {
+            placeOfSupply = snap.partyById[presetParty]?.stateCode?.ifBlank { null } ?: seller.stateCode
             val sc = currentScope(snap, s)
             cashbookId = if (s.defaultCashbookId in sc) s.defaultCashbookId else sc.firstOrNull() ?: 0
             number = vm.deps?.ledger?.nextInvoiceNumber(cashbookId, kind, LocalDate.now()) ?: ""
@@ -239,7 +251,11 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     }
     val parsed = Money.parse(amount)
     val paid = snap.invoiceBalances().firstOrNull { it.invoice.id == id }?.paid ?: 0L
-    val errAmount = parsed !is Money.ParseResult.Ok || (parsed as Money.ParseResult.Ok).paise < paid
+    val itemsValid = items.isNotEmpty() && items.all { it.valid }
+    val totals = if (itemised && itemsValid) com.cashbook.core.GstCalc.totals(items.map { it.toItem() },
+        com.cashbook.core.GstCalc.isInterState(seller.stateCode, placeOfSupply), roundOff) else null
+    val errAmount = if (itemised) !itemsValid || (totals?.grandTotal ?: 0) <= 0 || (totals?.grandTotal ?: 0) < paid
+        else parsed !is Money.ParseResult.Ok || (parsed as Money.ParseResult.Ok).paise < paid
     val errParty = snap.partyById[partyId] == null
     val errDates = due < issue
     val msgDuplicate = stringResource(R.string.inv_err_duplicate)
@@ -264,7 +280,8 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                 { partyPicker = true }, isError = showErrors && errParty, supporting = if (showErrors && errParty) stringResource(R.string.inv_err_party) else null)
             OutlinedTextField(number, { number = it }, label = { Text(stringResource(R.string.inv_number)) }, singleLine = true, isError = showErrors && number.isBlank(),
                 modifier = Modifier.fillMaxWidth())
-            MoneyField(amount, { amount = it }, stringResource(R.string.inv_amount),
+            com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.itemised_gst), itemised, { itemised = it }, stringResource(R.string.itemised_gst_desc))
+            if (!itemised) MoneyField(amount, { amount = it }, stringResource(R.string.inv_amount),
                 error = if (showErrors && errAmount) (if (paid > 0) stringResource(R.string.inv_err_below_paid) else stringResource(R.string.err_amount_invalid)) else null)
             DateField(stringResource(R.string.inv_issue_date), LocalDate.ofEpochDay(issue), { issue = it.toEpochDay() })
             DateField(stringResource(R.string.inv_due_date), LocalDate.ofEpochDay(due), { due = it.toEpochDay() }, isError = errDates,
@@ -274,6 +291,15 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                     FilterChip(due - issue == d.toLong(), { due = issue + d }, { Text(if (d == 0) stringResource(R.string.inv_on_receipt) else stringResource(R.string.inv_net_days, d)) })
                 }
             }
+            if (itemised) {
+                DropdownField(stringResource(R.string.place_of_supply), listOf("") + com.cashbook.core.Gst.STATES.keys, placeOfSupply,
+                    labelOf = { if (it.isEmpty()) stringResource(R.string.not_set) else com.cashbook.core.Gst.stateLabel(it) }, onSelect = { placeOfSupply = it },
+                    supporting = if (seller.stateCode.isBlank()) stringResource(R.string.set_business_state) else null, modifier = Modifier.fillMaxWidth())
+                InvoiceItemsEditor(items, { items = it }, showErrors, totals)
+                com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.round_off_total), roundOff, { roundOff = it })
+                totals?.let { TotalsCard(it) }
+                if (showErrors && errAmount && paid > 0 && itemsValid) Text(stringResource(R.string.inv_err_below_paid), color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(description, { description = it }, label = { Text(stringResource(R.string.description)) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
             OutlinedTextField(notes, { notes = it }, label = { Text(stringResource(R.string.notes)) }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
             InfoBanner(stringResource(R.string.inv_not_cash_note), icon = Icons.Filled.Info)
@@ -281,7 +307,9 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                 showErrors = true
                 if (errAmount || errParty || errDates || number.isBlank() || cashbookId == 0L) return@Button
                 val inv = InvoiceInfo(id, cashbookId, kind, number, partyId, LocalDate.ofEpochDay(issue), LocalDate.ofEpochDay(due),
-                    (parsed as Money.ParseResult.Ok).paise, description, notes)
+                    if (itemised) totals!!.grandTotal else (parsed as Money.ParseResult.Ok).paise, description, notes,
+                    placeOfSupply = placeOfSupply, roundOff = roundOff)
+                val lineItems = if (itemised) items.map { it.toItem() } else emptyList()
                 vm.run(onError = { e ->
                     val m = when ((e as? LedgerRepository.InvoiceException)?.reason) {
                         LedgerRepository.InvoiceException.Reason.DUPLICATE_NUMBER -> msgDuplicate
@@ -290,7 +318,7 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                     }
                     scope.launch { snackbar.showSnackbar(m) }
                 }) {
-                    val newId = ledger.saveInvoice(inv)
+                    val newId = ledger.saveInvoice(inv, lineItems, seller.stateCode)
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         nav.popBackStack()
                         if (id == 0L) nav.navigate(Routes.invoice(newId))
@@ -300,7 +328,9 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
         }
     }
     if (partyPicker) SearchPickerSheet(stringResource(R.string.select_party), snap.parties.filter { !it.archived || it.id == partyId }.map { PickItem(it.id, it.name, it.mobile) },
-        onPick = { partyId = it?.id ?: 0; partyPicker = false }, onDismiss = { partyPicker = false },
+        onPick = { p -> partyId = p?.id ?: 0; partyPicker = false
+            snap.partyById[partyId]?.stateCode?.takeIf { it.isNotBlank() }?.let { placeOfSupply = it } },
+        onDismiss = { partyPicker = false },
         createLabel = stringResource(R.string.new_party), onCreate = { q -> newParty = q; partyPicker = false })
     newParty?.let { initial ->
         var name by remember { mutableStateOf(initial) }
@@ -351,8 +381,31 @@ fun InvoiceDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
                 AmountLine(stringResource(if (inv.kind == InvoiceKind.SALE) R.string.inv_received else R.string.inv_paid_amount), f.amount(b.paid), fc.income)
                 AmountLine(stringResource(R.string.inv_outstanding), f.amount(b.outstanding), if (b.status == InvoiceStatus.OVERDUE) fc.expense else null, bold = true)
                 if (inv.description.isNotBlank()) Text(inv.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                if (inv.placeOfSupply.isNotBlank()) Text("${stringResource(R.string.place_of_supply)}: ${com.cashbook.core.Gst.stateLabel(inv.placeOfSupply)}",
+                    style = MaterialTheme.typography.bodySmall)
                 if (inv.notes.isNotBlank()) Text(inv.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            val lineItems = snap.invoiceItems[id].orEmpty()
+            val seller by vm.businessProfile.collectAsStateWithLifecycle()
+            if (lineItems.isNotEmpty()) {
+                val t = com.cashbook.core.GstCalc.totals(lineItems, com.cashbook.core.GstCalc.isInterState(seller.stateCode, inv.placeOfSupply), inv.roundOff)
+                SectionCard(stringResource(R.string.items)) {
+                    t.lines.forEachIndexed { i, l ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${i + 1}. ${l.item.description}", style = MaterialTheme.typography.bodyMedium)
+                                Text("${com.cashbook.core.Gst.formatQuantity(l.item.quantityMilli)} ${l.item.unit} × ${f.amount(l.item.rate)}" +
+                                    (if (l.item.discountBp > 0) " − ${com.cashbook.core.Gst.formatPercent(l.item.discountBp)}%" else "") +
+                                    " · GST ${com.cashbook.core.Gst.rateLabel(l.item.gstBp)}" + (if (l.item.hsn.isNotBlank()) " · HSN/SAC ${l.item.hsn}" else ""),
+                                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(f.amount(l.total), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+                TotalsCard(t)
+            }
+            if (inv.kind == InvoiceKind.SALE) InvoicePdfButtons(vm, snap, b)
             if (b.outstanding > 0) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { nav.navigate(Routes.recordPayment(id)) }, modifier = Modifier.weight(1f)) {
                     Text(stringResource(if (inv.kind == InvoiceKind.SALE) R.string.inv_record_receipt else R.string.inv_record_payment)) }
@@ -495,3 +548,48 @@ private fun shareText(ctx: android.content.Context, b: InvoiceBalance, snap: Sna
     }.trim()
 }
 
+
+fun invoicePdfStrings(c: android.content.Context) = com.cashbook.app.export.InvoicePdfWriter.Strings(
+    c.getString(R.string.pdf_tax_invoice), c.getString(R.string.pdf_invoice), c.getString(R.string.pdf_invoice_no), c.getString(R.string.inv_issue_date),
+    c.getString(R.string.inv_due_date), c.getString(R.string.place_of_supply), c.getString(R.string.pdf_bill_to), "GSTIN", c.getString(R.string.state_ut),
+    c.getString(R.string.mobile), c.getString(R.string.pdf_sr), c.getString(R.string.item_description), c.getString(R.string.item_hsn),
+    c.getString(R.string.item_qty), c.getString(R.string.item_rate), c.getString(R.string.pdf_disc), c.getString(R.string.taxable_value),
+    c.getString(R.string.pdf_gst), c.getString(R.string.amount), c.getString(R.string.pdf_tax_summary), "CGST", "SGST", "IGST",
+    c.getString(R.string.rl_total_tax), c.getString(R.string.round_off), c.getString(R.string.grand_total), c.getString(R.string.inv_paid_amount),
+    c.getString(R.string.pdf_balance_due), c.getString(R.string.pdf_amount_in_words), c.getString(R.string.bp_payment_details),
+    c.getString(R.string.pdf_bank), c.getString(R.string.pdf_account_name), c.getString(R.string.pdf_account_no), "IFSC", "UPI",
+    c.getString(R.string.pdf_terms), c.getString(R.string.pdf_for), c.getString(R.string.pdf_authorised_signatory), c.getString(R.string.page_x_of_y),
+    c.getString(R.string.pdf_generated_by), "",
+)
+
+/** Save or share the invoice as a printable PDF. */
+@Composable
+fun InvoicePdfButtons(vm: AppViewModel, snap: Snapshot, b: InvoiceBalance) {
+    val ctx = LocalContext.current
+    val f = LocalUiFormat.current
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val seller by vm.businessProfile.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val failed = stringResource(R.string.export_failed)
+    val saved = stringResource(R.string.export_saved)
+    val name = Exporter.safeFileName("${b.invoice.number}_${snap.names.party(b.invoice.partyId)}") + ".pdf"
+    fun write(out: java.io.OutputStream) = com.cashbook.app.export.InvoicePdfWriter(f.money, settings?.dateFormat ?: com.cashbook.core.DateFormatOption.DD_MM_YYYY,
+        invoicePdfStrings(ctx)).write(b, snap.invoiceItems[b.invoice.id].orEmpty(), seller, snap.partyById[b.invoice.partyId], out)
+    val save = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument(Exporter.MIME_PDF)) { uri ->
+        if (uri != null) scope.launch {
+            val ok = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Exporter.writeTo(ctx, uri) { write(it) } } }.isSuccess
+            vm.toast(if (ok) saved else failed)
+        }
+    }
+    if (seller.name.isBlank()) InfoBanner(stringResource(R.string.pdf_set_profile_hint), icon = Icons.Filled.Info)
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { vm.allowExternalActivity(); save.launch(name) }, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Description, null); Text(" " + stringResource(R.string.save_pdf), maxLines = 1) }
+        OutlinedButton(onClick = {
+            scope.launch {
+                val uri = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Exporter.writeShareable(ctx, name) { write(it) } } }.getOrNull()
+                if (uri == null) vm.toast(failed) else { vm.allowExternalActivity(); Exporter.share(ctx, uri, Exporter.MIME_PDF, b.invoice.number) }
+            }
+        }, modifier = Modifier.weight(1f)) { Icon(Icons.Filled.Share, null); Text(" " + stringResource(R.string.share_pdf), maxLines = 1) }
+    }
+}

@@ -174,16 +174,17 @@ fun PartyEditScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
     var gstin by rememberSaveable { mutableStateOf("") }
     var notes by rememberSaveable { mutableStateOf("") }
     var archived by rememberSaveable { mutableStateOf(false) }
+    var stateCode by rememberSaveable { mutableStateOf("") }
     var loaded by rememberSaveable { mutableStateOf(id == 0L) }
     var usage by remember { mutableIntStateOf(0) }
     LaunchedEffect(existing) {
         if (!loaded && existing != null) {
             name = existing.name; type = existing.type; mobile = existing.mobile; email = existing.email; address = existing.address
-            gstin = existing.gstin; notes = existing.notes; archived = existing.archived; loaded = true
+            gstin = existing.gstin; notes = existing.notes; archived = existing.archived; stateCode = existing.stateCode; loaded = true
         }
         if (id > 0) usage = vm.deps?.ledger?.partyUsage(id) ?: 0
     }
-    val gstinOk = gstin.isBlank() || gstin.matches(Regex("^[0-9]{2}[A-Z0-9]{13}$"))
+    val gstinOk = gstin.isBlank() || com.cashbook.core.Gst.isValidGstin(gstin)
     val emailOk = email.isBlank() || android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
     AppScaffold(title = stringResource(if (id == 0L) R.string.new_party else R.string.edit_party), onBack = { nav.popBackStack() }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -194,14 +195,19 @@ fun PartyEditScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
             OutlinedTextField(email, { email = it }, label = { Text(stringResource(R.string.email)) }, singleLine = true, isError = !emailOk,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(address, { address = it }, label = { Text(stringResource(R.string.address)) }, modifier = Modifier.fillMaxWidth(), maxLines = 3)
-            OutlinedTextField(gstin, { gstin = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(15) }, label = { Text(stringResource(R.string.gstin_optional)) }, singleLine = true,
-                isError = !gstinOk, supportingText = if (!gstinOk) ({ Text(stringResource(R.string.gstin_invalid)) }) else null, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(gstin, { v -> gstin = v.uppercase().filter { c -> c.isLetterOrDigit() }.take(15)
+                    if (gstin.length == 15) com.cashbook.core.Gst.stateFromGstin(gstin)?.let { stateCode = it } },
+                label = { Text(stringResource(R.string.gstin_optional)) }, singleLine = true,
+                isError = !gstinOk, supportingText = if (!gstinOk) ({ Text(stringResource(R.string.gstin_invalid_check)) }) else null, modifier = Modifier.fillMaxWidth())
+            DropdownField(stringResource(R.string.state_ut), listOf("") + com.cashbook.core.Gst.STATES.keys, stateCode,
+                labelOf = { if (it.isEmpty()) stringResource(R.string.not_set) else com.cashbook.core.Gst.stateLabel(it) }, onSelect = { stateCode = it },
+                supporting = stringResource(R.string.party_state_hint), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(notes, { notes = it }, label = { Text(stringResource(R.string.notes)) }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
             if (id > 0) SwitchRow(stringResource(R.string.archived), archived, { archived = it }, stringResource(R.string.archive_party_desc))
             Button(onClick = {
                 if (name.isBlank() || !gstinOk || !emailOk) return@Button
                 vm.run { ledger.saveParty(PartyEntity(id = id, name = name, type = type.name, mobile = mobile.trim(), email = email.trim(), address = address.trim(),
-                    gstin = gstin.trim(), notes = notes.trim(), archived = archived, createdAt = 0, updatedAt = 0)) }
+                    gstin = gstin.trim(), notes = notes.trim(), archived = archived, createdAt = 0, updatedAt = 0, stateCode = stateCode)) }
                 nav.popBackStack()
             }, enabled = name.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }
             if (id > 0) OutlinedButton(onClick = {

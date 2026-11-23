@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.cashbook.core.CurrencyDisplay
+import com.cashbook.core.backup.BusinessProfileDto
 import com.cashbook.core.DateFormatOption
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -99,6 +100,24 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
     }
 
     val settings: Flow<AppSettings> = dataStore.data.map { p -> p.toSettings() }
+
+    // ---- business profile (seller details printed on invoices) ----
+    private val bpKeys = listOf("name", "address", "gstin", "state", "phone", "email", "bank", "acc_name", "acc_no", "ifsc", "upi", "terms", "signatory")
+        .associateWith { stringPreferencesKey("bp_$it") }
+
+    val businessProfile: Flow<BusinessProfileDto> = dataStore.data.map { p ->
+        fun g(k: String) = p[bpKeys.getValue(k)] ?: ""
+        BusinessProfileDto(g("name"), g("address"), g("gstin"), g("state"), g("phone"), g("email"), g("bank"), g("acc_name"), g("acc_no"),
+            g("ifsc"), g("upi"), g("terms"), g("signatory"))
+    }
+
+    suspend fun updateBusinessProfile(b: BusinessProfileDto) {
+        dataStore.edit { p ->
+            listOf("name" to b.name, "address" to b.address, "gstin" to b.gstin, "state" to b.stateCode, "phone" to b.phone, "email" to b.email,
+                "bank" to b.bankName, "acc_name" to b.accountName, "acc_no" to b.accountNumber, "ifsc" to b.ifsc, "upi" to b.upiId,
+                "terms" to b.terms, "signatory" to b.signatory).forEach { (k, v) -> p[bpKeys.getValue(k)] = v.trim() }
+        }
+    }
 
     private fun Preferences.toSettings(): AppSettings {
         val d = AppSettings()

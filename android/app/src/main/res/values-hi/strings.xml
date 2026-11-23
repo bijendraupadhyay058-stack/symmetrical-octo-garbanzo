@@ -32,6 +32,7 @@
     <string name="add_expense_desc">किसी खाते से दिया गया पैसा</string>
     <string name="add_income">आय जोड़ें</string>
     <string name="add_income_desc">किसी खाते में प्राप्त पैसा</string>
+    <string name="add_item">आइटम जोड़ें</string>
     <string name="add_sample">नमूना डेटा जोड़ें</string>
     <string name="add_transfer">ट्रांसफ़र</string>
     <string name="add_transfer_desc">अपने ही खातों के बीच पैसा भेजें</string>
@@ -100,6 +101,15 @@
     <string name="biometric_unavailable">इस डिवाइस पर बायोमेट्रिक अनलॉक सेट नहीं है।</string>
     <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
     <string name="both_sides">इस ट्रांसफ़र के दोनों पक्ष</string>
+    <string name="bp_account_name">खाताधारक का नाम</string>
+    <string name="bp_account_number">खाता संख्या (ग्राहकों के भुगतान हेतु)</string>
+    <string name="bp_ifsc">IFSC</string>
+    <string name="bp_name">व्यवसाय / व्यापार नाम</string>
+    <string name="bp_payment_details">भुगतान विवरण</string>
+    <string name="bp_payment_hint">आपके इनवॉइस पर छपते हैं ताकि ग्राहक जानें कहाँ भुगतान करें। केवल वही विवरण दर्ज करें जो आप ग्राहकों से साझा करना चाहते हैं।</string>
+    <string name="bp_signatory">अधिकृत हस्ताक्षरकर्ता का नाम</string>
+    <string name="bp_terms">इनवॉइस पर शर्तें और टिप्पणी</string>
+    <string name="bp_upi">UPI ID</string>
     <string name="budget_alerts">बजट चेतावनी</string>
     <string name="budget_alerts_desc">जब कोई श्रेणी अपने मासिक बजट के 80% तक पहुँचे या उससे अधिक हो, तब सूचित करें।</string>
     <string name="budget_left">%s बाकी</string>
@@ -112,6 +122,9 @@
     <string name="budgets_desc">श्रेणी-वार मासिक खर्च सीमा</string>
     <string name="budgets_intro">मासिक बजट तय करने के लिए श्रेणी पर टैप करें। उप-श्रेणियों का खर्च मुख्य श्रेणी में गिना जाता है।</string>
     <string name="budgets_this_month">इस माह के बजट</string>
+    <string name="business_profile">व्यवसाय प्रोफ़ाइल</string>
+    <string name="business_profile_desc">इनवॉइस के लिए नाम, पता, GSTIN और भुगतान विवरण</string>
+    <string name="business_profile_intro">ये विवरण आपके छापे या साझा किए गए इनवॉइस के ऊपर दिखते हैं। आपका राज्य तय करता है कि GST, CGST + SGST में बँटेगा या IGST लगेगा।</string>
     <string name="camera">कैमरा</string>
     <string name="cancel">रद्द करें</string>
     <string name="cashbook">कैशबुक</string>
@@ -256,7 +269,9 @@
     <string name="general_desc">भाषा, थीम, तारीख़ प्रारूप, डिफ़ॉल्ट, मुद्रा</string>
     <string name="general_financial">सामान्य और वित्तीय</string>
     <string name="generated">बनाया गया</string>
-    <string name="gstin_invalid">GSTIN 15 अक्षरों का होना चाहिए</string>
+    <string name="grand_total">कुल योग</string>
+    <string name="gst_rate">GST दर</string>
+    <string name="gstin_invalid_check">मान्य GSTIN नहीं है (संख्या और अंतिम अक्षर जाँचें)</string>
     <string name="gstin_optional">GSTIN (वैकल्पिक)</string>
     <string name="has_attachment">संलग्नक है</string>
     <string name="has_end_date">किसी तिथि पर समाप्त</string>
@@ -322,6 +337,17 @@
     <string name="invoices_bills">इनवॉइस और बिल</string>
     <string name="invoices_desc">ग्राहकों पर आपका बकाया और आपूर्तिकर्ताओं का आप पर बकाया</string>
     <string name="invoices_intro">बकाया पर नज़र रखने के लिए इनवॉइस और बिल दर्ज करें। भुगतान आने या जाने पर उनके विरुद्ध दर्ज करें।</string>
+    <string name="item_description">वस्तु / सेवा</string>
+    <string name="item_discount">छूट</string>
+    <string name="item_hsn">HSN / SAC</string>
+    <string name="item_line_total">कर योग्य %1$s + GST %2$s = %3$s</string>
+    <string name="item_n">आइटम %d</string>
+    <string name="item_qty">मात्रा</string>
+    <string name="item_rate">दर</string>
+    <string name="item_unit">इकाई</string>
+    <string name="itemised_gst">GST सहित आइटम-वार</string>
+    <string name="itemised_gst_desc">आइटम जोड़ें; GST और कुल अपने-आप गणना होंगे। एक ही राशि दर्ज करने के लिए बंद करें।</string>
+    <string name="items">आइटम</string>
     <string name="keep_copies">रखें</string>
     <string name="keep_editing">संपादन जारी रखें</string>
     <string name="keep_forever">जब तक मैं न हटाऊँ</string>
@@ -397,6 +423,7 @@
     <string name="no_transactions_yet">अभी कोई प्रविष्टि नहीं। आय, व्यय या ट्रांसफ़र दर्ज करने के लिए जोड़ें पर टैप करें।</string>
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
     <string name="none_top_level">कोई नहीं (मुख्य श्रेणी)</string>
+    <string name="not_set">सेट नहीं</string>
     <string name="notes">टिप्पणी</string>
     <string name="notifications">सूचनाएँ</string>
     <string name="of_x">%s में से</string>
@@ -426,6 +453,7 @@
     <string name="party_ledger_note">बकाया राशि आपके दर्ज इनवॉइस और बिल से आती है। बिना इनवॉइस के प्राप्त/भुगतान राशि केवल नीचे की प्रविष्टियों में दिखती है।</string>
     <string name="party_other">अन्य</string>
     <string name="party_service_provider">सेवा प्रदाता</string>
+    <string name="party_state_hint">GSTIN से भरा जाता है; इनवॉइस पर आपूर्ति स्थान के रूप में उपयोग।</string>
     <string name="party_supplier">आपूर्तिकर्ता</string>
     <string name="party_type">पक्ष का प्रकार</string>
     <string name="password_loss_warning">यदि आप यह पासवर्ड भूल गए तो बैकअप कोई भी पुनर्स्थापित नहीं कर सकेगा। इसे सुरक्षित रखें।</string>
@@ -436,6 +464,24 @@
     <string name="payables">देय</string>
     <string name="paying_account">भुगतान करने वाला खाता *</string>
     <string name="payment_mode">भुगतान का तरीका</string>
+    <string name="pdf_account_name">खाते का नाम</string>
+    <string name="pdf_account_no">खाता सं.</string>
+    <string name="pdf_amount_in_words">राशि शब्दों में</string>
+    <string name="pdf_authorised_signatory">अधिकृत हस्ताक्षरकर्ता</string>
+    <string name="pdf_balance_due">शेष देय</string>
+    <string name="pdf_bank">बैंक</string>
+    <string name="pdf_bill_to">बिल प्राप्तकर्ता</string>
+    <string name="pdf_disc">छूट</string>
+    <string name="pdf_for">कृते</string>
+    <string name="pdf_generated_by">कैशबुक से बनाया गया</string>
+    <string name="pdf_gst">GST</string>
+    <string name="pdf_invoice">इनवॉइस</string>
+    <string name="pdf_invoice_no">इनवॉइस सं.</string>
+    <string name="pdf_set_profile_hint">सेटिंग › व्यवसाय प्रोफ़ाइल में अपना व्यवसाय नाम, GSTIN और राज्य जोड़ें ताकि वे इनवॉइस पर छपें।</string>
+    <string name="pdf_sr">क्र.</string>
+    <string name="pdf_tax_invoice">कर बीजक</string>
+    <string name="pdf_tax_summary">GST सारांश</string>
+    <string name="pdf_terms">शर्तें</string>
     <string name="period">अवधि</string>
     <string name="period_all_time">सारा समय</string>
     <string name="period_custom">कस्टम</string>
@@ -450,6 +496,7 @@
     <string name="pin_enabled">पिन लॉक चालू है</string>
     <string name="pin_mismatch">पिन मेल नहीं खाए। फिर प्रयास करें।</string>
     <string name="pin_rules">1234 या जन्म वर्ष जैसे आसान पिन से बचें।</string>
+    <string name="place_of_supply">आपूर्ति का स्थान</string>
     <string name="post">दर्ज करें</string>
     <string name="post_automatically">प्रविष्टियाँ अपने-आप बनाएँ</string>
     <string name="post_automatically_off">हर प्रविष्टि डैशबोर्ड पर आपके दर्ज करने या छोड़ने की प्रतीक्षा करेगी (राशि बदलने पर उपयोगी)।</string>
@@ -477,6 +524,7 @@
     <string name="reference_number">संदर्भ संख्या</string>
     <string name="remind_me">बैकअप की याद दिलाएँ</string>
     <string name="remove">हटाएँ</string>
+    <string name="remove_item">आइटम हटाएँ</string>
     <string name="remove_pin">पिन हटाएँ</string>
     <string name="remove_sample">नमूना डेटा हटाएँ</string>
     <string name="remove_sample_text">नमूना कैशबुक और उसकी सभी प्रविष्टियाँ हट जाएँगी। आपकी अपनी कैशबुक प्रभावित नहीं होंगी।</string>
@@ -493,6 +541,8 @@
     <string name="report_daily_desc">दिन-वार प्रारंभिक शेष, आय, व्यय, ट्रांसफ़र और अंतिम शेष</string>
     <string name="report_fy">वित्त वर्ष रिपोर्ट</string>
     <string name="report_fy_desc">1 अप्रैल से 31 मार्च, माह-वार और श्रेणी-वार</string>
+    <string name="report_gst">GST सारांश</string>
+    <string name="report_gst_desc">बिक्री इनवॉइस पर आउटपुट कर बनाम खरीद बिल पर इनपुट कर, दर-वार (CGST, SGST, IGST)</string>
     <string name="report_income_expense">आय और व्यय विवरण</string>
     <string name="report_income_expense_desc">श्रेणी-वार आय और व्यय, शुद्ध अधिशेष या घाटा</string>
     <string name="report_monthly">मासिक सारांश</string>
@@ -535,15 +585,20 @@
     <string name="rl_days_overdue">अतिदेय दिन</string>
     <string name="rl_expense_by_category">श्रेणी-वार व्यय</string>
     <string name="rl_from">से</string>
+    <string name="rl_gst_note">इनवॉइस तिथि के अनुसार आइटम-वार इनवॉइस और बिल पर आधारित (रद्द शामिल नहीं)। एक राशि वाले इनवॉइस में कर विवरण नहीं होता, इसलिए शामिल नहीं। यह समीक्षा के लिए सारांश है, GST रिटर्न नहीं।</string>
     <string name="rl_income_by_category">श्रेणी-वार आय</string>
+    <string name="rl_input_tax">इनपुट कर (खरीद बिल)</string>
+    <string name="rl_invoices_counted">गिने गए आइटम-वार इनवॉइस</string>
     <string name="rl_month">माह</string>
     <string name="rl_month_wise">माह-वार योग</string>
     <string name="rl_net">शुद्ध</string>
     <string name="rl_net_deficit">शुद्ध घाटा</string>
     <string name="rl_net_surplus">शुद्ध अधिशेष</string>
     <string name="rl_net_surplus_deficit">शुद्ध अधिशेष / (घाटा)</string>
+    <string name="rl_net_tax">शुद्ध कर (आउटपुट − इनपुट)</string>
     <string name="rl_not_due">अभी देय नहीं</string>
     <string name="rl_opening_of">प्रारंभिक शेष – %s</string>
+    <string name="rl_output_tax">आउटपुट कर (बिक्री इनवॉइस)</string>
     <string name="rl_outstanding_note">इनवॉइस और बिल बकाया राशियाँ हैं, नकद लेन-देन नहीं; भुगतान दर्ज होने तक ये खाता शेष नहीं बदलते। आँकड़े चुनी अवधि के अंत तक के हैं।</string>
     <string name="rl_particulars">विवरण</string>
     <string name="rl_party_note">प्रत्येक पक्ष से वास्तव में प्राप्त और उसे दिया गया पैसा दर्शाती है। यह प्राप्य/देय खाता-बही नहीं है।</string>
@@ -555,6 +610,7 @@
     <string name="rl_total_entries">कुल (%d प्रविष्टियाँ)</string>
     <string name="rl_total_expenses">कुल व्यय</string>
     <string name="rl_total_income">कुल आय</string>
+    <string name="rl_total_tax">कुल कर</string>
     <string name="rl_transfer_destination">ट्रांसफ़र गंतव्य</string>
     <string name="rl_transfer_in">आने वाले ट्रांसफ़र</string>
     <string name="rl_transfer_note">ट्रांसफ़र आपके अपने खातों के बीच पैसा ले जाते हैं और आय या व्यय में नहीं गिने जाते।</string>
@@ -563,6 +619,8 @@
     <string name="rl_transfers">ट्रांसफ़र</string>
     <string name="rl_transfers_net">ट्रांसफ़र (शुद्ध)</string>
     <string name="rl_type">प्रकार</string>
+    <string name="round_off">पूर्णांकन</string>
+    <string name="round_off_total">कुल को निकटतम रुपये तक पूर्णांकित करें</string>
     <string name="run_backup_now">अभी बैकअप लें</string>
     <string name="running_balance_hint">चालू शेष देखने के लिए \"सबसे पुराने पहले\" से क्रमबद्ध करें (अन्य फ़िल्टर के बिना)।</string>
     <string name="sample">नमूना</string>
@@ -579,6 +637,7 @@
     <string name="save">सहेजें</string>
     <string name="save_and_add_another">सहेजें और एक और जोड़ें</string>
     <string name="save_anyway">फिर भी सहेजें</string>
+    <string name="save_pdf">PDF सहेजें</string>
     <string name="saved">सहेजा गया</string>
     <string name="schedule">अनुसूची</string>
     <string name="search">खोजें</string>
@@ -592,6 +651,7 @@
     <string name="select_backup_file">बैकअप फ़ाइल चुनें</string>
     <string name="select_category">श्रेणी चुनें</string>
     <string name="select_party">पक्ष चुनें</string>
+    <string name="set_business_state">GST सही बाँटने के लिए व्यवसाय प्रोफ़ाइल में अपना राज्य सेट करें।</string>
     <string name="set_default">डिफ़ॉल्ट बनाएँ</string>
     <string name="set_pin">पिन सेट करें</string>
     <string name="settings_books">बही</string>
@@ -613,6 +673,8 @@
     <string name="spent">खर्च</string>
     <string name="start_of_week">सप्ताह का पहला दिन</string>
     <string name="start_using">कैशबुक शुरू करें</string>
+    <string name="state_hint">GSTIN से अपने-आप भरा जाता है।</string>
+    <string name="state_ut">राज्य / केंद्र शासित प्रदेश</string>
     <string name="step_accounts">खाते और प्रारंभिक शेष</string>
     <string name="step_cashbook">आपकी पहली कैशबुक</string>
     <string name="step_done">सब तैयार</string>
@@ -623,10 +685,13 @@
     <string name="storage_error">कैशबुक इस डिवाइस पर अपना एन्क्रिप्टेड स्टोरेज नहीं खोल सका। आपका डेटा नहीं हटाया गया है। फ़ोन रीस्टार्ट करने से अक्सर ठीक हो जाता है; न हो तो ऐप डेटा साफ़ करने से पहले सहायता से संपर्क करें।</string>
     <string name="success">सफल</string>
     <string name="sunday">रविवार</string>
+    <string name="supply_inter">अंतर-राज्यीय आपूर्ति (IGST)</string>
+    <string name="supply_intra">राज्य के भीतर आपूर्ति (CGST + SGST)</string>
     <string name="surplus">अधिशेष</string>
     <string name="switch_cashbook">कैशबुक बदलें</string>
     <string name="tags">टैग</string>
     <string name="tags_hint">अल्पविराम से अलग करें, जैसे GST, client-A</string>
+    <string name="taxable_value">कर योग्य मूल्य</string>
     <string name="theme">थीम</string>
     <string name="theme_dark">गहरा</string>
     <string name="theme_light">हल्का</string>
@@ -701,6 +766,8 @@
         <item>सेटिंग › आवर्ती प्रविष्टियाँ में किराया, वेतन या सदस्यता की अनुसूची बनाएँ। तय करें कि हर एक अपने-आप जुड़े या डैशबोर्ड पर दर्ज करें / छोड़ें के लिए प्रतीक्षा करे। किसी भी प्रविष्टि को खोलकर आवर्ती बनाएँ पर टैप करें। सेटिंग › बजट में व्यय श्रेणी-वार मासिक सीमा तय करें; डैशबोर्ड पर इस माह की प्रगति दिखती है।</item>
         <item>## इनवॉइस, बिल और बकाया</item>
         <item>सेटिंग › इनवॉइस और बिल (या डैशबोर्ड का प्राप्य और देय कार्ड) में आपके बनाए बिक्री इनवॉइस और मिले खरीद बिल देय तिथि सहित दर्ज होते हैं। ये कोई शेष नहीं बदलते। पैसा आने या जाने पर इनवॉइस खोलें और प्राप्ति / भुगतान दर्ज करें, या पहले से दर्ज प्रविष्टि लागू करें। स्थिति, अतिदेय दिन और बकाया रिपोर्ट अपने-आप अपडेट होते हैं।</item>
+        <item>## GST इनवॉइस</item>
+        <item>सेटिंग › व्यवसाय प्रोफ़ाइल भरें (नाम, GSTIN, राज्य, बैंक/UPI, शर्तें)। फिर इनवॉइस में GST सहित आइटम-वार चालू करें और HSN/SAC, मात्रा, दर, छूट तथा GST दर के साथ आइटम जोड़ें। राज्य के भीतर आपूर्ति CGST + SGST में बँटती है; अन्य राज्यों पर आपूर्ति स्थान के अनुसार IGST लगता है। इनवॉइस से कर बीजक PDF सहेजें या साझा करें। रिपोर्ट › GST सारांश आउटपुट और इनपुट कर की तुलना करता है।</item>
         <item>## होम-स्क्रीन विजेट और सूचनाएँ</item>
         <item>होम स्क्रीन पर देर तक दबाएँ › विजेट › कैशबुक — त्वरित आय / व्यय / ट्रांसफ़र बटन के लिए। शेष तभी दिखता है जब आप अनुमति दें और ऐप लॉक बंद हो। इनवॉइस अनुस्मारक और बजट चेतावनी सेटिंग › सामान्य और वित्तीय में चालू करें।</item>
         <item>## स्वचालित बैकअप</item>

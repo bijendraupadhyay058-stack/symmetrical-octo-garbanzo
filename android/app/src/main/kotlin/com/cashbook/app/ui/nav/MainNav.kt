@@ -112,6 +112,7 @@ object Routes {
     fun invoiceEdit(id: Long, kind: String = "SALE", partyId: Long = 0) = "invoice_edit/$id/$kind/$partyId"
     fun invoice(id: Long) = "invoice/$id"
     fun recordPayment(id: Long) = "invoice_pay/$id"
+    const val BUSINESS = "business_profile"
 }
 
 private data class Tab(val route: String, val label: Int, val icon: ImageVector)
@@ -215,6 +216,7 @@ fun MainNav(vm: AppViewModel) {
             }
             composable(Routes.BUDGETS) { BudgetsScreen(vm, nav) }
             composable(Routes.INVOICES) { InvoicesScreen(vm, nav) }
+            composable(Routes.BUSINESS) { com.cashbook.app.ui.settings.BusinessProfileScreen(vm, nav) }
             composable("invoice_pay/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id")) }
             composable("invoice/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> InvoiceDetailScreen(vm, nav, e.arguments!!.getLong("id")) }
             composable("invoice_edit/{id}/{kind}/{party}", listOf(navArgument("id") { type = NavType.LongType }, navArgument("party") { type = NavType.LongType })) { e ->

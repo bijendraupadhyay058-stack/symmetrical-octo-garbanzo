@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.3.0 (versionCode 4)
+
+**New**
+- **Business profile** (Settings): name, address, GSTIN, state, phone, email, bank and UPI details, invoice
+  terms and signatory — printed on invoices. The state fills in automatically from the GSTIN.
+- **Itemised GST invoices and bills**: lines with HSN/SAC, quantity (up to 3 decimals), unit, rate, discount %
+  and GST rate (0, 0.25, 3, 5, 12, 18, 28 or 40 %). CGST + SGST within the seller's state, IGST for other states,
+  based on the **place of supply** (defaults to the party's state). Optional round-off to the nearest rupee.
+  Live totals while editing. Invoices entered as a single amount still work.
+- **Tax invoice PDF** — save or share an A4 tax invoice with seller and buyer GSTIN/state, items (headings
+  repeated on every page), GST summary by rate, totals, round-off, paid and balance due, amount in words
+  (Indian system: lakh, crore), bank/UPI details, terms and signatory.
+- **GST Summary report** — output tax on sales invoices vs input tax on purchase bills, by rate, split into
+  CGST, SGST and IGST, with net tax.
+- **GSTIN validation** with the official check digit (business profile and parties); party **state** field.
+
+**Data**
+- Database v3 → v4 adds `invoice_items`, place of supply, round-off and party state (filled from existing
+  GSTINs). Backups include items, party states and the business profile; older backups still restore.
+
 ## 1.2.0 (versionCode 3)
 
 **New**

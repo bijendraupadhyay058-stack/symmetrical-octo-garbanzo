@@ -36,5 +36,18 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+    /** v3 → v4 (app 1.3): itemised GST invoices, place of supply, round-off and party state. */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `parties` ADD COLUMN `state_code` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `place_of_supply` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `round_off` INTEGER NOT NULL DEFAULT 1")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `invoice_items` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `invoice_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `description` TEXT NOT NULL, `hsn` TEXT NOT NULL, `quantity_milli` INTEGER NOT NULL, `unit` TEXT NOT NULL, `rate` INTEGER NOT NULL, `discount_bp` INTEGER NOT NULL, `gst_bp` INTEGER NOT NULL, FOREIGN KEY(`invoice_id`) REFERENCES `invoices`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_invoice_items_invoice_id` ON `invoice_items` (`invoice_id`)")
+            // Fill party state from a valid-looking GSTIN prefix so existing parties get a default place of supply.
+            db.execSQL("UPDATE `parties` SET `state_code` = substr(`gstin`, 1, 2) WHERE length(`gstin`) = 15 AND substr(`gstin`, 1, 2) GLOB '[0-9][0-9]'")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 }

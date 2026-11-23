@@ -2,6 +2,7 @@ package com.cashbook.app.data.db
 
 import com.cashbook.core.AccountInfo
 import com.cashbook.core.BudgetInfo
+import com.cashbook.core.InvoiceItem
 import com.cashbook.core.InvoiceInfo
 import com.cashbook.core.InvoiceKind
 import com.cashbook.core.Allocation
@@ -28,7 +29,7 @@ fun AccountEntity.toInfo() = AccountInfo(id, cashbookId, name, enumOr(type, Acco
 
 fun CategoryEntity.toInfo() = CategoryInfo(id, enumOr(kind, CategoryKind.EXPENSE), name, parentId, icon, archived)
 
-fun PartyEntity.toInfo() = PartyInfo(id, name, enumOr(type, PartyType.OTHER), mobile, email, address, gstin, notes, archived)
+fun PartyEntity.toInfo() = PartyInfo(id, name, enumOr(type, PartyType.OTHER), mobile, email, address, gstin, notes, archived, stateCode)
 
 fun TransactionEntity.toTxn() = Txn(id, cashbookId, enumOr(type, TxnType.EXPENSE), LocalDate.ofEpochDay(date), amount, accountId,
     toAccountId, categoryId, partyId, enumOr(paymentMode, PaymentMode.OTHER), description, reference, notes, tags, createdAt, updatedAt, deletedAt, recurringId)
@@ -48,6 +49,8 @@ fun RecurringRule.toEntity(createdAt: Long, updatedAt: Long) = RecurringEntity(i
 fun BudgetEntity.toInfo() = BudgetInfo(id, cashbookId, categoryId, monthlyAmount)
 
 fun InvoiceEntity.toInfo() = InvoiceInfo(id, cashbookId, enumOr(kind, InvoiceKind.SALE), number, partyId, LocalDate.ofEpochDay(issueDate),
-    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled)
+    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff)
+
+fun InvoiceItemEntity.toItem() = InvoiceItem(id, description, hsn, quantityMilli, unit, rate, discountBp, gstBp)
 
 fun AllocationEntity.toInfo() = Allocation(id, invoiceId, transactionId, amount)

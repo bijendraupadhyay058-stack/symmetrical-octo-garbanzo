@@ -56,6 +56,8 @@ data class PartyInfo(
     val gstin: String = "",
     val notes: String = "",
     val archived: Boolean = false,
+    /** GST state code ("27" = Maharashtra); used as the default place of supply. */
+    val stateCode: String = "",
 )
 
 /**

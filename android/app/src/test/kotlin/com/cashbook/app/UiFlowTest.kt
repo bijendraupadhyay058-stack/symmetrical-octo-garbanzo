@@ -27,6 +27,7 @@ import com.cashbook.core.PaymentMode
 import com.cashbook.core.Txn
 import com.cashbook.core.TxnType
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -249,6 +250,8 @@ class UiFlowTest {
         waitFor("New invoice"); click("New invoice")
         waitFor("Customer / client *")
         click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        click("Itemised with GST")                                            // simple invoice: one total, no line items
+        waitFor("Invoice amount")
         field("Invoice amount").performTextInput("50000")
         field("Description").performTextInput("Audit fees for FY 2025-26")
         click("30 days")
@@ -285,6 +288,45 @@ class UiFlowTest {
         waitFor("Delete this entry?")
         click("Move to recycle bin")
         compose.waitUntil(10_000) { runBlocking { deps().snap { true } }.deleted.any { it.description == "Accounting services" } }
+    }
+
+    @Test fun itemisedGstInvoice() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "Bengaluru Tech LLP", type = "CLIENT", gstin = "29AAGCB7383J1Z4",
+                createdAt = 0, updatedAt = 0, stateCode = "29"))
+            d.snap { it.parties.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Business profile"); click("Business profile")
+        waitFor("Business / trade name")
+        field("Business / trade name").performTextInput("Sharma & Associates")
+        field("GSTIN (optional)").performTextInput("27AAPFU0939F1ZV")       // fills State / UT = 27 automatically
+        waitFor("27 – Maharashtra")
+        shot("24_business_profile")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Invoices & bills")                                           // back on Settings after saving
+        // (the saved seller state 27 is verified below: Karnataka place of supply must give IGST)
+        compose.waitUntil(15_000) { !exists("Saved") }                         // let the "Saved" message clear the bottom of the screen
+        click("Invoices & bills")
+        waitFor("New invoice"); click("New invoice")
+        waitFor("Customer / client *")
+        click("Customer / client *"); waitFor("Bengaluru Tech LLP"); click("Bengaluru Tech LLP")
+        waitFor("29 – Karnataka")                                             // place of supply from the party
+        field("Item / service").performTextInput("Tax audit")
+        field("HSN / SAC").performTextInput("998221")
+        field("Rate").performTextInput("40000")
+        waitFor("Inter-state supply (IGST)", timeout = 10_000)
+        shot("25_invoice_items")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Record receipt")
+        val inv = runBlocking { d.snap { it.invoiceItems.isNotEmpty() } }.invoices.single { it.kind == com.cashbook.core.InvoiceKind.SALE }
+        assertEquals(4_720_000L, inv.amount)                                   // 40,000 + 18 % IGST
+        assertEquals("29", inv.placeOfSupply)
+        compose.onNode(androidx.compose.ui.test.hasScrollAction()).performScrollToNode(hasText("Save PDF", substring = true))
+        shot("26_invoice_detail_items")
     }
 
     @Test fun outstandingReport() {

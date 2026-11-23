@@ -153,6 +153,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
                 dateFormat = s.dateFormat, labels = labels, cashbookNames = snap.cashbooks.associate { it.id to it.name },
                 locale = Locale.getDefault(), txnsWithAttachments = snap.withAttachments,
                 invoices = snap.invoices.filter { it.cashbookId in cbIds }, allocations = snap.allocations,
+                invoiceItems = snap.invoiceItems, sellerState = vm.businessProfile.value.stateCode,
             )).build()
         }
     }

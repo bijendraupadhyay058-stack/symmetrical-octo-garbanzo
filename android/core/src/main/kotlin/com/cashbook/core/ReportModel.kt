@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 enum class ReportType {
     DAILY_CASHBOOK, MONTHLY_SUMMARY, YEARLY_SUMMARY, FINANCIAL_YEAR, CATEGORY_WISE,
-    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING;
+    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY;
 
     /** Balance-based reports only accept an account filter; others accept every filter. */
     val supportsDetailFilters: Boolean
@@ -66,6 +66,7 @@ data class ReportLabels(
         ReportType.TRANSFERS to "Transfer Report",
         ReportType.CUSTOM to "Custom Report",
         ReportType.OUTSTANDING to "Outstanding & Ageing",
+        ReportType.GST_SUMMARY to "GST Summary",
     ),
     val types: Map<TxnType, String> = mapOf(TxnType.INCOME to "Income", TxnType.EXPENSE to "Expense", TxnType.TRANSFER to "Transfer"),
     val modes: Map<PaymentMode, String> = mapOf(
@@ -137,5 +138,16 @@ data class ReportLabels(
     val days61to90: String = "61–90 days",
     val days90plus: String = "Over 90 days",
     val outstandingNote: String = "Invoices and bills are amounts owed, not cash movements; they do not change account balances until payments are recorded. Report as at the end of the period.",
+    val gstRate: String = "GST rate",
+    val taxableValue: String = "Taxable value",
+    val cgst: String = "CGST",
+    val sgst: String = "SGST / UTGST",
+    val igst: String = "IGST",
+    val totalTax: String = "Total tax",
+    val outputTax: String = "Output tax (sales invoices)",
+    val inputTax: String = "Input tax (purchase bills)",
+    val netTaxPayable: String = "Net tax (output − input)",
+    val invoicesCounted: String = "Itemised invoices counted",
+    val gstNote: String = "Based on itemised invoices and bills by invoice date (cancelled ones excluded). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )

@@ -63,6 +63,7 @@ fun reportTitleRes(t: ReportType) = when (t) {
     ReportType.ACCOUNT_WISE -> R.string.report_account; ReportType.INCOME_EXPENSE -> R.string.report_income_expense
     ReportType.TRANSFERS -> R.string.report_transfers; ReportType.CUSTOM -> R.string.report_custom
     ReportType.OUTSTANDING -> R.string.report_outstanding
+    ReportType.GST_SUMMARY -> R.string.report_gst
 }
 
 fun reportDescRes(t: ReportType) = when (t) {
@@ -72,4 +73,5 @@ fun reportDescRes(t: ReportType) = when (t) {
     ReportType.ACCOUNT_WISE -> R.string.report_account_desc; ReportType.INCOME_EXPENSE -> R.string.report_income_expense_desc
     ReportType.TRANSFERS -> R.string.report_transfers_desc; ReportType.CUSTOM -> R.string.report_custom_desc
     ReportType.OUTSTANDING -> R.string.report_outstanding_desc
+    ReportType.GST_SUMMARY -> R.string.report_gst_desc
 }

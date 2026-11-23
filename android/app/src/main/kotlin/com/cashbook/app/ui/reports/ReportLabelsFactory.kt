@@ -34,6 +34,8 @@ fun reportLabels(c: Context): ReportLabels {
         invoiceAmount = s(R.string.inv_amount), paid = s(R.string.inv_paid_amount), outstanding = s(R.string.inv_outstanding), daysOverdue = s(R.string.rl_days_overdue),
         ageing = s(R.string.rl_ageing), notDue = s(R.string.rl_not_due), days0to30 = s(R.string.rl_d0_30), days31to60 = s(R.string.rl_d31_60),
         days61to90 = s(R.string.rl_d61_90), days90plus = s(R.string.rl_d90_plus), outstandingNote = s(R.string.rl_outstanding_note),
+        gstRate = s(R.string.gst_rate), taxableValue = s(R.string.taxable_value), totalTax = s(R.string.rl_total_tax), outputTax = s(R.string.rl_output_tax),
+        inputTax = s(R.string.rl_input_tax), netTaxPayable = s(R.string.rl_net_tax), invoicesCounted = s(R.string.rl_invoices_counted), gstNote = s(R.string.rl_gst_note),
         cashBasisNote = s(R.string.rl_cash_basis_note), partyNote = s(R.string.rl_party_note), transferNote = s(R.string.rl_transfer_note),
     )
 }

@@ -29,6 +29,9 @@ data class ReportInput(
     /** Invoices/bills of the cashbook(s) in scope and their payment allocations (Outstanding report). */
     val invoices: List<InvoiceInfo> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
+    /** Line items per invoice id and the seller's GST state (GST summary). */
+    val invoiceItems: Map<Long, List<InvoiceItem>> = emptyMap(),
+    val sellerState: String = "",
 )
 
 /**
@@ -71,9 +74,10 @@ class ReportEngine(private val input: ReportInput) {
             ReportType.TRANSFERS -> transfers()
             ReportType.CUSTOM -> custom()
             ReportType.OUTSTANDING -> outstanding()
+            ReportType.GST_SUMMARY -> gstSummary()
         }
         val exportTxns = when {
-            input.type == ReportType.OUTSTANDING -> emptyList()
+            input.type == ReportType.OUTSTANDING || input.type == ReportType.GST_SUMMARY -> emptyList()
             input.type.supportsDetailFilters -> detail
             else -> inRange
         }
@@ -413,6 +417,31 @@ class ReportEngine(private val input: ReportInput) {
         tables.add(0, ReportTable(l.ageing, listOf(Column(l.ageing, 2f), Column(l.receivables, 1.6f, Align.END), Column(l.payables, 1.6f, Align.END)),
             if (balances.isEmpty()) emptyList() else ageRows + ageTotal))
         return Parts(summary, tables, listOf(l.outstandingNote))
+    }
+
+    /** Output vs input tax by rate for itemised invoices/bills issued in the period. */
+    private fun gstSummary(): Parts {
+        val tables = ArrayList<ReportTable>()
+        val taxByKind = HashMap<InvoiceKind, Long>()
+        var counted = 0
+        for (kind in InvoiceKind.entries) {
+            val invs = input.invoices.filter { it.kind == kind && !it.cancelled && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
+            counted += invs.size
+            val breakups = invs.flatMap { inv ->
+                GstCalc.totals(input.invoiceItems[inv.id]!!, GstCalc.isInterState(input.sellerState, inv.placeOfSupply), false).breakup
+            }.groupBy { it.gstBp }.toSortedMap().map { (bp, l) -> RateBreakup(bp, l.sumOf { it.taxable }, l.sumOf { it.cgst }, l.sumOf { it.sgst }, l.sumOf { it.igst }) }
+            val rows = breakups.map { b -> Row(listOf(Cell.Text(Gst.rateLabel(b.gstBp)), Cell.Amount(b.taxable), Cell.Amount(b.cgst), Cell.Amount(b.sgst),
+                Cell.Amount(b.igst), Cell.Amount(b.tax))) }
+            val tax = breakups.sumOf { it.tax }
+            taxByKind[kind] = tax
+            tables += ReportTable(if (kind == InvoiceKind.SALE) l.outputTax else l.inputTax, listOf(Column(l.gstRate, 1f), Column(l.taxableValue, 1.5f, Align.END),
+                Column(l.cgst, 1.2f, Align.END), Column(l.sgst, 1.2f, Align.END), Column(l.igst, 1.2f, Align.END), Column(l.totalTax, 1.3f, Align.END)),
+                if (rows.isEmpty()) rows else rows + Row(listOf(Cell.Text(l.total), Cell.Amount(breakups.sumOf { it.taxable }), Cell.Amount(breakups.sumOf { it.cgst }),
+                    Cell.Amount(breakups.sumOf { it.sgst }), Cell.Amount(breakups.sumOf { it.igst }), Cell.Amount(tax)), RowStyle.TOTAL))
+        }
+        val out = taxByKind[InvoiceKind.SALE] ?: 0; val inp = taxByKind[InvoiceKind.PURCHASE] ?: 0
+        return Parts(listOf(SummaryItem(l.outputTax, Cell.Amount(out)), SummaryItem(l.inputTax, Cell.Amount(inp)),
+            SummaryItem(l.netTaxPayable, Cell.Amount(out - inp)), SummaryItem(l.invoicesCounted, Cell.Count(counted))), tables, listOf(l.gstNote))
     }
 
     private fun exportTable(txns: List<Txn>): ReportTable {

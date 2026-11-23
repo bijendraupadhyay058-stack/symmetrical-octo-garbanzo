@@ -162,4 +162,9 @@ interface InvoiceDao {
     @Query("DELETE FROM allocations WHERE id = :id") suspend fun deleteAllocation(id: Long)
     @Query("DELETE FROM allocations WHERE transaction_id = :txnId") suspend fun deleteAllocationsForTxn(txnId: Long)
     @Query("DELETE FROM allocations") suspend fun clearAllocations()
+
+    @Query("SELECT * FROM invoice_items ORDER BY invoice_id, position") suspend fun items(): List<InvoiceItemEntity>
+    @Insert suspend fun insertItems(e: List<InvoiceItemEntity>)
+    @Query("DELETE FROM invoice_items WHERE invoice_id = :invoiceId") suspend fun deleteItems(invoiceId: Long)
+    @Query("DELETE FROM invoice_items") suspend fun clearItems()
 }
