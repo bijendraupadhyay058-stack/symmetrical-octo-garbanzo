@@ -37,9 +37,14 @@ English and Hindi.
 </p>
 <p><img src="docs/screenshots/29_invoice_refund_due.jpg" width="180"> <img src="docs/screenshots/28_credit_note_form.jpg" width="180"></p>
 <p><img src="docs/screenshots/31_products_list.jpg" width="180"> <img src="docs/screenshots/30_item_form.jpg" width="180"> <img src="docs/screenshots/32_invoice_pick_item.jpg" width="180"> <img src="docs/screenshots/33_dashboard_low_stock.jpg" width="180"></p>
+<p><img src="docs/screenshots/37_quotation_form.jpg" width="180"> <img src="docs/screenshots/38_quotation_detail.jpg" width="180"> <img src="docs/screenshots/39_invoice_upi_qr.jpg" width="180"> <img src="docs/screenshots/40_quotations_list.jpg" width="180"></p>
+<p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.5** — a **products & services** list (HSN/SAC, unit, sale/purchase rate, GST rate) that you
+**What's new in 1.6** — **quotations / estimates** (itemised with GST, own PDF, valid-until date) that you
+turn into an invoice with one tap, and a **UPI payment QR code** for unpaid sales invoices, in the app and printed
+on the invoice PDF (any UPI app opens it with the amount and invoice number filled in).
+**1.5** — a **products & services** list (HSN/SAC, unit, sale/purchase rate, GST rate) that you
 pick from on invoice lines, **stock on hand** worked out from your sales, purchase bills, credit notes and
 adjustments, a **low-stock** dashboard card, and **Stock summary** and **Item-wise sales** reports.
 **1.4** — credit and debit notes (itemised with GST, own PDF), refunds when a credit note
@@ -56,11 +61,11 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.5.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.6.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.5.0-test.apk`.
-   Installing it over any earlier version keeps your data (the database upgrades automatically to v6).
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.6.0-test.apk`.
+   Installing it over any earlier version keeps your data (the database upgrades automatically to v7).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
@@ -107,6 +112,7 @@ android/
 │       ├── Budget.kt             Monthly budgets and progress (sub-categories count to the parent)
 │       ├── Invoices.kt           Invoice/bill balances, status, ageing buckets, allocation rules, numbering
 │       ├── Catalog.kt            Products/services, stock moves, on-hand, stock value, low stock, item-wise sales
+│       ├── Upi.kt                UPI ID check, upi://pay links, QR encoding (ZXing core)
 │       ├── Gst.kt                GST rates, state codes, GSTIN check digit, line/tax totals, round-off, amount in words
 │       ├── Xlsx.kt               Dependency-free .xlsx writer (numeric cells, Indian number format)
 │       └── backup/               Backup DTOs, streaming AES-GCM encryption, archive codec + validation
@@ -139,7 +145,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Attachment (`attachments`) | transaction, file name, MIME type, size, private stored file name |
 | Recurring (`recurring`, v2) | cashbook, type, amount, account(s), category, party, mode, description, reference, frequency (daily/weekly/monthly/quarterly/yearly) × interval, start date, optional end date, next occurrence index, auto-post or confirm, active |
 | Budget (`budgets`, v2) | cashbook, expense category (unique per cashbook), monthly amount |
-| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5), **ref invoice** (for notes, v5), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
+| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5; QUOTATION, v7), **ref invoice** (for notes, v5), **converted invoice** (for quotations, v7), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
 | InvoiceItem (`invoice_items`, v4) | invoice, position, description, HSN/SAC, quantity (thousandths), unit, rate (paise), discount and GST rate (basis points), **catalogue item** (optional, v6) |
 | CatalogItem (`catalog_items`, v6) | name (unique, case-insensitive), kind (GOODS/SERVICE), HSN/SAC, unit, sale rate, purchase rate, GST rate, description, opening stock + date, reorder level, archived |
 | StockAdjustment (`stock_adjustments`, v6) | item, date, quantity change (thousandths, + or −), reason |
@@ -164,7 +170,15 @@ Business calculations never live in UI code: every screen, report and export cal
   `transactions.recurring_id`; v2 → v3 adds `invoices` and `allocations`; v3 → v4 adds `invoice_items`, `invoices.place_of_supply`, `invoices.round_off`
   and `parties.state_code`, filling party states from existing GSTINs; v4 → v5 adds `invoices.doc_type` and
   `invoices.ref_invoice_id` and widens number uniqueness to include the doc type; v5 → v6 adds `catalog_items`, `stock_adjustments` and
-  `invoice_items.item_id`; existing rows are untouched).
+  `invoice_items.item_id`; v6 → v7 adds `invoices.converted_invoice_id` for quotations; existing rows are untouched).
+* **Quotations** are rows in `invoices` with `doc_type = QUOTATION` (always SALE, series QT/26-27/001, due date =
+  valid until). The snapshot keeps them in a separate list, so balances, receivables, alerts, stock and every report
+  ignore them; the GST and item-wise reports also exclude them directly. Status is derived: converted, declined
+  (cancelled), expired (past valid-until) or open. Converting copies party, place of supply, items (with their
+  catalogue links), description and notes into a new invoice dated today and due in 15 days, and stores its id on the
+  quotation; deleting that invoice re-opens the quotation.
+* **UPI QR**: for a sales invoice with a balance and a valid UPI ID in the business profile, the app shows and the PDF
+  prints a QR code for `upi://pay?pa=…&pn=…&am=<balance>&cu=INR&tn=<invoice no.>` (error correction M).
 * **Stock** is never stored, it is derived (`core/Catalog.kt`): opening stock (from its date) + purchase bill
   lines − sale invoice lines + sale credit-note lines − purchase credit-note lines ± adjustments. Debit notes and
   cancelled documents don't move stock. Services have no stock. Stock value uses the purchase rate. Items used on
@@ -220,6 +234,8 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.6** Quotations / estimates: itemised with GST, valid-until date, QUOTATION PDF, open / expired / declined / converted, one-tap conversion to an invoice (items, party and place of supply copied), link back from the invoice | `core/Invoices.kt` (`Quotations`), `ui/invoices/QuotationScreens.kt`, `LedgerRepository.convertQuotation` |
+| **1.6** UPI payment QR for unpaid sales invoices, on screen and on the PDF (amount = balance due, note = invoice number); UPI ID validated in the business profile; "Pay by UPI" line in the shared text | `core/Upi.kt`, `export/InvoicePdfWriter.kt`, `UpiQrCard` |
 | **1.5** Products & services list with search, low-stock filter, archive; pick an item on an invoice line to fill description, HSN/SAC, unit, rate and GST (stock shown, warning when a sale exceeds it) | `core/Catalog.kt`, `ui/manage/CatalogScreens.kt`, `ui/invoices/InvoiceItemsEditor.kt` |
 | **1.5** Stock on hand, stock adjustments with reason, low-stock dashboard card; Stock summary and Item-wise sales reports (PDF/Excel) | `core/Catalog.kt`, `core/ReportEngine.kt`, `ui/dashboard` |
 | **1.4** Credit and debit notes (itemised with GST, starting from the invoice's items), refunds, invoice status "Refund due", notes in the GST summary; CREDIT NOTE / DEBIT NOTE PDF referring to the original invoice | `core/Invoices.kt`, `ui/invoices` |
@@ -252,7 +268,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-128 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+139 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -265,9 +281,11 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `BackupRestoreTest` | Backup → wipe → restore reproduces data and attachment bytes; restore without attachments; wrong password / damaged / truncated / non-backup files fail **and current data is untouched** |
 | `core` `RecurrenceTest`, `BudgetTest` | Month-end schedules don't drift (31 Jan → 28 Feb → 31 Mar), all frequencies/intervals, catch-up with end dates and cap, budget progress incl. sub-categories and thresholds |
 | `core` `InvoicesTest` | Status transitions incl. a payment moved to the recycle bin, ageing buckets, allocation limits, FY numbering, outstanding report as at past dates |
+| `core` `QuotationUpiTest` | Quotation status (open / expired / declined / converted), QT numbering, quotations owe nothing and move no stock; UPI ID validation, link format and UTF-8 encoding; QR encode → decode round trip |
 | `core` `StockTest` | Stock from purchases, sales, credit notes, adjustments and opening stock (by date); debit notes and cancelled documents ignored; services excluded; stock value and low-stock flag; item-wise sales net of credit notes; Stock summary report |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
-| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5 and v5 → v6 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6 and v6 → v7 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `Phase7Test` | Quotation stays out of receivables and stock and refuses payments/notes; conversion copies items and links; can't convert twice or when declined; deleting the invoice re-opens it; own number series; backups keep quotations and links; invoice PDF QR read back from the rendered page; no QR when paid, on quotations or with an invalid UPI ID |
 | `app` `Phase6Test` | Item names unique; picking an item on a sale lowers stock and a purchase bill raises it; credit note returns stock; adjustments; items in use can't be deleted, only archived; backups include items, adjustments and invoice-line links |
 | `app` `Phase5Test` | Credit note lowers outstanding and inherits party/place of supply; debit note raises it; FY note numbering; credit can't exceed invoice; invoices with notes can't be deleted or cancelled; notes can't reference notes; credit after full payment → refund due → refund recorded as an expense → paid; invoice can't drop below what stays paid; backups carry notes and logo images; credit-note PDF with logo and signature rendered |
 | `app` `Phase4Test` | Item totals become the invoice amount for intra- and inter-state supply; editing replaces items and simple mode clears them; totals can't drop below paid or to zero; backups include items, party state and business profile; tax-invoice pages rendered (incl. a 45-line invoice over two pages) |
@@ -276,7 +294,7 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
 screen, creating a simple invoice and recording a receipt against it, filling the business profile and creating an
 itemised GST invoice (IGST for another state), issuing a credit note from a paid invoice and recording the
-refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), the Outstanding report, deleting an entry
+refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the Outstanding report, deleting an entry
 through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
 Not automated here (please check on a device): writing the PDF file itself (Android's native `PdfDocument`
@@ -305,5 +323,8 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
   from the IRP), e-way bills, reverse charge, cess, composition-scheme bills of supply, TDS/TCS, or filing GSTR
   returns. The amount in words is in English. A credit note is tied to one invoice (no unlinked/advance credits).
 * When editing an existing sale, the stock warning on an invoice line still counts that invoice's own lines.
-* Suggested next phases: quotations/estimates convertible to invoices, sharing invoices on WhatsApp with a
-  UPI QR code, multi-currency, and an instrumented test pass on physical devices.
+* Quotations are for sales only (no purchase orders), convert in full (no partial conversion), and the converted
+  invoice is due in 15 days (edit it afterwards). The UPI QR is a static "pay this amount" link: the app does not
+  learn when the customer pays — record the receipt as usual.
+* Suggested next phases: delivery challans, purchase orders, multi-currency, and an instrumented test pass on
+  physical devices.

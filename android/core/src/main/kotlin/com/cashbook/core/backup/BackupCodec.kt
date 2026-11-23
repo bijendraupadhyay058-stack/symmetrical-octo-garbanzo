@@ -189,7 +189,12 @@ object BackupCodec {
             if (!invoiceKeys.add(Triple(i.cashbookId, i.kind + "/" + i.docType, i.number.trim().lowercase()))) p += "invoice ${i.id} has a duplicate number"
             val dt = runCatching { com.cashbook.core.DocType.valueOf(i.docType) }.getOrNull()
             if (dt == null) p += "invoice ${i.id} has invalid document type"
-            if (dt != null && dt != com.cashbook.core.DocType.INVOICE) {
+            if (dt == com.cashbook.core.DocType.QUOTATION) {
+                if (i.kind != "SALE") p += "quotation ${i.id} must be a sale"
+                val conv = i.convertedInvoiceId?.let { c -> d.invoices.firstOrNull { o -> o.id == c } }
+                if (i.convertedInvoiceId != null && (conv == null || conv.docType != "INVOICE" || conv.cashbookId != i.cashbookId)) p += "quotation ${i.id} has an invalid converted invoice"
+            }
+            if (dt != null && dt.isNote) {
                 val ref = i.refInvoiceId?.let { d.invoices.firstOrNull { o -> o.id == it } }
                 if (ref == null || ref.docType != "INVOICE" || ref.cashbookId != i.cashbookId || ref.kind != i.kind) p += "note ${i.id} has an invalid original invoice"
             }

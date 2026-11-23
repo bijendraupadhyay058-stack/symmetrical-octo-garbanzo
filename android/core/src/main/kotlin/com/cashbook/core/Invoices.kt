@@ -15,9 +15,27 @@ enum class InvoiceStatus { OPEN, PARTIAL, OVERDUE, PAID, REFUND_DUE, CANCELLED }
  * INVOICE = sales invoice / purchase bill. CREDIT_NOTE lowers what is owed on the referenced invoice
  * (return, discount, overcharge); DEBIT_NOTE raises it (extra charge). Notes are never cash movements.
  */
-enum class DocType { INVOICE, CREDIT_NOTE, DEBIT_NOTE;
-    /** +1 when the document adds to the amount owed, −1 when it reduces it. */
-    val sign: Int get() = if (this == CREDIT_NOTE) -1 else 1
+enum class DocType { INVOICE, CREDIT_NOTE, DEBIT_NOTE,
+    /** A sales quotation / estimate: an offer only. Nothing is owed and stock and GST don't change until it is converted. */
+    QUOTATION;
+    /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation). */
+    val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION -> 0; else -> 1 }
+    val isNote: Boolean get() = this == CREDIT_NOTE || this == DEBIT_NOTE
+}
+
+/** CONVERTED = turned into an invoice; DECLINED = marked declined by you; EXPIRED = past its valid-until date. */
+enum class QuoteStatus { OPEN, EXPIRED, CONVERTED, DECLINED }
+
+object Quotations {
+    fun status(q: InvoiceInfo, today: LocalDate): QuoteStatus = when {
+        q.convertedInvoiceId != null -> QuoteStatus.CONVERTED
+        q.cancelled -> QuoteStatus.DECLINED
+        today.isAfter(q.dueDate) -> QuoteStatus.EXPIRED
+        else -> QuoteStatus.OPEN
+    }
+
+    /** The quotation an invoice was created from, if any. */
+    fun sourceOf(invoiceId: Long, quotations: List<InvoiceInfo>) = quotations.firstOrNull { it.convertedInvoiceId == invoiceId }
 }
 
 /**
@@ -44,6 +62,8 @@ data class InvoiceInfo(
     val docType: DocType = DocType.INVOICE,
     /** For credit/debit notes: the invoice or bill being adjusted. */
     val refInvoiceId: Long? = null,
+    /** For a quotation: the invoice it was converted into (cleared if that invoice is deleted). */
+    val convertedInvoiceId: Long? = null,
 )
 
 /** Part (or all) of a payment entry applied to an invoice. */
@@ -78,7 +98,7 @@ object Invoices {
      * type (a refund) reduces what was paid. Cancelled notes are ignored.
      */
     fun balances(docs: List<InvoiceInfo>, allocations: List<Allocation>, liveTxnTypes: Map<Long, TxnType>, today: LocalDate): List<InvoiceBalance> {
-        val notes = docs.filter { it.docType != DocType.INVOICE && !it.cancelled && it.refInvoiceId != null }.groupBy { it.refInvoiceId!! }
+        val notes = docs.filter { it.docType.isNote && !it.cancelled && it.refInvoiceId != null }.groupBy { it.refInvoiceId!! }
         val byInvoice = allocations.groupBy { it.invoiceId }
         return docs.filter { it.docType == DocType.INVOICE }.map { inv ->
             val paid = byInvoice[inv.id].orEmpty().sumOf { a ->
@@ -104,7 +124,7 @@ object Invoices {
 
     /** A credit note can't take the invoice below zero: credits ≤ amount + debits (other notes, excluding [editingNoteId]). */
     fun validateNote(original: InvoiceInfo, docs: List<InvoiceInfo>, type: DocType, amount: Long, editingNoteId: Long = 0): NoteError? {
-        if (original.docType != DocType.INVOICE || type == DocType.INVOICE) return NoteError.NOT_AN_INVOICE
+        if (original.docType != DocType.INVOICE || !type.isNote) return NoteError.NOT_AN_INVOICE
         if (amount <= 0) return NoteError.NOT_POSITIVE
         val others = docs.filter { it.refInvoiceId == original.id && it.id != editingNoteId && !it.cancelled }
         val credits = others.filter { it.docType == DocType.CREDIT_NOTE }.sumOf { it.amount } + if (type == DocType.CREDIT_NOTE) amount else 0
@@ -155,6 +175,7 @@ object Invoices {
             DocType.INVOICE -> if (kind == InvoiceKind.SALE) "INV" else "BILL"
             DocType.CREDIT_NOTE -> if (kind == InvoiceKind.SALE) "CN" else "CN-IN"
             DocType.DEBIT_NOTE -> if (kind == InvoiceKind.SALE) "DN" else "DN-IN"
+            DocType.QUOTATION -> "QT"
         }
         val prefix = series + "/" + yy(fy.startYear) + "-" + yy(fy.startYear + 1) + "/"
         val max = existing.filter { it.startsWith(prefix) }.mapNotNull { it.removePrefix(prefix).toIntOrNull() }.maxOrNull() ?: 0

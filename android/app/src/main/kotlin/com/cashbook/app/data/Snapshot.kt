@@ -28,7 +28,10 @@ data class Snapshot(
     val attachmentCounts: Map<Long, Int> = emptyMap(),
     val recurring: List<RecurringRule> = emptyList(),
     val budgets: List<BudgetInfo> = emptyList(),
+    /** Invoices, bills and credit/debit notes (never quotations, so balances, stock and reports can't pick them up). */
     val invoices: List<InvoiceInfo> = emptyList(),
+    /** Sales quotations / estimates. */
+    val quotations: List<InvoiceInfo> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
     /** Line items per invoice id (empty list = invoice entered as a single amount). */
     val invoiceItems: Map<Long, List<com.cashbook.core.InvoiceItem>> = emptyMap(),
@@ -42,6 +45,9 @@ data class Snapshot(
     /** Invoice balances as of [today]; only payments that are not in the recycle bin count. */
     fun invoiceBalances(today: java.time.LocalDate = java.time.LocalDate.now()): List<InvoiceBalance> =
         Invoices.balances(invoices, allocations, txns.associate { it.id to it.type }, today)
+
+    /** Any document (invoice, note or quotation) by id. */
+    fun doc(id: Long): InvoiceInfo? = invoices.firstOrNull { it.id == id } ?: quotations.firstOrNull { it.id == id }
 
     /** Credit/debit notes issued against an invoice. */
     fun notesOf(invoiceId: Long) = invoices.filter { it.refInvoiceId == invoiceId }

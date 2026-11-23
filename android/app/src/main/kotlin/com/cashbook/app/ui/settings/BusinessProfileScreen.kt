@@ -69,6 +69,7 @@ fun BusinessProfileScreen(vm: AppViewModel, nav: NavHostController) {
         loaded = true
     }
     val gstinOk = gstin.isBlank() || Gst.isValidGstin(gstin)
+    val upiOk = upi.isBlank() || com.cashbook.core.Upi.isValidVpa(upi)
     val ifscOk = ifsc.isBlank() || ifsc.uppercase().matches(Regex("^[A-Z]{4}0[A-Z0-9]{6}$"))
     AppScaffold(title = stringResource(R.string.business_profile), onBack = { nav.popBackStack() }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -94,11 +95,12 @@ fun BusinessProfileScreen(vm: AppViewModel, nav: NavHostController) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(ifsc, { ifsc = it.uppercase().filter(Char::isLetterOrDigit).take(11) }, label = { Text(stringResource(R.string.bp_ifsc)) }, singleLine = true,
                 isError = !ifscOk, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(upi, { upi = it.trim() }, label = { Text(stringResource(R.string.bp_upi)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(upi, { upi = it.trim() }, label = { Text(stringResource(R.string.bp_upi)) }, singleLine = true, isError = !upiOk,
+                supportingText = { Text(stringResource(if (upiOk) R.string.upi_qr_hint else R.string.upi_invalid)) }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(terms, { terms = it }, label = { Text(stringResource(R.string.bp_terms)) }, minLines = 2, maxLines = 5, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(signatory, { signatory = it }, label = { Text(stringResource(R.string.bp_signatory)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             InfoBanner(stringResource(R.string.no_credentials_note), icon = Icons.Filled.Info)
-            Button(enabled = gstinOk && ifscOk, onClick = {
+            Button(enabled = gstinOk && ifscOk && upiOk, onClick = {
                 vm.run { settings.updateBusinessProfile(BusinessProfileDto(name, address, gstin, state, phone, email, bank, accName, accNo, ifsc.uppercase(), upi, terms, signatory)) }
                 vm.toast(ctx.getString(R.string.saved)); nav.popBackStack()
             }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }

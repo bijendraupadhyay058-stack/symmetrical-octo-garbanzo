@@ -50,7 +50,7 @@ object Stock {
     fun sign(doc: InvoiceInfo): Int = if (doc.cancelled) 0 else when (doc.docType) {
         DocType.INVOICE -> if (doc.kind == InvoiceKind.PURCHASE) 1 else -1
         DocType.CREDIT_NOTE -> if (doc.kind == InvoiceKind.SALE) 1 else -1
-        DocType.DEBIT_NOTE -> 0
+        DocType.DEBIT_NOTE, DocType.QUOTATION -> 0
     }
 
     fun moves(docs: List<InvoiceInfo>, docItems: Map<Long, List<InvoiceItem>>, adjustments: List<StockAdjustment>): List<StockMove> {
@@ -89,7 +89,7 @@ object Stock {
      */
     fun itemSales(docs: List<InvoiceInfo>, docItems: Map<Long, List<InvoiceItem>>, catalog: Map<Long, CatalogItem>, sellerState: String, range: DateRange): List<ItemSales> {
         val acc = LinkedHashMap<String, ItemSales>()
-        docs.filter { it.kind == InvoiceKind.SALE && !it.cancelled && it.issueDate in range && it.docType != DocType.DEBIT_NOTE }.forEach { d ->
+        docs.filter { it.kind == InvoiceKind.SALE && !it.cancelled && it.issueDate in range && it.docType != DocType.DEBIT_NOTE && it.docType != DocType.QUOTATION }.forEach { d ->
             val lines = docItems[d.id].orEmpty()
             if (lines.isEmpty()) return@forEach
             val s = if (d.docType == DocType.CREDIT_NOTE) -1 else 1

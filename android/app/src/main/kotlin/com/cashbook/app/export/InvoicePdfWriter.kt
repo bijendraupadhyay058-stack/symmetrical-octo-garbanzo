@@ -34,6 +34,8 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val generatedBy: String, val reverseNote: String,
         val creditNote: String = "CREDIT NOTE", val debitNote: String = "DEBIT NOTE", val originalInvoice: String = "Against invoice",
         val noteNo: String = "Note no.", val noteDate: String = "Note date",
+        val quotation: String = "QUOTATION", val quotationNo: String = "Quotation no.", val quotationDate: String = "Quotation date",
+        val validUntil: String = "Valid until", val scanToPay: String = "Scan to pay with any UPI app",
     )
 
     private val navy = Color.rgb(0x1A, 0x2B, 0x5C)
@@ -51,7 +53,11 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
     private val CW = W - 2 * M
     private val bottom = H - M - 20f
 
-    class Pages { val pages = ArrayList<ArrayList<(Canvas) -> Unit>>() }
+    class Pages {
+        val pages = ArrayList<ArrayList<(Canvas) -> Unit>>()
+        /** The UPI link encoded in the printed QR code, when one was printed. */
+        var upiLink: String? = null
+    }
 
     /** Lays out all pages (page count is known before drawing so footers can show "Page x of y"). */
     /** Optional images printed on the document. */
@@ -93,6 +99,7 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val title = when (inv.docType) {
             com.cashbook.core.DocType.CREDIT_NOTE -> s.creditNote
             com.cashbook.core.DocType.DEBIT_NOTE -> s.debitNote
+            com.cashbook.core.DocType.QUOTATION -> s.quotation
             else -> if (seller.gstin.isNotBlank() && totals != null) s.taxInvoice else s.invoice
         }
         branding.logo?.let { logo ->
@@ -112,9 +119,12 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
             listOf(seller.phone, seller.email).filter { it.isNotBlank() }.takeIf { it.isNotEmpty() }?.let { add(it.joinToString(" · ")) }
         }
         val meta = buildList {
-            val isNote = inv.docType != com.cashbook.core.DocType.INVOICE
-            add((if (isNote) s.noteNo else s.invoiceNo) to inv.number); add((if (isNote) s.noteDate else s.invoiceDate) to dates.format(inv.issueDate))
+            val isNote = inv.docType.isNote
+            val isQuote = inv.docType == com.cashbook.core.DocType.QUOTATION
+            add((if (isNote) s.noteNo else if (isQuote) s.quotationNo else s.invoiceNo) to inv.number)
+            add((if (isNote) s.noteDate else if (isQuote) s.quotationDate else s.invoiceDate) to dates.format(inv.issueDate))
             if (inv.docType == com.cashbook.core.DocType.INVOICE) add(s.dueDate to dates.format(inv.dueDate))
+            if (isQuote) add(s.validUntil to dates.format(inv.dueDate))
             if (inv.placeOfSupply.isNotBlank()) add(s.placeOfSupply to Gst.stateLabel(inv.placeOfSupply))
             reference?.let { add(s.originalInvoice to "${it.number} (${dates.format(it.date)})") }
         }
@@ -238,10 +248,31 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
             if (seller.ifsc.isNotBlank()) add("${s.ifsc}: ${seller.ifsc}")
             if (seller.upiId.isNotBlank()) add("${s.upi}: ${seller.upiId}")
         }
+        // UPI QR for the balance of an unpaid sales invoice: any UPI app opens it with the amount and invoice number filled in
+        val upi = if (inv.docType == com.cashbook.core.DocType.INVOICE && inv.kind == com.cashbook.core.InvoiceKind.SALE && !inv.cancelled &&
+            b.outstanding > 0 && com.cashbook.core.Upi.isValidVpa(seller.upiId)) com.cashbook.core.Upi.payUri(seller.upiId, seller.name, b.outstanding, inv.number) else null
+        val qrSize = 74f
+        val payLines = if (upi != null) pay.flatMap { wrap(it, pText, CW * 0.38f) } else pay
         val terms = wrap(seller.terms, pSmall, CW * 0.55f)
-        ensure(maxOf(pay.size * 11f + 14f + terms.size * 10f, 70f))
+        val payH = if (payLines.isNotEmpty() || upi != null) maxOf(payLines.size * 11f + 13f, if (upi != null) qrSize + 26f else 0f) + 6f else 0f
+        ensure(maxOf(payH + terms.size * 10f + 14f, 70f))
         val blockY = y
-        if (pay.isNotEmpty()) { text(s.paymentDetails, M, y + 9f, pBold); y += 13f; pay.forEach { text(it, M, y + 9f, pText); y += 11f }; y += 6f }
+        if (payLines.isNotEmpty() || upi != null) {
+            text(s.paymentDetails, M, y + 9f, pBold)
+            payLines.forEachIndexed { i, ln -> text(ln, M, y + 22f + i * 11f, pText) }
+            if (upi != null) {
+                val qr = com.cashbook.core.Qr.encode(upi)
+                val x0 = M + CW * 0.40f; val y0 = y + 2f; val mod = qrSize / qr.size
+                ops += { c ->
+                    fill.color = Color.BLACK
+                    for (my in 0 until qr.size) for (mx in 0 until qr.size) if (qr[mx, my]) c.drawRect(x0 + mx * mod, y0 + my * mod, x0 + (mx + 1) * mod + 0.15f, y0 + (my + 1) * mod + 0.15f, fill)
+                }
+                text(s.scanToPay, x0, y0 + qrSize + 10f, pSmall)
+                text("${s.balanceDue}: ${money.format(b.outstanding)}", x0, y0 + qrSize + 20f, pBold)
+                out.upiLink = upi
+            }
+            y += payH
+        }
         if (terms.isNotEmpty()) { text(s.terms, M, y + 9f, pBold); y += 12f; terms.forEach { text(it, M, y + 9f, pSmall); y += 10f } }
         val sigY = blockY
         text("${s.forBusiness} ${seller.name}".trim(), M + CW, sigY + 9f, pBold, right = true)

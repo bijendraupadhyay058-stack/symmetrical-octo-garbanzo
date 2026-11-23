@@ -7,6 +7,8 @@ import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithContentDescription
+import org.junit.Assert.assertTrue
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -427,6 +429,58 @@ class UiFlowTest {
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Low stock"))
         waitFor("4 left (reorder at 5 Nos)", substring = true)
         shot("33_dashboard_low_stock")
+    }
+
+    @Test fun quotationToInvoiceWithUpiQr() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.settings.updateBusinessProfile(com.cashbook.core.backup.BusinessProfileDto(name = "Sharma & Associates", gstin = "27AAPFU0939F1ZV", stateCode = "27",
+                upiId = "sharma.assoc@oksbi"))
+            d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", createdAt = 0, updatedAt = 0, stateCode = "27"))
+            d.ledger.saveCatalogItem(com.cashbook.core.CatalogItem(0, "Toner cartridge", com.cashbook.core.ItemKind.GOODS, "8443", "Nos", 250_000, 180_000, 1800,
+                openingStockMilli = 10_000, openingDate = LocalDate.now().minusDays(10), reorderLevelMilli = 2_000))
+            d.snap { it.catalog.isNotEmpty() && it.parties.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        waitFor("Receivables"); tab("Quotations")
+        waitFor("No quotations yet.")
+        click("New quotation")
+        waitFor("Customer / client *")
+        click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        waitFor("Valid until")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Add a saved item", substring = true))
+        compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("Pick a saved item"))[0].performClick()
+        waitFor("Toner cartridge"); click("Toner cartridge")
+        waitFor("In stock: 10 Nos")
+        field("Qty").performTextClearance(); field("Qty").performTextInput("3")
+        shot("37_quotation_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Convert to invoice")
+        var s = runBlocking { d.snap { it.quotations.isNotEmpty() } }
+        assertEquals(885_000L, s.quotations.single().amount)                                    // 3 × 2,500 + 18 %
+        assertTrue(s.invoices.isEmpty())
+        assertEquals(10_000L, s.onHand(s.catalog.single()))                                     // a quotation doesn't move stock
+        shot("38_quotation_detail")
+        compose.onNodeWithText("Convert to invoice", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Record receipt")
+        waitFor("From quotation", substring = true)
+        s = runBlocking { d.snap { it.invoices.isNotEmpty() } }
+        assertEquals(s.invoices.single().id, s.quotations.single().convertedInvoiceId)
+        assertEquals(7_000L, s.onHand(s.catalog.single()))
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Collect by UPI"))
+        waitFor("sharma.assoc@oksbi")
+        compose.onNodeWithContentDescription("UPI QR code to pay", substring = true).assertExists()
+        shot("39_invoice_upi_qr")
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        waitFor("Converted to invoice", substring = true)
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        waitFor("Open quotations"); waitFor("Converted")
+        shot("40_quotations_list")
     }
 
     @Test fun outstandingReport() {

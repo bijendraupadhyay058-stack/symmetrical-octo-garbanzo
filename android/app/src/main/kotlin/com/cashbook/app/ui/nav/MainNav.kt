@@ -116,6 +116,8 @@ object Routes {
     /** New/edit credit or debit note [doc] against invoice [ref]. */
     fun noteEdit(id: Long, doc: String, ref: Long) = "note_edit/$id/$doc/$ref"
     fun recordRefund(id: Long) = "invoice_refund/$id"
+    /** New/edit sales quotation (shares the document editor). */
+    fun quoteEdit(id: Long) = noteEdit(id, "QUOTATION", 0)
     const val CATALOG = "catalog"
     fun catalogItem(id: Long) = "catalog_item/$id"
 }

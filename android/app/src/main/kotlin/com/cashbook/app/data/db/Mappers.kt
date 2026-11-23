@@ -53,7 +53,7 @@ fun RecurringRule.toEntity(createdAt: Long, updatedAt: Long) = RecurringEntity(i
 fun BudgetEntity.toInfo() = BudgetInfo(id, cashbookId, categoryId, monthlyAmount)
 
 fun InvoiceEntity.toInfo() = InvoiceInfo(id, cashbookId, enumOr(kind, InvoiceKind.SALE), number, partyId, LocalDate.ofEpochDay(issueDate),
-    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff, enumOr(docType, DocType.INVOICE), refInvoiceId)
+    LocalDate.ofEpochDay(dueDate), amount, description, notes, cancelled, placeOfSupply, roundOff, enumOr(docType, DocType.INVOICE), refInvoiceId, convertedInvoiceId)
 
 fun InvoiceItemEntity.toItem() = InvoiceItem(id, description, hsn, quantityMilli, unit, rate, discountBp, gstBp, itemId)
 

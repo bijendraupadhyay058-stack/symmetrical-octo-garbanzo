@@ -431,7 +431,7 @@ class ReportEngine(private val input: ReportInput) {
         var counted = 0
         for (kind in InvoiceKind.entries) {
             // invoices plus their debit notes add tax; credit notes take it away (by document date)
-            val invs = input.invoices.filter { it.kind == kind && !it.cancelled && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
+            val invs = input.invoices.filter { it.kind == kind && !it.cancelled && it.docType != DocType.QUOTATION && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
             counted += invs.size
             val breakups = invs.flatMap { inv ->
                 GstCalc.totals(input.invoiceItems[inv.id]!!, GstCalc.isInterState(input.sellerState, inv.placeOfSupply), false).breakup

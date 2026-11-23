@@ -135,7 +135,7 @@ class BackupManager(
                     it.nextIndex, it.autoPost, it.active, it.createdAt, it.updatedAt) })
                 db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 db.invoices().insertAll(d.invoices.map { InvoiceEntity(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) })
+                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId) })
                 db.catalog().insertAll(d.catalog.map { CatalogItemEntity(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp,
                     it.description, it.openingStockMilli, it.openingDate, it.reorderLevelMilli, it.archived, it.createdAt, it.updatedAt) })
                 db.catalog().insertAdjustments(d.stockAdjustments.map { StockAdjustmentEntity(it.id, it.itemId, it.date, it.quantityMilli, it.reason, it.createdAt) })
@@ -190,7 +190,7 @@ class BackupManager(
             it.active, it.createdAt, it.updatedAt) },
         budgets = db.budgets().getAll().map { BudgetDto(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) },
         invoices = db.invoices().getAll().map { InvoiceDto(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId) },
+            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId) },
         invoiceItems = db.invoices().items().map { InvoiceItemDto(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit, it.rate,
             it.discountBp, it.gstBp, it.itemId) },
         catalog = db.catalog().getAll().map { CatalogItemDto(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp, it.description,

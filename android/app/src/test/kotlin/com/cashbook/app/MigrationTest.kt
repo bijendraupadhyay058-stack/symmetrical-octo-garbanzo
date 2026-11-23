@@ -105,4 +105,20 @@ class MigrationTest {
         db.execSQL("INSERT INTO catalog_items (name, kind, hsn, unit, sale_rate, purchase_rate, gst_bp, description, opening_stock_milli, opening_date, reorder_level_milli, archived, created_at, updated_at) VALUES ('Toner', 'GOODS', '8443', 'Nos', 100000, 70000, 1800, '', 5000, 20544, 2000, 0, 1, 1)")
         db.close()
     }
+
+    @Test fun migrate6To7AddsQuotationLink() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/6.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-7", 6).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Shop', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at, state_code) VALUES (1, 'ABC', 'CLIENT', '', '', '', '', '', 0, 1, 1, '')")
+            execSQL("INSERT INTO invoices (id, cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type) VALUES (1, 1, 'SALE', 'INV/1', 1, 20544, 20560, 118000, 'Toner', '', 0, 1, 1, '27', 1, 'INVOICE')")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-7", 7, true, *Migrations.ALL)
+        db.query("SELECT description, converted_invoice_id FROM invoices WHERE id = 1").use { c -> c.moveToFirst(); assertEquals("Toner", c.getString(0)); assertTrue(c.isNull(1)) }
+        // quotations live in the same table with their own doc type and number series
+        db.execSQL("INSERT INTO invoices (cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type, converted_invoice_id) VALUES (1, 'SALE', 'QT/1', 1, 20540, 20554, 118000, '', '', 0, 1, 1, '27', 1, 'QUOTATION', 1)")
+        db.close()
+    }
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.6.0 (versionCode 7)
+
+**New**
+- **Quotations / estimates** (Invoices & bills › Quotations): itemised with GST like invoices, numbered
+  QT/26-27/001, with a valid-until date and their own QUOTATION PDF. Status Open, Expired, Declined or Converted.
+  They never change balances, receivables, stock or GST reports.
+- **Convert to invoice** in one tap: the customer, place of supply, items (with their saved-item links),
+  description and notes are copied into a new invoice. The invoice shows "From quotation …"; deleting it re-opens
+  the quotation.
+- **UPI payment QR code** for unpaid sales invoices: shown on the invoice screen and printed on the invoice PDF.
+  Any UPI app opens it with your UPI ID, the balance due and the invoice number filled in.
+- The UPI ID in the business profile is now checked (name@bank); shared invoice text includes "Pay by UPI".
+
+**Data**
+- Database v6 → v7 adds the converted-invoice link. Backups include quotations; older backups still restore.
+
 ## 1.5.0 (versionCode 6)
 
 **New**

@@ -198,6 +198,8 @@ data class InvoiceEntity(
     @ColumnInfo(name = "doc_type", defaultValue = "INVOICE") val docType: String = "INVOICE",
     /** Original invoice for a credit/debit note (v5; enforced in the repository). */
     @ColumnInfo(name = "ref_invoice_id") val refInvoiceId: Long? = null,
+    /** For a QUOTATION: the invoice it became (v7; cleared in the repository when that invoice is deleted). */
+    @ColumnInfo(name = "converted_invoice_id") val convertedInvoiceId: Long? = null,
 )
 
 /** Invoice line (v4). Quantity in thousandths, rate in paise, discount and GST in basis points. */

@@ -16,5 +16,6 @@ kotlin {
 
 dependencies {
     api(libs.kotlinx.serialization.json)
+    implementation(libs.zxing.core)
     testImplementation(libs.junit)
 }

@@ -67,6 +67,7 @@ class LedgerRepository(
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
 
     private suspend fun readSnapshot(): Snapshot = db.withTransaction {
+        val docs = db.invoices().getAll().map { it.toInfo() }
         Snapshot(
             loaded = true,
             cashbooks = db.cashbooks().getAllSorted().map { it.toInfo() },
@@ -78,7 +79,8 @@ class LedgerRepository(
             attachmentCounts = db.attachments().getCounts().associate { it.transactionId to it.count },
             recurring = db.recurring().getAll().map { it.toRule() },
             budgets = db.budgets().getAll().map { it.toInfo() },
-            invoices = db.invoices().getAll().map { it.toInfo() },
+            invoices = docs.filter { it.docType != DocType.QUOTATION },
+            quotations = docs.filter { it.docType == DocType.QUOTATION },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
             catalog = db.catalog().getAll().map { it.toInfo() },
@@ -341,7 +343,7 @@ class LedgerRepository(
     // ---------- invoices & bills ----------
 
     class InvoiceException(val reason: Reason) : Exception(reason.name) {
-        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND, INVALID_AMOUNT, HAS_NOTES, NOTE_TOO_LARGE }
+        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND, INVALID_AMOUNT, HAS_NOTES, NOTE_TOO_LARGE, ALREADY_CONVERTED, DECLINED }
     }
 
     suspend fun nextInvoiceNumber(cashbookId: Long, kind: InvoiceKind, date: LocalDate, docType: DocType = DocType.INVOICE) =
@@ -364,7 +366,8 @@ class LedgerRepository(
      */
     suspend fun saveInvoice(input: InvoiceInfo, items: List<InvoiceItem>? = null, sellerState: String = ""): Long = db.withTransaction {
         // A note always belongs to the original invoice's cashbook, kind, party and place of supply.
-        val base = if (input.docType == DocType.INVOICE) input.copy(refInvoiceId = null) else {
+        val base = if (input.docType == DocType.QUOTATION) input.copy(kind = InvoiceKind.SALE, refInvoiceId = null)
+        else if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
             val original = input.refInvoiceId?.let { db.invoices().get(it)?.toInfo() }?.takeIf { it.docType == DocType.INVOICE }
                 ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
             input.copy(cashbookId = original.cashbookId, kind = original.kind, partyId = original.partyId,
@@ -372,7 +375,7 @@ class LedgerRepository(
         }
         val inv = if (items.isNullOrEmpty()) base
             else base.copy(amount = GstCalc.totals(items, GstCalc.isInterState(sellerState, base.placeOfSupply), base.roundOff).grandTotal)
-        if (inv.docType != DocType.INVOICE) {
+        if (inv.docType.isNote) {
             val original = db.invoices().get(inv.refInvoiceId!!)!!.toInfo()
             if (Invoices.validateNote(original, db.invoices().getAll().map { it.toInfo() }, inv.docType, inv.amount, inv.id) != null)
                 throw InvoiceException(InvoiceException.Reason.NOTE_TOO_LARGE)
@@ -418,8 +421,28 @@ class LedgerRepository(
     suspend fun deleteInvoice(id: Long) {
         if (db.invoices().allocationsFor(id).isNotEmpty()) throw InvoiceException(InvoiceException.Reason.HAS_PAYMENTS)
         if (db.invoices().countNotes(id) > 0) throw InvoiceException(InvoiceException.Reason.HAS_NOTES)
-        db.invoices().deleteItems(id)
-        db.invoices().delete(id)
+        db.withTransaction {
+            db.invoices().unlinkQuotes(id)
+            db.invoices().deleteItems(id)
+            db.invoices().delete(id)
+        }
+    }
+
+    /**
+     * Turns a quotation into a sales invoice dated [date] (due after [dueDays]): same customer, place of supply,
+     * round-off, description, notes and items (the amount is recalculated from the items). The quotation is
+     * marked converted; deleting that invoice re-opens it.
+     */
+    suspend fun convertQuotation(quoteId: Long, date: LocalDate, dueDays: Long = 15, sellerState: String = ""): Long = db.withTransaction {
+        val q = db.invoices().get(quoteId)?.toInfo()?.takeIf { it.docType == DocType.QUOTATION } ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+        if (q.convertedInvoiceId?.let { db.invoices().get(it) } != null) throw InvoiceException(InvoiceException.Reason.ALREADY_CONVERTED)
+        if (q.cancelled) throw InvoiceException(InvoiceException.Reason.DECLINED)
+        val items = db.invoices().items().filter { it.invoiceId == quoteId }.map { it.toItem().copy(id = 0) }
+        val number = nextInvoiceNumber(q.cashbookId, InvoiceKind.SALE, date)
+        val invId = saveInvoice(q.copy(id = 0, number = number, issueDate = date, dueDate = date.plusDays(dueDays), docType = DocType.INVOICE,
+            refInvoiceId = null, convertedInvoiceId = null, cancelled = false), items, sellerState)
+        db.invoices().linkQuote(quoteId, invId, now)
+        invId
     }
 
     /**

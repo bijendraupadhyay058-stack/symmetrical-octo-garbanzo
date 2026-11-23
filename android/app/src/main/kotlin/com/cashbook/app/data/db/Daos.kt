@@ -166,7 +166,10 @@ interface InvoiceDao {
     @Query("SELECT COUNT(*) FROM invoices WHERE cashbook_id = :cashbookId AND kind = :kind AND doc_type = :docType AND number = :number COLLATE NOCASE AND id != :exceptId")
     suspend fun countNumber(cashbookId: Long, kind: String, docType: String, number: String, exceptId: Long): Int
     @Query("SELECT number FROM invoices WHERE cashbook_id = :cashbookId AND kind = :kind AND doc_type = :docType") suspend fun numbersOf(cashbookId: Long, kind: String, docType: String): List<String>
-    @Query("SELECT COUNT(*) FROM invoices WHERE ref_invoice_id = :invoiceId") suspend fun countNotes(invoiceId: Long): Int
+    @Query("SELECT COUNT(*) FROM invoices WHERE ref_invoice_id = :invoiceId AND doc_type IN ('CREDIT_NOTE', 'DEBIT_NOTE')") suspend fun countNotes(invoiceId: Long): Int
+    @Query("UPDATE invoices SET converted_invoice_id = :invoiceId, updated_at = :now WHERE id = :quoteId") suspend fun linkQuote(quoteId: Long, invoiceId: Long, now: Long)
+    /** Re-opens quotations whose invoice is being deleted. */
+    @Query("UPDATE invoices SET converted_invoice_id = NULL WHERE converted_invoice_id = :invoiceId") suspend fun unlinkQuotes(invoiceId: Long)
     @Query("SELECT COUNT(*) FROM invoices WHERE party_id = :partyId") suspend fun countForParty(partyId: Long): Int
     @Insert suspend fun insert(e: InvoiceEntity): Long
     @Insert suspend fun insertAll(e: List<InvoiceEntity>)

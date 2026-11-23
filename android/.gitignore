@@ -9,3 +9,4 @@ captures/
 *.jks
 !app/cashbook-test.keystore
 keystore.properties
+__pycache__/
