@@ -91,7 +91,30 @@ class UiFlowTest {
         compose.onAllNodesWithText(option, useUnmergedTree = true).onLast().performClick()
     }
 
+    /** Waits for [cond] while letting the main looper (where view-model work runs under Robolectric) make progress. */
+    private fun idleUntil(timeoutMs: Long, cond: () -> Boolean): Boolean {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) { compose.waitForIdle(); if (cond()) return true; Thread.sleep(50) }
+        return false
+    }
+
     private fun field(label: String): SemanticsNodeInteraction = compose.onNode(hasSetTextAction() and hasText(label))
+
+    /**
+     * Taps the first enabled "Add" on the statement list until [done] holds: the list re-lays out after each add (the line
+     * moves to "matched") and a tapped button stays disabled until the data catches up, so a tap can land mid-update.
+     */
+    private fun tapStatementAdd(done: () -> Boolean) {
+        val addButton = hasText("Add") and androidx.compose.ui.test.hasClickAction() and androidx.compose.ui.test.isEnabled()
+        for (attempt in 1..3) {
+            compose.waitForIdle()
+            if (runCatching { compose.onNode(hasScrollToIndexAction()).performScrollToNode(addButton) }.isFailure) continue
+            compose.onAllNodes(addButton).onFirst().performClick()
+            // the add runs on the main thread's coroutine scope: idle it between checks (polling alone never lets it run)
+            if (idleUntil(10_000, done)) return
+        }
+        throw AssertionError("statement line was not added")
+    }
 
     @Test fun firstRunSetupThenRecordExpenseAndTransfer() {
         launch()
@@ -210,7 +233,10 @@ class UiFlowTest {
         compose.waitUntil(10_000) { runBlocking { d.snap { true } }.txns.any { it.description == "Electricity bill" } }
         waitFor("Budgets this month")
 
-        click("Settings"); waitFor("Recurring entries"); click("Recurring entries")
+        click("Settings"); waitFor("Recurring entries")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Recurring entries"))
+        click("Recurring entries")
         waitFor("Electricity bill"); shot("13_recurring_list")
         // create a monthly salary schedule through the form
         click("New recurring entry")
@@ -724,27 +750,16 @@ class UiFlowTest {
         compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
             .performScrollToNode(hasText("Bank reconciliation"))
         click("Bank reconciliation")
-        waitFor("Import bank statement (CSV)")
+        waitFor("Import bank statement")
         // what the file picker hands over
         scenario?.onActivity { a -> androidx.lifecycle.ViewModelProvider(a)[com.cashbook.app.ui.AppViewModel::class.java].loadStatement(csv) }
         waitFor("not in Cashbook", substring = true)
         waitFor("SMS CHARGES")
         shot("60_statement_import")
         fun added() = runBlocking { d.snap { true } }.txns.count { it.description == "INTEREST CREDIT" || it.description == "SMS CHARGES" }
-        repeat(2) { n ->
-            // the list re-lays out after each add (the line moves to "matched"), so retry a tap that lands mid-update
-            for (attempt in 1..3) {
-                compose.waitForIdle()
-                // only enabled buttons: one already tapped stays disabled (and keeps its place) until the snapshot catches up
-                val addButton = hasText("Add") and androidx.compose.ui.test.hasClickAction() and androidx.compose.ui.test.isEnabled()
-                // a lazy list only composes what's on screen: scroll the enabled button into view first
-                if (runCatching { compose.onNode(hasScrollToIndexAction()).performScrollToNode(addButton) }.isFailure) { compose.waitForIdle(); continue }
-                compose.onAllNodes(addButton).onFirst().performClick()
-                if (runCatching { compose.waitUntil(10_000) { added() >= n + 1 } }.isSuccess) break
-            }
-        }
+        repeat(2) { n -> tapStatementAdd { added() >= n + 1 } }
         assertEquals(2, added())
-        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Import bank statement (CSV)"))
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Import bank statement"))
         waitFor("Matches ✓")
         shot("61_statement_matched")
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Finish", substring = true))
@@ -755,6 +770,52 @@ class UiFlowTest {
         assertEquals(2, after.txns.count { it.description == "INTEREST CREDIT" || it.description == "SMS CHARGES" })   // no duplicates
         assertEquals(closing, after.reconciliations.single().statementBalance)
         assertEquals(last, after.reconciliations.single().statementDate)
+    }
+
+    @Test fun excelStatementWithLearnedCategory() {
+        seed("en")
+        val d = deps()
+        val charges = runBlocking {
+            val id = d.db.categories().insert(com.cashbook.app.data.db.CategoryEntity(kind = "EXPENSE", name = "Bank charges", createdAt = 0, updatedAt = 0))
+            d.db.reconcile().upsertRule(com.cashbook.app.data.db.CategoryRuleEntity(key = "SMS CHARGES", categoryId = id, createdAt = 0))
+            d.snap { it.categoryRules.isNotEmpty() }; id
+        }
+        launch()
+        waitFor("Total balance")
+        val s = runBlocking { d.snap { it.txns.isNotEmpty() } }
+        val bank = s.accounts.first { it.type == com.cashbook.core.AccountType.BANK }
+        val last = s.txns.maxOf { it.date }
+        // the bank's Excel download: entries as real date and number cells, plus a charge Cashbook doesn't have
+        val sheet = com.cashbook.core.XSheet("Statement").apply {
+            row(com.cashbook.core.XCell.Str("Date"), com.cashbook.core.XCell.Str("Narration"), com.cashbook.core.XCell.Str("Withdrawal"),
+                com.cashbook.core.XCell.Str("Deposit"), com.cashbook.core.XCell.Str("Balance"))
+            var bal = bank.openingBalance
+            (s.txns.filter { com.cashbook.core.Ledger.touches(it, setOf(bank.id)) }.map { it.date to com.cashbook.core.Ledger.effect(it, bank.id) } + (last to -1_770L))
+                .sortedBy { it.first }.forEach { (dt, amt) ->
+                    bal += amt
+                    row(com.cashbook.core.XCell.Date(dt), com.cashbook.core.XCell.Str(if (amt == -1_770L) "SMS CHARGES Q2" else "ENTRY"),
+                        if (amt < 0) com.cashbook.core.XCell.Money(-amt) else com.cashbook.core.XCell.Blank,
+                        if (amt > 0) com.cashbook.core.XCell.Money(amt) else com.cashbook.core.XCell.Blank, com.cashbook.core.XCell.Money(bal))
+                }
+        }
+        val xlsx = java.io.ByteArrayOutputStream().also { com.cashbook.core.XlsxWriter.write(listOf(sheet), it) }.toByteArray()
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Statement categories"))
+        waitFor("Learned from your imports: 1")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Bank reconciliation"))
+        click("Bank reconciliation")
+        waitFor("Import bank statement")
+        scenario?.onActivity { a -> androidx.lifecycle.ViewModelProvider(a)[com.cashbook.app.ui.AppViewModel::class.java].loadStatement(xlsx) }
+        waitFor("1 not in Cashbook", substring = true)
+        waitFor("→ Bank charges")
+        shot("62_excel_statement_rule")
+        tapStatementAdd { runBlocking { d.snap { true } }.txns.any { it.description == "SMS CHARGES Q2" } }
+        val added = runBlocking { d.snap { true } }.txns.single { it.description == "SMS CHARGES Q2" }
+        assertEquals(charges, added.categoryId)
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Import bank statement"))
+        waitFor("Matches ✓")
     }
 
     @Test fun outstandingReport() {

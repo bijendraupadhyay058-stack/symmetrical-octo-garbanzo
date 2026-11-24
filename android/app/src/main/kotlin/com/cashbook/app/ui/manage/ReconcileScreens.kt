@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -93,7 +94,7 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
     val msgUnreadable = stringResource(R.string.statement_unreadable, "")
     val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching {
-            ctx.contentResolver.openInputStream(uri)!!.use { String(it.readBytes(), Charsets.UTF_8) }
+            ctx.contentResolver.openInputStream(uri)!!.use { it.readBytes() }                           // CSV, Excel .xlsx or an HTML ".xls"
         }.onSuccess { vm.loadStatement(it) }.onFailure { vm.toast(msgUnreadable) }
     }
     // a new import sets the statement date and closing balance from the file
@@ -123,7 +124,8 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.OutlinedButton(onClick = {
                             vm.allowExternalActivity()
-                            picker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "text/tab-separated-values", "application/vnd.ms-excel", "application/octet-stream"))
+                            picker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "text/tab-separated-values", "text/html", "application/vnd.ms-excel",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"))
                         }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.import_statement), maxLines = 1) }
                         if (imported != null) TextButton(onClick = { vm.statement.value = null }) { Text(stringResource(R.string.clear_import)) }
                     }
@@ -161,6 +163,10 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                             Text(l.description.ifBlank { "—" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(f.date(l.date) + (if (l.reference.isNotBlank()) " · ${l.reference}" else ""), style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            // the category a learned rule will give it
+                            com.cashbook.core.CategoryRules.find(snap.categoryRules, l.description)?.let { r ->
+                                snap.categoryById[r.categoryId]?.takeIf { c -> c.kind == (if (l.amount > 0) com.cashbook.core.CategoryKind.INCOME else com.cashbook.core.CategoryKind.EXPENSE) }
+                            }?.let { Text("→ " + snap.categoryName(it.id), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary) }
                         }
                         Text((if (l.amount >= 0) "+" else "−") + f.amount(kotlin.math.abs(l.amount)), color = if (l.amount >= 0) fc.income else fc.expense,
                             style = MaterialTheme.typography.titleSmall)
@@ -300,6 +306,30 @@ fun CashCountScreen(vm: AppViewModel, nav: NavHostController) {
                     }
                     Box(Modifier.padding(16.dp))
                 }
+            }
+        }
+    }
+}
+
+/** Learned "narration → category" rules for imported statement lines, with delete. */
+@Composable
+fun CategoryRulesScreen(vm: AppViewModel, nav: NavHostController) {
+    val snap by vm.snapshot.collectAsStateWithLifecycle()
+    AppScaffold(title = stringResource(R.string.statement_categories), onBack = { nav.popBackStack() }) { pad ->
+        LazyColumn(Modifier.fillMaxSize().padding(pad)) {
+            item { InfoBanner(stringResource(R.string.statement_categories_intro), Modifier.padding(16.dp), icon = Icons.Filled.Info) }
+            if (snap.categoryRules.isEmpty()) item { EmptyState(Icons.Filled.Info, stringResource(R.string.no_category_rules)) }
+            items(snap.categoryRules, key = { it.id }) { r ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(r.key, style = MaterialTheme.typography.bodyLarge)
+                        Text("→ " + snap.categoryName(r.categoryId), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    androidx.compose.material3.IconButton(onClick = { vm.run { ledger.deleteCategoryRule(r.id) } }) {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, stringResource(R.string.delete))
+                    }
+                }
+                HorizontalDivider()
             }
         }
     }

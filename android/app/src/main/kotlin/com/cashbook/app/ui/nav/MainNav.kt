@@ -125,6 +125,7 @@ object Routes {
     const val CATALOG = "catalog"
     const val RECONCILE = "reconcile"
     const val CASH_COUNT = "cash_count"
+    const val CATEGORY_RULES = "category_rules"
     fun catalogItem(id: Long) = "catalog_item/$id"
 }
 
@@ -247,6 +248,7 @@ fun MainNav(vm: AppViewModel) {
                 InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments?.getString("kind") ?: "SALE", 0, docType = com.cashbook.core.DocType.QUOTATION)
             }
             composable(Routes.RECONCILE) { com.cashbook.app.ui.manage.ReconcileScreen(vm, nav) }
+            composable(Routes.CATEGORY_RULES) { com.cashbook.app.ui.manage.CategoryRulesScreen(vm, nav) }
             composable(Routes.CASH_COUNT) { com.cashbook.app.ui.manage.CashCountScreen(vm, nav) }
             composable(Routes.CATALOG) { com.cashbook.app.ui.manage.CatalogScreen(vm, nav) }
             composable("catalog_item/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> com.cashbook.app.ui.manage.CatalogItemScreen(vm, nav, e.arguments!!.getLong("id")) }

@@ -40,6 +40,8 @@ data class Snapshot(
     /** Finished bank reconciliations and cash counts, newest first. */
     val reconciliations: List<com.cashbook.core.Reconciliation> = emptyList(),
     val cashCounts: List<com.cashbook.core.CashCountRecord> = emptyList(),
+    /** Learned narration → category rules for imported statement lines. */
+    val categoryRules: List<com.cashbook.core.CategoryRule> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
     /** Line items per invoice id (empty list = invoice entered as a single amount). */
     val invoiceItems: Map<Long, List<com.cashbook.core.InvoiceItem>> = emptyMap(),

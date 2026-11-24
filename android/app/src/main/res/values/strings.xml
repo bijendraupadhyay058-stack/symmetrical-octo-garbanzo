@@ -380,7 +380,7 @@
     <string name="has_end_date">Ends on a date</string>
     <string name="history">History</string>
     <string name="icon">Icon</string>
-    <string name="import_statement">Import bank statement (CSV)</string>
+    <string name="import_statement">Import bank statement</string>
     <string name="in_label">In</string>
     <string name="in_recycle_bin_since">In the recycle bin since %s</string>
     <string name="in_stock_x">In stock: %1$s %2$s</string>
@@ -539,6 +539,7 @@
     <string name="no_auto_backup_yet">No automatic backup yet.</string>
     <string name="no_budget_tap">No budget — tap to set</string>
     <string name="no_cashbook">No cashbook yet.</string>
+    <string name="no_category_rules">Nothing learned yet. Categorise an entry added from a bank statement.</string>
     <string name="no_challans">No delivery challans yet.</string>
     <string name="no_credentials_note">Never enter bank passwords, UPI PINs, card PINs or OTPs. Cashbook only needs a name and, optionally, the last four digits.</string>
     <string name="no_data_period">No entries for the selected period and filters.</string>
@@ -933,6 +934,9 @@
     <string name="state_hint">Filled automatically from the GSTIN.</string>
     <string name="state_ut">State / UT</string>
     <string name="statement_balance">Statement balance</string>
+    <string name="statement_categories">Statement categories</string>
+    <string name="statement_categories_desc">Learned from your imports: %d</string>
+    <string name="statement_categories_intro">When you give an imported bank line a category, Cashbook remembers its wording (the first words, without numbers). Lines worded the same way in later statements get that category when you add them.</string>
     <string name="statement_date">Statement date</string>
     <string name="statement_summary_x">Statement: %1$d lines · %2$d matched · %3$d not in Cashbook</string>
     <string name="statement_unreadable">This file doesn\'t look like a bank statement. %s</string>

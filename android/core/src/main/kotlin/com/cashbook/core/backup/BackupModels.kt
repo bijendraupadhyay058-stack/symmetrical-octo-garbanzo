@@ -62,6 +62,9 @@ data class TransactionDto(
 data class ReconciliationDto(val id: Long, val accountId: Long, val statementDate: Long, val statementBalance: Long, val entries: Int, val createdAt: Long)
 
 @Serializable
+data class CategoryRuleDto(val id: Long, val key: String, val categoryId: Long, val createdAt: Long)
+
+@Serializable
 data class CashCountDto(val id: Long, val accountId: Long, val date: Long, val counted: Long, val book: Long, val denominations: String,
                         val adjustmentTxnId: Long? = null, val note: String = "", val createdAt: Long)
 
@@ -152,4 +155,6 @@ data class BackupData(
     // Added in app 1.11 (database v9).
     val reconciliations: List<ReconciliationDto> = emptyList(),
     val cashCounts: List<CashCountDto> = emptyList(),
+    // Added in app 1.13 (database v10).
+    val categoryRules: List<CategoryRuleDto> = emptyList(),
 )

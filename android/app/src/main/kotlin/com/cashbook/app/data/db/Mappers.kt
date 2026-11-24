@@ -39,6 +39,7 @@ fun TransactionEntity.toTxn() = Txn(id, cashbookId, enumOr(type, TxnType.EXPENSE
     toAccountId, categoryId, partyId, enumOr(paymentMode, PaymentMode.OTHER), description, reference, notes, tags, createdAt, updatedAt, deletedAt, recurringId,
     clearedOn?.let { LocalDate.ofEpochDay(it) }, toClearedOn?.let { LocalDate.ofEpochDay(it) })
 
+fun CategoryRuleEntity.toInfo() = com.cashbook.core.CategoryRule(id, key, categoryId)
 fun ReconciliationEntity.toInfo() = com.cashbook.core.Reconciliation(id, accountId, LocalDate.ofEpochDay(statementDate), statementBalance, entries, createdAt)
 fun CashCountEntity.toInfo() = com.cashbook.core.CashCountRecord(id, accountId, LocalDate.ofEpochDay(date), counted, book,
     com.cashbook.core.CashCount.decode(denominations), adjustmentTxnId, note, createdAt)

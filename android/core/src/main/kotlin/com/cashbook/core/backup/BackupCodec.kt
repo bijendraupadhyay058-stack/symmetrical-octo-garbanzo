@@ -215,7 +215,10 @@ object BackupCodec {
                 c.gstBp !in 0..10_000 || c.reorderLevelMilli < 0) p += "catalogue item ${c.id} is invalid"
         }
         d.stockAdjustments.forEach { if (it.itemId !in catalogIds || it.quantityMilli == 0L) p += "stock adjustment ${it.id} is invalid" }
-        dupes(d.reconciliations, { it.id }, "reconciliation"); dupes(d.cashCounts, { it.id }, "cash count")
+        dupes(d.reconciliations, { it.id }, "reconciliation"); dupes(d.cashCounts, { it.id }, "cash count"); dupes(d.categoryRules, { it.id }, "category rule")
+        val categoryIds = d.categories.map { it.id }.toSet()
+        d.categoryRules.forEach { if (it.categoryId !in categoryIds || it.key.isBlank()) p += "category rule ${it.id} is invalid" }
+        if (d.categoryRules.map { it.key }.distinct().size != d.categoryRules.size) p += "two category rules share a key"
         val accountIds = d.accounts.map { it.id }.toSet()
         d.reconciliations.forEach { if (it.accountId !in accountIds || it.entries < 0) p += "reconciliation ${it.id} is invalid" }
         d.cashCounts.forEach { c ->

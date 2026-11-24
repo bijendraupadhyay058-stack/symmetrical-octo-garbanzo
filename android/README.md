@@ -41,11 +41,13 @@ English and Hindi.
 <p><img src="docs/screenshots/45_invoice_reminder.jpg" width="180"> <img src="docs/screenshots/43_purchase_order_detail.jpg" width="180"> <img src="docs/screenshots/44_purchase_orders_list.jpg" width="180"> <img src="docs/screenshots/46_statement_of_account.jpg" width="180"></p>
 <p><img src="docs/screenshots/50_challan_detail.jpg" width="180"> <img src="docs/screenshots/51_invoice_from_challans.jpg" width="180"> <img src="docs/screenshots/52_challans_list.jpg" width="180"> <img src="docs/screenshots/48_overdue_collections.jpg" width="180"></p>
 <p><img src="docs/screenshots/54_recurring_form.jpg" width="180"> <img src="docs/screenshots/55_recurring_list.jpg" width="180"> <img src="docs/screenshots/56_invoice_transport.jpg" width="180"></p>
-<p><img src="docs/screenshots/60_statement_import.jpg" width="180"> <img src="docs/screenshots/61_statement_matched.jpg" width="180"> <img src="docs/screenshots/57_cash_count.jpg" width="180"> <img src="docs/screenshots/58_bank_reconciliation.jpg" width="180"> <img src="docs/screenshots/59_reconciled.jpg" width="180"></p>
+<p><img src="docs/screenshots/62_excel_statement_rule.jpg" width="180"> <img src="docs/screenshots/60_statement_import.jpg" width="180"> <img src="docs/screenshots/61_statement_matched.jpg" width="180"> <img src="docs/screenshots/57_cash_count.jpg" width="180"> <img src="docs/screenshots/58_bank_reconciliation.jpg" width="180"> <img src="docs/screenshots/59_reconciled.jpg" width="180"></p>
 <p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.12** — **import a bank statement (CSV)** into a reconciliation: the statement date and closing
+**What's new in 1.13** — statements from **Excel (.xlsx)** and the **HTML ".xls"** files many banks download, and
+**learned categories**: categorise an imported line once and the same wording comes in categorised next time.
+**1.12** — **import a bank statement (CSV)** into a reconciliation: the statement date and closing
 balance are filled in, matching entries are ticked, and lines Cashbook doesn't have (bank charges, interest) can be
 added with one tap.
 **1.11** — **bank reconciliation** (tick entries against the bank statement until the difference is
@@ -84,11 +86,11 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.12.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.13.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.12.0-test.apk`.
-   Installing it over any earlier version keeps your data (the database upgrades automatically to v9).
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.13.0-test.apk`.
+   Installing it over any earlier version keeps your data (the database upgrades automatically to v10).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
@@ -171,6 +173,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5; QUOTATION, v7; CHALLAN, 1.8; TEMPLATE, v8), **transport** (vehicle no., transporter, LR no., e-way bill no., v8), **schedule** (invoices made by a recurring schedule, v8), **ref invoice** (for notes, v5), **converted invoice** (for quotations, v7), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
 | InvoiceItem (`invoice_items`, v4) | invoice, position, description, HSN/SAC, quantity (thousandths), unit, rate (paise), discount and GST rate (basis points), **catalogue item** (optional, v6) |
 | CatalogItem (`catalog_items`, v6) | name (unique, case-insensitive), kind (GOODS/SERVICE), HSN/SAC, unit, sale rate, purchase rate, GST rate, description, opening stock + date, reorder level, archived |
+| CategoryRule (`category_rules`, v10) | narration key (first three letter-words, upper-case; unique), category |
 | Reconciliation (`reconciliations`, v9) | account, statement date, statement closing balance, entries cleared |
 | CashCount (`cash_counts`, v9) | account, date, counted, book balance, denominations ("500x10,200x3"), adjustment entry, note |
 | InvoiceSchedule (`invoice_schedules`, v8) | template document (unique), frequency × interval, start date, optional end date, next index, due days, active |
@@ -196,7 +199,7 @@ Business calculations never live in UI code: every screen, report and export cal
   `transactions.recurring_id`; v2 → v3 adds `invoices` and `allocations`; v3 → v4 adds `invoice_items`, `invoices.place_of_supply`, `invoices.round_off`
   and `parties.state_code`, filling party states from existing GSTINs; v4 → v5 adds `invoices.doc_type` and
   `invoices.ref_invoice_id` and widens number uniqueness to include the doc type; v5 → v6 adds `catalog_items`, `stock_adjustments` and
-  `invoice_items.item_id`; v6 → v7 adds `invoices.converted_invoice_id` for quotations; v7 → v8 adds the transport columns, `invoices.schedule_id` and `invoice_schedules`; v8 → v9 adds `transactions.cleared_on` / `to_cleared_on`, `reconciliations` and `cash_counts`; existing rows are untouched).
+  `invoice_items.item_id`; v6 → v7 adds `invoices.converted_invoice_id` for quotations; v7 → v8 adds the transport columns, `invoices.schedule_id` and `invoice_schedules`; v8 → v9 adds `transactions.cleared_on` / `to_cleared_on`, `reconciliations` and `cash_counts`; v9 → v10 adds `category_rules`; existing rows are untouched).
 * **Quotations and purchase orders** are rows in `invoices` with `doc_type = QUOTATION` — kind SALE is a quotation
   (series QT/26-27/001), kind PURCHASE a purchase order (PO/26-27/001); the due date is "valid until" / "expected by". The snapshot keeps them in a separate list, so balances, receivables, alerts, stock and every report
   ignore them; the GST and item-wise reports also exclude them directly. Status is derived: converted, declined
@@ -222,6 +225,12 @@ Business calculations never live in UI code: every screen, report and export cal
   and totals rows, reads Indian number and date formats, and orders newest-first files by date. Matching pairs each line
   with an uncleared entry of exactly the same signed amount within ±4 days (closest date, a matching reference wins);
   lines that match an already cleared entry are ignored so nothing is added twice.
+* **Statement files** (`core/StatementFiles.kt`): recognised by content — .xlsx (zip; first sheet; shared and inline
+  strings; date-formatted numbers become dates), HTML tables saved as ".xls", or CSV / tab / semicolon text (UTF-8,
+  UTF-16 with BOM, Windows-1252). Old binary .xls is reported with a "save as .xlsx or CSV" message.
+* **Learned categories**: giving an uncategorised entry a category stores its narration key → category (latest wins);
+  statement lines added later with the same key get that category if its kind (income / expense) fits and it isn't
+  archived. Rules can be reviewed and deleted in Settings › Statement categories.
 * **UPI QR**: for a sales invoice with a balance and a valid UPI ID in the business profile, the app shows and the PDF
   prints a QR code for `upi://pay?pa=…&pn=…&am=<balance>&cu=INR&tn=<invoice no.>` (error correction M).
 * **Stock** is never stored, it is derived (`core/Catalog.kt`): opening stock (from its date) + purchase bill
@@ -279,6 +288,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.13** Excel (.xlsx) and HTML ".xls" statements; learned narration → category rules applied when adding statement lines, shown on the line before adding, managed in Settings | `core/StatementFiles.kt`, `LedgerRepository.ruleCategory`, `CategoryRulesScreen` |
 | **1.12** Import a bank statement CSV into the reconciliation: date and closing balance filled in, matches auto-ticked, missing lines added (uncategorised) with one tap; overlapping statements don't re-offer cleared lines | `core/StatementImport.kt`, `ui/manage/ReconcileScreens.kt`, `LedgerRepository.addStatementLine` |
 | **1.11** Bank reconciliation: account, statement date and closing balance (zero or overdrawn allowed), tick entries, live difference, finish only at zero, history, undo per entry from its detail | `core/Reconcile.kt`, `ui/manage/ReconcileScreens.kt`, `LedgerRepository.reconcile` |
 | **1.11** Cash count by denomination (₹500 … ₹1) against the book balance, excess / shortage recorded as an entry, history | `core/Reconcile.kt` (`CashCount`), `LedgerRepository.saveCashCount` |
@@ -324,7 +334,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-181 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+189 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -337,6 +347,7 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `BackupRestoreTest` | Backup → wipe → restore reproduces data and attachment bytes; restore without attachments; wrong password / damaged / truncated / non-backup files fail **and current data is untouched** |
 | `core` `RecurrenceTest`, `BudgetTest` | Month-end schedules don't drift (31 Jan → 28 Feb → 31 Mar), all frequencies/intervals, catch-up with end dates and cap, budget progress incl. sub-categories and thresholds |
 | `core` `InvoicesTest` | Status transitions incl. a payment moved to the recycle bin, ageing buckets, allocation limits, FY numbering, outstanding report as at past dates |
+| `core` `StatementFilesTest` | .xlsx written by the app's own writer; a bank-style .xlsx with shared strings, a custom date format and skipped cells/rows; an HTML ".xls" with entities; UTF-16 and Windows-1252 text; old .xls refused; narration keys and rule lookup |
 | `core` `StatementImportTest` | Three bank layouts (debit/credit columns with account rows and totals; signed amount newest-first with ₹ and times; amount + Dr/Cr with an overdrawn balance), amount/date parsing, quoted CSV, matching by amount, date window and reference, already-cleared lines not offered again |
 | `core` `ReconcileTest` | Cleared balance, uncleared list, transfer sides, difference to zero; cash count totals, encoding/decoding, sign of the difference |
 | `core` `ScheduleTest` | Month-end dates don't drift, catch-up cap, end date, pause, resume index, quarterly × 2, {month}/{period} placeholders, templates off the books, REC numbering, transport normalisation and e-way validation, backup validation of schedules |
@@ -345,7 +356,8 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `core` `QuotationUpiTest` | Quotation status (open / expired / declined / converted), QT numbering, quotations owe nothing and move no stock; UPI ID validation, link format and UTF-8 encoding; QR encode → decode round trip |
 | `core` `StockTest` | Stock from purchases, sales, credit notes, adjustments and opening stock (by date); debit notes and cancelled documents ignored; services excluded; stock value and low-stock flag; item-wise sales net of credit notes; Stock summary report |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
-| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7, v7 → v8 and v8 → v9 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7, v7 → v8, v8 → v9 and v9 → v10 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `Phase14Test` | A categorised imported line teaches a rule; the next month's line comes in categorised; kind mismatch ignored; only uncategorised → categorised edits learn; rules survive backup; deleted rule stops applying |
 | `app` `Phase13Test` | Statement built from the sample bank account plus charges and interest: all entries matched, the two missing lines added and matched, reconciled at the statement's closing balance |
 | `app` `Phase12Test` | Reconciling with an uncleared cheque (difference refused, then finished), transfer cleared on the bank side only, no double clearing, edits keep or reset clearing, undo; cash shortage and excess entries and categories, count without recording, backup of counts, reconciliations and cleared dates |
 | `app` `ScaleTest` | 30,000 entries, 300 parties, 5,000 invoices / 10,000 lines / 3,000 payment links, 200 products: snapshot reload after an edit, invoice balances, account balances, stock, overdue list and every report stay within generous bounds (JVM: reload ≈ 0.15 s, balances ≈ 10 ms, slowest report ≈ 0.25 s; timings printed) |
@@ -362,7 +374,7 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
 screen, creating a simple invoice and recording a receipt against it, filling the business profile and creating an
 itemised GST invoice (IGST for another state), issuing a credit note from a paid invoice and recording the
-refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, creating a monthly recurring invoice through its form (today's invoice created), transport details on an invoice, a cash count with a shortage entry, a bank reconciliation to zero, importing a statement and adding its missing lines, the Outstanding report, deleting an entry
+refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, creating a monthly recurring invoice through its form (today's invoice created), transport details on an invoice, a cash count with a shortage entry, a bank reconciliation to zero, importing a statement and adding its missing lines, an Excel statement whose new line shows and gets its learned category, the Outstanding report, deleting an entry
 through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
 Not automated here (please check on a device): writing the PDF file itself (Android's native `PdfDocument`
@@ -404,7 +416,7 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
   you). The direct-to-chat link uses WhatsApp's widely used but undocumented `jid` extra; if a WhatsApp update ignores
   it, WhatsApp asks you to pick the chat. ScaleTest timings come from the JVM test runner; a phone with an encrypted
   database will be several times slower.
-* Statement import reads CSV / tab / semicolon text. Excel (.xls/.xlsx) and PDF statements need to be saved as CSV
-  first (most net-banking sites offer CSV). Added lines are uncategorised until you edit them.
+* Statement import reads CSV / tab / semicolon text, Excel .xlsx and HTML ".xls". Old binary .xls and PDF statements
+  need to be saved as .xlsx or CSV first. Lines without a learned category are added uncategorised.
 * Suggested next phases: multi-currency, and an instrumented test pass on
   physical devices.

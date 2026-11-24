@@ -5,6 +5,7 @@ import com.cashbook.app.data.db.AccountEntity
 import com.cashbook.app.data.db.InvoiceScheduleEntity
 import com.cashbook.app.data.db.ReconciliationEntity
 import com.cashbook.app.data.db.CashCountEntity
+import com.cashbook.app.data.db.CategoryRuleEntity
 import com.cashbook.core.Ledger
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
@@ -65,7 +66,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", "invoice_schedules", "reconciliations", "cash_counts", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", "invoice_schedules", "reconciliations", "cash_counts", "category_rules", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -90,6 +91,7 @@ class LedgerRepository(
             schedules = db.invoices().schedules().map { it.toInfo() },
             reconciliations = db.reconcile().reconciliations().map { it.toInfo() },
             cashCounts = db.reconcile().cashCounts().map { it.toInfo() },
+            categoryRules = db.reconcile().rules().map { it.toInfo() },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
             catalog = db.catalog().getAll().map { it.toInfo() },
@@ -240,6 +242,11 @@ class LedgerRepository(
                 // a cleared side stays cleared only while what the bank saw (type, amount, account) is unchanged
                 val o = old.toTxn()
                 val sameMoney = o.type == txn.type && o.amount == txn.amount
+                // giving an uncategorised entry a category teaches the importer: lines worded like this go there next time
+                if (o.categoryId == null && txn.categoryId != null && txn.type != TxnType.TRANSFER) {
+                    val key = com.cashbook.core.CategoryRules.key(txn.description)
+                    if (key.isNotEmpty()) db.reconcile().upsertRule(CategoryRuleEntity(key = key, categoryId = txn.categoryId!!, createdAt = now))
+                }
                 db.transactions().update(txn.copy(createdAt = old.createdAt, updatedAt = now, deletedAt = old.deletedAt,
                     clearedOn = o.clearedOn.takeIf { sameMoney && o.accountId == txn.accountId },
                     toClearedOn = o.toClearedOn.takeIf { sameMoney && o.toAccountId == txn.toAccountId }).toEntity())
@@ -628,10 +635,20 @@ class LedgerRepository(
      */
     suspend fun addStatementLine(accountId: Long, line: com.cashbook.core.StatementLine): Long {
         val account = db.accounts().get(accountId)?.toInfo() ?: throw ReconcileException(ReconcileException.Reason.NOT_FOUND)
-        return db.transactions().insert(Txn(0, account.cashbookId, if (line.amount > 0) TxnType.INCOME else TxnType.EXPENSE, line.date,
-            kotlin.math.abs(line.amount), accountId, paymentMode = PaymentMode.BANK_TRANSFER, description = line.description.take(120),
+        val type = if (line.amount > 0) TxnType.INCOME else TxnType.EXPENSE
+        return db.transactions().insert(Txn(0, account.cashbookId, type, line.date, kotlin.math.abs(line.amount), accountId,
+            categoryId = ruleCategory(line.description, type), paymentMode = PaymentMode.BANK_TRANSFER, description = line.description.take(120),
             reference = line.reference.take(60), createdAt = now, updatedAt = now).toEntity())
     }
+
+    /** The learned category for a narration, if its kind fits the entry (income vs expense) and it isn't archived. */
+    suspend fun ruleCategory(description: String, type: TxnType): Long? {
+        val rule = com.cashbook.core.CategoryRules.find(db.reconcile().rules().map { it.toInfo() }, description) ?: return null
+        val cat = db.categories().get(rule.categoryId) ?: return null
+        return rule.categoryId.takeIf { !cat.archived && cat.kind == (if (type == TxnType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE).name }
+    }
+
+    suspend fun deleteCategoryRule(id: Long) = db.reconcile().deleteRule(id)
 
     /** Un-ticks one entry on [accountId] (e.g. it was cleared by mistake). */
     suspend fun unclear(txnId: Long, accountId: Long) = db.withTransaction {

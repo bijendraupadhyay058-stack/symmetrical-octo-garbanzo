@@ -253,6 +253,19 @@ data class InvoiceItemEntity(
     @ColumnInfo(name = "item_id") val itemId: Long? = null,
 )
 
+/** Learned "narration → category" rule for imported statement lines (v10). [key] is CategoryRules.key(narration). */
+@Entity(
+    tableName = "category_rules",
+    foreignKeys = [ForeignKey(entity = CategoryEntity::class, parentColumns = ["id"], childColumns = ["category_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["key"], unique = true), Index("category_id")],
+)
+data class CategoryRuleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val key: String,
+    @ColumnInfo(name = "category_id") val categoryId: Long,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
 /** A finished bank reconciliation (v9). */
 @Entity(
     tableName = "reconciliations",

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.13.0 (versionCode 14)
+
+**New**
+- **Excel statements**: import .xlsx files and the HTML files many banks download with an ".xls" name, as well as CSV.
+  Dates stored as Excel date cells are read correctly. Old binary .xls files get a clear "save as .xlsx or CSV" message.
+- **Learned categories**: when you give an entry added from a statement a category (say "SMS CHARGES INCL GST 0525"
+  → Bank charges), Cashbook remembers the wording. Next time a line worded the same way is added, it gets that
+  category — shown as "→ Bank charges" before you add it. Review or delete what was learned in
+  Settings › Statement categories.
+
+**Fixed**
+- Test reliability: UI tests now let background work run while they wait (the cause of the intermittent
+  statement-import failures), and Settings tests scroll to rows before tapping them.
+
+**Data**
+- Database v9 → v10 adds learned category rules. Backups include them; older backups still restore.
+
 ## 1.12.0 (versionCode 13)
 
 **New**

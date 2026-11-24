@@ -155,4 +155,17 @@ class MigrationTest {
         db.execSQL("INSERT INTO cash_counts (account_id, date, counted, book, denominations, note, created_at) VALUES (1, 20560, 50000, 50000, '500x1', '', 1)")
         db.close()
     }
+
+    @Test fun migrate9To10AddsCategoryRules() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/9.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-10", 9).apply {
+            execSQL("INSERT INTO categories (id, kind, name, icon, archived, created_at, updated_at) VALUES (1, 'EXPENSE', 'Bank charges', 'category', 0, 1, 1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-10", 10, true, *Migrations.ALL)
+        db.execSQL("INSERT INTO category_rules (`key`, category_id, created_at) VALUES ('SMS CHARGES', 1, 1)")
+        db.query("SELECT COUNT(*) FROM category_rules").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.close()
+    }
 }

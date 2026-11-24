@@ -172,6 +172,12 @@ interface ReconcileDao {
     @Insert suspend fun insertCounts(e: List<CashCountEntity>)
     @Query("DELETE FROM cash_counts WHERE id = :id") suspend fun deleteCount(id: Long)
     @Query("DELETE FROM cash_counts") suspend fun clearCounts()
+
+    @Query("SELECT * FROM category_rules ORDER BY `key`") suspend fun rules(): List<CategoryRuleEntity>
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE) suspend fun upsertRule(e: CategoryRuleEntity): Long
+    @Insert suspend fun insertRules(e: List<CategoryRuleEntity>)
+    @Query("DELETE FROM category_rules WHERE id = :id") suspend fun deleteRule(id: Long)
+    @Query("DELETE FROM category_rules") suspend fun clearRules()
 }
 
 @Dao

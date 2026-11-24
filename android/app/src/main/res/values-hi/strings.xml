@@ -380,7 +380,7 @@
     <string name="has_end_date">किसी तिथि पर समाप्त</string>
     <string name="history">इतिहास</string>
     <string name="icon">चिह्न</string>
-    <string name="import_statement">बैंक स्टेटमेंट आयात करें (CSV)</string>
+    <string name="import_statement">बैंक स्टेटमेंट आयात करें</string>
     <string name="in_label">आय</string>
     <string name="in_recycle_bin_since">%s से रीसायकल बिन में</string>
     <string name="in_stock_x">स्टॉक में: %1$s %2$s</string>
@@ -539,6 +539,7 @@
     <string name="no_auto_backup_yet">अभी तक कोई स्वचालित बैकअप नहीं।</string>
     <string name="no_budget_tap">कोई बजट नहीं — सेट करने के लिए टैप करें</string>
     <string name="no_cashbook">अभी कोई कैशबुक नहीं।</string>
+    <string name="no_category_rules">अभी कुछ नहीं सीखा। बैंक स्टेटमेंट से जोड़ी गई प्रविष्टि को श्रेणी दें।</string>
     <string name="no_challans">अभी कोई डिलीवरी चालान नहीं।</string>
     <string name="no_credentials_note">कभी भी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP दर्ज न करें। कैशबुक को केवल नाम और वैकल्पिक रूप से अंतिम चार अंक चाहिए।</string>
     <string name="no_data_period">चुनी गई अवधि और फ़िल्टर के लिए कोई प्रविष्टि नहीं।</string>
@@ -933,6 +934,9 @@
     <string name="state_hint">GSTIN से अपने-आप भरा जाता है।</string>
     <string name="state_ut">राज्य / केंद्र शासित प्रदेश</string>
     <string name="statement_balance">स्टेटमेंट बैलेंस</string>
+    <string name="statement_categories">स्टेटमेंट श्रेणियाँ</string>
+    <string name="statement_categories_desc">आपके आयात से सीखी गईं: %d</string>
+    <string name="statement_categories_intro">जब आप आयात की गई बैंक पंक्ति को श्रेणी देते हैं, Cashbook उसके शब्द (पहले शब्द, बिना नंबर) याद रखता है। बाद के स्टेटमेंट में वैसे ही शब्दों वाली पंक्तियों को जोड़ते समय वही श्रेणी मिलती है।</string>
     <string name="statement_date">स्टेटमेंट तारीख</string>
     <string name="statement_summary_x">स्टेटमेंट: %1$d पंक्तियाँ · %2$d मिलीं · %3$d Cashbook में नहीं</string>
     <string name="statement_unreadable">यह फ़ाइल बैंक स्टेटमेंट जैसी नहीं लगती। %s</string>

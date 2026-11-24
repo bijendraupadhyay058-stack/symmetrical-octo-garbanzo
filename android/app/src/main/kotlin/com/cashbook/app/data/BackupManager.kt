@@ -38,6 +38,8 @@ import com.cashbook.app.data.db.ReconciliationEntity
 import com.cashbook.app.data.db.CashCountEntity
 import com.cashbook.core.backup.ReconciliationDto
 import com.cashbook.core.backup.CashCountDto
+import com.cashbook.core.backup.CategoryRuleDto
+import com.cashbook.app.data.db.CategoryRuleEntity
 import com.cashbook.core.backup.CatalogItemDto
 import com.cashbook.core.backup.StockAdjustmentDto
 import com.cashbook.core.backup.RecurringDto
@@ -125,7 +127,7 @@ class BackupManager(
         try {
             db.withTransaction {
                 // children first
-                db.reconcile().clear(); db.reconcile().clearCounts(); db.catalog().clearAdjustments(); db.catalog().clear(); db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clearSchedules(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
+                db.reconcile().clear(); db.reconcile().clearCounts(); db.reconcile().clearRules(); db.catalog().clearAdjustments(); db.catalog().clear(); db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clearSchedules(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
                 db.maintenance().apply {
                     clearAttachments(); clearTransactions(); clearAccounts(); clearCashbooks(); clearParties(); clearCategories()
                 }
@@ -138,6 +140,7 @@ class BackupManager(
                 db.transactions().insertAll(d.transactions.map { TransactionEntity(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId,
                     it.clearedOn, it.toClearedOn) })
                 db.reconcile().insertAll(d.reconciliations.map { ReconciliationEntity(it.id, it.accountId, it.statementDate, it.statementBalance, it.entries, it.createdAt) })
+                db.reconcile().insertRules(d.categoryRules.map { CategoryRuleEntity(it.id, it.key, it.categoryId, it.createdAt) })
                 db.reconcile().insertCounts(d.cashCounts.map { CashCountEntity(it.id, it.accountId, it.date, it.counted, it.book, it.denominations, it.adjustmentTxnId, it.note, it.createdAt) })
                 db.recurring().insertAll(d.recurring.map { RecurringEntity(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId,
                     it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.frequency, it.interval, it.startDate, it.endDate,
@@ -199,6 +202,7 @@ class BackupManager(
         transactions = db.transactions().getAll().map { TransactionDto(it.id, it.cashbookId, it.type, it.date, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId, it.paymentMode, it.description, it.reference, it.notes, it.tags, it.createdAt, it.updatedAt, it.deletedAt, it.recurringId,
             it.clearedOn, it.toClearedOn) },
         reconciliations = db.reconcile().reconciliations().map { ReconciliationDto(it.id, it.accountId, it.statementDate, it.statementBalance, it.entries, it.createdAt) },
+        categoryRules = db.reconcile().rules().map { CategoryRuleDto(it.id, it.key, it.categoryId, it.createdAt) },
         cashCounts = db.reconcile().cashCounts().map { CashCountDto(it.id, it.accountId, it.date, it.counted, it.book, it.denominations, it.adjustmentTxnId, it.note, it.createdAt) },
         recurring = db.recurring().getAll().map { RecurringDto(it.id, it.cashbookId, it.type, it.amount, it.accountId, it.toAccountId, it.categoryId, it.partyId,
             it.paymentMode, it.description, it.reference, it.notes, it.tags, it.frequency, it.interval, it.startDate, it.endDate, it.nextIndex, it.autoPost,

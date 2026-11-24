@@ -77,6 +77,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             NavRow(stringResource(R.string.products_services), Icons.Filled.Inventory2, stringResource(R.string.products_services_desc)) { nav.navigate(Routes.CATALOG) }
             NavRow(stringResource(R.string.bank_reconciliation), Icons.Filled.AccountBalance, stringResource(R.string.bank_reconciliation_desc)) { nav.navigate(Routes.RECONCILE) }
             NavRow(stringResource(R.string.cash_count), Icons.Filled.Payments, stringResource(R.string.cash_count_desc)) { nav.navigate(Routes.CASH_COUNT) }
+            NavRow(stringResource(R.string.statement_categories), Icons.Filled.Category, stringResource(R.string.statement_categories_desc, snap.categoryRules.size)) { nav.navigate(Routes.CATEGORY_RULES) }
             NavRow(stringResource(R.string.invoices_bills), Icons.Filled.Description, stringResource(R.string.invoices_desc)) { nav.navigate(Routes.INVOICES) }
             NavRow(stringResource(R.string.recurring_entries), Icons.Filled.EventRepeat, stringResource(R.string.recurring_desc, snap.recurring.count { it.active && !it.finished })) { nav.navigate(Routes.RECURRING) }
             NavRow(stringResource(R.string.budgets), Icons.Filled.Savings, stringResource(R.string.budgets_desc)) { nav.navigate(Routes.BUDGETS) }

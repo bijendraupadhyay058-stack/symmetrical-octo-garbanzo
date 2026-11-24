@@ -9,8 +9,8 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 @Database(
     entities = [CashbookEntity::class, AccountEntity::class, CategoryEntity::class, PartyEntity::class,
         TransactionEntity::class, AttachmentEntity::class, BackupHistoryEntity::class, RecurringEntity::class, BudgetEntity::class, InvoiceEntity::class, AllocationEntity::class, InvoiceItemEntity::class, CatalogItemEntity::class, StockAdjustmentEntity::class, InvoiceScheduleEntity::class,
-        ReconciliationEntity::class, CashCountEntity::class],
-    version = 9,
+        ReconciliationEntity::class, CashCountEntity::class, CategoryRuleEntity::class],
+    version = 10,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

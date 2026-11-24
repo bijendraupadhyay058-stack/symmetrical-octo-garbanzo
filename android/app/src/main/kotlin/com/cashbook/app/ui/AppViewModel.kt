@@ -57,8 +57,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val statement = MutableStateFlow<com.cashbook.core.StatementImport.Result?>(null)
 
     /** Reads a statement file's text; on a format problem shows why and keeps the previous import. */
-    fun loadStatement(text: String) {
-        try { statement.value = com.cashbook.core.StatementImport.parse(text) }
+    fun loadStatement(text: String) = loadStatement(text.toByteArray(Charsets.UTF_8))
+
+    /** Reads a statement file (CSV, Excel .xlsx or a bank's HTML ".xls"). */
+    fun loadStatement(bytes: ByteArray) {
+        try { statement.value = com.cashbook.core.StatementFiles.parse(bytes) }
         catch (e: com.cashbook.core.StatementImport.FormatException) {
             toast(getApplication<Application>().getString(com.cashbook.app.R.string.statement_unreadable, e.message ?: ""))
         }

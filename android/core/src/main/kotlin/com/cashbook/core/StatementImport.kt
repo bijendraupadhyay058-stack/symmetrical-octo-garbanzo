@@ -27,8 +27,10 @@ object StatementImport {
 
     class FormatException(message: String) : Exception(message)
 
-    fun parse(text: String): Result {
-        val rows = splitRows(text.removePrefix("﻿"))
+    fun parse(text: String): Result = parseRows(splitRows(text.removePrefix("﻿")))
+
+    /** Same as [parse] for rows already split into cells (from an Excel or HTML statement, see [StatementFiles]). */
+    fun parseRows(rows: List<List<String>>): Result {
         val headerIndex = rows.indexOfFirst { r -> r.any { isDateHeader(it) } && r.any { isMoneyHeader(it) } }
         if (headerIndex < 0) throw FormatException("No header row with a date and an amount column")
         val header = rows[headerIndex].map { norm(it) }
