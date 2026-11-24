@@ -3,6 +3,7 @@ package com.cashbook.app.ui.invoices
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,15 +88,34 @@ fun quoteStatusLabel(s: QuoteStatus, kind: InvoiceKind = InvoiceKind.SALE) = str
     QuoteStatus.CONVERTED -> R.string.po_billed; QuoteStatus.DECLINED -> R.string.inv_cancelled })
 
 @Composable
-fun QuoteStatusChip(s: QuoteStatus, kind: InvoiceKind = InvoiceKind.SALE) {
+fun QuoteStatusChip(s: QuoteStatus, kind: InvoiceKind = InvoiceKind.SALE) = QuoteStatusChipText(quoteStatusLabel(s, kind), s)
+
+/** Text status chip in the status colour (never colour alone). */
+@Composable
+fun QuoteStatusChipText(label: String, s: QuoteStatus) {
     val c = quoteStatusColor(s)
-    Text(quoteStatusLabel(s, kind), style = MaterialTheme.typography.labelSmall, color = c,
+    Text(label, style = MaterialTheme.typography.labelSmall, color = c,
         modifier = Modifier.background(c.copy(alpha = 0.12f), RoundedCornerShape(50)).padding(horizontal = 8.dp, vertical = 2.dp))
+}
+
+/** What the "Quotes & orders" tab shows. */
+enum class PreDocView { QUOTATIONS, PURCHASE_ORDERS, CHALLANS }
+
+@Composable
+fun PreDocChips(view: PreDocView, onView: (PreDocView) -> Unit) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        PreDocView.entries.forEach { v ->
+            FilterChip(view == v, { onView(v) }, { Text(stringResource(when (v) {
+                PreDocView.QUOTATIONS -> R.string.quotations; PreDocView.PURCHASE_ORDERS -> R.string.purchase_orders; PreDocView.CHALLANS -> R.string.delivery_challans })) })
+        }
+    }
 }
 
 /** Quotations & orders tab: sales quotations or purchase orders; open ones first (by date), then the rest, newest first. */
 @Composable
-fun QuotationList(snap: Snapshot, nav: NavHostController, cashbookIds: Set<Long>, kind: InvoiceKind, onKind: (InvoiceKind) -> Unit) {
+fun QuotationList(snap: Snapshot, nav: NavHostController, cashbookIds: Set<Long>, view: PreDocView, onView: (PreDocView) -> Unit) {
+    if (view == PreDocView.CHALLANS) { ChallanList(snap, nav, cashbookIds, onView); return }
+    val kind = if (view == PreDocView.QUOTATIONS) InvoiceKind.SALE else InvoiceKind.PURCHASE
     val f = LocalUiFormat.current
     val today = LocalDate.now()
     val sale = kind == InvoiceKind.SALE
@@ -105,10 +125,7 @@ fun QuotationList(snap: Snapshot, nav: NavHostController, cashbookIds: Set<Long>
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(sale, { onKind(InvoiceKind.SALE) }, { Text(stringResource(R.string.quotations)) })
-                    FilterChip(!sale, { onKind(InvoiceKind.PURCHASE) }, { Text(stringResource(R.string.purchase_orders)) })
-                }
+                PreDocChips(view, onView)
                 SectionCard {
                     Row {
                         Column(Modifier.weight(1f)) {

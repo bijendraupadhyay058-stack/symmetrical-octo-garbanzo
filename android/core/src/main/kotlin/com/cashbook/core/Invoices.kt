@@ -20,10 +20,17 @@ enum class DocType { INVOICE, CREDIT_NOTE, DEBIT_NOTE,
      * An offer only, converted later into an invoice: a sales quotation / estimate (kind SALE) or a purchase order to a
      * supplier (kind PURCHASE). Nothing is owed and stock and GST don't change until it is converted.
      */
-    QUOTATION;
-    /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation). */
-    val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION -> 0; else -> 1 }
+    QUOTATION,
+    /**
+     * Delivery challan (kind SALE): goods sent to a customer before billing. Stock leaves on the challan date, but
+     * nothing is owed until one or more challans are converted into an invoice (which then doesn't move stock again).
+     */
+    CHALLAN;
+    /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation, challan). */
+    val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION, CHALLAN -> 0; else -> 1 }
     val isNote: Boolean get() = this == CREDIT_NOTE || this == DEBIT_NOTE
+    /** Documents that are later converted into an invoice or bill (stored with a link to it). */
+    val isPreInvoice: Boolean get() = this == QUOTATION || this == CHALLAN
 }
 
 /** CONVERTED = turned into an invoice; DECLINED = marked declined by you; EXPIRED = past its valid-until date. */
@@ -33,12 +40,27 @@ object Quotations {
     fun status(q: InvoiceInfo, today: LocalDate): QuoteStatus = when {
         q.convertedInvoiceId != null -> QuoteStatus.CONVERTED
         q.cancelled -> QuoteStatus.DECLINED
-        today.isAfter(q.dueDate) -> QuoteStatus.EXPIRED
+        q.docType != DocType.CHALLAN && today.isAfter(q.dueDate) -> QuoteStatus.EXPIRED
         else -> QuoteStatus.OPEN
     }
 
     /** The quotation an invoice was created from, if any. */
     fun sourceOf(invoiceId: Long, quotations: List<InvoiceInfo>) = quotations.firstOrNull { it.convertedInvoiceId == invoiceId }
+
+    /** Every quotation, purchase order or delivery challan converted into [invoiceId] (several challans can share one invoice). */
+    fun sourcesOf(invoiceId: Long, docs: List<InvoiceInfo>) = docs.filter { it.convertedInvoiceId == invoiceId }.sortedBy { it.issueDate }
+
+    enum class ChallanError { EMPTY, NOT_A_CHALLAN, ALREADY_BILLED, CANCELLED, MIXED_PARTIES }
+
+    /** Challans can be billed together only when they are open and belong to the same cashbook and customer. */
+    fun validateChallans(challans: List<InvoiceInfo>): ChallanError? = when {
+        challans.isEmpty() -> ChallanError.EMPTY
+        challans.any { it.docType != DocType.CHALLAN } -> ChallanError.NOT_A_CHALLAN
+        challans.any { it.convertedInvoiceId != null } -> ChallanError.ALREADY_BILLED
+        challans.any { it.cancelled } -> ChallanError.CANCELLED
+        challans.map { it.partyId to it.cashbookId }.distinct().size > 1 -> ChallanError.MIXED_PARTIES
+        else -> null
+    }
 }
 
 /**
@@ -179,6 +201,7 @@ object Invoices {
             DocType.CREDIT_NOTE -> if (kind == InvoiceKind.SALE) "CN" else "CN-IN"
             DocType.DEBIT_NOTE -> if (kind == InvoiceKind.SALE) "DN" else "DN-IN"
             DocType.QUOTATION -> if (kind == InvoiceKind.SALE) "QT" else "PO"
+            DocType.CHALLAN -> "DC"
         }
         val prefix = series + "/" + yy(fy.startYear) + "-" + yy(fy.startYear + 1) + "/"
         val max = existing.filter { it.startsWith(prefix) }.mapNotNull { it.removePrefix(prefix).toIntOrNull() }.maxOrNull() ?: 0

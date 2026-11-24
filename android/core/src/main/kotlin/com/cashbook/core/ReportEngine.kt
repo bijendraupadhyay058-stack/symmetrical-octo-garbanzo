@@ -392,7 +392,7 @@ class ReportEngine(private val input: ReportInput) {
     private fun partyStatement(): Parts {
         data class Ev(val date: LocalDate, val order: Int, val text: String, val effect: Long)   // effect: + raises what is owed
         val live = input.txns.associateBy { it.id }
-        val docs = input.invoices.filter { !it.cancelled && it.docType != DocType.QUOTATION &&
+        val docs = input.invoices.filter { !it.cancelled && !it.docType.isPreInvoice &&
             (input.filter.partyIds.isEmpty() || it.partyId in input.filter.partyIds) }
         val byId = input.invoices.associateBy { it.id }
         val summary = ArrayList<SummaryItem>()
@@ -498,7 +498,7 @@ class ReportEngine(private val input: ReportInput) {
         var counted = 0
         for (kind in InvoiceKind.entries) {
             // invoices plus their debit notes add tax; credit notes take it away (by document date)
-            val invs = input.invoices.filter { it.kind == kind && !it.cancelled && it.docType != DocType.QUOTATION && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
+            val invs = input.invoices.filter { it.kind == kind && !it.cancelled && !it.docType.isPreInvoice && it.issueDate in range && !input.invoiceItems[it.id].isNullOrEmpty() }
             counted += invs.size
             val breakups = invs.flatMap { inv ->
                 GstCalc.totals(input.invoiceItems[inv.id]!!, GstCalc.isInterState(input.sellerState, inv.placeOfSupply), false).breakup

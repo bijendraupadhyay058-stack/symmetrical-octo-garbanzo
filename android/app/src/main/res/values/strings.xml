@@ -104,7 +104,11 @@
     <string name="backup_success">Backup saved (%s).</string>
     <string name="bal_short">Bal %s</string>
     <string name="bank_name_optional">Bank name (optional)</string>
+    <string name="bill_challans">Bill in one invoice</string>
+    <string name="bill_challans_explain">Tick the open challans of this customer to include. Stock already went out with the challans, so the invoice won\'t reduce it again.</string>
     <string name="bill_number">Bill / voucher number</string>
+    <string name="billed_challan_explain">Deleting that invoice re-opens its challans.</string>
+    <string name="billed_in_x">Billed in invoice %s</string>
     <string name="biometric_desc">Unlock with fingerprint or face. Your PIN still works.</string>
     <string name="biometric_unavailable">No biometric unlock is set up on this device.</string>
     <string name="biometric_unlock">Biometric unlock</string>
@@ -149,6 +153,16 @@
     <string name="categories_desc">Income and expense categories</string>
     <string name="category">Category</string>
     <string name="category_in_use">%d entries use this category. Choose a category to move them to before deleting.</string>
+    <string name="challan_cancel">Cancel challan</string>
+    <string name="challan_date">Challan date</string>
+    <string name="challan_err_convert">These challans can\'t be billed together. They must be open and for the same customer.</string>
+    <string name="challan_explain">Goods sent to a customer before billing. Stock goes out now; bill one or more challans in a single invoice later.</string>
+    <string name="challan_not_billed">Not billed</string>
+    <string name="challan_not_cash_note">A delivery challan moves stock out but doesn\'t change balances, receivables or GST. Nothing is owed until you bill it in an invoice.</string>
+    <string name="challan_number">Challan number</string>
+    <string name="challans_desc_x">Against delivery challans: %s</string>
+    <string name="challans_intro">Record goods as you deliver them. At month end, open any challan and bill all of that customer\'s open challans in one invoice.</string>
+    <string name="challans_not_billed">Not yet billed</string>
     <string name="change_pin">Change PIN</string>
     <string name="check_backup">Check backup</string>
     <string name="choose_folder">Choose backup folder</string>
@@ -162,6 +176,8 @@
     <string name="closing_balance">Closing balance</string>
     <string name="cloud_hint">To keep a copy in the cloud, pick Google Drive or another provider in the file picker. Nothing is uploaded unless you choose it.</string>
     <string name="collect_by_upi">Collect by UPI</string>
+    <string name="collections_intro">Customers with overdue invoices, largest amount first. A reminder lists all of a customer\'s overdue invoices in one message.</string>
+    <string name="collections_title">Overdue collections</string>
     <string name="confirm_password">Confirm password</string>
     <string name="confirm_pin">Enter the same PIN again</string>
     <string name="confirm_restore">Restore this backup?</string>
@@ -175,6 +191,7 @@
     <string name="create">Create</string>
     <string name="create_backup">Create backup</string>
     <string name="create_cashbook">Create cashbook</string>
+    <string name="create_invoice_x">Create invoice · %1$d challans · %2$s</string>
     <string name="created">Created</string>
     <string name="created_by_recurring">Created by a recurring schedule.</string>
     <string name="created_on">Created %s</string>
@@ -185,6 +202,7 @@
     <string name="currency">Currency</string>
     <string name="currency_display">Currency display</string>
     <string name="currency_hint">Three-letter code. Amounts always use Indian digit grouping.</string>
+    <string name="customers">Customers</string>
     <string name="daily">Daily</string>
     <string name="date">Date</string>
     <string name="date_format">Date format</string>
@@ -207,6 +225,8 @@
     <string name="delete_cashbook_title">Delete \"%s\"?</string>
     <string name="delete_category">Delete category</string>
     <string name="delete_category_text">This category is not used by any entry and will be deleted.</string>
+    <string name="delete_challan_text">The challan and its items will be deleted and the stock comes back.</string>
+    <string name="delete_challan_title">Delete delivery challan?</string>
     <string name="delete_entry_text">The entry will move to the recycle bin and balances will be recalculated. You can restore it later.</string>
     <string name="delete_entry_title">Delete this entry?</string>
     <string name="delete_item_text">The item will be deleted. Invoice lines that used it are not affected.</string>
@@ -222,6 +242,8 @@
     <string name="delete_recurring_text">No more entries will be created. Entries already created are kept.</string>
     <string name="delete_transfer_text">Both sides of this transfer will move to the recycle bin together, and both account balances will be recalculated.</string>
     <string name="deleted_on">Deleted %s</string>
+    <string name="delivery_challan">Delivery challan</string>
+    <string name="delivery_challans">Delivery challans</string>
     <string name="description">Description</string>
     <string name="description_optional">Description (optional)</string>
     <string name="details">Details</string>
@@ -236,6 +258,7 @@
     <string name="edit_account">Edit account</string>
     <string name="edit_cashbook">Edit cashbook</string>
     <string name="edit_category">Edit category</string>
+    <string name="edit_challan">Edit delivery challan</string>
     <string name="edit_entry">Edit entry</string>
     <string name="edit_invoice">Edit invoice</string>
     <string name="edit_item">Edit item</string>
@@ -302,6 +325,7 @@
     <string name="freq_yearly">Yearly</string>
     <string name="frequency">Frequency</string>
     <string name="from_account">From account *</string>
+    <string name="from_challan_x">From delivery challan %s</string>
     <string name="from_date">From</string>
     <string name="from_po_x">From purchase order %s</string>
     <string name="from_quotation_x">From quotation %s</string>
@@ -456,6 +480,7 @@
     <string name="new_bill">New bill</string>
     <string name="new_cashbook">New cashbook</string>
     <string name="new_category">New category</string>
+    <string name="new_challan">New delivery challan</string>
     <string name="new_credit_note">New credit note</string>
     <string name="new_debit_note">New debit note</string>
     <string name="new_invoice">New invoice</string>
@@ -471,6 +496,7 @@
     <string name="no_auto_backup_yet">No automatic backup yet.</string>
     <string name="no_budget_tap">No budget — tap to set</string>
     <string name="no_cashbook">No cashbook yet.</string>
+    <string name="no_challans">No delivery challans yet.</string>
     <string name="no_credentials_note">Never enter bank passwords, UPI PINs, card PINs or OTPs. Cashbook only needs a name and, optionally, the last four digits.</string>
     <string name="no_data_period">No entries for the selected period and filters.</string>
     <string name="no_expenses_period">No expenses in this period.</string>
@@ -478,6 +504,7 @@
     <string name="no_items">No saved items yet. Add products and services you bill often.</string>
     <string name="no_matches">No entries match your search or filters.</string>
     <string name="no_notes">No credit or debit notes.</string>
+    <string name="no_overdue">Nothing overdue. Well done!</string>
     <string name="no_parties">No parties yet.</string>
     <string name="no_party">No party</string>
     <string name="no_purchase_orders">No purchase orders yet.</string>
@@ -513,6 +540,7 @@
     <string name="optional">Optional</string>
     <string name="out_label">Out</string>
     <string name="overdue">Overdue</string>
+    <string name="overdue_summary_x">Overdue invoices: %1$d · oldest %2$d days</string>
     <string name="page_x_of_y">Page %1$d of %2$d</string>
     <string name="paid_to">Paid to</string>
     <string name="parent_category">Parent category</string>
@@ -546,8 +574,11 @@
     <string name="pdf_balance_due">Balance due</string>
     <string name="pdf_bank">Bank</string>
     <string name="pdf_bill_to">Bill to</string>
+    <string name="pdf_challan_no">Challan no.</string>
     <string name="pdf_credit_note">CREDIT NOTE</string>
     <string name="pdf_debit_note">DEBIT NOTE</string>
+    <string name="pdf_deliver_to">Deliver to</string>
+    <string name="pdf_delivery_challan">DELIVERY CHALLAN</string>
     <string name="pdf_disc">Disc.</string>
     <string name="pdf_for">For</string>
     <string name="pdf_generated_by">Generated with Cashbook</string>
@@ -640,12 +671,16 @@
     <string name="refund_from_supplier_for">Refund received against %s</string>
     <string name="refund_to_customer_for">Refund paid against %s</string>
     <string name="remind_me">Remind me to back up</string>
+    <string name="remind_overdue_x">Remind overdue customers (%d)</string>
     <string name="reminder_balance">Balance due: %s</string>
     <string name="reminder_due">This is a friendly reminder that invoice %1$s dated %2$s for %3$s is due on %4$s.</string>
     <string name="reminder_greeting">Dear %s,</string>
     <string name="reminder_ignore">Please ignore this message if you have already paid.</string>
+    <string name="reminder_line">• %1$s dated %2$s — %3$s (due %4$s, %5$d days ago)</string>
+    <string name="reminder_list_intro">This is a friendly reminder that the following invoices are overdue:</string>
     <string name="reminder_overdue">This is a friendly reminder that invoice %1$s dated %2$s for %3$s was due on %4$s (%5$d days ago).</string>
     <string name="reminder_thanks">Thank you,</string>
+    <string name="reminder_total">Total due: %s</string>
     <string name="remove">Remove</string>
     <string name="remove_item">Remove item</string>
     <string name="remove_pin">Remove PIN</string>

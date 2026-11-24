@@ -559,6 +559,70 @@ class UiFlowTest {
         shot("46_statement_of_account")
     }
 
+    @Test fun challansAndCollections() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.settings.updateBusinessProfile(com.cashbook.core.backup.BusinessProfileDto(name = "Sharma & Associates", stateCode = "27", upiId = "sharma.assoc@oksbi"))
+            val customer = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", mobile = "98765 43210",
+                createdAt = 0, updatedAt = 0, stateCode = "27"))
+            val toner = d.ledger.saveCatalogItem(com.cashbook.core.CatalogItem(0, "Toner cartridge", com.cashbook.core.ItemKind.GOODS, "8443", "Nos", 250_000, 180_000, 1800,
+                openingStockMilli = 20_000, openingDate = LocalDate.now().minusDays(60), reorderLevelMilli = 3_000))
+            val cb = d.snap { it.parties.isNotEmpty() && it.catalog.isNotEmpty() }.cashbooks.single().id
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/001", customer,
+                LocalDate.now().minusDays(50), LocalDate.now().minusDays(35), 1_180_000))
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "DC/26-27/001", customer,
+                LocalDate.now().minusDays(5), LocalDate.now().minusDays(5), 1, placeOfSupply = "27", docType = com.cashbook.core.DocType.CHALLAN),
+                listOf(com.cashbook.core.InvoiceItem(description = "Toner cartridge", hsn = "8443", quantityMilli = 3_000, unit = "Nos", rate = 250_000, gstBp = 1800, itemId = toner)), "27")
+            d.snap { it.invoices.isNotEmpty() && it.challans.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        // overdue collections
+        waitFor("Remind overdue customers (1)", substring = true); click(" Remind overdue customers (1)")
+        waitFor("Overdue collections"); waitFor("ABC Enterprises")
+        waitFor("Overdue invoices: 1 · oldest 35 days")
+        waitFor("WhatsApp payment reminder", substring = true)
+        shot("48_overdue_collections")
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        // a second delivery challan through the form, then bill both in one invoice
+        waitFor("Receivables"); tab("Quotes & orders")
+        waitFor("Delivery challans"); click("Delivery challans")
+        waitFor("DC/26-27/001", substring = true)
+        click("New delivery challan")
+        waitFor("Customer / client *"); click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        waitFor("Challan date")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Add a saved item", substring = true))
+        compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("Pick a saved item"))[0].performClick()
+        waitFor("Toner cartridge"); click("Toner cartridge")
+        waitFor("In stock: 17 Nos")
+        field("Qty").performTextClearance(); field("Qty").performTextInput("2")
+        shot("49_challan_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Bill in one invoice")
+        var s = runBlocking { d.snap { it.challans.size == 2 } }
+        assertEquals(15_000L, s.onHand(s.catalog.single()))                                      // stock left with the challans
+        assertTrue(s.challans.all { it.number.startsWith("DC/") })
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Create invoice", substring = true))
+        waitFor("Create invoice · 2 challans · ₹14,750.00")
+        shot("50_challan_detail")
+        compose.onNodeWithText("Create invoice · 2 challans · ₹14,750.00", useUnmergedTree = true).performClick()
+        waitFor("Record receipt"); waitFor("From delivery challan DC/26-27/001")
+        s = runBlocking { d.snap { it.invoices.size == 2 } }
+        val inv = s.invoices.first { it.number != "INV/26-27/001" }
+        assertEquals(1_475_000L, inv.amount)
+        assertTrue(s.challans.all { it.convertedInvoiceId == inv.id })
+        assertEquals(15_000L, s.onHand(s.catalog.single()))
+        shot("51_invoice_from_challans")
+        repeat(2) { scenario?.onActivity { a -> a.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }
+        waitFor("Not yet billed"); waitFor("Billed")
+        shot("52_challans_list")
+    }
+
     @Test fun outstandingReport() {
         seed("en")
         runBlocking {

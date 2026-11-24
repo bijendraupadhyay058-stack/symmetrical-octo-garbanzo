@@ -79,8 +79,9 @@ class LedgerRepository(
             attachmentCounts = db.attachments().getCounts().associate { it.transactionId to it.count },
             recurring = db.recurring().getAll().map { it.toRule() },
             budgets = db.budgets().getAll().map { it.toInfo() },
-            invoices = docs.filter { it.docType != DocType.QUOTATION },
+            invoices = docs.filter { !it.docType.isPreInvoice },
             quotations = docs.filter { it.docType == DocType.QUOTATION },
+            challans = docs.filter { it.docType == DocType.CHALLAN },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
             catalog = db.catalog().getAll().map { it.toInfo() },
@@ -343,7 +344,7 @@ class LedgerRepository(
     // ---------- invoices & bills ----------
 
     class InvoiceException(val reason: Reason) : Exception(reason.name) {
-        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND, INVALID_AMOUNT, HAS_NOTES, NOTE_TOO_LARGE, ALREADY_CONVERTED, DECLINED }
+        enum class Reason { DUPLICATE_NUMBER, HAS_PAYMENTS, BELOW_PAID, INVALID_ALLOCATION, NOT_FOUND, INVALID_AMOUNT, HAS_NOTES, NOTE_TOO_LARGE, ALREADY_CONVERTED, DECLINED, MIXED_PARTIES }
     }
 
     suspend fun nextInvoiceNumber(cashbookId: Long, kind: InvoiceKind, date: LocalDate, docType: DocType = DocType.INVOICE) =
@@ -366,7 +367,8 @@ class LedgerRepository(
      */
     suspend fun saveInvoice(input: InvoiceInfo, items: List<InvoiceItem>? = null, sellerState: String = ""): Long = db.withTransaction {
         // A note always belongs to the original invoice's cashbook, kind, party and place of supply.
-        val base = if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
+        val base = if (input.docType == DocType.CHALLAN) input.copy(kind = InvoiceKind.SALE, dueDate = input.issueDate, refInvoiceId = null)
+        else if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
             val original = input.refInvoiceId?.let { db.invoices().get(it)?.toInfo() }?.takeIf { it.docType == DocType.INVOICE }
                 ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
             input.copy(cashbookId = original.cashbookId, kind = original.kind, partyId = original.partyId,
@@ -425,6 +427,29 @@ class LedgerRepository(
             db.invoices().deleteItems(id)
             db.invoices().delete(id)
         }
+    }
+
+    /**
+     * Bills one or more open delivery challans of the same customer in a single sales invoice dated [date]: their items
+     * are copied in challan order (with saved-item links) and every challan is linked to the invoice. The goods already
+     * left stock on the challans, so the invoice doesn't move stock again. Deleting the invoice re-opens the challans.
+     */
+    suspend fun convertChallans(challanIds: List<Long>, date: LocalDate, dueDays: Long = 15, sellerState: String = "", description: String = ""): Long = db.withTransaction {
+        val challans = challanIds.distinct().map { db.invoices().get(it)?.toInfo() ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND) }.sortedBy { it.issueDate }
+        when (com.cashbook.core.Quotations.validateChallans(challans)) {
+            null -> Unit
+            com.cashbook.core.Quotations.ChallanError.ALREADY_BILLED -> throw InvoiceException(InvoiceException.Reason.ALREADY_CONVERTED)
+            com.cashbook.core.Quotations.ChallanError.CANCELLED -> throw InvoiceException(InvoiceException.Reason.DECLINED)
+            com.cashbook.core.Quotations.ChallanError.MIXED_PARTIES -> throw InvoiceException(InvoiceException.Reason.MIXED_PARTIES)
+            else -> throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
+        }
+        val all = db.invoices().items()
+        val items = challans.flatMap { c -> all.filter { it.invoiceId == c.id }.map { it.toItem().copy(id = 0) } }
+        val first = challans.first()
+        val invId = saveInvoice(InvoiceInfo(0, first.cashbookId, InvoiceKind.SALE, nextInvoiceNumber(first.cashbookId, InvoiceKind.SALE, date), first.partyId,
+            date, date.plusDays(dueDays), challans.sumOf { it.amount }, description, placeOfSupply = first.placeOfSupply, roundOff = first.roundOff), items, sellerState)
+        challans.forEach { db.invoices().linkQuote(it.id, invId, now) }
+        invId
     }
 
     /**

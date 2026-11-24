@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.0 (versionCode 9)
+
+**New**
+- **Delivery challans** (Invoices & bills › Quotes & orders › Delivery challans): list the goods you deliver,
+  numbered DC/26-27/001, with a DELIVERY CHALLAN PDF. Stock goes out on the challan date; nothing is owed yet.
+- **Bill challans in one invoice**: open any challan, tick that customer's open challans (all are ticked by default)
+  and create a single invoice. Items are copied in challan order and the invoice says which challans it covers.
+  Stock isn't reduced a second time. Deleting the invoice re-opens the challans; cancelling a challan returns its stock.
+- **Overdue collections** (Receivables › Remind overdue customers): every customer with overdue invoices, largest
+  amount first, with one WhatsApp (or share) reminder per customer listing all their overdue invoices and the total.
+- Purchase order and challan PDFs no longer print your bank / UPI payment details.
+
+**Data**
+- No database change (challans use the same document storage and link as quotations).
+
 ## 1.7.0 (versionCode 8)
 
 **New**

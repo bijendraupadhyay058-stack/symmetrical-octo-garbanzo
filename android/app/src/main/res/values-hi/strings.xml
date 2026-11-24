@@ -104,7 +104,11 @@
     <string name="backup_success">बैकअप सहेजा गया (%s)।</string>
     <string name="bal_short">शेष %s</string>
     <string name="bank_name_optional">बैंक का नाम (वैकल्पिक)</string>
+    <string name="bill_challans">एक इनवॉइस में बिल करें</string>
+    <string name="bill_challans_explain">इस ग्राहक के खुले चालान चुनें। स्टॉक चालान के साथ पहले ही घट चुका है, इसलिए इनवॉइस इसे दोबारा नहीं घटाएगा।</string>
     <string name="bill_number">बिल / वाउचर संख्या</string>
+    <string name="billed_challan_explain">वह इनवॉइस हटाने पर उसके चालान फिर से खुल जाएँगे।</string>
+    <string name="billed_in_x">इनवॉइस %s में बिल किया गया</string>
     <string name="biometric_desc">फ़िंगरप्रिंट या चेहरे से खोलें। पिन भी काम करेगा।</string>
     <string name="biometric_unavailable">इस डिवाइस पर बायोमेट्रिक अनलॉक सेट नहीं है।</string>
     <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
@@ -149,6 +153,16 @@
     <string name="categories_desc">आय और व्यय श्रेणियाँ</string>
     <string name="category">श्रेणी</string>
     <string name="category_in_use">%d प्रविष्टियाँ इस श्रेणी का उपयोग करती हैं। हटाने से पहले उन्हें किस श्रेणी में ले जाना है, चुनें।</string>
+    <string name="challan_cancel">चालान रद्द करें</string>
+    <string name="challan_date">चालान तारीख</string>
+    <string name="challan_err_convert">ये चालान एक साथ बिल नहीं हो सकते। वे खुले और एक ही ग्राहक के होने चाहिए।</string>
+    <string name="challan_explain">बिलिंग से पहले ग्राहक को भेजा गया माल। स्टॉक अभी घटेगा; बाद में एक या अधिक चालान का एक ही इनवॉइस बनाएँ।</string>
+    <string name="challan_not_billed">बिल नहीं बना</string>
+    <string name="challan_not_cash_note">डिलीवरी चालान से स्टॉक घटता है पर बैलेंस, लेनदारी या GST नहीं बदलते। इनवॉइस बनने तक कुछ भी बकाया नहीं होता।</string>
+    <string name="challan_number">चालान नंबर</string>
+    <string name="challans_desc_x">डिलीवरी चालानों के विरुद्ध: %s</string>
+    <string name="challans_intro">माल डिलीवर करते समय दर्ज करें। महीने के अंत में कोई भी चालान खोलें और उस ग्राहक के सभी खुले चालानों का एक इनवॉइस बनाएँ।</string>
+    <string name="challans_not_billed">अभी बिल नहीं बना</string>
     <string name="change_pin">पिन बदलें</string>
     <string name="check_backup">बैकअप जाँचें</string>
     <string name="choose_folder">बैकअप फ़ोल्डर चुनें</string>
@@ -162,6 +176,8 @@
     <string name="closing_balance">अंतिम शेष</string>
     <string name="cloud_hint">क्लाउड में प्रति रखने के लिए फ़ाइल पिकर में Google Drive या अन्य प्रदाता चुनें। आपके चुने बिना कुछ भी अपलोड नहीं होता।</string>
     <string name="collect_by_upi">UPI से वसूली</string>
+    <string name="collections_intro">बकाया इनवॉइस वाले ग्राहक, सबसे बड़ी राशि पहले। रिमाइंडर में ग्राहक के सभी बकाया इनवॉइस एक ही संदेश में होते हैं।</string>
+    <string name="collections_title">बकाया वसूली</string>
     <string name="confirm_password">पासवर्ड की पुष्टि करें</string>
     <string name="confirm_pin">वही पिन फिर से दर्ज करें</string>
     <string name="confirm_restore">यह बैकअप पुनर्स्थापित करें?</string>
@@ -175,6 +191,7 @@
     <string name="create">बनाएँ</string>
     <string name="create_backup">बैकअप बनाएँ</string>
     <string name="create_cashbook">कैशबुक बनाएँ</string>
+    <string name="create_invoice_x">इनवॉइस बनाएँ · %1$d चालान · %2$s</string>
     <string name="created">बनाया गया</string>
     <string name="created_by_recurring">आवर्ती अनुसूची द्वारा बनाया गया।</string>
     <string name="created_on">बनाया गया %s</string>
@@ -185,6 +202,7 @@
     <string name="currency">मुद्रा</string>
     <string name="currency_display">मुद्रा प्रदर्शन</string>
     <string name="currency_hint">तीन अक्षरों का कोड। राशियाँ हमेशा भारतीय अंक समूहन में दिखती हैं।</string>
+    <string name="customers">ग्राहक</string>
     <string name="daily">दैनिक</string>
     <string name="date">तारीख़</string>
     <string name="date_format">तारीख़ का प्रारूप</string>
@@ -207,6 +225,8 @@
     <string name="delete_cashbook_title">\"%s\" हटाएँ?</string>
     <string name="delete_category">श्रेणी हटाएँ</string>
     <string name="delete_category_text">यह श्रेणी किसी प्रविष्टि में उपयोग नहीं हुई है और हटा दी जाएगी।</string>
+    <string name="delete_challan_text">चालान और उसके आइटम हटा दिए जाएँगे और स्टॉक वापस आ जाएगा।</string>
+    <string name="delete_challan_title">डिलीवरी चालान हटाएँ?</string>
     <string name="delete_entry_text">प्रविष्टि रीसायकल बिन में चली जाएगी और शेष फिर से गणना होंगे। आप इसे बाद में पुनर्स्थापित कर सकते हैं।</string>
     <string name="delete_entry_title">यह प्रविष्टि हटाएँ?</string>
     <string name="delete_item_text">आइटम हटा दिया जाएगा। जिन इनवॉइस आइटम में इसका उपयोग हुआ, वे प्रभावित नहीं होंगे।</string>
@@ -222,6 +242,8 @@
     <string name="delete_recurring_text">आगे कोई प्रविष्टि नहीं बनेगी। पहले से बनी प्रविष्टियाँ बनी रहेंगी।</string>
     <string name="delete_transfer_text">इस ट्रांसफ़र के दोनों पक्ष एक साथ रीसायकल बिन में जाएँगे और दोनों खातों के शेष फिर से गणना होंगे।</string>
     <string name="deleted_on">हटाया गया %s</string>
+    <string name="delivery_challan">डिलीवरी चालान</string>
+    <string name="delivery_challans">डिलीवरी चालान</string>
     <string name="description">विवरण</string>
     <string name="description_optional">विवरण (वैकल्पिक)</string>
     <string name="details">विवरण</string>
@@ -236,6 +258,7 @@
     <string name="edit_account">खाता संपादित करें</string>
     <string name="edit_cashbook">कैशबुक संपादित करें</string>
     <string name="edit_category">श्रेणी संपादित करें</string>
+    <string name="edit_challan">डिलीवरी चालान संपादित करें</string>
     <string name="edit_entry">प्रविष्टि संपादित करें</string>
     <string name="edit_invoice">इनवॉइस संपादित करें</string>
     <string name="edit_item">आइटम संपादित करें</string>
@@ -302,6 +325,7 @@
     <string name="freq_yearly">वार्षिक</string>
     <string name="frequency">आवृत्ति</string>
     <string name="from_account">किस खाते से *</string>
+    <string name="from_challan_x">डिलीवरी चालान %s से</string>
     <string name="from_date">से</string>
     <string name="from_po_x">खरीद आदेश %s से</string>
     <string name="from_quotation_x">कोटेशन %s से</string>
@@ -456,6 +480,7 @@
     <string name="new_bill">नया बिल</string>
     <string name="new_cashbook">नई कैशबुक</string>
     <string name="new_category">नई श्रेणी</string>
+    <string name="new_challan">नया डिलीवरी चालान</string>
     <string name="new_credit_note">नया क्रेडिट नोट</string>
     <string name="new_debit_note">नया डेबिट नोट</string>
     <string name="new_invoice">नया इनवॉइस</string>
@@ -471,6 +496,7 @@
     <string name="no_auto_backup_yet">अभी तक कोई स्वचालित बैकअप नहीं।</string>
     <string name="no_budget_tap">कोई बजट नहीं — सेट करने के लिए टैप करें</string>
     <string name="no_cashbook">अभी कोई कैशबुक नहीं।</string>
+    <string name="no_challans">अभी कोई डिलीवरी चालान नहीं।</string>
     <string name="no_credentials_note">कभी भी बैंक पासवर्ड, UPI पिन, कार्ड पिन या OTP दर्ज न करें। कैशबुक को केवल नाम और वैकल्पिक रूप से अंतिम चार अंक चाहिए।</string>
     <string name="no_data_period">चुनी गई अवधि और फ़िल्टर के लिए कोई प्रविष्टि नहीं।</string>
     <string name="no_expenses_period">इस अवधि में कोई व्यय नहीं।</string>
@@ -478,6 +504,7 @@
     <string name="no_items">अभी कोई सहेजा आइटम नहीं। अक्सर बिल होने वाले उत्पाद और सेवाएँ जोड़ें।</string>
     <string name="no_matches">आपकी खोज या फ़िल्टर से कोई प्रविष्टि मेल नहीं खाती।</string>
     <string name="no_notes">कोई क्रेडिट या डेबिट नोट नहीं।</string>
+    <string name="no_overdue">कुछ भी बकाया नहीं। बहुत बढ़िया!</string>
     <string name="no_parties">अभी कोई पक्ष नहीं।</string>
     <string name="no_party">कोई पक्ष नहीं</string>
     <string name="no_purchase_orders">अभी कोई खरीद आदेश नहीं।</string>
@@ -513,6 +540,7 @@
     <string name="optional">वैकल्पिक</string>
     <string name="out_label">व्यय</string>
     <string name="overdue">अतिदेय</string>
+    <string name="overdue_summary_x">बकाया इनवॉइस: %1$d · सबसे पुराना %2$d दिन</string>
     <string name="page_x_of_y">पृष्ठ %1$d / %2$d</string>
     <string name="paid_to">किसे भुगतान</string>
     <string name="parent_category">मुख्य श्रेणी</string>
@@ -546,8 +574,11 @@
     <string name="pdf_balance_due">शेष देय</string>
     <string name="pdf_bank">बैंक</string>
     <string name="pdf_bill_to">बिल प्राप्तकर्ता</string>
+    <string name="pdf_challan_no">चालान नं.</string>
     <string name="pdf_credit_note">क्रेडिट नोट</string>
     <string name="pdf_debit_note">डेबिट नोट</string>
+    <string name="pdf_deliver_to">डिलीवरी पता</string>
+    <string name="pdf_delivery_challan">डिलीवरी चालान</string>
     <string name="pdf_disc">छूट</string>
     <string name="pdf_for">कृते</string>
     <string name="pdf_generated_by">कैशबुक से बनाया गया</string>
@@ -640,12 +671,16 @@
     <string name="refund_from_supplier_for">%s के विरुद्ध प्राप्त रिफंड</string>
     <string name="refund_to_customer_for">%s के विरुद्ध दिया गया रिफंड</string>
     <string name="remind_me">बैकअप की याद दिलाएँ</string>
+    <string name="remind_overdue_x">बकाया ग्राहकों को याद दिलाएँ (%d)</string>
     <string name="reminder_balance">बकाया राशि: %s</string>
     <string name="reminder_due">यह एक विनम्र रिमाइंडर है कि %2$s का इनवॉइस %1$s, राशि %3$s, %4$s को देय है।</string>
     <string name="reminder_greeting">प्रिय %s,</string>
     <string name="reminder_ignore">यदि आप भुगतान कर चुके हैं तो कृपया इस संदेश को अनदेखा करें।</string>
+    <string name="reminder_line">• %2$s का %1$s — %3$s (देय %4$s, %5$d दिन पहले)</string>
+    <string name="reminder_list_intro">यह एक विनम्र रिमाइंडर है कि निम्नलिखित इनवॉइस बकाया हैं:</string>
     <string name="reminder_overdue">यह एक विनम्र रिमाइंडर है कि %2$s का इनवॉइस %1$s, राशि %3$s, %4$s को देय था (%5$d दिन पहले)।</string>
     <string name="reminder_thanks">धन्यवाद,</string>
+    <string name="reminder_total">कुल बकाया: %s</string>
     <string name="remove">हटाएँ</string>
     <string name="remove_item">आइटम हटाएँ</string>
     <string name="remove_pin">पिन हटाएँ</string>

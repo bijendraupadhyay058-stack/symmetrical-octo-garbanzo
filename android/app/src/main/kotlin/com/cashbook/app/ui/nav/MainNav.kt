@@ -118,6 +118,8 @@ object Routes {
     fun recordRefund(id: Long) = "invoice_refund/$id"
     /** New/edit sales quotation (shares the document editor). */
     fun quoteEdit(id: Long, kind: String = "SALE") = "quote_edit/$id/$kind"
+    fun challanEdit(id: Long) = "challan_edit/$id"
+    const val COLLECTIONS = "collections"
     const val CATALOG = "catalog"
     fun catalogItem(id: Long) = "catalog_item/$id"
 }
@@ -229,6 +231,10 @@ fun MainNav(vm: AppViewModel) {
                     refInvoiceId = e.arguments!!.getLong("ref"))
             }
             composable("invoice_refund/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id"), refund = true) }
+            composable("challan_edit/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e ->
+                InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), "SALE", 0, docType = com.cashbook.core.DocType.CHALLAN)
+            }
+            composable(Routes.COLLECTIONS) { com.cashbook.app.ui.invoices.CollectionsScreen(vm, nav) }
             composable("quote_edit/{id}/{kind}", listOf(navArgument("id") { type = NavType.LongType })) { e ->
                 InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments?.getString("kind") ?: "SALE", 0, docType = com.cashbook.core.DocType.QUOTATION)
             }

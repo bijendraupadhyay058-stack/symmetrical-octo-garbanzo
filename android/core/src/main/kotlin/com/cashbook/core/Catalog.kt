@@ -51,11 +51,14 @@ object Stock {
         DocType.INVOICE -> if (doc.kind == InvoiceKind.PURCHASE) 1 else -1
         DocType.CREDIT_NOTE -> if (doc.kind == InvoiceKind.SALE) 1 else -1
         DocType.DEBIT_NOTE, DocType.QUOTATION -> 0
+        DocType.CHALLAN -> -1
     }
 
     fun moves(docs: List<InvoiceInfo>, docItems: Map<Long, List<InvoiceItem>>, adjustments: List<StockAdjustment>): List<StockMove> {
+        // goods already left on the delivery challan: the invoice it was billed in mustn't take them out again
+        val billedFromChallans = docs.filter { it.docType == DocType.CHALLAN && !it.cancelled }.mapNotNull { it.convertedInvoiceId }.toSet()
         val fromDocs = docs.flatMap { d ->
-            val s = sign(d)
+            val s = if (d.id in billedFromChallans) 0 else sign(d)
             if (s == 0) emptyList() else docItems[d.id].orEmpty().mapNotNull { li ->
                 li.itemId?.let { StockMove(it, d.issueDate, s * li.quantityMilli, d.id, d.number) }
             }
@@ -89,7 +92,7 @@ object Stock {
      */
     fun itemSales(docs: List<InvoiceInfo>, docItems: Map<Long, List<InvoiceItem>>, catalog: Map<Long, CatalogItem>, sellerState: String, range: DateRange): List<ItemSales> {
         val acc = LinkedHashMap<String, ItemSales>()
-        docs.filter { it.kind == InvoiceKind.SALE && !it.cancelled && it.issueDate in range && it.docType != DocType.DEBIT_NOTE && it.docType != DocType.QUOTATION }.forEach { d ->
+        docs.filter { it.kind == InvoiceKind.SALE && !it.cancelled && it.issueDate in range && it.docType != DocType.DEBIT_NOTE && !it.docType.isPreInvoice }.forEach { d ->
             val lines = docItems[d.id].orEmpty()
             if (lines.isEmpty()) return@forEach
             val s = if (d.docType == DocType.CREDIT_NOTE) -1 else 1
