@@ -24,6 +24,7 @@ interface CashbookDao {
 interface AccountDao {
     @Query("SELECT * FROM accounts ORDER BY sort_order, id") fun observeAll(): Flow<List<AccountEntity>>
     @Query("SELECT * FROM accounts") suspend fun getAll(): List<AccountEntity>
+    @Query("SELECT * FROM accounts WHERE id = :id") suspend fun get(id: Long): AccountEntity?
     @Query("SELECT * FROM accounts ORDER BY sort_order, id") suspend fun getAllSorted(): List<AccountEntity>
     @Query("SELECT * FROM accounts WHERE cashbook_id = :cashbookId") suspend fun forCashbook(cashbookId: Long): List<AccountEntity>
     @Insert suspend fun insert(e: AccountEntity): Long
@@ -60,6 +61,8 @@ interface PartyDao {
 
 @Dao
 interface TransactionDao {
+    @Query("UPDATE transactions SET cleared_on = :date WHERE id = :id") suspend fun setCleared(id: Long, date: Long?)
+    @Query("UPDATE transactions SET to_cleared_on = :date WHERE id = :id") suspend fun setToCleared(id: Long, date: Long?)
     @Query("SELECT * FROM transactions WHERE deleted_at IS NULL") fun observeLive(): Flow<List<TransactionEntity>>
     @Query("SELECT * FROM transactions WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC") fun observeDeleted(): Flow<List<TransactionEntity>>
     @Query("SELECT * FROM transactions WHERE deleted_at IS NULL") suspend fun getLive(): List<TransactionEntity>
@@ -156,6 +159,19 @@ interface BudgetDao {
     @Update suspend fun update(e: BudgetEntity)
     @Query("DELETE FROM budgets WHERE id = :id") suspend fun delete(id: Long)
     @Query("DELETE FROM budgets") suspend fun clear()
+}
+
+@Dao
+interface ReconcileDao {
+    @Query("SELECT * FROM reconciliations ORDER BY statement_date DESC, id DESC") suspend fun reconciliations(): List<ReconciliationEntity>
+    @Insert suspend fun insert(e: ReconciliationEntity): Long
+    @Insert suspend fun insertAll(e: List<ReconciliationEntity>)
+    @Query("DELETE FROM reconciliations") suspend fun clear()
+    @Query("SELECT * FROM cash_counts ORDER BY date DESC, id DESC") suspend fun cashCounts(): List<CashCountEntity>
+    @Insert suspend fun insertCount(e: CashCountEntity): Long
+    @Insert suspend fun insertCounts(e: List<CashCountEntity>)
+    @Query("DELETE FROM cash_counts WHERE id = :id") suspend fun deleteCount(id: Long)
+    @Query("DELETE FROM cash_counts") suspend fun clearCounts()
 }
 
 @Dao

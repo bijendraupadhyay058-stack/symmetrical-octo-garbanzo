@@ -36,10 +36,16 @@ fun CategoryEntity.toInfo() = CategoryInfo(id, enumOr(kind, CategoryKind.EXPENSE
 fun PartyEntity.toInfo() = PartyInfo(id, name, enumOr(type, PartyType.OTHER), mobile, email, address, gstin, notes, archived, stateCode)
 
 fun TransactionEntity.toTxn() = Txn(id, cashbookId, enumOr(type, TxnType.EXPENSE), LocalDate.ofEpochDay(date), amount, accountId,
-    toAccountId, categoryId, partyId, enumOr(paymentMode, PaymentMode.OTHER), description, reference, notes, tags, createdAt, updatedAt, deletedAt, recurringId)
+    toAccountId, categoryId, partyId, enumOr(paymentMode, PaymentMode.OTHER), description, reference, notes, tags, createdAt, updatedAt, deletedAt, recurringId,
+    clearedOn?.let { LocalDate.ofEpochDay(it) }, toClearedOn?.let { LocalDate.ofEpochDay(it) })
+
+fun ReconciliationEntity.toInfo() = com.cashbook.core.Reconciliation(id, accountId, LocalDate.ofEpochDay(statementDate), statementBalance, entries, createdAt)
+fun CashCountEntity.toInfo() = com.cashbook.core.CashCountRecord(id, accountId, LocalDate.ofEpochDay(date), counted, book,
+    com.cashbook.core.CashCount.decode(denominations), adjustmentTxnId, note, createdAt)
 
 fun Txn.toEntity() = TransactionEntity(id, cashbookId, type.name, date.toEpochDay(), amount, accountId, toAccountId, categoryId,
-    partyId, paymentMode.name, description.trim(), reference.trim(), notes.trim(), tags.trim(), createdAt, updatedAt, deletedAt, recurringId)
+    partyId, paymentMode.name, description.trim(), reference.trim(), notes.trim(), tags.trim(), createdAt, updatedAt, deletedAt, recurringId,
+    clearedOn?.toEpochDay(), toClearedOn?.toEpochDay())
 
 fun RecurringEntity.toRule() = RecurringRule(id, cashbookId, enumOr(type, TxnType.EXPENSE), amount, accountId, toAccountId, categoryId, partyId,
     enumOr(paymentMode, PaymentMode.OTHER), description, reference, notes, tags, enumOr(frequency, Frequency.MONTHLY), interval,

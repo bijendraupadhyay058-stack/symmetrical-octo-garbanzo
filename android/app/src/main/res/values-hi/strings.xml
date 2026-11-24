@@ -58,6 +58,7 @@
     <string name="alerts_channel">इनवॉइस और बजट सूचनाएँ</string>
     <string name="all_accounts">सभी खाते</string>
     <string name="all_cashbooks">सभी कैशबुक (संयुक्त)</string>
+    <string name="all_cleared">इस तारीख तक सब क्लियर है।</string>
     <string name="all_parties">सभी पक्ष</string>
     <string name="allow_negative">ऋणात्मक शेष की अनुमति</string>
     <string name="allow_negative_off">जिन प्रविष्टियों से शेष ऋणात्मक हो, वे रोकी जाएँगी।</string>
@@ -106,6 +107,8 @@
     <string name="backup_success">बैकअप सहेजा गया (%s)।</string>
     <string name="bal_short">शेष %s</string>
     <string name="bank_name_optional">बैंक का नाम (वैकल्पिक)</string>
+    <string name="bank_reconciliation">बैंक मिलान</string>
+    <string name="bank_reconciliation_desc">बैंक स्टेटमेंट से प्रविष्टियाँ मिलाएँ</string>
     <string name="bill_challans">एक इनवॉइस में बिल करें</string>
     <string name="bill_challans_explain">इस ग्राहक के खुले चालान चुनें। स्टॉक चालान के साथ पहले ही घट चुका है, इसलिए इनवॉइस इसे दोबारा नहीं घटाएगा।</string>
     <string name="bill_number">बिल / वाउचर संख्या</string>
@@ -114,6 +117,7 @@
     <string name="biometric_desc">फ़िंगरप्रिंट या चेहरे से खोलें। पिन भी काम करेगा।</string>
     <string name="biometric_unavailable">इस डिवाइस पर बायोमेट्रिक अनलॉक सेट नहीं है।</string>
     <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
+    <string name="book_balance">खाते का बैलेंस</string>
     <string name="both_sides">इस ट्रांसफ़र के दोनों पक्ष</string>
     <string name="bp_account_name">खाताधारक का नाम</string>
     <string name="bp_account_number">खाता संख्या (ग्राहकों के भुगतान हेतु)</string>
@@ -145,12 +149,25 @@
     <string name="business_profile_intro">ये विवरण आपके छापे या साझा किए गए इनवॉइस के ऊपर दिखते हैं। आपका राज्य तय करता है कि GST, CGST + SGST में बँटेगा या IGST लगेगा।</string>
     <string name="camera">कैमरा</string>
     <string name="cancel">रद्द करें</string>
+    <string name="cash_count">नकद गिनती</string>
+    <string name="cash_count_desc">नोट और सिक्के गिनें और नकद बैलेंस मिलाएँ</string>
+    <string name="cash_count_entry">नकद गिनती अंतर</string>
+    <string name="cash_count_history">पिछली गिनतियाँ</string>
+    <string name="cash_count_saved">नकद गिनती सहेजी गई</string>
+    <string name="cash_counted">गिनी गई नकदी</string>
+    <string name="cash_excess">अधिक</string>
+    <string name="cash_excess_x">अधिक %s</string>
+    <string name="cash_matches">मिल गया ✓</string>
+    <string name="cash_shortage">कमी</string>
+    <string name="cash_shortage_x">कम %s</string>
     <string name="cashbook">कैशबुक</string>
     <string name="cashbook_meta">%1$d खाते · %2$d प्रविष्टियाँ · प्रारंभ %3$s · %4$s</string>
     <string name="cashbook_name">कैशबुक का नाम</string>
     <string name="cashbook_name_hint">उदाहरण: ऑफ़िस कैशबुक, दुकान कैशबुक, व्यक्तिगत</string>
     <string name="cashbooks">कैशबुक</string>
     <string name="cashbooks_desc">कैशबुक बनाएँ, बदलें, संग्रहित करें या हटाएँ</string>
+    <string name="cat_cash_excess">नकद अधिक</string>
+    <string name="cat_cash_shortage">नकद कमी</string>
     <string name="categories">श्रेणियाँ</string>
     <string name="categories_desc">आय और व्यय श्रेणियाँ</string>
     <string name="category">श्रेणी</string>
@@ -174,6 +191,8 @@
     <string name="choose_pin">4 से 6 अंकों का पिन चुनें</string>
     <string name="clear">साफ़ करें</string>
     <string name="clear_filters">फ़िल्टर हटाएँ</string>
+    <string name="clear_ticks">हटाएँ</string>
+    <string name="cleared_balance">क्लियर बैलेंस</string>
     <string name="close">बंद करें</string>
     <string name="closing_balance">अंतिम शेष</string>
     <string name="cloud_hint">क्लाउड में प्रति रखने के लिए फ़ाइल पिकर में Google Drive या अन्य प्रदाता चुनें। आपके चुने बिना कुछ भी अपलोड नहीं होता।</string>
@@ -190,6 +209,7 @@
     <string name="converted_explain">वह इनवॉइस हटाने पर यह कोटेशन फिर से खुल जाएगा।</string>
     <string name="converted_to_bill_x">बिल %s में बदला गया</string>
     <string name="converted_to_x">इनवॉइस %s में बदला गया</string>
+    <string name="count_of_x">₹%d की संख्या</string>
     <string name="create">बनाएँ</string>
     <string name="create_backup">बैकअप बनाएँ</string>
     <string name="create_cashbook">कैशबुक बनाएँ</string>
@@ -251,6 +271,7 @@
     <string name="description">विवरण</string>
     <string name="description_optional">विवरण (वैकल्पिक)</string>
     <string name="details">विवरण</string>
+    <string name="difference">अंतर</string>
     <string name="discard">छोड़ें</string>
     <string name="discard_text">आपकी बिना सहेजी प्रविष्टि खो जाएगी।</string>
     <string name="discard_title">यह प्रविष्टि छोड़ें?</string>
@@ -283,6 +304,7 @@
     <string name="enter_backup_password">यह बैकअप बनाते समय उपयोग किया गया पासवर्ड दर्ज करें।</string>
     <string name="enter_current_pin">वर्तमान पिन दर्ज करें</string>
     <string name="enter_pin">अपना पिन दर्ज करें</string>
+    <string name="entries_x">%d प्रविष्टियाँ</string>
     <string name="entry_details">प्रविष्टि विवरण</string>
     <string name="entry_not_found">यह प्रविष्टि अब मौजूद नहीं है।</string>
     <string name="err_account">खाता चुनें</string>
@@ -318,6 +340,7 @@
     <string name="filters">फ़िल्टर</string>
     <string name="financial">वित्तीय</string>
     <string name="financial_year">वित्त वर्ष</string>
+    <string name="finish_reconcile">पूरा करें · %d प्रविष्टियाँ</string>
     <string name="first_account">कैशबुक का पहला खाता</string>
     <string name="first_date">पहली तिथि</string>
     <string name="first_invoice_on">पहला इनवॉइस</string>
@@ -509,6 +532,7 @@
     <string name="next_confirm">अगला: %s (पुष्टि आवश्यक)</string>
     <string name="next_month">अगला माह</string>
     <string name="next_x">अगला %s</string>
+    <string name="no_accounts_to_reconcile">पहले एक खाता जोड़ें।</string>
     <string name="no_auto_backup_yet">अभी तक कोई स्वचालित बैकअप नहीं।</string>
     <string name="no_budget_tap">कोई बजट नहीं — सेट करने के लिए टैप करें</string>
     <string name="no_cashbook">अभी कोई कैशबुक नहीं।</string>
@@ -675,8 +699,16 @@
     <string name="received_from">किससे प्राप्त</string>
     <string name="receiving_account">प्राप्त करने वाला खाता *</string>
     <string name="recent_transactions">हाल की प्रविष्टियाँ</string>
+    <string name="reconcile_done">मिलान हो गया। चुनी गई प्रविष्टियाँ अब क्लियर हैं।</string>
+    <string name="reconcile_history">पिछले मिलान</string>
+    <string name="reconcile_intro">स्टेटमेंट की तारीख और अंतिम बैलेंस दर्ज करें, फिर उसमें दिख रही हर प्रविष्टि चुनें। अंतर शून्य होने पर पूरा करें।</string>
+    <string name="reconciled">मिलान किया</string>
+    <string name="reconciled_ok">मिल गया ✓</string>
+    <string name="record_difference">अंतर को प्रविष्टि के रूप में दर्ज करें</string>
+    <string name="record_excess_desc">\"नकद अधिक\" आय जोड़ता है ताकि बैलेंस गिनी गई नकदी के बराबर हो</string>
     <string name="record_refund_customer">ग्राहक को रिफंड दर्ज करें</string>
     <string name="record_refund_supplier">आपूर्तिकर्ता से रिफंड दर्ज करें</string>
+    <string name="record_shortage_desc">\"नकद कमी\" खर्च जोड़ता है ताकि बैलेंस गिनी गई नकदी के बराबर हो</string>
     <string name="recurring_backfill_note">पहली तारीख बीत चुकी है: पिछली तारीखों के इनवॉइस भी बनेंगे (अधिकतम 24)।</string>
     <string name="recurring_desc">%d सक्रिय अनुसूचियाँ (किराया, वेतन, सदस्यता)</string>
     <string name="recurring_entries">आवर्ती प्रविष्टियाँ</string>
@@ -853,6 +885,7 @@
     <string name="save">सहेजें</string>
     <string name="save_and_add_another">सहेजें और एक और जोड़ें</string>
     <string name="save_anyway">फिर भी सहेजें</string>
+    <string name="save_cash_count">नकद गिनती सहेजें</string>
     <string name="save_pdf">PDF सहेजें</string>
     <string name="saved">सहेजा गया</string>
     <string name="schedule">अनुसूची</string>
@@ -894,6 +927,8 @@
     <string name="start_using">कैशबुक शुरू करें</string>
     <string name="state_hint">GSTIN से अपने-आप भरा जाता है।</string>
     <string name="state_ut">राज्य / केंद्र शासित प्रदेश</string>
+    <string name="statement_balance">स्टेटमेंट बैलेंस</string>
+    <string name="statement_date">स्टेटमेंट तारीख</string>
     <string name="step_accounts">खाते और प्रारंभिक शेष</string>
     <string name="step_cashbook">आपकी पहली कैशबुक</string>
     <string name="step_done">सब तैयार</string>
@@ -920,6 +955,7 @@
     <string name="theme_dark">गहरा</string>
     <string name="theme_light">हल्का</string>
     <string name="theme_system">सिस्टम डिफ़ॉल्ट</string>
+    <string name="tick_all">सभी चुनें</string>
     <string name="to_account">किस खाते में *</string>
     <string name="to_date">तक</string>
     <string name="to_pay">भुगतान करना है</string>
@@ -941,6 +977,8 @@
     <string name="type_name_to_confirm">पुष्टि के लिए \"%s\" लिखें</string>
     <string name="type_transfer">ट्रांसफ़र</string>
     <string name="uncategorised">बिना श्रेणी</string>
+    <string name="uncleared_x">अभी क्लियर नहीं (%d)</string>
+    <string name="undo_reconcile">मिलान पूर्ववत करें</string>
     <string name="unlock_cashbook">कैशबुक खोलें</string>
     <string name="upi_invalid">name@bank जैसी UPI ID दर्ज करें</string>
     <string name="upi_qr_explain">ग्राहक किसी भी UPI ऐप से इसे स्कैन करें; राशि और इनवॉइस नंबर अपने आप भर जाते हैं। यह इनवॉइस PDF पर भी छपता है।</string>

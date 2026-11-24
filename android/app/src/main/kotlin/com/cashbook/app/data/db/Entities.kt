@@ -111,6 +111,9 @@ data class TransactionEntity(
     @ColumnInfo(name = "deleted_at") val deletedAt: Long? = null,
     /** Recurring rule that created this entry (v2). No FK: entries outlive deleted rules. */
     @ColumnInfo(name = "recurring_id") val recurringId: Long? = null,
+    /** Bank reconciliation (v9): date each side was cleared against a statement. */
+    @ColumnInfo(name = "cleared_on") val clearedOn: Long? = null,
+    @ColumnInfo(name = "to_cleared_on") val toClearedOn: Long? = null,
 )
 
 /** Schedule that creates entries automatically or on confirmation (v2). */
@@ -248,6 +251,39 @@ data class InvoiceItemEntity(
     @ColumnInfo(name = "gst_bp") val gstBp: Int = 0,
     /** Saved product/service (v6; no FK — items in use are archived, not deleted). */
     @ColumnInfo(name = "item_id") val itemId: Long? = null,
+)
+
+/** A finished bank reconciliation (v9). */
+@Entity(
+    tableName = "reconciliations",
+    foreignKeys = [ForeignKey(entity = AccountEntity::class, parentColumns = ["id"], childColumns = ["account_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("account_id")],
+)
+data class ReconciliationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "account_id") val accountId: Long,
+    @ColumnInfo(name = "statement_date") val statementDate: Long,
+    @ColumnInfo(name = "statement_balance") val statementBalance: Long,
+    val entries: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+/** A cash count by denomination (v9). The adjustment entry has no FK: it can be deleted on its own. */
+@Entity(
+    tableName = "cash_counts",
+    foreignKeys = [ForeignKey(entity = AccountEntity::class, parentColumns = ["id"], childColumns = ["account_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("account_id")],
+)
+data class CashCountEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "account_id") val accountId: Long,
+    val date: Long,
+    val counted: Long,
+    val book: Long,
+    val denominations: String,
+    @ColumnInfo(name = "adjustment_txn_id") val adjustmentTxnId: Long? = null,
+    val note: String = "",
+    @ColumnInfo(name = "created_at") val createdAt: Long,
 )
 
 /** Saved product or service (v6). Quantities in thousandths, rates in paise, GST in basis points. */

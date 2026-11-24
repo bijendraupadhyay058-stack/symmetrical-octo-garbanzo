@@ -91,5 +91,17 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+    /** v8 → v9 (app 1.11): bank reconciliation (cleared dates per side, history) and cash counts. */
+    val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `cleared_on` INTEGER")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `to_cleared_on` INTEGER")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `reconciliations` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `account_id` INTEGER NOT NULL, `statement_date` INTEGER NOT NULL, `statement_balance` INTEGER NOT NULL, `entries` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_reconciliations_account_id` ON `reconciliations` (`account_id`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `cash_counts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `account_id` INTEGER NOT NULL, `date` INTEGER NOT NULL, `counted` INTEGER NOT NULL, `book` INTEGER NOT NULL, `denominations` TEXT NOT NULL, `adjustment_txn_id` INTEGER, `note` TEXT NOT NULL, `created_at` INTEGER NOT NULL, FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_cash_counts_account_id` ON `cash_counts` (`account_id`)")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
 }

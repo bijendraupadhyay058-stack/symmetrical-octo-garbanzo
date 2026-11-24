@@ -138,4 +138,21 @@ class MigrationTest {
         db.execSQL("INSERT INTO invoice_schedules (template_id, frequency, interval, start_date, next_index, due_days, active, created_at, updated_at) VALUES (2, 'MONTHLY', 1, 20544, 0, 15, 1, 1, 1)")
         db.close()
     }
+
+    @Test fun migrate8To9AddsReconciliation() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/8.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-9", 8).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Shop', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO accounts (id, cashbook_id, name, type, opening_balance, opening_date, bank_name, last4, description, archived, sort_order, created_at, updated_at) VALUES (1, 1, 'SBI', 'BANK', 0, 20544, '', '', '', 0, 0, 1, 1)")
+            execSQL("INSERT INTO transactions (id, cashbook_id, type, date, amount, account_id, payment_mode, description, reference, notes, tags, created_at, updated_at) VALUES (1, 1, 'INCOME', 20550, 50000, 1, 'UPI', 'Fees', '', '', '', 1, 1)")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-9", 9, true, *Migrations.ALL)
+        db.query("SELECT description, cleared_on, to_cleared_on FROM transactions WHERE id = 1").use { c ->
+            c.moveToFirst(); assertEquals("Fees", c.getString(0)); assertTrue(c.isNull(1)); assertTrue(c.isNull(2)) }
+        db.execSQL("INSERT INTO reconciliations (account_id, statement_date, statement_balance, entries, created_at) VALUES (1, 20560, 50000, 1, 1)")
+        db.execSQL("INSERT INTO cash_counts (account_id, date, counted, book, denominations, note, created_at) VALUES (1, 20560, 50000, 50000, '500x1', '', 1)")
+        db.close()
+    }
 }

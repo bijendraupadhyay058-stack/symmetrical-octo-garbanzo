@@ -229,7 +229,10 @@ class UiFlowTest {
         assertEquals(LocalDate.now(), runBlocking { d.snap { s -> s.txns.any { it.recurringId == rule.id } } }.txns.first { it.recurringId == rule.id }.date)
 
         scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
-        waitFor("Budgets"); click("Budgets")
+        waitFor("Budgets")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Budgets"))
+        click("Budgets")
         waitFor("Office rent"); shot("15_budgets")
     }
 
@@ -665,6 +668,44 @@ class UiFlowTest {
         assertEquals(LocalDate.now().plusMonths(1), s.schedules.single().nextDate)
         waitFor("Monthly · Next", substring = true)
         shot("55_recurring_list")
+    }
+
+    @Test fun cashCountAndReconciliation() {
+        seed("en")
+        val d = deps()
+        launch()
+        waitFor("Total balance")
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Cash count"))
+        click("Cash count")
+        waitFor("No. of ₹500")
+        field("No. of ₹500").performTextInput("20")                         // ₹10,000 counted against ₹10,200 in the books
+        waitFor("Balance in the books"); waitFor("Shortage")
+        waitFor("Record the difference as an entry")
+        shot("57_cash_count")
+        compose.onNodeWithText("Save cash count", useUnmergedTree = true).performScrollTo().performClick()
+        var s = runBlocking { d.snap { it.cashCounts.isNotEmpty() } }
+        val cc = s.cashCounts.single()
+        assertEquals(-20_000L, cc.difference)
+        assertEquals(20_000L, s.txns.single { it.id == cc.adjustmentTxnId }.amount)
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Bank reconciliation"))
+        click("Bank reconciliation")
+        waitFor("Statement balance")
+        val bank = s.accounts.first { it.type == com.cashbook.core.AccountType.BANK }
+        val bankBalance = com.cashbook.core.Ledger.balanceAsOf(bank, s.txns, LocalDate.now())
+        field("Statement balance").performTextInput(com.cashbook.core.Money.toPlain(bankBalance))
+        click("Tick all")
+        waitFor("Matches ✓")
+        shot("58_bank_reconciliation")
+        compose.onNodeWithText("Finish", substring = true, useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Everything up to this date is cleared.")
+        s = runBlocking { d.snap { it.reconciliations.isNotEmpty() } }
+        assertEquals(bankBalance, s.reconciliations.single().statementBalance)
+        shot("59_reconciled")
     }
 
     @Test fun outstandingReport() {

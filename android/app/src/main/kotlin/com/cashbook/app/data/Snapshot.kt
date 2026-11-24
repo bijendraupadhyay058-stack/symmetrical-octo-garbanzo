@@ -37,6 +37,9 @@ data class Snapshot(
     /** Templates of recurring sales invoices and their schedules. */
     val templates: List<InvoiceInfo> = emptyList(),
     val schedules: List<com.cashbook.core.InvoiceSchedule> = emptyList(),
+    /** Finished bank reconciliations and cash counts, newest first. */
+    val reconciliations: List<com.cashbook.core.Reconciliation> = emptyList(),
+    val cashCounts: List<com.cashbook.core.CashCountRecord> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
     /** Line items per invoice id (empty list = invoice entered as a single amount). */
     val invoiceItems: Map<Long, List<com.cashbook.core.InvoiceItem>> = emptyMap(),

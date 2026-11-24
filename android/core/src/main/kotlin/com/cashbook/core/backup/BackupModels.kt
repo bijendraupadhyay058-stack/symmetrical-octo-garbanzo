@@ -54,7 +54,16 @@ data class TransactionDto(
     val toAccountId: Long? = null, val categoryId: Long? = null, val partyId: Long? = null, val paymentMode: String,
     val description: String = "", val reference: String = "", val notes: String = "", val tags: String = "",
     val createdAt: Long, val updatedAt: Long, val deletedAt: Long? = null, val recurringId: Long? = null,
+    // Added in app 1.11 (database v9).
+    val clearedOn: Long? = null, val toClearedOn: Long? = null,
 )
+
+@Serializable
+data class ReconciliationDto(val id: Long, val accountId: Long, val statementDate: Long, val statementBalance: Long, val entries: Int, val createdAt: Long)
+
+@Serializable
+data class CashCountDto(val id: Long, val accountId: Long, val date: Long, val counted: Long, val book: Long, val denominations: String,
+                        val adjustmentTxnId: Long? = null, val note: String = "", val createdAt: Long)
 
 @Serializable
 data class AttachmentDto(
@@ -140,4 +149,7 @@ data class BackupData(
     val stockAdjustments: List<StockAdjustmentDto> = emptyList(),
     // Added in app 1.9 (database v8).
     val invoiceSchedules: List<InvoiceScheduleDto> = emptyList(),
+    // Added in app 1.11 (database v9).
+    val reconciliations: List<ReconciliationDto> = emptyList(),
+    val cashCounts: List<CashCountDto> = emptyList(),
 )

@@ -85,6 +85,10 @@ data class Txn(
     val deletedAt: Long? = null,
     /** Set when the entry was created by a recurring rule. */
     val recurringId: Long? = null,
+    /** Date the entry was ticked off against a statement for [accountId] (bank reconciliation). */
+    val clearedOn: LocalDate? = null,
+    /** Same for the destination side of a transfer ([toAccountId]). */
+    val toClearedOn: LocalDate? = null,
 ) {
     val tagList: List<String> get() = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 }

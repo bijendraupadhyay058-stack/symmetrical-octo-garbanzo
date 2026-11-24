@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Savings
@@ -73,6 +75,8 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             NavRow(stringResource(R.string.parties), Icons.Filled.People, stringResource(R.string.parties_desc)) { nav.navigate(Routes.PARTIES) }
             NavRow(stringResource(R.string.business_profile), Icons.Filled.Store, stringResource(R.string.business_profile_desc)) { nav.navigate(Routes.BUSINESS) }
             NavRow(stringResource(R.string.products_services), Icons.Filled.Inventory2, stringResource(R.string.products_services_desc)) { nav.navigate(Routes.CATALOG) }
+            NavRow(stringResource(R.string.bank_reconciliation), Icons.Filled.AccountBalance, stringResource(R.string.bank_reconciliation_desc)) { nav.navigate(Routes.RECONCILE) }
+            NavRow(stringResource(R.string.cash_count), Icons.Filled.Payments, stringResource(R.string.cash_count_desc)) { nav.navigate(Routes.CASH_COUNT) }
             NavRow(stringResource(R.string.invoices_bills), Icons.Filled.Description, stringResource(R.string.invoices_desc)) { nav.navigate(Routes.INVOICES) }
             NavRow(stringResource(R.string.recurring_entries), Icons.Filled.EventRepeat, stringResource(R.string.recurring_desc, snap.recurring.count { it.active && !it.finished })) { nav.navigate(Routes.RECURRING) }
             NavRow(stringResource(R.string.budgets), Icons.Filled.Savings, stringResource(R.string.budgets_desc)) { nav.navigate(Routes.BUDGETS) }

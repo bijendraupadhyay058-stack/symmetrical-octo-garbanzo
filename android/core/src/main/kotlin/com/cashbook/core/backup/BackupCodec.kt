@@ -215,6 +215,13 @@ object BackupCodec {
                 c.gstBp !in 0..10_000 || c.reorderLevelMilli < 0) p += "catalogue item ${c.id} is invalid"
         }
         d.stockAdjustments.forEach { if (it.itemId !in catalogIds || it.quantityMilli == 0L) p += "stock adjustment ${it.id} is invalid" }
+        dupes(d.reconciliations, { it.id }, "reconciliation"); dupes(d.cashCounts, { it.id }, "cash count")
+        val accountIds = d.accounts.map { it.id }.toSet()
+        d.reconciliations.forEach { if (it.accountId !in accountIds || it.entries < 0) p += "reconciliation ${it.id} is invalid" }
+        d.cashCounts.forEach { c ->
+            // the adjustment entry may since have been purged from the recycle bin, so it isn't required to exist
+            if (c.accountId !in accountIds || c.counted < 0) p += "cash count ${c.id} is invalid"
+        }
         dupes(d.invoiceSchedules, { it.id }, "invoice schedule")
         val scheduleIds = d.invoiceSchedules.map { it.id }.toSet()
         d.invoiceSchedules.forEach { s ->

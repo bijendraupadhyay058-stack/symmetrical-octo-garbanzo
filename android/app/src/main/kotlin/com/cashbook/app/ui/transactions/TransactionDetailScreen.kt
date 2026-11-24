@@ -131,6 +131,11 @@ fun TransactionDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) 
                 Detail(stringResource(R.string.notes), t.notes)
                 Detail(stringResource(R.string.created), f.dateTime(t.createdAt))
                 if (t.updatedAt > t.createdAt + 1000) Detail(stringResource(R.string.modified), f.dateTime(t.updatedAt))
+                // bank reconciliation: each cleared side, with an undo in case it was ticked by mistake
+                listOfNotNull(t.clearedOn?.let { t.accountId to it }, t.toClearedOn?.let { t.toAccountId!! to it }).forEach { (acc, on) ->
+                    Detail(stringResource(R.string.reconciled), "${snap.names.account(acc)} · ${f.date(on)}")
+                    androidx.compose.material3.TextButton(onClick = { vm.run { ledger.unclear(t.id, acc) } }) { Text(stringResource(R.string.undo_reconcile)) }
+                }
             }
             if (t.type != TxnType.TRANSFER) {
                 val links = snap.allocations.filter { it.txnId == t.id }

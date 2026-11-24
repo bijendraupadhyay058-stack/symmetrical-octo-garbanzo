@@ -3,6 +3,9 @@ package com.cashbook.app.data
 import androidx.room.withTransaction
 import com.cashbook.app.data.db.AccountEntity
 import com.cashbook.app.data.db.InvoiceScheduleEntity
+import com.cashbook.app.data.db.ReconciliationEntity
+import com.cashbook.app.data.db.CashCountEntity
+import com.cashbook.core.Ledger
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
 import com.cashbook.app.data.db.BudgetEntity
@@ -62,7 +65,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", "invoice_schedules", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", "invoice_schedules", "reconciliations", "cash_counts", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -85,6 +88,8 @@ class LedgerRepository(
             challans = docs.filter { it.docType == DocType.CHALLAN },
             templates = docs.filter { it.docType == DocType.TEMPLATE },
             schedules = db.invoices().schedules().map { it.toInfo() },
+            reconciliations = db.reconcile().reconciliations().map { it.toInfo() },
+            cashCounts = db.reconcile().cashCounts().map { it.toInfo() },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
             catalog = db.catalog().getAll().map { it.toInfo() },
@@ -232,7 +237,12 @@ class LedgerRepository(
             // An entry used to pay invoices can't drop below the amount applied to them.
             val applied = db.invoices().allocations().filter { it.transactionId == txn.id }.sumOf { it.amount }
             if (txn.amount < applied) throw InvoiceException(InvoiceException.Reason.BELOW_PAID)
-                db.transactions().update(txn.copy(createdAt = old.createdAt, updatedAt = now, deletedAt = old.deletedAt).toEntity())
+                // a cleared side stays cleared only while what the bank saw (type, amount, account) is unchanged
+                val o = old.toTxn()
+                val sameMoney = o.type == txn.type && o.amount == txn.amount
+                db.transactions().update(txn.copy(createdAt = old.createdAt, updatedAt = now, deletedAt = old.deletedAt,
+                    clearedOn = o.clearedOn.takeIf { sameMoney && o.accountId == txn.accountId },
+                    toClearedOn = o.toClearedOn.takeIf { sameMoney && o.toAccountId == txn.toAccountId }).toEntity())
                 txn.id
             }
             val existing = db.attachments().getFor(id).associateBy { it.id }
@@ -584,6 +594,64 @@ class LedgerRepository(
         if (Invoices.validateAllocation(bal, txn, amount, allocs) != null) throw InvoiceException(InvoiceException.Reason.INVALID_ALLOCATION)
         if (existing == null) db.invoices().insertAllocation(AllocationEntity(invoiceId = invoiceId, transactionId = txnId, amount = amount, createdAt = now))
         else db.invoices().updateAllocation(existing.id, amount)
+    }
+
+    // ---------- bank reconciliation & cash count ----------
+
+    class ReconcileException(val reason: Reason, val difference: Long = 0) : Exception(reason.name) { enum class Reason { NOT_FOUND, INVALID_ENTRY, DIFFERENCE } }
+
+    /**
+     * Finishes a reconciliation of [accountId] against a statement closing at [statementBalance] on [statementDate]:
+     * the ticked entries (on that account, not yet cleared, dated on or before the statement) must make the cleared
+     * balance equal the statement. Each is marked cleared on the account's side and the reconciliation is recorded.
+     */
+    suspend fun reconcile(accountId: Long, statementDate: LocalDate, statementBalance: Long, txnIds: Collection<Long>): Long = db.withTransaction {
+        val account = db.accounts().get(accountId)?.toInfo() ?: throw ReconcileException(ReconcileException.Reason.NOT_FOUND)
+        val live = db.transactions().getLive().map { it.toTxn() }
+        val byId = live.associateBy { it.id }
+        val ticked = txnIds.distinct().map { byId[it] ?: throw ReconcileException(ReconcileException.Reason.INVALID_ENTRY) }
+        if (ticked.any { !Ledger.touches(it, setOf(accountId)) || com.cashbook.core.Reconcile.isCleared(it, accountId) || it.date.isAfter(statementDate) })
+            throw ReconcileException(ReconcileException.Reason.INVALID_ENTRY)
+        val diff = com.cashbook.core.Reconcile.difference(statementBalance, account, live, ticked)
+        if (diff != 0L) throw ReconcileException(ReconcileException.Reason.DIFFERENCE, diff)
+        ticked.forEach { t ->
+            if (t.accountId == accountId) db.transactions().setCleared(t.id, statementDate.toEpochDay())
+            else db.transactions().setToCleared(t.id, statementDate.toEpochDay())
+        }
+        db.reconcile().insert(ReconciliationEntity(accountId = accountId, statementDate = statementDate.toEpochDay(), statementBalance = statementBalance,
+            entries = ticked.size, createdAt = now))
+    }
+
+    /** Un-ticks one entry on [accountId] (e.g. it was cleared by mistake). */
+    suspend fun unclear(txnId: Long, accountId: Long) = db.withTransaction {
+        val t = db.transactions().get(txnId)?.toTxn() ?: return@withTransaction
+        if (t.accountId == accountId) db.transactions().setCleared(txnId, null)
+        if (t.toAccountId == accountId) db.transactions().setToCleared(txnId, null)
+    }
+
+    /**
+     * Records a cash count for [accountId] on [date]. The book balance is the account's balance at the end of that
+     * date. With [recordDifference], an excess becomes income and a shortage an expense in [excessCategory] /
+     * [shortageCategory] (created when missing), so the books match the cash in hand.
+     */
+    suspend fun saveCashCount(accountId: Long, date: LocalDate, counts: Map<Int, Int>, note: String, recordDifference: Boolean,
+                              excessCategory: String, shortageCategory: String, description: String): Long = db.withTransaction {
+        val account = db.accounts().get(accountId)?.toInfo() ?: throw ReconcileException(ReconcileException.Reason.NOT_FOUND)
+        val live = db.transactions().getLive().map { it.toTxn() }
+        val book = Ledger.balanceAsOf(account, live, date)
+        val counted = com.cashbook.core.CashCount.total(counts)
+        val diff = counted - book
+        var adjId: Long? = null
+        if (recordDifference && diff != 0L) {
+            val kind = if (diff > 0) CategoryKind.INCOME else CategoryKind.EXPENSE
+            val name = if (diff > 0) excessCategory else shortageCategory
+            val cat = db.categories().getAll().firstOrNull { it.kind == kind.name && it.parentId == null && it.name.equals(name, ignoreCase = true) }?.id
+                ?: db.categories().insert(CategoryEntity(kind = kind.name, name = name, createdAt = now, updatedAt = now))
+            adjId = db.transactions().insert(Txn(0, account.cashbookId, if (diff > 0) TxnType.INCOME else TxnType.EXPENSE, date, kotlin.math.abs(diff), accountId,
+                categoryId = cat, paymentMode = PaymentMode.CASH, description = description, notes = note, createdAt = now, updatedAt = now).toEntity())
+        }
+        db.reconcile().insertCount(CashCountEntity(accountId = accountId, date = date.toEpochDay(), counted = counted, book = book,
+            denominations = com.cashbook.core.CashCount.encode(counts), adjustmentTxnId = adjId, note = note.trim(), createdAt = now))
     }
 
     // ---------- products & services ----------

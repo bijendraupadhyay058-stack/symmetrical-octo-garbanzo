@@ -22,8 +22,8 @@ android {
         applicationId = "com.cashbook.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.10.0"
+        versionCode = 12
+        versionName = "1.11.0"
         vectorDrawables { useSupportLibrary = true }
     }
 

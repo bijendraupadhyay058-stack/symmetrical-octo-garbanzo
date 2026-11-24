@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.11.0 (versionCode 12)
+
+**New**
+- **Bank reconciliation** (Settings › Bank reconciliation): choose the account, enter the statement date and closing
+  balance, and tick the entries on the statement. The difference updates as you tick; **Finish** is available when it
+  reaches zero and marks those entries cleared. Each side of a transfer is cleared on its own account. History of
+  past reconciliations; an entry's detail shows when it was reconciled, with an undo.
+- **Cash count** (Settings › Cash count): count notes and coins (₹500 to ₹1) for a cash account and compare with the
+  balance in the books. Record the excess or shortage as an entry so the books match the cash drawer. History of counts.
+- Editing an entry's amount, type or account un-clears it; changing the description or notes doesn't.
+
+**Fixed**
+- Test harness: waiting for data no longer fails intermittently when a check runs before the change has landed.
+
+**Data**
+- Database v8 → v9 adds cleared dates on entries, reconciliations and cash counts. Backups include them; older
+  backups still restore.
+
 ## 1.10.0 (versionCode 11)
 
 **New**

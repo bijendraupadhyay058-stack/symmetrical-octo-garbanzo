@@ -30,7 +30,8 @@ fun context(): Context = ApplicationProvider.getApplicationContext()
 fun deps(): Dependencies = runBlocking { app().container.awaitReady()!! }
 
 suspend fun Dependencies.snap(timeoutMs: Long = 10_000, pred: (Snapshot) -> Boolean): Snapshot =
-    withTimeout(timeoutMs) { ledger.snapshot.first { it.loaded && pred(it) } }
+    // a predicate like `it.quotations.single().cancelled` throws on a snapshot taken before the change landed: keep waiting
+    withTimeout(timeoutMs) { ledger.snapshot.first { it.loaded && runCatching { pred(it) }.getOrDefault(false) } }
 
 val SAMPLE_NAMES = LedgerRepository.SampleNames("Office Cashbook", "Sample", "Office Cash", "SBI Bank",
     "Professional fees received", "Office stationery", "Internet bill", "SBI Bank to Office Cash")

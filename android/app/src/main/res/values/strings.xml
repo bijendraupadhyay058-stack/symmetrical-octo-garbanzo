@@ -58,6 +58,7 @@
     <string name="alerts_channel">Invoice and budget alerts</string>
     <string name="all_accounts">All accounts</string>
     <string name="all_cashbooks">All cashbooks (combined)</string>
+    <string name="all_cleared">Everything up to this date is cleared.</string>
     <string name="all_parties">All parties</string>
     <string name="allow_negative">Allow negative balances</string>
     <string name="allow_negative_off">Entries that would make a balance negative are blocked.</string>
@@ -106,6 +107,8 @@
     <string name="backup_success">Backup saved (%s).</string>
     <string name="bal_short">Bal %s</string>
     <string name="bank_name_optional">Bank name (optional)</string>
+    <string name="bank_reconciliation">Bank reconciliation</string>
+    <string name="bank_reconciliation_desc">Tick entries against your bank statement</string>
     <string name="bill_challans">Bill in one invoice</string>
     <string name="bill_challans_explain">Tick the open challans of this customer to include. Stock already went out with the challans, so the invoice won\'t reduce it again.</string>
     <string name="bill_number">Bill / voucher number</string>
@@ -114,6 +117,7 @@
     <string name="biometric_desc">Unlock with fingerprint or face. Your PIN still works.</string>
     <string name="biometric_unavailable">No biometric unlock is set up on this device.</string>
     <string name="biometric_unlock">Biometric unlock</string>
+    <string name="book_balance">Balance in the books</string>
     <string name="both_sides">Both sides of this transfer</string>
     <string name="bp_account_name">Account holder name</string>
     <string name="bp_account_number">Account number (for customers to pay you)</string>
@@ -145,12 +149,25 @@
     <string name="business_profile_intro">These details appear at the top of the invoices you print or share. Your state decides whether GST is split as CGST + SGST or charged as IGST.</string>
     <string name="camera">Camera</string>
     <string name="cancel">Cancel</string>
+    <string name="cash_count">Cash count</string>
+    <string name="cash_count_desc">Count notes and coins and match the cash balance</string>
+    <string name="cash_count_entry">Cash count difference</string>
+    <string name="cash_count_history">Previous counts</string>
+    <string name="cash_count_saved">Cash count saved</string>
+    <string name="cash_counted">Cash counted</string>
+    <string name="cash_excess">Excess</string>
+    <string name="cash_excess_x">Excess %s</string>
+    <string name="cash_matches">Matches ✓</string>
+    <string name="cash_shortage">Shortage</string>
+    <string name="cash_shortage_x">Short %s</string>
     <string name="cashbook">Cashbook</string>
     <string name="cashbook_meta">%1$d accounts · %2$d entries · opened %3$s · %4$s</string>
     <string name="cashbook_name">Cashbook name</string>
     <string name="cashbook_name_hint">For example: Office Cashbook, Shop Cashbook, Personal</string>
     <string name="cashbooks">Cashbooks</string>
     <string name="cashbooks_desc">Create, switch, archive or delete cashbooks</string>
+    <string name="cat_cash_excess">Cash excess</string>
+    <string name="cat_cash_shortage">Cash shortage</string>
     <string name="categories">Categories</string>
     <string name="categories_desc">Income and expense categories</string>
     <string name="category">Category</string>
@@ -174,6 +191,8 @@
     <string name="choose_pin">Choose a 4 to 6 digit PIN</string>
     <string name="clear">Clear</string>
     <string name="clear_filters">Clear filters</string>
+    <string name="clear_ticks">Clear</string>
+    <string name="cleared_balance">Cleared balance</string>
     <string name="close">Close</string>
     <string name="closing_balance">Closing balance</string>
     <string name="cloud_hint">To keep a copy in the cloud, pick Google Drive or another provider in the file picker. Nothing is uploaded unless you choose it.</string>
@@ -190,6 +209,7 @@
     <string name="converted_explain">Deleting that invoice re-opens this quotation.</string>
     <string name="converted_to_bill_x">Converted to bill %s</string>
     <string name="converted_to_x">Converted to invoice %s</string>
+    <string name="count_of_x">No. of ₹%d</string>
     <string name="create">Create</string>
     <string name="create_backup">Create backup</string>
     <string name="create_cashbook">Create cashbook</string>
@@ -251,6 +271,7 @@
     <string name="description">Description</string>
     <string name="description_optional">Description (optional)</string>
     <string name="details">Details</string>
+    <string name="difference">Difference</string>
     <string name="discard">Discard</string>
     <string name="discard_text">Your unsaved entry will be lost.</string>
     <string name="discard_title">Discard this entry?</string>
@@ -283,6 +304,7 @@
     <string name="enter_backup_password">Enter the password used when this backup was created.</string>
     <string name="enter_current_pin">Enter current PIN</string>
     <string name="enter_pin">Enter your PIN</string>
+    <string name="entries_x">%d entries</string>
     <string name="entry_details">Entry details</string>
     <string name="entry_not_found">This entry no longer exists.</string>
     <string name="err_account">Select an account</string>
@@ -318,6 +340,7 @@
     <string name="filters">Filters</string>
     <string name="financial">Financial</string>
     <string name="financial_year">Financial year</string>
+    <string name="finish_reconcile">Finish · %d entries</string>
     <string name="first_account">First account of the cashbook</string>
     <string name="first_date">First date</string>
     <string name="first_invoice_on">First invoice on</string>
@@ -509,6 +532,7 @@
     <string name="next_confirm">Next: %s (needs confirmation)</string>
     <string name="next_month">Next month</string>
     <string name="next_x">Next %s</string>
+    <string name="no_accounts_to_reconcile">Add an account first.</string>
     <string name="no_auto_backup_yet">No automatic backup yet.</string>
     <string name="no_budget_tap">No budget — tap to set</string>
     <string name="no_cashbook">No cashbook yet.</string>
@@ -675,8 +699,16 @@
     <string name="received_from">Received from</string>
     <string name="receiving_account">Receiving account *</string>
     <string name="recent_transactions">Recent entries</string>
+    <string name="reconcile_done">Reconciled. The ticked entries are now cleared.</string>
+    <string name="reconcile_history">Previous reconciliations</string>
+    <string name="reconcile_intro">Enter the statement\'s date and closing balance, then tick every entry that appears on it. When the difference is zero, finish.</string>
+    <string name="reconciled">Reconciled</string>
+    <string name="reconciled_ok">Matches ✓</string>
+    <string name="record_difference">Record the difference as an entry</string>
+    <string name="record_excess_desc">Adds a \"Cash excess\" income so the balance equals the cash counted</string>
     <string name="record_refund_customer">Record refund to customer</string>
     <string name="record_refund_supplier">Record refund from supplier</string>
+    <string name="record_shortage_desc">Adds a \"Cash shortage\" expense so the balance equals the cash counted</string>
     <string name="recurring_backfill_note">The first date is in the past: invoices for the past dates will be created too (up to 24).</string>
     <string name="recurring_desc">%d active schedules (rent, salary, subscriptions)</string>
     <string name="recurring_entries">Recurring entries</string>
@@ -853,6 +885,7 @@
     <string name="save">Save</string>
     <string name="save_and_add_another">Save and add another</string>
     <string name="save_anyway">Save anyway</string>
+    <string name="save_cash_count">Save cash count</string>
     <string name="save_pdf">Save PDF</string>
     <string name="saved">Saved</string>
     <string name="schedule">Schedule</string>
@@ -894,6 +927,8 @@
     <string name="start_using">Start using Cashbook</string>
     <string name="state_hint">Filled automatically from the GSTIN.</string>
     <string name="state_ut">State / UT</string>
+    <string name="statement_balance">Statement balance</string>
+    <string name="statement_date">Statement date</string>
     <string name="step_accounts">Accounts &amp; opening balances</string>
     <string name="step_cashbook">Your first cashbook</string>
     <string name="step_done">All set</string>
@@ -920,6 +955,7 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_light">Light</string>
     <string name="theme_system">System default</string>
+    <string name="tick_all">Tick all</string>
     <string name="to_account">To account *</string>
     <string name="to_date">To</string>
     <string name="to_pay">To pay</string>
@@ -941,6 +977,8 @@
     <string name="type_name_to_confirm">Type \"%s\" to confirm</string>
     <string name="type_transfer">Transfer</string>
     <string name="uncategorised">Uncategorised</string>
+    <string name="uncleared_x">Not yet cleared (%d)</string>
+    <string name="undo_reconcile">Undo reconciliation</string>
     <string name="unlock_cashbook">Unlock Cashbook</string>
     <string name="upi_invalid">Enter a UPI ID like name@bank</string>
     <string name="upi_qr_explain">The customer scans this with any UPI app; the amount and invoice number are filled in. It\'s also printed on the invoice PDF.</string>
