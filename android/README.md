@@ -40,10 +40,14 @@ English and Hindi.
 <p><img src="docs/screenshots/37_quotation_form.jpg" width="180"> <img src="docs/screenshots/38_quotation_detail.jpg" width="180"> <img src="docs/screenshots/39_invoice_upi_qr.jpg" width="180"> <img src="docs/screenshots/40_quotations_list.jpg" width="180"></p>
 <p><img src="docs/screenshots/45_invoice_reminder.jpg" width="180"> <img src="docs/screenshots/43_purchase_order_detail.jpg" width="180"> <img src="docs/screenshots/44_purchase_orders_list.jpg" width="180"> <img src="docs/screenshots/46_statement_of_account.jpg" width="180"></p>
 <p><img src="docs/screenshots/50_challan_detail.jpg" width="180"> <img src="docs/screenshots/51_invoice_from_challans.jpg" width="180"> <img src="docs/screenshots/52_challans_list.jpg" width="180"> <img src="docs/screenshots/48_overdue_collections.jpg" width="180"></p>
+<p><img src="docs/screenshots/54_recurring_form.jpg" width="180"> <img src="docs/screenshots/55_recurring_list.jpg" width="180"> <img src="docs/screenshots/56_invoice_transport.jpg" width="180"></p>
 <p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.8** — **delivery challans**: record goods as you deliver them (stock goes out on the challan),
+**What's new in 1.9** — **recurring invoices** (rent, retainers, AMC, subscriptions): set an invoice up once and it
+is created on every date with its items, GST and your numbering, with `{month}` / `{period}` filled in; and
+**transport details** (vehicle, transporter, LR, e-way bill) on invoices and challans, printed on the PDF.
+**1.8** — **delivery challans**: record goods as you deliver them (stock goes out on the challan),
 then bill several challans of a customer in **one invoice**; and **overdue collections**: every customer with overdue
 invoices on one screen with a one-tap WhatsApp reminder listing all of them.
 **1.7** — **purchase orders** to suppliers (itemised with GST, own PDF) converted into a bill in
@@ -70,11 +74,11 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.8.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.9.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.8.0-test.apk`.
-   Installing it over any earlier version keeps your data (the database upgrades automatically to v7; 1.7 and 1.8 add no schema change).
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.9.0-test.apk`.
+   Installing it over any earlier version keeps your data (the database upgrades automatically to v8).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
 
@@ -154,9 +158,10 @@ Business calculations never live in UI code: every screen, report and export cal
 | Attachment (`attachments`) | transaction, file name, MIME type, size, private stored file name |
 | Recurring (`recurring`, v2) | cashbook, type, amount, account(s), category, party, mode, description, reference, frequency (daily/weekly/monthly/quarterly/yearly) × interval, start date, optional end date, next occurrence index, auto-post or confirm, active |
 | Budget (`budgets`, v2) | cashbook, expense category (unique per cashbook), monthly amount |
-| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5; QUOTATION, v7; CHALLAN, 1.8), **ref invoice** (for notes, v5), **converted invoice** (for quotations, v7), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
+| Invoice (`invoices`, v3) | cashbook, kind (SALE = receivable / PURCHASE = payable), **doc type** (INVOICE / CREDIT_NOTE / DEBIT_NOTE, v5; QUOTATION, v7; CHALLAN, 1.8; TEMPLATE, v8), **transport** (vehicle no., transporter, LR no., e-way bill no., v8), **schedule** (invoices made by a recurring schedule, v8), **ref invoice** (for notes, v5), **converted invoice** (for quotations, v7), number (unique per cashbook + kind + doc type), party, issue date, due date, amount, place of supply, round-off, description, notes, cancelled |
 | InvoiceItem (`invoice_items`, v4) | invoice, position, description, HSN/SAC, quantity (thousandths), unit, rate (paise), discount and GST rate (basis points), **catalogue item** (optional, v6) |
 | CatalogItem (`catalog_items`, v6) | name (unique, case-insensitive), kind (GOODS/SERVICE), HSN/SAC, unit, sale rate, purchase rate, GST rate, description, opening stock + date, reorder level, archived |
+| InvoiceSchedule (`invoice_schedules`, v8) | template document (unique), frequency × interval, start date, optional end date, next index, due days, active |
 | StockAdjustment (`stock_adjustments`, v6) | item, date, quantity change (thousandths, + or −), reason |
 | Allocation (`allocations`, v3) | invoice, payment entry, amount applied (one row per invoice + entry) |
 | BackupHistory (`backup_history`) | time, backup/restore, file name, attachments included, size, success |
@@ -179,7 +184,7 @@ Business calculations never live in UI code: every screen, report and export cal
   `transactions.recurring_id`; v2 → v3 adds `invoices` and `allocations`; v3 → v4 adds `invoice_items`, `invoices.place_of_supply`, `invoices.round_off`
   and `parties.state_code`, filling party states from existing GSTINs; v4 → v5 adds `invoices.doc_type` and
   `invoices.ref_invoice_id` and widens number uniqueness to include the doc type; v5 → v6 adds `catalog_items`, `stock_adjustments` and
-  `invoice_items.item_id`; v6 → v7 adds `invoices.converted_invoice_id` for quotations; existing rows are untouched).
+  `invoice_items.item_id`; v6 → v7 adds `invoices.converted_invoice_id` for quotations; v7 → v8 adds the transport columns, `invoices.schedule_id` and `invoice_schedules`; existing rows are untouched).
 * **Quotations and purchase orders** are rows in `invoices` with `doc_type = QUOTATION` — kind SALE is a quotation
   (series QT/26-27/001), kind PURCHASE a purchase order (PO/26-27/001); the due date is "valid until" / "expected by". The snapshot keeps them in a separate list, so balances, receivables, alerts, stock and every report
   ignore them; the GST and item-wise reports also exclude them directly. Status is derived: converted, declined
@@ -191,6 +196,11 @@ Business calculations never live in UI code: every screen, report and export cal
   them (out on the challan date). Billing links one or more open challans of the same customer to a new invoice via
   `converted_invoice_id`; `Stock.moves` skips invoices billed from challans so goods leave stock only once. Deleting
   the invoice re-opens its challans; cancelling a challan returns its stock.
+* **Recurring invoices**: a `TEMPLATE` document (off the books like quotations) plus an `invoice_schedules` row. On app
+  start and in the daily job, each due date (drift-free, from the start date; at most 24 per run) becomes a normal
+  invoice: items copied, numbered in the INV series, due after the schedule's days, `{month}` / `{period}` filled in,
+  `schedule_id` set. A date that already has an invoice from the schedule is never created again. Pausing skips the
+  dates while paused; editing changes future invoices only; deleting keeps the invoices already made.
 * **UPI QR**: for a sales invoice with a balance and a valid UPI ID in the business profile, the app shows and the PDF
   prints a QR code for `upi://pay?pa=…&pn=…&am=<balance>&cu=INR&tn=<invoice no.>` (error correction M).
 * **Stock** is never stored, it is derived (`core/Catalog.kt`): opening stock (from its date) + purchase bill
@@ -248,6 +258,8 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.9** Recurring sales invoices: weekly / monthly / quarterly / yearly × every N, first date, optional end, payment terms; items and GST; {month} / {period} placeholders; created automatically (catch-up capped); pause / resume / delete; list with next date and count; link from each invoice | `core/Invoices.kt` (`InvoiceSchedules`), `LedgerRepository.postDueInvoiceSchedules`, `ui/invoices/RecurringInvoicesScreen.kt` |
+| **1.9** Transport details on sales invoices and challans (vehicle no. normalised, transporter, LR no., 12-digit e-way bill), shown on screen and in the PDF header; copied when one challan is billed | `core/Invoices.kt` (`Transport`), `export/InvoicePdfWriter.kt` |
 | **1.8** Delivery challans: itemised, stock out on the challan date, DELIVERY CHALLAN PDF ("Deliver to", no payment block), not billed / billed / cancelled; bill several open challans of a customer in one invoice (items copied in order, stock not moved twice); links both ways | `core/Catalog.kt` (`Stock.moves`), `ui/invoices/ChallanScreens.kt`, `LedgerRepository.convertChallans` |
 | **1.8** Overdue collections: customers with overdue sales invoices (largest first, oldest days, invoice list) with one WhatsApp / share reminder per customer listing every overdue invoice and the total; reachable from Receivables | `ui/invoices/CollectionsScreen.kt` |
 | **1.7** Purchase orders: itemised with GST, expected-by date, PURCHASE ORDER PDF addressed to the supplier, open / overdue / billed / cancelled, one-tap conversion to a bill (stock comes in with the bill) | `ui/invoices/QuotationScreens.kt`, `LedgerRepository.convertQuotation` |
@@ -287,7 +299,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-155 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+165 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -300,12 +312,14 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `BackupRestoreTest` | Backup → wipe → restore reproduces data and attachment bytes; restore without attachments; wrong password / damaged / truncated / non-backup files fail **and current data is untouched** |
 | `core` `RecurrenceTest`, `BudgetTest` | Month-end schedules don't drift (31 Jan → 28 Feb → 31 Mar), all frequencies/intervals, catch-up with end dates and cap, budget progress incl. sub-categories and thresholds |
 | `core` `InvoicesTest` | Status transitions incl. a payment moved to the recycle bin, ageing buckets, allocation limits, FY numbering, outstanding report as at past dates |
+| `core` `ScheduleTest` | Month-end dates don't drift, catch-up cap, end date, pause, resume index, quarterly × 2, {month}/{period} placeholders, templates off the books, REC numbering, transport normalisation and e-way validation, backup validation of schedules |
 | `core` `ChallanTest` | Stock leaves on the challan and only once (billed invoice and cancelled challan don't move it), challans owe nothing and never expire, DC numbering, billing rules (open, same customer), reports ignore challans |
 | `core` `StatementTest` | Customer statement from opening to closing (invoices, credit notes, payments with mode/reference; cancelled, quotations and binned payments ignored; closing = outstanding), supplier side, unlinked receipts, WhatsApp number normalisation and link, PO numbering |
 | `core` `QuotationUpiTest` | Quotation status (open / expired / declined / converted), QT numbering, quotations owe nothing and move no stock; UPI ID validation, link format and UTF-8 encoding; QR encode → decode round trip |
 | `core` `StockTest` | Stock from purchases, sales, credit notes, adjustments and opening stock (by date); debit notes and cancelled documents ignored; services excluded; stock value and low-stock flag; item-wise sales net of credit notes; Stock summary report |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
-| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6 and v6 → v7 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7 and v7 → v8 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `Phase10Test` | Schedule creates Jan 31 / Feb 28 / Mar 31 invoices once, with filled placeholders, due dates and numbering; pause/resume; deleting keeps invoices; end date; editing affects only future invoices; transport normalised, copied from a challan, printed; backup keeps schedules, templates, links and transport without re-creating invoices |
 | `app` `Phase9Test` | Challans forced to sales with no due date; stock by date; two challans billed in one invoice (amount, items in order, description, links); mixed customers, re-billing and cancelled challans refused; deleting the invoice re-opens them; backup; challan PDF without QR; overdue customers ordering and exact customer reminder text |
 | `app` `Phase8Test` | Purchase order stays out of payables and stock, converts to a bill (stock in), prints as PURCHASE ORDER without a QR, survives backup; statement built from real repository data agrees with outstanding; exact reminder text (overdue and due) |
 | `app` `Phase7Test` | Quotation stays out of receivables and stock and refuses payments/notes; conversion copies items and links; can't convert twice or when declined; deleting the invoice re-opens it; own number series; backups keep quotations and links; invoice PDF QR read back from the rendered page; no QR when paid, on quotations or with an invalid UPI ID |
@@ -317,7 +331,7 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
 screen, creating a simple invoice and recording a receipt against it, filling the business profile and creating an
 itemised GST invoice (IGST for another state), issuing a credit note from a paid invoice and recording the
-refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, the Outstanding report, deleting an entry
+refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, creating a monthly recurring invoice through its form (today's invoice created), transport details on an invoice, the Outstanding report, deleting an entry
 through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
 Not automated here (please check on a device): writing the PDF file itself (Android's native `PdfDocument`
@@ -353,5 +367,7 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
   are sent by you from WhatsApp (nothing is sent automatically).
 * A challan is billed in full (no partial billing of a challan). Editing an invoice that was billed from challans
   doesn't change stock — stock follows the challans; edit or cancel the challan instead.
-* Suggested next phases: e-way bill / transport details on challans, recurring invoices, multi-currency, and an instrumented test pass on
+* Recurring invoices are created when the app opens or the daily job runs (Android picks the time, usually within a
+  day). The app records transport details; it does not generate e-way bills on the government portal.
+* Suggested next phases: sending recurring invoices automatically by WhatsApp, multi-currency, and an instrumented test pass on
   physical devices.

@@ -40,6 +40,7 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
         val supplier: String = "Supplier",
         val deliveryChallan: String = "DELIVERY CHALLAN", val challanNo: String = "Challan no.", val challanDate: String = "Challan date",
         val deliverTo: String = "Deliver to",
+        val vehicleNo: String = "Vehicle no.", val transporter: String = "Transporter", val lrNo: String = "LR no.", val ewayBill: String = "E-way bill no.",
     )
 
     private val navy = Color.rgb(0x1A, 0x2B, 0x5C)
@@ -133,6 +134,12 @@ class InvoicePdfWriter(private val money: MoneyFormatter, private val dates: Dat
             if (inv.docType == com.cashbook.core.DocType.INVOICE) add(s.dueDate to dates.format(inv.dueDate))
             if (isQuote) add((if (isPo) s.expectedBy else s.validUntil) to dates.format(inv.dueDate))
             if (inv.placeOfSupply.isNotBlank()) add(s.placeOfSupply to Gst.stateLabel(inv.placeOfSupply))
+            inv.transport.let { t ->
+                if (t.vehicleNo.isNotBlank()) add(s.vehicleNo to t.vehicleNo)
+                if (t.transporter.isNotBlank()) add(s.transporter to t.transporter.take(28))
+                if (t.lrNo.isNotBlank()) add(s.lrNo to t.lrNo)
+                if (t.ewayBillNo.isNotBlank()) add(s.ewayBill to t.ewayBillNo.chunked(4).joinToString(" "))
+            }
             reference?.let { add(s.originalInvoice to "${it.number} (${dates.format(it.date)})") }
         }
         val startY = y

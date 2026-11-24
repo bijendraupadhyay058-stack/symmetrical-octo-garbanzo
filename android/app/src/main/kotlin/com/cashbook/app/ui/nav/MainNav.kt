@@ -120,6 +120,8 @@ object Routes {
     fun quoteEdit(id: Long, kind: String = "SALE") = "quote_edit/$id/$kind"
     fun challanEdit(id: Long) = "challan_edit/$id"
     const val COLLECTIONS = "collections"
+    const val RECURRING_INVOICES = "recurring_invoices"
+    fun templateEdit(id: Long) = "template_edit/$id"
     const val CATALOG = "catalog"
     fun catalogItem(id: Long) = "catalog_item/$id"
 }
@@ -233,6 +235,10 @@ fun MainNav(vm: AppViewModel) {
             composable("invoice_refund/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e -> RecordPaymentScreen(vm, nav, e.arguments!!.getLong("id"), refund = true) }
             composable("challan_edit/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e ->
                 InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), "SALE", 0, docType = com.cashbook.core.DocType.CHALLAN)
+            }
+            composable(Routes.RECURRING_INVOICES) { com.cashbook.app.ui.invoices.RecurringInvoicesScreen(vm, nav) }
+            composable("template_edit/{id}", listOf(navArgument("id") { type = NavType.LongType })) { e ->
+                InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), "SALE", 0, docType = com.cashbook.core.DocType.TEMPLATE)
             }
             composable(Routes.COLLECTIONS) { com.cashbook.app.ui.invoices.CollectionsScreen(vm, nav) }
             composable("quote_edit/{id}/{kind}", listOf(navArgument("id") { type = NavType.LongType })) { e ->

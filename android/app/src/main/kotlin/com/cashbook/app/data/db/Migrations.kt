@@ -78,5 +78,18 @@ object Migrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+    /** v7 → v8 (app 1.9): transport details on documents and recurring sales invoices. */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `vehicle_no` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `transporter` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `lr_no` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `eway_bill_no` TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE `invoices` ADD COLUMN `schedule_id` INTEGER")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `invoice_schedules` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `template_id` INTEGER NOT NULL, `frequency` TEXT NOT NULL, `interval` INTEGER NOT NULL, `start_date` INTEGER NOT NULL, `end_date` INTEGER, `next_index` INTEGER NOT NULL, `due_days` INTEGER NOT NULL, `active` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, FOREIGN KEY(`template_id`) REFERENCES `invoices`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_invoice_schedules_template_id` ON `invoice_schedules` (`template_id`)")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
 }

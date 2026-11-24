@@ -25,12 +25,14 @@ enum class DocType { INVOICE, CREDIT_NOTE, DEBIT_NOTE,
      * Delivery challan (kind SALE): goods sent to a customer before billing. Stock leaves on the challan date, but
      * nothing is owed until one or more challans are converted into an invoice (which then doesn't move stock again).
      */
-    CHALLAN;
-    /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation, challan). */
-    val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION, CHALLAN -> 0; else -> 1 }
+    CHALLAN,
+    /** The model of a recurring sales invoice: copied into a real invoice on each scheduled date; never owed itself. */
+    TEMPLATE;
+    /** +1 when the document adds to the amount owed, −1 when it reduces it, 0 when it owes nothing (quotation, challan, template). */
+    val sign: Int get() = when (this) { CREDIT_NOTE -> -1; QUOTATION, CHALLAN, TEMPLATE -> 0; else -> 1 }
     val isNote: Boolean get() = this == CREDIT_NOTE || this == DEBIT_NOTE
-    /** Documents that are later converted into an invoice or bill (stored with a link to it). */
-    val isPreInvoice: Boolean get() = this == QUOTATION || this == CHALLAN
+    /** Documents that owe nothing and stay out of balances and reports (offers, challans, recurring templates). */
+    val isOffBook: Boolean get() = this == QUOTATION || this == CHALLAN || this == TEMPLATE
 }
 
 /** CONVERTED = turned into an invoice; DECLINED = marked declined by you; EXPIRED = past its valid-until date. */
@@ -89,7 +91,82 @@ data class InvoiceInfo(
     val refInvoiceId: Long? = null,
     /** For a quotation: the invoice it was converted into (cleared if that invoice is deleted). */
     val convertedInvoiceId: Long? = null,
+    /** Vehicle, transporter, LR and e-way bill (goods movement), printed on the document. */
+    val transport: Transport = Transport(),
+    /** For an invoice created by a recurring schedule: that schedule. */
+    val scheduleId: Long? = null,
 )
+
+/** Transport details for goods: vehicle number, transporter, LR / docket number and e-way bill number. */
+data class Transport(val vehicleNo: String = "", val transporter: String = "", val lrNo: String = "", val ewayBillNo: String = "") {
+    val isEmpty: Boolean get() = vehicleNo.isBlank() && transporter.isBlank() && lrNo.isBlank() && ewayBillNo.isBlank()
+
+    /** Upper-case vehicle number without spaces or dashes ("mh 12-ab 1234" → "MH12AB1234"); other fields trimmed. */
+    fun normalized() = Transport(vehicleNo.uppercase().filter { it.isLetterOrDigit() }, transporter.trim(), lrNo.trim(), ewayBillNo.filter { it.isDigit() })
+
+    companion object {
+        /** An e-way bill number is 12 digits (spaces allowed while typing). */
+        fun isValidEwayBill(no: String) = no.isBlank() || no.filter { it.isDigit() }.length == 12 && no.all { it.isDigit() || it == ' ' }
+    }
+}
+
+/**
+ * Creates a sales invoice from template [templateId] on every scheduled date (rent, retainers, AMC, subscriptions).
+ * Dates come from [Recurrence.occurrence] so monthly schedules never drift; [nextIndex] counts dates already created.
+ */
+data class InvoiceSchedule(
+    val id: Long,
+    val templateId: Long,
+    val frequency: Frequency = Frequency.MONTHLY,
+    val interval: Int = 1,
+    val startDate: LocalDate,
+    val endDate: LocalDate? = null,
+    val nextIndex: Int = 0,
+    /** Days from the invoice date to its due date. */
+    val dueDays: Int = 15,
+    val active: Boolean = true,
+) {
+    fun occurrence(n: Int) = Recurrence.occurrence(startDate, frequency, interval, n)
+    val nextDate: LocalDate? get() = occurrence(nextIndex).takeIf { endDate == null || !it.isAfter(endDate) }
+    val finished: Boolean get() = nextDate == null
+}
+
+object InvoiceSchedules {
+    /** At most this many invoices are created in one catch-up (e.g. after the app was unused for a long time). */
+    const val MAX_CATCH_UP = 24
+
+    /** Dates still to be invoiced up to and including [upTo], as (index, date). */
+    fun due(s: InvoiceSchedule, upTo: LocalDate, max: Int = MAX_CATCH_UP): List<Pair<Int, LocalDate>> {
+        if (!s.active) return emptyList()
+        val out = ArrayList<Pair<Int, LocalDate>>()
+        var n = s.nextIndex
+        while (out.size < max) {
+            val d = s.occurrence(n)
+            if (d.isAfter(upTo) || (s.endDate != null && d.isAfter(s.endDate))) break
+            out += n to d; n++
+        }
+        return out
+    }
+
+    /** First index on or after [date]: resuming a paused schedule continues from today instead of back-filling. */
+    fun firstIndexOnOrAfter(s: InvoiceSchedule, date: LocalDate): Int {
+        var n = 0
+        while (s.occurrence(n).isBefore(date) && n < 100_000) n++
+        return n
+    }
+
+    /**
+     * Fills placeholders for occurrence [n]: {month} → "November 2026" (month of the invoice date) and
+     * {period} → "01-11-2026 to 30-11-2026" (invoice date up to the day before the next one).
+     */
+    fun fill(text: String, s: InvoiceSchedule, n: Int, dates: DateFormatOption, locale: java.util.Locale): String {
+        if (!text.contains('{')) return text
+        val d = s.occurrence(n)
+        val month = d.format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", locale))
+        val period = dates.format(d) + " – " + dates.format(s.occurrence(n + 1).minusDays(1))
+        return text.replace("{month}", month).replace("{period}", period)
+    }
+}
 
 /** Part (or all) of a payment entry applied to an invoice. */
 data class Allocation(val id: Long, val invoiceId: Long, val txnId: Long, val amount: Long)
@@ -202,6 +279,7 @@ object Invoices {
             DocType.DEBIT_NOTE -> if (kind == InvoiceKind.SALE) "DN" else "DN-IN"
             DocType.QUOTATION -> if (kind == InvoiceKind.SALE) "QT" else "PO"
             DocType.CHALLAN -> "DC"
+            DocType.TEMPLATE -> "REC"
         }
         val prefix = series + "/" + yy(fy.startYear) + "-" + yy(fy.startYear + 1) + "/"
         val max = existing.filter { it.startsWith(prefix) }.mapNotNull { it.removePrefix(prefix).toIntOrNull() }.maxOrNull() ?: 0

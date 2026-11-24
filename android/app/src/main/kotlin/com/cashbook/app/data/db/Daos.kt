@@ -187,6 +187,18 @@ interface InvoiceDao {
     @Query("DELETE FROM allocations WHERE transaction_id = :txnId") suspend fun deleteAllocationsForTxn(txnId: Long)
     @Query("DELETE FROM allocations") suspend fun clearAllocations()
 
+    @Query("SELECT COUNT(*) FROM invoices WHERE schedule_id = :scheduleId AND issue_date = :date") suspend fun countForScheduleOn(scheduleId: Long, date: Long): Int
+    @Query("UPDATE invoices SET schedule_id = NULL WHERE schedule_id = :scheduleId") suspend fun unlinkSchedule(scheduleId: Long)
+
+    @Query("SELECT * FROM invoice_schedules ORDER BY id") suspend fun schedules(): List<InvoiceScheduleEntity>
+    @Query("SELECT * FROM invoice_schedules WHERE id = :id") suspend fun schedule(id: Long): InvoiceScheduleEntity?
+    @Query("SELECT * FROM invoice_schedules WHERE template_id = :templateId") suspend fun scheduleForTemplate(templateId: Long): InvoiceScheduleEntity?
+    @Insert suspend fun insertSchedule(e: InvoiceScheduleEntity): Long
+    @Insert suspend fun insertSchedules(e: List<InvoiceScheduleEntity>)
+    @Update suspend fun updateSchedule(e: InvoiceScheduleEntity)
+    @Query("UPDATE invoice_schedules SET next_index = :next, updated_at = :now WHERE id = :id") suspend fun setScheduleNext(id: Long, next: Int, now: Long)
+    @Query("DELETE FROM invoice_schedules") suspend fun clearSchedules()
+
     @Query("SELECT * FROM invoice_items ORDER BY invoice_id, position") suspend fun items(): List<InvoiceItemEntity>
     @Insert suspend fun insertItems(e: List<InvoiceItemEntity>)
     @Query("DELETE FROM invoice_items WHERE invoice_id = :invoiceId") suspend fun deleteItems(invoiceId: Long)

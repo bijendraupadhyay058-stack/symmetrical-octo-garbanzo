@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.9.0 (versionCode 10)
+
+**New**
+- **Recurring invoices** (Invoices & bills › ⟳): set up an invoice once — customer, items with GST, how often
+  (weekly, monthly, quarterly, yearly, every N), first date, optional end date and payment terms — and the app creates
+  it on every date, numbered in your invoice series. Write `{month}` or `{period}` in the description or notes to get
+  "November 2026" or the dates covered. Pause, resume or delete at any time; invoices already made are kept. Each
+  invoice shows "Created by a recurring invoice".
+- **Transport details** on sales invoices and delivery challans: vehicle number, transporter, LR number and
+  e-way bill number (12 digits), shown on the invoice and printed in the PDF header. Billing a single challan carries
+  them over to the invoice.
+
+**Data**
+- Database v7 → v8 adds transport columns, the invoice's schedule link and the `invoice_schedules` table.
+  Backups include them; older backups still restore.
+
 ## 1.8.0 (versionCode 9)
 
 **New**

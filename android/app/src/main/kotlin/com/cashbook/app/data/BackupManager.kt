@@ -32,6 +32,8 @@ import com.cashbook.core.backup.BudgetDto
 import com.cashbook.core.backup.AllocationDto
 import com.cashbook.core.backup.InvoiceDto
 import com.cashbook.core.backup.InvoiceItemDto
+import com.cashbook.core.backup.InvoiceScheduleDto
+import com.cashbook.app.data.db.InvoiceScheduleEntity
 import com.cashbook.core.backup.CatalogItemDto
 import com.cashbook.core.backup.StockAdjustmentDto
 import com.cashbook.core.backup.RecurringDto
@@ -119,7 +121,7 @@ class BackupManager(
         try {
             db.withTransaction {
                 // children first
-                db.catalog().clearAdjustments(); db.catalog().clear(); db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
+                db.catalog().clearAdjustments(); db.catalog().clear(); db.invoices().clearItems(); db.invoices().clearAllocations(); db.invoices().clearSchedules(); db.invoices().clear(); db.budgets().clear(); db.recurring().clear()
                 db.maintenance().apply {
                     clearAttachments(); clearTransactions(); clearAccounts(); clearCashbooks(); clearParties(); clearCategories()
                 }
@@ -135,7 +137,10 @@ class BackupManager(
                     it.nextIndex, it.autoPost, it.active, it.createdAt, it.updatedAt) })
                 db.budgets().insertAll(d.budgets.map { BudgetEntity(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) })
                 db.invoices().insertAll(d.invoices.map { InvoiceEntity(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId) })
+                    it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId,
+                    it.vehicleNo, it.transporter, it.lrNo, it.ewayBillNo, it.scheduleId) })
+                db.invoices().insertSchedules(d.invoiceSchedules.map { InvoiceScheduleEntity(it.id, it.templateId, it.frequency, it.interval, it.startDate, it.endDate,
+                    it.nextIndex, it.dueDays, it.active, it.createdAt, it.updatedAt) })
                 db.catalog().insertAll(d.catalog.map { CatalogItemEntity(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp,
                     it.description, it.openingStockMilli, it.openingDate, it.reorderLevelMilli, it.archived, it.createdAt, it.updatedAt) })
                 db.catalog().insertAdjustments(d.stockAdjustments.map { StockAdjustmentEntity(it.id, it.itemId, it.date, it.quantityMilli, it.reason, it.createdAt) })
@@ -190,7 +195,10 @@ class BackupManager(
             it.active, it.createdAt, it.updatedAt) },
         budgets = db.budgets().getAll().map { BudgetDto(it.id, it.cashbookId, it.categoryId, it.monthlyAmount, it.createdAt, it.updatedAt) },
         invoices = db.invoices().getAll().map { InvoiceDto(it.id, it.cashbookId, it.kind, it.number, it.partyId, it.issueDate, it.dueDate, it.amount,
-            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId) },
+            it.description, it.notes, it.cancelled, it.createdAt, it.updatedAt, it.placeOfSupply, it.roundOff, it.docType, it.refInvoiceId, it.convertedInvoiceId,
+            it.vehicleNo, it.transporter, it.lrNo, it.ewayBillNo, it.scheduleId) },
+        invoiceSchedules = db.invoices().schedules().map { InvoiceScheduleDto(it.id, it.templateId, it.frequency, it.interval, it.startDate, it.endDate,
+            it.nextIndex, it.dueDays, it.active, it.createdAt, it.updatedAt) },
         invoiceItems = db.invoices().items().map { InvoiceItemDto(it.id, it.invoiceId, it.position, it.description, it.hsn, it.quantityMilli, it.unit, it.rate,
             it.discountBp, it.gstBp, it.itemId) },
         catalog = db.catalog().getAll().map { CatalogItemDto(it.id, it.name, it.kind, it.hsn, it.unit, it.saleRate, it.purchaseRate, it.gstBp, it.description,

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -119,6 +120,7 @@ fun docTypeLabel(t: com.cashbook.core.DocType, kind: InvoiceKind) = when (t) {
     com.cashbook.core.DocType.INVOICE -> kindLabel(kind)
     com.cashbook.core.DocType.QUOTATION -> stringResource(if (kind == InvoiceKind.SALE) R.string.quotation else R.string.purchase_order)
     com.cashbook.core.DocType.CHALLAN -> stringResource(R.string.delivery_challan)
+    com.cashbook.core.DocType.TEMPLATE -> stringResource(R.string.recurring_invoice)
 }
 
 /** Text status chip (never colour alone). */
@@ -155,7 +157,9 @@ fun InvoicesScreen(vm: AppViewModel, nav: NavHostController) {
             Filter.ALL -> true
         }
     }.sortedWith(compareBy({ it.outstanding == 0L }, { it.invoice.dueDate }))
-    AppScaffold(title = stringResource(R.string.invoices_bills), onBack = { nav.popBackStack() }, floating = {
+    AppScaffold(title = stringResource(R.string.invoices_bills), onBack = { nav.popBackStack() }, actions = {
+        IconButton(onClick = { nav.navigate(Routes.RECURRING_INVOICES) }) { Icon(Icons.Filled.Repeat, stringResource(R.string.recurring_invoices)) }
+    }, floating = {
         if (tab == 2) ExtendedFloatingActionButton(onClick = {
             nav.navigate(when (docView) { PreDocView.QUOTATIONS -> Routes.quoteEdit(0, "SALE"); PreDocView.PURCHASE_ORDERS -> Routes.quoteEdit(0, "PURCHASE")
                 PreDocView.CHALLANS -> Routes.challanEdit(0) })
@@ -245,6 +249,20 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     var items by rememberSaveable(stateSaver = ItemDraft.ListSaver) { mutableStateOf(listOf(ItemDraft())) }
     var placeOfSupply by rememberSaveable { mutableStateOf("") }
     var roundOff by rememberSaveable { mutableStateOf(true) }
+    // transport (sales invoices and challans)
+    var vehicle by rememberSaveable { mutableStateOf("") }
+    var transporter by rememberSaveable { mutableStateOf("") }
+    var lrNo by rememberSaveable { mutableStateOf("") }
+    var eway by rememberSaveable { mutableStateOf("") }
+    var showTransport by rememberSaveable { mutableStateOf(false) }
+    // schedule (recurring invoice templates)
+    var frequency by rememberSaveable { mutableStateOf(com.cashbook.core.Frequency.MONTHLY) }
+    var every by rememberSaveable { mutableStateOf("1") }
+    var start by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
+    var hasEnd by rememberSaveable { mutableStateOf(false) }
+    var end by rememberSaveable { mutableStateOf(LocalDate.now().plusYears(1).toEpochDay()) }
+    var dueDays by rememberSaveable { mutableStateOf(15) }
+    var confirmDeleteSchedule by remember { mutableStateOf(false) }
     val seller by vm.businessProfile.collectAsStateWithLifecycle()
     var loaded by rememberSaveable { mutableStateOf(false) }
     var showErrors by rememberSaveable { mutableStateOf(false) }
@@ -256,6 +274,8 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     val existingDoc = snap.doc(id)
     val isQuote = docType == com.cashbook.core.DocType.QUOTATION || existingDoc?.docType == com.cashbook.core.DocType.QUOTATION
     val isChallan = docType == com.cashbook.core.DocType.CHALLAN || existingDoc?.docType == com.cashbook.core.DocType.CHALLAN
+    val isTemplate = docType == com.cashbook.core.DocType.TEMPLATE || existingDoc?.docType == com.cashbook.core.DocType.TEMPLATE
+    val schedule = snap.schedules.firstOrNull { it.templateId == id }
     val isNote = docType.isNote || existingDoc?.docType?.isNote == true
     val original = (existingDoc?.refInvoiceId ?: refInvoiceId.takeIf { it > 0 })?.let { r -> snap.invoices.firstOrNull { it.id == r } }
     val noteType = existingDoc?.docType ?: docType
@@ -278,6 +298,11 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
             issue = existing.issueDate.toEpochDay(); due = existing.dueDate.toEpochDay(); amount = Money.toPlain(existing.amount)
             description = existing.description; notes = existing.notes
             placeOfSupply = existing.placeOfSupply; roundOff = existing.roundOff
+            existing.transport.let { vehicle = it.vehicleNo; transporter = it.transporter; lrNo = it.lrNo; eway = it.ewayBillNo; showTransport = !it.isEmpty }
+            snap.schedules.firstOrNull { it.templateId == id }?.let { sc ->
+                frequency = sc.frequency; every = sc.interval.toString(); start = sc.startDate.toEpochDay(); dueDays = sc.dueDays
+                hasEnd = sc.endDate != null; sc.endDate?.let { end = it.toEpochDay() }
+            }
             val existingItems = snap.invoiceItems[id].orEmpty()
             itemised = existingItems.isNotEmpty()
             items = if (existingItems.isEmpty()) listOf(ItemDraft()) else existingItems.map { ItemDraft.from(it) }
@@ -286,7 +311,8 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
             val sc = currentScope(snap, s)
             cashbookId = if (s.defaultCashbookId in sc) s.defaultCashbookId else sc.firstOrNull() ?: 0
             number = vm.deps?.ledger?.nextInvoiceNumber(cashbookId, kind, LocalDate.now(),
-                if (isQuote) com.cashbook.core.DocType.QUOTATION else if (isChallan) com.cashbook.core.DocType.CHALLAN else com.cashbook.core.DocType.INVOICE) ?: ""
+                if (isQuote) com.cashbook.core.DocType.QUOTATION else if (isChallan) com.cashbook.core.DocType.CHALLAN
+                else if (isTemplate) com.cashbook.core.DocType.TEMPLATE else com.cashbook.core.DocType.INVOICE) ?: ""
         }
         loaded = true
     }
@@ -298,13 +324,18 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
     val errAmount = if (itemised) !itemsValid || (totals?.grandTotal ?: 0) <= 0 || (totals?.grandTotal ?: 0) < paid
         else parsed !is Money.ParseResult.Ok || (parsed as Money.ParseResult.Ok).paise < paid
     val errParty = snap.partyById[partyId] == null
-    val errDates = !isNote && due < issue
+    val errDates = !isNote && !isTemplate && due < issue
+    val errEway = !com.cashbook.core.Transport.isValidEwayBill(eway)
+    val everyN = every.toIntOrNull()
+    val errSchedule = isTemplate && (everyN == null || everyN !in 1..99 || (hasEnd && end < start))
+    val msgSaved = stringResource(R.string.recurring_saved)
     val msgDuplicate = stringResource(R.string.inv_err_duplicate)
     val msgBelowPaid = stringResource(R.string.inv_err_below_paid)
     val msgNoteTooLarge = stringResource(R.string.note_err_too_large)
 
     val screenTitle = when {
         isChallan -> stringResource(if (id == 0L) R.string.new_challan else R.string.edit_challan)
+        isTemplate -> stringResource(if (id == 0L) R.string.new_recurring_invoice else R.string.edit_recurring_invoice)
         isQuote && kind == InvoiceKind.PURCHASE -> stringResource(if (id == 0L) R.string.new_purchase_order else R.string.edit_purchase_order)
         isQuote -> stringResource(if (id == 0L) R.string.new_quotation else R.string.edit_quotation)
         isNote -> stringResource(if (id == 0L) (if (noteType == com.cashbook.core.DocType.CREDIT_NOTE) R.string.new_credit_note else R.string.new_debit_note) else R.string.edit_note)
@@ -316,30 +347,56 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
         Column(Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (isNote && original != null) InfoBanner(stringResource(if (noteType == com.cashbook.core.DocType.CREDIT_NOTE) R.string.credit_note_explain else R.string.debit_note_explain,
                 original.number, snap.names.party(original.partyId)), icon = Icons.Filled.Info)
-            if (id == 0L && !isNote && !isQuote && !isChallan) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            if (id == 0L && !isNote && !isQuote && !isChallan && !isTemplate) SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 InvoiceKind.entries.forEachIndexed { i, k ->
                     SegmentedButton(kind == k, onClick = {
                         if (kind != k) { kind = k; scope.launch { number = vm.deps?.ledger?.nextInvoiceNumber(cashbookId, k, LocalDate.ofEpochDay(issue)) ?: number } }
                     }, shape = SegmentedButtonDefaults.itemShape(i, 2)) { Text(kindLabel(k), maxLines = 1) }
                 }
             }
-            if (!isNote) Text(stringResource(if (isChallan) R.string.challan_explain else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_explain else R.string.po_explain) else if (kind == InvoiceKind.SALE) R.string.inv_sale_explain else R.string.inv_purchase_explain), style = MaterialTheme.typography.bodySmall,
+            if (!isNote) Text(stringResource(if (isTemplate) R.string.recurring_explain else if (isChallan) R.string.challan_explain else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_explain else R.string.po_explain) else if (kind == InvoiceKind.SALE) R.string.inv_sale_explain else R.string.inv_purchase_explain), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             val cbs = snap.cashbooks.filter { !it.archived || it.id == cashbookId }
             if (cbs.size > 1 && id == 0L && !isNote) DropdownField(stringResource(R.string.cashbook), cbs.map { it.id }, cashbookId.takeIf { it != 0L },
                 labelOf = { snap.cashbookById[it]?.name ?: "" }, onSelect = { cashbookId = it })
             PickerField(stringResource(if (kind == InvoiceKind.SALE) R.string.inv_customer else R.string.inv_supplier), snap.names.party(partyId.takeIf { it > 0 }),
                 { if (!isNote) partyPicker = true }, isError = showErrors && errParty, supporting = if (showErrors && errParty) stringResource(R.string.inv_err_party) else null)
-            OutlinedTextField(number, { number = it }, label = { Text(stringResource(if (isChallan) R.string.challan_number else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_number else R.string.po_number) else R.string.inv_number)) }, singleLine = true, isError = showErrors && number.isBlank(),
+            if (!isTemplate) OutlinedTextField(number, { number = it }, label = { Text(stringResource(if (isChallan) R.string.challan_number else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_number else R.string.po_number) else R.string.inv_number)) }, singleLine = true, isError = showErrors && number.isBlank(),
                 modifier = Modifier.fillMaxWidth())
             // a challan always lists the goods sent
             if (!isChallan) com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.itemised_gst), itemised, { itemised = it }, stringResource(R.string.itemised_gst_desc))
             if (!itemised) MoneyField(amount, { amount = it }, stringResource(R.string.inv_amount),
                 error = if (showErrors && errAmount) (if (paid > 0) stringResource(R.string.inv_err_below_paid) else stringResource(R.string.err_amount_invalid)) else null)
-            DateField(stringResource(if (isNote) R.string.note_date else if (isChallan) R.string.challan_date else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_date else R.string.po_date) else R.string.inv_issue_date), LocalDate.ofEpochDay(issue), { issue = it.toEpochDay(); if (isNote) due = issue })
-            if (!isNote && !isChallan) DateField(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.valid_until else R.string.po_expected_by) else R.string.inv_due_date), LocalDate.ofEpochDay(due), { due = it.toEpochDay() }, isError = errDates,
+            if (isTemplate) {
+                // ----- schedule -----
+                Text(stringResource(R.string.repeats), style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(com.cashbook.core.Frequency.WEEKLY, com.cashbook.core.Frequency.MONTHLY, com.cashbook.core.Frequency.QUARTERLY, com.cashbook.core.Frequency.YEARLY).forEach { fr ->
+                        FilterChip(frequency == fr, { frequency = fr }, { Text(com.cashbook.app.ui.recurring.frequencyLabel(fr)) })
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(every, { every = it.filter { c -> c.isDigit() }.take(2) }, label = { Text(stringResource(R.string.every_n)) }, singleLine = true,
+                        isError = everyN == null || everyN < 1, modifier = Modifier.weight(0.6f),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                    DateField(stringResource(R.string.first_invoice_on), LocalDate.ofEpochDay(start), { start = it.toEpochDay() }, Modifier.weight(1.4f))
+                }
+                everyN?.takeIf { it >= 1 }?.let { n -> Text(com.cashbook.app.ui.recurring.frequencyLabel(frequency, n), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.ends_on), hasEnd, { hasEnd = it })
+                if (hasEnd) DateField(stringResource(R.string.end_date), LocalDate.ofEpochDay(end), { end = it.toEpochDay() }, isError = end < start,
+                    supporting = if (end < start) stringResource(R.string.inv_err_due_before) else null)
+                Text(stringResource(R.string.payment_terms), style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf(0, 7, 15, 30).forEach { d -> FilterChip(dueDays == d, { dueDays = d }, { Text(if (d == 0) stringResource(R.string.inv_on_receipt) else stringResource(R.string.inv_net_days, d)) }) }
+                }
+                if (start < LocalDate.now().toEpochDay() && schedule == null) Text(stringResource(R.string.recurring_backfill_note), style = MaterialTheme.typography.bodySmall,
+                    color = LocalFinanceColors.current.warning)
+            }
+            if (!isTemplate) DateField(stringResource(if (isNote) R.string.note_date else if (isChallan) R.string.challan_date else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_date else R.string.po_date) else R.string.inv_issue_date), LocalDate.ofEpochDay(issue), { issue = it.toEpochDay(); if (isNote) due = issue })
+            if (!isNote && !isChallan && !isTemplate) DateField(stringResource(if (isQuote) (if (kind == InvoiceKind.SALE) R.string.valid_until else R.string.po_expected_by) else R.string.inv_due_date), LocalDate.ofEpochDay(due), { due = it.toEpochDay() }, isError = errDates,
                 supporting = if (errDates) stringResource(R.string.inv_err_due_before) else null)
-            if (!isNote && !isChallan) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (!isNote && !isChallan && !isTemplate) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (if (isQuote) listOf(7, 15, 30, 60) else listOf(0, 7, 15, 30, 45, 60)).forEach { d ->
                     FilterChip(due - issue == d.toLong(), { due = issue + d }, { Text(if (d == 0) stringResource(R.string.inv_on_receipt) else stringResource(R.string.inv_net_days, d)) })
                 }
@@ -354,17 +411,33 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                 totals?.let { TotalsCard(it) }
                 if (showErrors && errAmount && paid > 0 && itemsValid) Text(stringResource(R.string.inv_err_below_paid), color = MaterialTheme.colorScheme.error)
             }
+            if (kind == InvoiceKind.SALE && !isNote && !isQuote && !isTemplate) {
+                // ----- transport (optional) -----
+                com.cashbook.app.ui.components.SwitchRow(stringResource(R.string.transport_details), showTransport, { showTransport = it }, stringResource(R.string.transport_details_desc))
+                if (showTransport) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(vehicle, { vehicle = it.uppercase().take(15) }, label = { Text(stringResource(R.string.vehicle_no)) }, singleLine = true, modifier = Modifier.weight(1f))
+                        OutlinedTextField(lrNo, { lrNo = it.take(30) }, label = { Text(stringResource(R.string.lr_no)) }, singleLine = true, modifier = Modifier.weight(1f))
+                    }
+                    OutlinedTextField(transporter, { transporter = it.take(60) }, label = { Text(stringResource(R.string.transporter)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(eway, { eway = it.filter { c -> c.isDigit() || c == ' ' }.take(14) }, label = { Text(stringResource(R.string.eway_bill_no)) }, singleLine = true,
+                        isError = errEway, supportingText = if (errEway) ({ Text(stringResource(R.string.eway_invalid)) }) else null, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                }
+            }
             OutlinedTextField(description, { description = it }, label = { Text(stringResource(if (isNote) R.string.note_reason else R.string.description)) },
-                modifier = Modifier.fillMaxWidth(), maxLines = 3)
+                modifier = Modifier.fillMaxWidth(), maxLines = 3, supportingText = if (isTemplate) ({ Text(stringResource(R.string.recurring_placeholders)) }) else null)
             OutlinedTextField(notes, { notes = it }, label = { Text(stringResource(R.string.notes)) }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
-            InfoBanner(stringResource(if (isChallan) R.string.challan_not_cash_note else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_not_cash_note else R.string.po_not_cash_note) else R.string.inv_not_cash_note), icon = Icons.Filled.Info)
+            InfoBanner(stringResource(if (isTemplate) R.string.recurring_not_cash_note else if (isChallan) R.string.challan_not_cash_note else if (isQuote) (if (kind == InvoiceKind.SALE) R.string.quote_not_cash_note else R.string.po_not_cash_note) else R.string.inv_not_cash_note), icon = Icons.Filled.Info)
             Button(onClick = {
                 showErrors = true
-                if (errAmount || errParty || errDates || number.isBlank() || cashbookId == 0L) return@Button
+                if (errAmount || errParty || errDates || errEway || errSchedule || (number.isBlank() && !isTemplate) || cashbookId == 0L) return@Button
                 val inv = InvoiceInfo(id, cashbookId, kind, number, partyId, LocalDate.ofEpochDay(issue), LocalDate.ofEpochDay(due),
                     if (itemised) totals!!.grandTotal else (parsed as Money.ParseResult.Ok).paise, description, notes,
                     placeOfSupply = placeOfSupply, roundOff = roundOff,
-                    docType = if (isNote) noteType else if (isQuote) com.cashbook.core.DocType.QUOTATION else if (isChallan) com.cashbook.core.DocType.CHALLAN else com.cashbook.core.DocType.INVOICE, refInvoiceId = if (isNote) original?.id else null)
+                    docType = if (isNote) noteType else if (isQuote) com.cashbook.core.DocType.QUOTATION else if (isChallan) com.cashbook.core.DocType.CHALLAN
+                        else if (isTemplate) com.cashbook.core.DocType.TEMPLATE else com.cashbook.core.DocType.INVOICE, refInvoiceId = if (isNote) original?.id else null,
+                    transport = if (showTransport) com.cashbook.core.Transport(vehicle, transporter, lrNo, eway) else com.cashbook.core.Transport())
                 val lineItems = if (itemised) items.map { it.toItem() } else emptyList()
                 vm.run(onError = { e ->
                     val m = when ((e as? LedgerRepository.InvoiceException)?.reason) {
@@ -375,6 +448,13 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                     }
                     scope.launch { snackbar.showSnackbar(m) }
                 }) {
+                    if (isTemplate) {
+                        ledger.saveSchedule(inv, lineItems, seller.stateCode, com.cashbook.core.InvoiceSchedule(0, id, frequency, everyN!!, LocalDate.ofEpochDay(start),
+                            if (hasEnd) LocalDate.ofEpochDay(end) else null, dueDays = dueDays))
+                        val made = ledger.postDueInvoiceSchedules(dates = s.dateFormat)
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { nav.popBackStack(); if (made > 0) vm.toast(msgSaved.format(made)) }
+                        return@run
+                    }
                     val newId = ledger.saveInvoice(inv, lineItems, seller.stateCode)
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         nav.popBackStack()
@@ -382,8 +462,17 @@ fun InvoiceEditScreen(vm: AppViewModel, nav: NavHostController, id: Long, kindNa
                     }
                 }
             }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.save)) }
+            if (isTemplate && schedule != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { vm.run { ledger.setScheduleActive(schedule.id, !schedule.active) } }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(if (schedule.active) R.string.pause else R.string.resume), maxLines = 1) }
+                OutlinedButton(onClick = { confirmDeleteSchedule = true }, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
+    if (confirmDeleteSchedule && schedule != null) ConfirmDialog(stringResource(R.string.delete_recurring_title), stringResource(R.string.delete_recurring_inv_text),
+        stringResource(R.string.delete), onConfirm = { vm.run { ledger.deleteSchedule(schedule.id) }; nav.popBackStack() },
+        onDismiss = { confirmDeleteSchedule = false }, destructive = true)
     if (partyPicker) SearchPickerSheet(stringResource(R.string.select_party), snap.parties.filter { !it.archived || it.id == partyId }.map { PickItem(it.id, it.name, it.mobile) },
         onPick = { p -> partyId = p?.id ?: 0; partyPicker = false
             snap.partyById[partyId]?.stateCode?.takeIf { it.isNotBlank() }?.let { placeOfSupply = it } },
@@ -407,6 +496,7 @@ fun InvoiceDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
     val snap by vm.snapshot.collectAsStateWithLifecycle()
     snap.quotations.firstOrNull { it.id == id }?.let { QuotationDetailScreen(vm, nav, it); return }
     snap.challans.firstOrNull { it.id == id }?.let { ChallanDetailScreen(vm, nav, it); return }
+    snap.templates.firstOrNull { it.id == id }?.let { InvoiceEditScreen(vm, nav, id, "SALE", 0, docType = com.cashbook.core.DocType.TEMPLATE); return }
     snap.invoices.firstOrNull { it.id == id }?.takeIf { it.docType != com.cashbook.core.DocType.INVOICE }?.let { NoteDetailScreen(vm, nav, it); return }
     val f = LocalUiFormat.current
     val fc = LocalFinanceColors.current
@@ -448,6 +538,11 @@ fun InvoiceDetailScreen(vm: AppViewModel, nav: NavHostController, id: Long) {
                 if (inv.placeOfSupply.isNotBlank()) Text("${stringResource(R.string.place_of_supply)}: ${com.cashbook.core.Gst.stateLabel(inv.placeOfSupply)}",
                     style = MaterialTheme.typography.bodySmall)
                 if (inv.notes.isNotBlank()) Text(inv.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                inv.scheduleId?.let { sid -> snap.schedules.firstOrNull { it.id == sid } }?.let { sc ->
+                    Text(stringResource(R.string.from_recurring), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { nav.navigate(Routes.invoice(sc.templateId)) }.padding(vertical = 4.dp))
+                }
+                if (!inv.transport.isEmpty) Text(transportLine(inv.transport), style = MaterialTheme.typography.bodySmall)
                 snap.sourcesOf(id).forEach { q ->
                     Text(stringResource(when { q.docType == com.cashbook.core.DocType.CHALLAN -> R.string.from_challan_x
                         q.kind == InvoiceKind.SALE -> R.string.from_quotation_x; else -> R.string.from_po_x }, q.number), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
@@ -648,6 +743,15 @@ private fun ApplyEntryDialog(vm: AppViewModel, snap: Snapshot, b: InvoiceBalance
     )
 }
 
+/** "Vehicle MH12AB1234 · VRL Logistics · LR 5521 · E-way bill 3810 0123 4567" (only the parts filled in). */
+@Composable
+fun transportLine(t: com.cashbook.core.Transport): String = listOfNotNull(
+    t.vehicleNo.takeIf { it.isNotBlank() }?.let { stringResource(R.string.vehicle_no) + " " + it },
+    t.transporter.takeIf { it.isNotBlank() },
+    t.lrNo.takeIf { it.isNotBlank() }?.let { stringResource(R.string.lr_no) + " " + it },
+    t.ewayBillNo.takeIf { it.isNotBlank() }?.let { stringResource(R.string.eway_bill_no) + " " + it.chunked(4).joinToString(" ") },
+).joinToString(" · ")
+
 /** Polite payment reminder for a sales invoice: amount, dates, balance, UPI ID and the business name. */
 fun reminderText(ctx: android.content.Context, b: InvoiceBalance, snap: Snapshot, f: com.cashbook.app.ui.components.UiFormat,
                  seller: com.cashbook.core.backup.BusinessProfileDto, today: LocalDate = LocalDate.now()): String {
@@ -701,6 +805,7 @@ fun invoicePdfStrings(c: android.content.Context) = com.cashbook.app.export.Invo
     c.getString(R.string.pdf_purchase_order), c.getString(R.string.pdf_po_no), c.getString(R.string.po_date), c.getString(R.string.po_expected_by),
     c.getString(R.string.pdf_supplier),
     c.getString(R.string.pdf_delivery_challan), c.getString(R.string.pdf_challan_no), c.getString(R.string.challan_date), c.getString(R.string.pdf_deliver_to),
+    c.getString(R.string.vehicle_no), c.getString(R.string.transporter), c.getString(R.string.lr_no), c.getString(R.string.eway_bill_no),
 )
 
 /** Save or share the invoice as a printable PDF. */

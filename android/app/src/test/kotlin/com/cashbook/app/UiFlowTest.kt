@@ -623,6 +623,49 @@ class UiFlowTest {
         shot("52_challans_list")
     }
 
+    @Test fun recurringInvoiceAndTransport() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            d.settings.updateBusinessProfile(com.cashbook.core.backup.BusinessProfileDto(name = "Sharma & Associates", stateCode = "27"))
+            val customer = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", createdAt = 0, updatedAt = 0, stateCode = "27"))
+            val cb = d.snap { it.parties.isNotEmpty() }.cashbooks.single().id
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/050", customer, LocalDate.now(), LocalDate.now().plusDays(15),
+                590_000, "Toner supply", transport = com.cashbook.core.Transport("MH12AB1234", "VRL Logistics", "LR-5521", "381001234567")))
+            d.snap { it.invoices.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        tab("Settings"); waitFor("Invoices & bills"); click("Invoices & bills")
+        // transport details on an invoice
+        waitFor("INV/26-27/050", substring = true); click("ABC Enterprises")
+        waitFor("Vehicle no. MH12AB1234 · VRL Logistics · LR no. LR-5521 · E-way bill no. 3810 0123 4567")
+        shot("56_invoice_transport")
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+
+        // a monthly retainer created through the form; today's invoice is made straight away
+        waitFor("Receivables")
+        compose.onNodeWithContentDescription("Recurring invoices").performClick()
+        waitFor("No recurring invoices yet."); click("New recurring invoice")
+        waitFor("Customer / client *"); click("Customer / client *"); waitFor("ABC Enterprises"); click("ABC Enterprises")
+        waitFor("First invoice on")
+        field("Item / service").performTextInput("Accounting retainer")
+        field("Rate").performTextInput("10000")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Description"))
+        field("Description").performTextInput("Retainer for {month}")
+        shot("54_recurring_form")
+        compose.onNodeWithText("Save", useUnmergedTree = true).performScrollTo().performClick()
+        waitFor("Invoices created: 1")
+        val s = runBlocking { d.snap { it.invoices.size == 2 && it.schedules.isNotEmpty() } }
+        val made = s.invoices.single { it.scheduleId != null }
+        assertEquals(1_180_000L, made.amount)
+        assertEquals("Retainer for " + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", java.util.Locale.getDefault())), made.description)
+        assertEquals(LocalDate.now().plusMonths(1), s.schedules.single().nextDate)
+        waitFor("Monthly · Next", substring = true)
+        shot("55_recurring_list")
+    }
+
     @Test fun outstandingReport() {
         seed("en")
         runBlocking {

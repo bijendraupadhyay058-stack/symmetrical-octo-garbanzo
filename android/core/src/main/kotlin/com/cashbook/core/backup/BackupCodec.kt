@@ -189,8 +189,8 @@ object BackupCodec {
             if (!invoiceKeys.add(Triple(i.cashbookId, i.kind + "/" + i.docType, i.number.trim().lowercase()))) p += "invoice ${i.id} has a duplicate number"
             val dt = runCatching { com.cashbook.core.DocType.valueOf(i.docType) }.getOrNull()
             if (dt == null) p += "invoice ${i.id} has invalid document type"
-            if (dt != null && dt.isPreInvoice) {
-                if (dt == com.cashbook.core.DocType.CHALLAN && i.kind != "SALE") p += "challan ${i.id} must be a sale"
+            if (dt != null && dt.isOffBook) {
+                if (dt != com.cashbook.core.DocType.QUOTATION && i.kind != "SALE") p += "document ${i.id} must be a sale"
                 val conv = i.convertedInvoiceId?.let { c -> d.invoices.firstOrNull { o -> o.id == c } }
                 if (i.convertedInvoiceId != null && (conv == null || conv.docType != "INVOICE" || conv.cashbookId != i.cashbookId)) p += "quotation ${i.id} has an invalid converted invoice"
             }
@@ -215,6 +215,15 @@ object BackupCodec {
                 c.gstBp !in 0..10_000 || c.reorderLevelMilli < 0) p += "catalogue item ${c.id} is invalid"
         }
         d.stockAdjustments.forEach { if (it.itemId !in catalogIds || it.quantityMilli == 0L) p += "stock adjustment ${it.id} is invalid" }
+        dupes(d.invoiceSchedules, { it.id }, "invoice schedule")
+        val scheduleIds = d.invoiceSchedules.map { it.id }.toSet()
+        d.invoiceSchedules.forEach { s ->
+            val t = d.invoices.firstOrNull { it.id == s.templateId }
+            if (t == null || t.docType != "TEMPLATE" || runCatching { com.cashbook.core.Frequency.valueOf(s.frequency) }.isFailure || s.interval < 1 ||
+                s.dueDays < 0 || (s.endDate != null && s.endDate < s.startDate)) p += "invoice schedule ${s.id} is invalid"
+        }
+        if (d.invoiceSchedules.map { it.templateId }.distinct().size != d.invoiceSchedules.size) p += "two schedules share a template"
+        d.invoices.forEach { i -> if (i.scheduleId != null && i.scheduleId !in scheduleIds) p += "invoice ${i.id} has an unknown schedule" }
         d.invoiceItems.forEach { li -> if (li.itemId != null && li.itemId !in catalogIds) p += "invoice item ${li.id} has unknown catalogue item" }
         d.invoiceItems.forEach { li ->
             if (li.invoiceId !in inv) p += "invoice item ${li.id} has unknown invoice"

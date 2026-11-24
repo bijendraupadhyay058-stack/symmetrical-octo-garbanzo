@@ -32,7 +32,7 @@ class ChallanTest {
         assertEquals(QuoteStatus.CONVERTED, Quotations.status(dc(1, d(4, 5), converted = 10), d(4, 6)))
         assertEquals(QuoteStatus.DECLINED, Quotations.status(dc(1, d(4, 5), cancelled = true), d(4, 6)))
         assertEquals(0, DocType.CHALLAN.sign)
-        assertTrue(DocType.CHALLAN.isPreInvoice && !DocType.CHALLAN.isNote)
+        assertTrue(DocType.CHALLAN.isOffBook && !DocType.CHALLAN.isNote)
         assertEquals("DC/26-27/003", Invoices.nextNumber(InvoiceKind.SALE, listOf("DC/26-27/002", "INV/26-27/009"), d(5, 1), DocType.CHALLAN))
         assertEquals(listOf(1L, 2L), Quotations.sourcesOf(10, listOf(dc(2, d(4, 12), converted = 10), dc(1, d(4, 5), converted = 10), dc(3, d(4, 20)))).map { it.id })
     }

@@ -75,6 +75,8 @@ class AppContainer(
                 val ledger = LedgerRepository(db, store, appScope)
                 // Catch up recurring entries that fell due while the app was closed.
                 runCatching { ledger.postDueRecurring() }
+                // …and recurring sales invoices
+                runCatching { ledger.postDueInvoiceSchedules(dates = settings.settings.first().dateFormat) }
                 // Keep home-screen widgets in step with the data (no-op when none are placed).
                 appScope.launch {
                     combine(ledger.snapshot, settings.settings) { a, b -> a to b }.debounce(1_500).collect {

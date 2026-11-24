@@ -34,6 +34,9 @@ data class Snapshot(
     val quotations: List<InvoiceInfo> = emptyList(),
     /** Delivery challans (they move stock but owe nothing until billed). */
     val challans: List<InvoiceInfo> = emptyList(),
+    /** Templates of recurring sales invoices and their schedules. */
+    val templates: List<InvoiceInfo> = emptyList(),
+    val schedules: List<com.cashbook.core.InvoiceSchedule> = emptyList(),
     val allocations: List<Allocation> = emptyList(),
     /** Line items per invoice id (empty list = invoice entered as a single amount). */
     val invoiceItems: Map<Long, List<com.cashbook.core.InvoiceItem>> = emptyMap(),
@@ -49,7 +52,7 @@ data class Snapshot(
         Invoices.balances(invoices, allocations, txns.associate { it.id to it.type }, today)
 
     /** Any document (invoice, note or quotation) by id. */
-    fun doc(id: Long): InvoiceInfo? = invoices.firstOrNull { it.id == id } ?: quotations.firstOrNull { it.id == id } ?: challans.firstOrNull { it.id == id }
+    fun doc(id: Long): InvoiceInfo? = invoices.firstOrNull { it.id == id } ?: quotations.firstOrNull { it.id == id } ?: challans.firstOrNull { it.id == id } ?: templates.firstOrNull { it.id == id }
 
     /** Quotations, purchase orders and challans that were converted into [invoiceId]. */
     fun sourcesOf(invoiceId: Long) = com.cashbook.core.Quotations.sourcesOf(invoiceId, quotations + challans)

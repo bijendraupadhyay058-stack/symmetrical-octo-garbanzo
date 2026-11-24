@@ -80,6 +80,15 @@ data class InvoiceDto(
     val placeOfSupply: String = "", val roundOff: Boolean = true,
     val docType: String = "INVOICE", val refInvoiceId: Long? = null,
     val convertedInvoiceId: Long? = null,
+    // Added in app 1.9 (database v8).
+    val vehicleNo: String = "", val transporter: String = "", val lrNo: String = "", val ewayBillNo: String = "",
+    val scheduleId: Long? = null,
+)
+
+@Serializable
+data class InvoiceScheduleDto(
+    val id: Long, val templateId: Long, val frequency: String, val interval: Int, val startDate: Long, val endDate: Long? = null,
+    val nextIndex: Int, val dueDays: Int, val active: Boolean, val createdAt: Long, val updatedAt: Long,
 )
 
 @Serializable
@@ -129,4 +138,6 @@ data class BackupData(
     // Added in app 1.5 (database v6).
     val catalog: List<CatalogItemDto> = emptyList(),
     val stockAdjustments: List<StockAdjustmentDto> = emptyList(),
+    // Added in app 1.9 (database v8).
+    val invoiceSchedules: List<InvoiceScheduleDto> = emptyList(),
 )

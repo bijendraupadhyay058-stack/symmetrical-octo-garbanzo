@@ -200,6 +200,33 @@ data class InvoiceEntity(
     @ColumnInfo(name = "ref_invoice_id") val refInvoiceId: Long? = null,
     /** For a QUOTATION: the invoice it became (v7; cleared in the repository when that invoice is deleted). */
     @ColumnInfo(name = "converted_invoice_id") val convertedInvoiceId: Long? = null,
+    /** Transport details (v8). */
+    @ColumnInfo(name = "vehicle_no", defaultValue = "") val vehicleNo: String = "",
+    @ColumnInfo(name = "transporter", defaultValue = "") val transporter: String = "",
+    @ColumnInfo(name = "lr_no", defaultValue = "") val lrNo: String = "",
+    @ColumnInfo(name = "eway_bill_no", defaultValue = "") val ewayBillNo: String = "",
+    /** The recurring schedule that created this invoice (v8; cleared when the schedule is deleted). */
+    @ColumnInfo(name = "schedule_id") val scheduleId: Long? = null,
+)
+
+/** Recurring sales invoice (v8): the TEMPLATE document [templateId] is copied into an invoice on every scheduled date. */
+@Entity(
+    tableName = "invoice_schedules",
+    foreignKeys = [ForeignKey(entity = InvoiceEntity::class, parentColumns = ["id"], childColumns = ["template_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["template_id"], unique = true)],
+)
+data class InvoiceScheduleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "template_id") val templateId: Long,
+    val frequency: String,
+    val interval: Int = 1,
+    @ColumnInfo(name = "start_date") val startDate: Long,
+    @ColumnInfo(name = "end_date") val endDate: Long? = null,
+    @ColumnInfo(name = "next_index") val nextIndex: Int = 0,
+    @ColumnInfo(name = "due_days") val dueDays: Int = 15,
+    val active: Boolean = true,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
 /** Invoice line (v4). Quantity in thousandths, rate in paise, discount and GST in basis points. */

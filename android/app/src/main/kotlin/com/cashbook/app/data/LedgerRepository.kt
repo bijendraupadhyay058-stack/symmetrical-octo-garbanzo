@@ -2,6 +2,7 @@ package com.cashbook.app.data
 
 import androidx.room.withTransaction
 import com.cashbook.app.data.db.AccountEntity
+import com.cashbook.app.data.db.InvoiceScheduleEntity
 import com.cashbook.app.data.db.AppDatabase
 import com.cashbook.app.data.db.AttachmentEntity
 import com.cashbook.app.data.db.BudgetEntity
@@ -61,7 +62,7 @@ class LedgerRepository(
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val snapshot: StateFlow<Snapshot> = db.invalidationTracker
-        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", emitInitialState = true)
+        .createFlow("cashbooks", "accounts", "categories", "parties", "transactions", "attachments", "recurring", "budgets", "invoices", "allocations", "invoice_items", "catalog_items", "stock_adjustments", "invoice_schedules", emitInitialState = true)
         .mapLatest { readSnapshot() }
         .flowOn(Dispatchers.IO)
         .stateIn(scope, SharingStarted.Eagerly, Snapshot())
@@ -79,9 +80,11 @@ class LedgerRepository(
             attachmentCounts = db.attachments().getCounts().associate { it.transactionId to it.count },
             recurring = db.recurring().getAll().map { it.toRule() },
             budgets = db.budgets().getAll().map { it.toInfo() },
-            invoices = docs.filter { !it.docType.isPreInvoice },
+            invoices = docs.filter { !it.docType.isOffBook },
             quotations = docs.filter { it.docType == DocType.QUOTATION },
             challans = docs.filter { it.docType == DocType.CHALLAN },
+            templates = docs.filter { it.docType == DocType.TEMPLATE },
+            schedules = db.invoices().schedules().map { it.toInfo() },
             allocations = db.invoices().allocations().map { it.toInfo() },
             invoiceItems = db.invoices().items().groupBy { it.invoiceId }.mapValues { (_, l) -> l.map { it.toItem() } },
             catalog = db.catalog().getAll().map { it.toInfo() },
@@ -367,7 +370,7 @@ class LedgerRepository(
      */
     suspend fun saveInvoice(input: InvoiceInfo, items: List<InvoiceItem>? = null, sellerState: String = ""): Long = db.withTransaction {
         // A note always belongs to the original invoice's cashbook, kind, party and place of supply.
-        val base = if (input.docType == DocType.CHALLAN) input.copy(kind = InvoiceKind.SALE, dueDate = input.issueDate, refInvoiceId = null)
+        val base = if (input.docType == DocType.CHALLAN || input.docType == DocType.TEMPLATE) input.copy(kind = InvoiceKind.SALE, dueDate = input.issueDate, refInvoiceId = null)
         else if (!input.docType.isNote) input.copy(refInvoiceId = null) else {
             val original = input.refInvoiceId?.let { db.invoices().get(it)?.toInfo() }?.takeIf { it.docType == DocType.INVOICE }
                 ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
@@ -398,16 +401,84 @@ class LedgerRepository(
             db.invoices().insert(InvoiceEntity(cashbookId = inv.cashbookId, kind = inv.kind.name, number = inv.number.trim(), partyId = inv.partyId,
                 issueDate = inv.issueDate.toEpochDay(), dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(),
                 notes = inv.notes.trim(), createdAt = now, updatedAt = now, placeOfSupply = inv.placeOfSupply, roundOff = inv.roundOff,
-                docType = inv.docType.name, refInvoiceId = inv.refInvoiceId))
+                docType = inv.docType.name, refInvoiceId = inv.refInvoiceId, scheduleId = inv.scheduleId).withTransport(inv.transport))
         } else {
             val old = db.invoices().get(inv.id) ?: throw InvoiceException(InvoiceException.Reason.NOT_FOUND)
             // what's owed after notes can't fall below what has been paid (refund it first)
             if (inv.docType == DocType.INVOICE) balanceOf(inv.id)?.let { b -> if (inv.amount + b.debited - b.credited < b.paid) throw InvoiceException(InvoiceException.Reason.BELOW_PAID) }
             db.invoices().update(old.copy(number = inv.number.trim(), partyId = inv.partyId, issueDate = inv.issueDate.toEpochDay(),
                 dueDate = inv.dueDate.toEpochDay(), amount = inv.amount, description = inv.description.trim(), notes = inv.notes.trim(), updatedAt = now,
-                placeOfSupply = inv.placeOfSupply, roundOff = inv.roundOff))
+                placeOfSupply = inv.placeOfSupply, roundOff = inv.roundOff).withTransport(inv.transport))
             inv.id
         }
+    }
+
+    private fun InvoiceEntity.withTransport(t: com.cashbook.core.Transport) = t.normalized().let {
+        copy(vehicleNo = it.vehicleNo, transporter = it.transporter, lrNo = it.lrNo, ewayBillNo = it.ewayBillNo)
+    }
+
+    // ---------- recurring sales invoices ----------
+
+    /**
+     * Creates or updates a recurring invoice: the TEMPLATE document (party, items, place of supply, description, notes)
+     * and its schedule. A new schedule starts at index 0, so a start date in the past back-fills (up to
+     * [InvoiceSchedules.MAX_CATCH_UP]) on the next run; edits keep the dates already invoiced.
+     */
+    suspend fun saveSchedule(template: InvoiceInfo, items: List<InvoiceItem>, sellerState: String, schedule: com.cashbook.core.InvoiceSchedule): Long = db.withTransaction {
+        require(schedule.interval >= 1 && schedule.dueDays >= 0 && schedule.endDate?.isBefore(schedule.startDate) != true)
+        val number = template.number.ifBlank { nextInvoiceNumber(template.cashbookId, InvoiceKind.SALE, schedule.startDate, DocType.TEMPLATE) }
+        val tid = saveInvoice(template.copy(number = number, docType = DocType.TEMPLATE, issueDate = schedule.startDate, dueDate = schedule.startDate), items, sellerState)
+        val existing = db.invoices().scheduleForTemplate(tid)
+        val e = InvoiceScheduleEntity(existing?.id ?: 0, tid, schedule.frequency.name, schedule.interval, schedule.startDate.toEpochDay(),
+            schedule.endDate?.toEpochDay(), existing?.nextIndex ?: 0, schedule.dueDays, existing?.active ?: true, existing?.createdAt ?: now, now)
+        if (existing == null) db.invoices().insertSchedule(e) else { db.invoices().updateSchedule(e); existing.id }
+    }
+
+    /** Pauses or resumes; resuming continues from today instead of creating the invoices missed while paused. */
+    suspend fun setScheduleActive(id: Long, active: Boolean, today: LocalDate = LocalDate.now()) = db.withTransaction {
+        val e = db.invoices().schedule(id) ?: return@withTransaction
+        val next = if (active && !e.active) maxOf(e.nextIndex, com.cashbook.core.InvoiceSchedules.firstIndexOnOrAfter(e.toInfo(), today)) else e.nextIndex
+        db.invoices().updateSchedule(e.copy(active = active, nextIndex = next, updatedAt = now))
+    }
+
+    /** Deletes the schedule and its template; invoices it already created stay as normal invoices. */
+    suspend fun deleteSchedule(id: Long) = db.withTransaction {
+        val e = db.invoices().schedule(id) ?: return@withTransaction
+        db.invoices().unlinkSchedule(id)
+        db.invoices().deleteItems(e.templateId)
+        db.invoices().delete(e.templateId)                                           // cascades to the schedule row
+    }
+
+    /**
+     * Creates the invoices that fell due (on app start and from the daily job): a copy of the template dated on each
+     * scheduled date, due after the schedule's days, numbered in the invoice series, with {month} / {period} filled in.
+     * A date that already has an invoice from this schedule is never created twice.
+     */
+    suspend fun postDueInvoiceSchedules(today: LocalDate = LocalDate.now(), dates: com.cashbook.core.DateFormatOption = com.cashbook.core.DateFormatOption.DD_MM_YYYY,
+                                        locale: java.util.Locale = java.util.Locale.getDefault()): Int {
+        var created = 0
+        for (se in db.invoices().schedules()) {
+            val s = se.toInfo()
+            val due = com.cashbook.core.InvoiceSchedules.due(s, today)
+            if (due.isEmpty()) continue
+            created += db.withTransaction {
+                val t = db.invoices().get(s.templateId)?.toInfo() ?: return@withTransaction 0
+                val items = db.invoices().items().filter { it.invoiceId == t.id }
+                var n = 0
+                for ((index, date) in due) {
+                    if (db.invoices().countForScheduleOn(s.id, date.toEpochDay()) > 0) continue
+                    val inv = t.copy(id = 0, number = nextInvoiceNumber(t.cashbookId, InvoiceKind.SALE, date), issueDate = date, dueDate = date.plusDays(s.dueDays.toLong()),
+                        docType = DocType.INVOICE, description = com.cashbook.core.InvoiceSchedules.fill(t.description, s, index, dates, locale),
+                        notes = com.cashbook.core.InvoiceSchedules.fill(t.notes, s, index, dates, locale), scheduleId = s.id, cancelled = false)
+                    val id = saveInvoiceRow(inv)
+                    db.invoices().insertItems(items.map { it.copy(id = 0, invoiceId = id) })
+                    n++
+                }
+                db.invoices().setScheduleNext(s.id, due.last().first + 1, now)
+                n
+            }
+        }
+        return created
     }
 
     /** Cancel (void) an invoice. Only possible while no payment is applied to it. */
@@ -446,8 +517,10 @@ class LedgerRepository(
         val all = db.invoices().items()
         val items = challans.flatMap { c -> all.filter { it.invoiceId == c.id }.map { it.toItem().copy(id = 0) } }
         val first = challans.first()
+        // one challan: its vehicle / LR / e-way bill travel with the invoice
         val invId = saveInvoice(InvoiceInfo(0, first.cashbookId, InvoiceKind.SALE, nextInvoiceNumber(first.cashbookId, InvoiceKind.SALE, date), first.partyId,
-            date, date.plusDays(dueDays), challans.sumOf { it.amount }, description, placeOfSupply = first.placeOfSupply, roundOff = first.roundOff), items, sellerState)
+            date, date.plusDays(dueDays), challans.sumOf { it.amount }, description, placeOfSupply = first.placeOfSupply, roundOff = first.roundOff,
+            transport = if (challans.size == 1) first.transport else com.cashbook.core.Transport()), items, sellerState)
         challans.forEach { db.invoices().linkQuote(it.id, invId, now) }
         invId
     }

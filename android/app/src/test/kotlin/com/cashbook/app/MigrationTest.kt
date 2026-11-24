@@ -121,4 +121,21 @@ class MigrationTest {
         db.execSQL("INSERT INTO invoices (cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type, converted_invoice_id) VALUES (1, 'SALE', 'QT/1', 1, 20540, 20554, 118000, '', '', 0, 1, 1, '27', 1, 'QUOTATION', 1)")
         db.close()
     }
+
+    @Test fun migrate7To8AddsTransportAndSchedules() {
+        val hasSchemas = runCatching { context().assets.open("com.cashbook.app.data.db.AppDatabase/7.json").close() }.isSuccess
+        org.junit.Assume.assumeTrue("Room schemas only available in the debug variant", hasSchemas)
+        helper.createDatabase("migration-test-8", 7).apply {
+            execSQL("INSERT INTO cashbooks (id, name, description, opening_date, currency, created_at, updated_at, archived, is_sample) VALUES (1, 'Shop', '', 20544, 'INR', 1, 1, 0, 0)")
+            execSQL("INSERT INTO parties (id, name, type, mobile, email, address, gstin, notes, archived, created_at, updated_at, state_code) VALUES (1, 'ABC', 'CLIENT', '', '', '', '', '', 0, 1, 1, '')")
+            execSQL("INSERT INTO invoices (id, cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type) VALUES (1, 1, 'SALE', 'DC/1', 1, 20544, 20544, 118000, 'Toner', '', 0, 1, 1, '27', 1, 'CHALLAN')")
+            close()
+        }
+        val db = helper.runMigrationsAndValidate("migration-test-8", 8, true, *Migrations.ALL)
+        db.query("SELECT description, vehicle_no, eway_bill_no, schedule_id FROM invoices WHERE id = 1").use { c ->
+            c.moveToFirst(); assertEquals("Toner", c.getString(0)); assertEquals("", c.getString(1)); assertEquals("", c.getString(2)); assertTrue(c.isNull(3)) }
+        db.execSQL("INSERT INTO invoices (id, cashbook_id, kind, number, party_id, issue_date, due_date, amount, description, notes, cancelled, created_at, updated_at, place_of_supply, round_off, doc_type) VALUES (2, 1, 'SALE', 'REC/1', 1, 20544, 20544, 118000, '', '', 0, 1, 1, '27', 1, 'TEMPLATE')")
+        db.execSQL("INSERT INTO invoice_schedules (template_id, frequency, interval, start_date, next_index, due_days, active, created_at, updated_at) VALUES (2, 'MONTHLY', 1, 20544, 0, 15, 1, 1, 1)")
+        db.close()
+    }
 }
