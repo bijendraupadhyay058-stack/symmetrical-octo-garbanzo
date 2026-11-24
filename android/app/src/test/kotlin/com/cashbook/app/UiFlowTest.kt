@@ -701,11 +701,60 @@ class UiFlowTest {
         click("Tick all")
         waitFor("Matches ✓")
         shot("58_bank_reconciliation")
-        compose.onNodeWithText("Finish", substring = true, useUnmergedTree = true).performScrollTo().performClick()
-        waitFor("Everything up to this date is cleared.")
+        // the "Cash count saved" snackbar sits over the bottom of the screen until it times out
+        compose.waitUntil(15_000) { compose.onAllNodesWithText("Cash count saved").fetchSemanticsNodes().isEmpty() }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Finish", substring = true))
+        compose.onNodeWithText("Finish", substring = true, useUnmergedTree = true).performClick()
         s = runBlocking { d.snap { it.reconciliations.isNotEmpty() } }
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Everything up to this date is cleared."))
         assertEquals(bankBalance, s.reconciliations.single().statementBalance)
         shot("59_reconciled")
+    }
+
+    @Test fun bankStatementImport() {
+        seed("en")
+        val d = deps()
+        launch()
+        waitFor("Total balance")
+        val s = runBlocking { d.snap { it.txns.isNotEmpty() } }
+        val bank = s.accounts.first { it.type == com.cashbook.core.AccountType.BANK }
+        val last = s.txns.maxOf { it.date }
+        val (csv, closing) = bankCsv(s, bank, listOf(Triple(last, "SMS CHARGES", -1_770L), Triple(last, "INTEREST CREDIT", 12_500L)))
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Bank reconciliation"))
+        click("Bank reconciliation")
+        waitFor("Import bank statement (CSV)")
+        // what the file picker hands over
+        scenario?.onActivity { a -> androidx.lifecycle.ViewModelProvider(a)[com.cashbook.app.ui.AppViewModel::class.java].loadStatement(csv) }
+        waitFor("not in Cashbook", substring = true)
+        waitFor("SMS CHARGES")
+        shot("60_statement_import")
+        fun added() = runBlocking { d.snap { true } }.txns.count { it.description == "INTEREST CREDIT" || it.description == "SMS CHARGES" }
+        repeat(2) { n ->
+            // the list re-lays out after each add (the line moves to "matched"), so retry a tap that lands mid-update
+            for (attempt in 1..3) {
+                compose.waitForIdle()
+                // only enabled buttons: one already tapped stays disabled (and keeps its place) until the snapshot catches up
+                val addButton = hasText("Add") and androidx.compose.ui.test.hasClickAction() and androidx.compose.ui.test.isEnabled()
+                // a lazy list only composes what's on screen: scroll the enabled button into view first
+                if (runCatching { compose.onNode(hasScrollToIndexAction()).performScrollToNode(addButton) }.isFailure) { compose.waitForIdle(); continue }
+                compose.onAllNodes(addButton).onFirst().performClick()
+                if (runCatching { compose.waitUntil(10_000) { added() >= n + 1 } }.isSuccess) break
+            }
+        }
+        assertEquals(2, added())
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Import bank statement (CSV)"))
+        waitFor("Matches ✓")
+        shot("61_statement_matched")
+        compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Finish", substring = true))
+        compose.onNodeWithText("Finish", substring = true, useUnmergedTree = true).performClick()
+        waitFor("Everything up to this date is cleared.")
+        compose.onAllNodesWithText("not in Cashbook", substring = true).assertCountEquals(0)       // import cleared after finishing
+        val after = runBlocking { d.snap { it.reconciliations.isNotEmpty() } }
+        assertEquals(2, after.txns.count { it.description == "INTEREST CREDIT" || it.description == "SMS CHARGES" })   // no duplicates
+        assertEquals(closing, after.reconciliations.single().statementBalance)
+        assertEquals(last, after.reconciliations.single().statementDate)
     }
 
     @Test fun outstandingReport() {

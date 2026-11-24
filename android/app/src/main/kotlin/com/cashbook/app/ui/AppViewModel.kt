@@ -53,6 +53,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val listFilter = MutableStateFlow(TxnFilter())
     val listSort = MutableStateFlow(SortOrder.LATEST)
 
+    /** The bank statement imported on the reconciliation screen (kept while the user works through it). */
+    val statement = MutableStateFlow<com.cashbook.core.StatementImport.Result?>(null)
+
+    /** Reads a statement file's text; on a format problem shows why and keeps the previous import. */
+    fun loadStatement(text: String) {
+        try { statement.value = com.cashbook.core.StatementImport.parse(text) }
+        catch (e: com.cashbook.core.StatementImport.FormatException) {
+            toast(getApplication<Application>().getString(com.cashbook.app.R.string.statement_unreadable, e.message ?: ""))
+        }
+    }
+
     /** One-shot parameters for the next report screen (e.g. "export this party / cashbook"). */
     var pendingReportFilter: TxnFilter? = null
     var pendingReportAllTime: Boolean = false

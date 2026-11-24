@@ -622,6 +622,17 @@ class LedgerRepository(
             entries = ticked.size, createdAt = now))
     }
 
+    /**
+     * Adds a statement line that isn't in the books yet (bank charges, interest, a forgotten UPI payment) as an
+     * income (money in) or expense (money out) on [accountId], uncategorised so it can be sorted out later.
+     */
+    suspend fun addStatementLine(accountId: Long, line: com.cashbook.core.StatementLine): Long {
+        val account = db.accounts().get(accountId)?.toInfo() ?: throw ReconcileException(ReconcileException.Reason.NOT_FOUND)
+        return db.transactions().insert(Txn(0, account.cashbookId, if (line.amount > 0) TxnType.INCOME else TxnType.EXPENSE, line.date,
+            kotlin.math.abs(line.amount), accountId, paymentMode = PaymentMode.BANK_TRANSFER, description = line.description.take(120),
+            reference = line.reference.take(60), createdAt = now, updatedAt = now).toEntity())
+    }
+
     /** Un-ticks one entry on [accountId] (e.g. it was cleared by mistake). */
     suspend fun unclear(txnId: Long, accountId: Long) = db.withTransaction {
         val t = db.transactions().get(txnId)?.toTxn() ?: return@withTransaction

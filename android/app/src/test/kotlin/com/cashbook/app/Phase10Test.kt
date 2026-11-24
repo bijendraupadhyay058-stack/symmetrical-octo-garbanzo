@@ -68,13 +68,15 @@ class Phase10Test {
         assertEquals(listOf("INV/25-26/001", "INV/25-26/002", "INV/25-26/003"), invs.map { it.number })
         assertTrue(invs.all { it.scheduleId == sid && it.amount == 1_180_000L && s.invoiceItems[it.id]!!.single().description == "Accounting retainer" })
         assertEquals(0, repo.postDueInvoiceSchedules(LocalDate.of(2026, 3, 31)))                    // nothing twice
-        assertEquals(LocalDate.of(2026, 4, 30), d.snap { true }.schedules.single().nextDate)
+        assertEquals(LocalDate.of(2026, 4, 30), d.snap { it.schedules.single().nextIndex == 3 }.schedules.single().nextDate)
 
         // pausing skips the dates while paused; resuming continues from today
         repo.setScheduleActive(sid, false)
+        d.snap { !it.schedules.single().active }
         assertEquals(0, repo.postDueInvoiceSchedules(LocalDate.of(2026, 6, 15)))
         repo.setScheduleActive(sid, true, today = LocalDate.of(2026, 6, 15))
-        assertEquals(LocalDate.of(2026, 6, 30), d.snap { it.schedules.single().active }.schedules.single().nextDate)
+        // wait for the resumed state itself: an older snapshot is also "active"
+        assertEquals(LocalDate.of(2026, 6, 30), d.snap { it.schedules.single().let { sc -> sc.active && sc.nextIndex == 5 } }.schedules.single().nextDate)
         assertEquals(1, repo.postDueInvoiceSchedules(LocalDate.of(2026, 7, 1)))
 
         // deleting the schedule keeps its invoices as normal invoices

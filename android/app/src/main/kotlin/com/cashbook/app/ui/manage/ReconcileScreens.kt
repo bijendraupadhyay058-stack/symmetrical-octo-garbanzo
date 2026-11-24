@@ -84,8 +84,25 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
     var date by rememberSaveable { mutableStateOf(LocalDate.now().toEpochDay()) }
     var balanceText by rememberSaveable { mutableStateOf("") }
     var ticked by rememberSaveable { mutableStateOf(listOf<Long>()) }
+    // statement rows whose "Add" was tapped: the button stays disabled so a double tap can't add the line twice
+    var adding by rememberSaveable { mutableStateOf(listOf<Int>()) }
     val account = accounts.firstOrNull { it.id == accountId }
     val msgDone = stringResource(R.string.reconcile_done)
+    val imported by vm.statement.collectAsStateWithLifecycle()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val msgUnreadable = stringResource(R.string.statement_unreadable, "")
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runCatching {
+            ctx.contentResolver.openInputStream(uri)!!.use { String(it.readBytes(), Charsets.UTF_8) }
+        }.onSuccess { vm.loadStatement(it) }.onFailure { vm.toast(msgUnreadable) }
+    }
+    // a new import sets the statement date and closing balance from the file
+    androidx.compose.runtime.LaunchedEffect(imported) {
+        imported?.let { r ->
+            r.lastDate?.let { date = it.toEpochDay() }
+            r.closingBalance?.let { b -> balanceText = (if (b < 0) "-" else "") + Money.toPlain(kotlin.math.abs(b)) }
+        }
+    }
     AppScaffold(title = stringResource(R.string.bank_reconciliation), onBack = { nav.popBackStack() }) { pad ->
         if (account == null) { EmptyState(Icons.Filled.Info, stringResource(R.string.no_accounts_to_reconcile), Modifier.padding(pad)); return@AppScaffold }
         val statementDate = LocalDate.ofEpochDay(date)
@@ -94,10 +111,24 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
         val statement = parseSignedAmount(balanceText)
         val cleared = Reconcile.clearedBalance(account, snap.txns) + tickedTxns.sumOf { Ledger.effect(it, account.id) }
         val diff = statement?.let { Reconcile.difference(it, account, snap.txns, tickedTxns) }
+        // statement lines paired with entries (ticked automatically) and the ones Cashbook doesn't have yet
+        val (matches, missing) = imported?.let { com.cashbook.core.StatementMatcher.matchForReconcile(it.lines, snap.txns, account, statementDate) }
+            ?: (emptyList<com.cashbook.core.StatementMatch>() to emptyList())
+        val matchedIds = matches.map { it.txn.id }
+        androidx.compose.runtime.LaunchedEffect(matchedIds) { if (matchedIds.any { it !in ticked }) ticked = (ticked + matchedIds).distinct() }
         LazyColumn(Modifier.fillMaxSize().padding(pad)) {
             item {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoBanner(stringResource(R.string.reconcile_intro), icon = Icons.Filled.Info)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.OutlinedButton(onClick = {
+                            vm.allowExternalActivity()
+                            picker.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "text/tab-separated-values", "application/vnd.ms-excel", "application/octet-stream"))
+                        }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.import_statement), maxLines = 1) }
+                        if (imported != null) TextButton(onClick = { vm.statement.value = null }) { Text(stringResource(R.string.clear_import)) }
+                    }
+                    imported?.let { r -> Text(stringResource(R.string.statement_summary_x, r.lines.size, matches.size, missing.size), style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         accounts.forEach { a -> FilterChip(a.id == accountId, { accountId = a.id; ticked = emptyList() }, { Text(a.name) }) }
                     }
@@ -121,6 +152,25 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                         TextButton(onClick = { ticked = emptyList() }) { Text(stringResource(R.string.clear_ticks)) }
                     }
                 }
+            }
+            if (missing.isNotEmpty()) {
+                item { Text(stringResource(R.string.not_in_cashbook_x, missing.size), Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.titleSmall) }
+                items(missing, key = { "line-${it.row}" }) { l ->
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(l.description.ifBlank { "—" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(f.date(l.date) + (if (l.reference.isNotBlank()) " · ${l.reference}" else ""), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text((if (l.amount >= 0) "+" else "−") + f.amount(kotlin.math.abs(l.amount)), color = if (l.amount >= 0) fc.income else fc.expense,
+                            style = MaterialTheme.typography.titleSmall)
+                        TextButton(enabled = l.row !in adding, onClick = { adding = adding + l.row; vm.run { ledger.addStatementLine(account.id, l) } }) {
+                            Text(stringResource(R.string.add_line)) }
+                    }
+                    HorizontalDivider()
+                }
+                item { Text(stringResource(R.string.not_in_cashbook_hint), Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             if (open.isEmpty()) item { EmptyState(Icons.Filled.CheckCircle, stringResource(R.string.all_cleared)) }
             items(open, key = { it.id }) { t ->
@@ -147,7 +197,8 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                                 ?.let { f.amount(it.difference) } ?: e.localizedMessage ?: "")
                         }) {
                             ledger.reconcile(account.id, statementDate, statement!!, tickedTxns.map { it.id })
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { ticked = emptyList(); vm.toast(msgDone) }
+                            // the statement is done: drop the import so its lines aren't offered again
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { ticked = emptyList(); adding = emptyList(); vm.statement.value = null; vm.toast(msgDone) }
                         }
                     }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.finish_reconcile, tickedTxns.size)) }
                     val history = snap.reconciliations.filter { it.accountId == account.id }.take(6)

@@ -34,6 +34,7 @@
     <string name="add_income">Add Income</string>
     <string name="add_income_desc">Money received into an account</string>
     <string name="add_item">Add item</string>
+    <string name="add_line">Add</string>
     <string name="add_sample">Add sample data</string>
     <string name="add_saved_item">Add a saved item</string>
     <string name="add_transfer">Transfer</string>
@@ -191,6 +192,7 @@
     <string name="choose_pin">Choose a 4 to 6 digit PIN</string>
     <string name="clear">Clear</string>
     <string name="clear_filters">Clear filters</string>
+    <string name="clear_import">Clear</string>
     <string name="clear_ticks">Clear</string>
     <string name="cleared_balance">Cleared balance</string>
     <string name="close">Close</string>
@@ -378,6 +380,7 @@
     <string name="has_end_date">Ends on a date</string>
     <string name="history">History</string>
     <string name="icon">Icon</string>
+    <string name="import_statement">Import bank statement (CSV)</string>
     <string name="in_label">In</string>
     <string name="in_recycle_bin_since">In the recycle bin since %s</string>
     <string name="in_stock_x">In stock: %1$s %2$s</string>
@@ -556,6 +559,8 @@
     <string name="no_viewer">No app on this device can open this file.</string>
     <string name="none">None</string>
     <string name="none_top_level">None (top level)</string>
+    <string name="not_in_cashbook_hint">Add bank charges, interest or forgotten payments here; they\'re saved uncategorised for you to sort later. Matched entries are ticked automatically.</string>
+    <string name="not_in_cashbook_x">On the statement, not in Cashbook (%d)</string>
     <string name="not_set">Not set</string>
     <string name="note_date">Note date</string>
     <string name="note_err_too_large">Credit notes can\'t exceed the invoice amount (plus any debit notes).</string>
@@ -929,6 +934,8 @@
     <string name="state_ut">State / UT</string>
     <string name="statement_balance">Statement balance</string>
     <string name="statement_date">Statement date</string>
+    <string name="statement_summary_x">Statement: %1$d lines · %2$d matched · %3$d not in Cashbook</string>
+    <string name="statement_unreadable">This file doesn\'t look like a bank statement. %s</string>
     <string name="step_accounts">Accounts &amp; opening balances</string>
     <string name="step_cashbook">Your first cashbook</string>
     <string name="step_done">All set</string>

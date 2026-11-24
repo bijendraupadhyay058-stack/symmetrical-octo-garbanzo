@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.12.0 (versionCode 13)
+
+**New**
+- **Import bank statement (CSV)** on the Bank reconciliation screen. Works with the usual net-banking layouts
+  (withdrawal / deposit columns, a signed amount, or amount with Dr/Cr), Indian date and number formats, account details
+  above the table and totals below it. The statement date and closing balance are filled in, entries that match
+  (same amount, date within 4 days, reference preferred) are ticked, and lines Cashbook doesn't have — bank charges,
+  interest, a forgotten payment — are listed with **Add** (saved uncategorised for you to sort later).
+
+**Fixed**
+- After finishing a reconciliation the imported statement is cleared, and lines matching entries that were already
+  cleared are never offered as missing, so nothing gets added twice. The Add button can't be tapped twice.
+- Test reliability: several UI and repository tests waited on the wrong condition or tapped under a message or
+  off-screen; they now wait for the exact state they check.
+
+**Data**
+- No database change.
+
 ## 1.11.0 (versionCode 12)
 
 **New**

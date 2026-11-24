@@ -34,6 +34,7 @@
     <string name="add_income">आय जोड़ें</string>
     <string name="add_income_desc">किसी खाते में प्राप्त पैसा</string>
     <string name="add_item">आइटम जोड़ें</string>
+    <string name="add_line">जोड़ें</string>
     <string name="add_sample">नमूना डेटा जोड़ें</string>
     <string name="add_saved_item">सहेजा गया आइटम जोड़ें</string>
     <string name="add_transfer">ट्रांसफ़र</string>
@@ -191,6 +192,7 @@
     <string name="choose_pin">4 से 6 अंकों का पिन चुनें</string>
     <string name="clear">साफ़ करें</string>
     <string name="clear_filters">फ़िल्टर हटाएँ</string>
+    <string name="clear_import">हटाएँ</string>
     <string name="clear_ticks">हटाएँ</string>
     <string name="cleared_balance">क्लियर बैलेंस</string>
     <string name="close">बंद करें</string>
@@ -378,6 +380,7 @@
     <string name="has_end_date">किसी तिथि पर समाप्त</string>
     <string name="history">इतिहास</string>
     <string name="icon">चिह्न</string>
+    <string name="import_statement">बैंक स्टेटमेंट आयात करें (CSV)</string>
     <string name="in_label">आय</string>
     <string name="in_recycle_bin_since">%s से रीसायकल बिन में</string>
     <string name="in_stock_x">स्टॉक में: %1$s %2$s</string>
@@ -556,6 +559,8 @@
     <string name="no_viewer">इस डिवाइस पर कोई ऐप यह फ़ाइल नहीं खोल सकता।</string>
     <string name="none">कोई नहीं</string>
     <string name="none_top_level">कोई नहीं (मुख्य श्रेणी)</string>
+    <string name="not_in_cashbook_hint">बैंक शुल्क, ब्याज या भूले भुगतान यहाँ जोड़ें; वे बिना श्रेणी के सहेजे जाते हैं ताकि बाद में व्यवस्थित कर सकें। मिलती प्रविष्टियाँ अपने आप चुनी जाती हैं।</string>
+    <string name="not_in_cashbook_x">स्टेटमेंट में, Cashbook में नहीं (%d)</string>
     <string name="not_set">सेट नहीं</string>
     <string name="note_date">नोट तिथि</string>
     <string name="note_err_too_large">क्रेडिट नोट इनवॉइस राशि (और डेबिट नोट) से अधिक नहीं हो सकते।</string>
@@ -929,6 +934,8 @@
     <string name="state_ut">राज्य / केंद्र शासित प्रदेश</string>
     <string name="statement_balance">स्टेटमेंट बैलेंस</string>
     <string name="statement_date">स्टेटमेंट तारीख</string>
+    <string name="statement_summary_x">स्टेटमेंट: %1$d पंक्तियाँ · %2$d मिलीं · %3$d Cashbook में नहीं</string>
+    <string name="statement_unreadable">यह फ़ाइल बैंक स्टेटमेंट जैसी नहीं लगती। %s</string>
     <string name="step_accounts">खाते और प्रारंभिक शेष</string>
     <string name="step_cashbook">आपकी पहली कैशबुक</string>
     <string name="step_done">सब तैयार</string>
