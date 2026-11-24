@@ -49,7 +49,10 @@ data class Snapshot(
     fun onHand(item: com.cashbook.core.CatalogItem) = com.cashbook.core.Stock.onHand(item, stockMoves)
     /** Invoice balances as of [today]; only payments that are not in the recycle bin count. */
     fun invoiceBalances(today: java.time.LocalDate = java.time.LocalDate.now()): List<InvoiceBalance> =
-        Invoices.balances(invoices, allocations, txns.associate { it.id to it.type }, today)
+        balanceCache.getOrPut(today) { Invoices.balances(invoices, allocations, txns.associate { it.id to it.type }, today) }
+    // screens ask for balances many times per frame; a snapshot never changes, so each date is worked out once
+    private val balanceCache = java.util.concurrent.ConcurrentHashMap<java.time.LocalDate, List<InvoiceBalance>>()
+    private val notesByInvoice by lazy { invoices.filter { it.refInvoiceId != null }.groupBy { it.refInvoiceId!! } }
 
     /** Any document (invoice, note or quotation) by id. */
     fun doc(id: Long): InvoiceInfo? = invoices.firstOrNull { it.id == id } ?: quotations.firstOrNull { it.id == id } ?: challans.firstOrNull { it.id == id } ?: templates.firstOrNull { it.id == id }
@@ -58,7 +61,7 @@ data class Snapshot(
     fun sourcesOf(invoiceId: Long) = com.cashbook.core.Quotations.sourcesOf(invoiceId, quotations + challans)
 
     /** Credit/debit notes issued against an invoice. */
-    fun notesOf(invoiceId: Long) = invoices.filter { it.refInvoiceId == invoiceId }
+    fun notesOf(invoiceId: Long) = notesByInvoice[invoiceId].orEmpty()
     val cashbookById = cashbooks.associateBy { it.id }
     val accountById = accounts.associateBy { it.id }
     val categoryById = categories.associateBy { it.id }

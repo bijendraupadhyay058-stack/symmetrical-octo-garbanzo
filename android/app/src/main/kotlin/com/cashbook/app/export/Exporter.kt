@@ -40,6 +40,28 @@ object Exporter {
         context.startActivity(Intent.createChooser(send, title))
     }
 
+    /**
+     * Sends a file straight into the WhatsApp (or WhatsApp Business) chat of [number] (country code + digits) with
+     * [text] as the caption. Returns false when neither app is installed, so the caller can fall back to [share].
+     */
+    fun sendToWhatsApp(context: Context, uri: Uri, mime: String, number: String, text: String): Boolean {
+        for (pkg in listOf("com.whatsapp", "com.whatsapp.w4b")) {
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                setPackage(pkg)
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, text)
+                putExtra("jid", "$number@s.whatsapp.net")      // opens the customer's chat directly
+                clipData = ClipData.newRawUri("", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (context !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            // an explicit package throws when that app isn't installed (no <queries> needed)
+            try { context.startActivity(send); return true } catch (e: ActivityNotFoundException) { /* try the next app */ }
+        }
+        return false
+    }
+
     fun shareText(context: Context, text: String, title: String) {
         val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text) }
         context.startActivity(Intent.createChooser(send, title))

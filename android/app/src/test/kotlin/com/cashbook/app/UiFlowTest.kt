@@ -510,6 +510,7 @@ class UiFlowTest {
         waitFor("Record receipt")
         compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
             .performScrollToNode(hasText("WhatsApp payment reminder", substring = true))
+        waitFor("Send PDF on WhatsApp", substring = true)
         shot("45_invoice_reminder")
         scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
 

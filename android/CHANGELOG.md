@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.10.0 (versionCode 11)
+
+**New**
+- **Send PDF on WhatsApp** on invoices, quotations, challans, purchase orders and notes when the party has a mobile
+  number: WhatsApp (or WhatsApp Business) opens on their chat with the PDF attached and a short caption — amount, and
+  for unpaid invoices the balance, due date and your UPI ID. Without WhatsApp the share sheet opens.
+- **Notification** when the daily job creates recurring invoices ("Open Cashbook to send them"), if invoice
+  notifications are on.
+
+**Faster**
+- Invoice balances and note lookups are worked out once per data change instead of on every screen redraw.
+- New scale test: a 30,000-entry, 5,000-invoice ledger reloads after an edit in about 0.15 s on the test runner.
+
+**Data**
+- No database change.
+
 ## 1.9.0 (versionCode 10)
 
 **New**

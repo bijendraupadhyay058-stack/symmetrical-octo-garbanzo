@@ -842,6 +842,31 @@ fun InvoicePdfButtons(vm: AppViewModel, snap: Snapshot, b: InvoiceBalance) {
             }
         }, modifier = Modifier.weight(1f)) { Icon(Icons.Filled.Share, null); Text(" " + stringResource(R.string.share_pdf), maxLines = 1) }
     }
+    // straight into the party's WhatsApp chat with a short caption (falls back to the share sheet)
+    val wa = snap.partyById[b.invoice.partyId]?.mobile?.let { com.cashbook.core.Reminders.whatsappNumber(it) }
+    if (wa != null) {
+        val docLabel = docTypeLabel(b.invoice.docType, b.invoice.kind)
+        OutlinedButton(onClick = {
+            val caption = pdfCaption(ctx, docLabel, b, f, seller)
+            scope.launch {
+                val uri = runCatching { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Exporter.writeShareable(ctx, name) { write(it) } } }.getOrNull()
+                if (uri == null) { vm.toast(failed); return@launch }
+                vm.allowExternalActivity()
+                if (!Exporter.sendToWhatsApp(ctx, uri, Exporter.MIME_PDF, wa, caption)) Exporter.share(ctx, uri, Exporter.MIME_PDF, b.invoice.number)
+            }
+        }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Filled.Share, null); Text(" " + stringResource(R.string.send_pdf_whatsapp), maxLines = 1) }
+    }
+}
+
+/** Caption sent with a document PDF: "Invoice INV/26-27/007 · ₹11,800.00", the balance and UPI ID for unpaid invoices, and the business name. */
+fun pdfCaption(ctx: android.content.Context, docLabel: String, b: InvoiceBalance, f: com.cashbook.app.ui.components.UiFormat,
+               seller: com.cashbook.core.backup.BusinessProfileDto): String = buildString {
+    append("$docLabel ${b.invoice.number} · ${f.amount(b.invoice.amount)}")
+    if (b.invoice.docType == com.cashbook.core.DocType.INVOICE && b.invoice.kind == InvoiceKind.SALE && b.outstanding > 0) {
+        append("\n" + ctx.getString(R.string.reminder_balance, f.amount(b.outstanding)) + " · " + ctx.getString(R.string.due_x, f.date(b.invoice.dueDate)))
+        if (com.cashbook.core.Upi.isValidVpa(seller.upiId)) append("\n" + ctx.getString(R.string.pay_by_upi_x, seller.upiId.trim()))
+    }
+    if (seller.name.isNotBlank()) append("\n— " + seller.name)
 }
 
 

@@ -30,7 +30,9 @@ class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
         val s = container.settings.settings.first()
         container.ledger.purgeOlderThan(s.recycleRetentionDays)
         container.ledger.postDueRecurring()
-        container.ledger.postDueInvoiceSchedules(dates = s.dateFormat)
+        val made = container.ledger.postDueInvoiceSchedules(dates = s.dateFormat)
+        if (made > 0 && s.invoiceReminders) Alerts.notify(applicationContext, 2101, applicationContext.getString(R.string.alert_recurring_title),
+            applicationContext.getString(R.string.alert_recurring_text, made), "invoices")
         container.autoBackup.runIfDue(s)
         val sent = Alerts.run(applicationContext, container.ledger.snapshot.first { it.loaded }, s)
         if (sent.isNotEmpty()) container.settings.update { st ->

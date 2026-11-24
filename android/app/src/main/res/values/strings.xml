@@ -53,6 +53,8 @@
     <string name="alert_due_soon">%d due today or tomorrow.</string>
     <string name="alert_invoices_title">Invoices &amp; bills need attention</string>
     <string name="alert_overdue">%1$d overdue (to receive %2$s, to pay %3$s).</string>
+    <string name="alert_recurring_text">%d invoice(s) were created from your recurring invoices. Open Cashbook to send them to your customers.</string>
+    <string name="alert_recurring_title">Recurring invoices created</string>
     <string name="alerts_channel">Invoice and budget alerts</string>
     <string name="all_accounts">All accounts</string>
     <string name="all_cashbooks">All cashbooks (combined)</string>
@@ -866,6 +868,7 @@
     <string name="select_backup_file">Select backup file</string>
     <string name="select_category">Select category</string>
     <string name="select_party">Select party</string>
+    <string name="send_pdf_whatsapp">Send PDF on WhatsApp</string>
     <string name="send_reminder">Send payment reminder</string>
     <string name="set_business_state">Set your state in Business profile to split GST correctly.</string>
     <string name="set_default">Set as default</string>

@@ -53,6 +53,8 @@
     <string name="alert_due_soon">%d आज या कल देय।</string>
     <string name="alert_invoices_title">इनवॉइस और बिल पर ध्यान दें</string>
     <string name="alert_overdue">%1$d अतिदेय (प्राप्त करना %2$s, भुगतान करना %3$s)।</string>
+    <string name="alert_recurring_text">आपके आवर्ती इनवॉइस से %d इनवॉइस बने। ग्राहकों को भेजने के लिए Cashbook खोलें।</string>
+    <string name="alert_recurring_title">आवर्ती इनवॉइस बने</string>
     <string name="alerts_channel">इनवॉइस और बजट सूचनाएँ</string>
     <string name="all_accounts">सभी खाते</string>
     <string name="all_cashbooks">सभी कैशबुक (संयुक्त)</string>
@@ -866,6 +868,7 @@
     <string name="select_backup_file">बैकअप फ़ाइल चुनें</string>
     <string name="select_category">श्रेणी चुनें</string>
     <string name="select_party">पक्ष चुनें</string>
+    <string name="send_pdf_whatsapp">PDF WhatsApp पर भेजें</string>
     <string name="send_reminder">भुगतान रिमाइंडर भेजें</string>
     <string name="set_business_state">GST सही बाँटने के लिए व्यवसाय प्रोफ़ाइल में अपना राज्य सेट करें।</string>
     <string name="set_default">डिफ़ॉल्ट बनाएँ</string>

@@ -44,7 +44,10 @@ English and Hindi.
 <p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.9** — **recurring invoices** (rent, retainers, AMC, subscriptions): set an invoice up once and it
+**What's new in 1.10** — **Send PDF on WhatsApp**: an invoice, quotation, challan or purchase order PDF goes
+straight into the customer's (or supplier's) chat with a short caption; a **notification** when recurring invoices are
+created in the background; and a **scale check** — a 30,000-entry / 5,000-invoice ledger stays quick (see Testing).
+**1.9** — **recurring invoices** (rent, retainers, AMC, subscriptions): set an invoice up once and it
 is created on every date with its items, GST and your numbering, with `{month}` / `{period}` filled in; and
 **transport details** (vehicle, transporter, LR, e-way bill) on invoices and challans, printed on the PDF.
 **1.8** — **delivery challans**: record goods as you deliver them (stock goes out on the challan),
@@ -74,10 +77,10 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.9.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.10.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.9.0-test.apk`.
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.10.0-test.apk`.
    Installing it over any earlier version keeps your data (the database upgrades automatically to v8).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
@@ -258,6 +261,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.10** Send a document PDF into the party's WhatsApp / WhatsApp Business chat with a caption (amount; balance, due date and UPI ID for unpaid invoices), falling back to the share sheet; notification when recurring invoices are created by the daily job | `Exporter.sendToWhatsApp`, `pdfCaption`, `work/Workers.kt` |
 | **1.9** Recurring sales invoices: weekly / monthly / quarterly / yearly × every N, first date, optional end, payment terms; items and GST; {month} / {period} placeholders; created automatically (catch-up capped); pause / resume / delete; list with next date and count; link from each invoice | `core/Invoices.kt` (`InvoiceSchedules`), `LedgerRepository.postDueInvoiceSchedules`, `ui/invoices/RecurringInvoicesScreen.kt` |
 | **1.9** Transport details on sales invoices and challans (vehicle no. normalised, transporter, LR no., 12-digit e-way bill), shown on screen and in the PDF header; copied when one challan is billed | `core/Invoices.kt` (`Transport`), `export/InvoicePdfWriter.kt` |
 | **1.8** Delivery challans: itemised, stock out on the challan date, DELIVERY CHALLAN PDF ("Deliver to", no payment block), not billed / billed / cancelled; bill several open challans of a customer in one invoice (items copied in order, stock not moved twice); links both ways | `core/Catalog.kt` (`Stock.moves`), `ui/invoices/ChallanScreens.kt`, `LedgerRepository.convertChallans` |
@@ -299,7 +303,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-165 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+168 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -319,6 +323,8 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `core` `StockTest` | Stock from purchases, sales, credit notes, adjustments and opening stock (by date); debit notes and cancelled documents ignored; services excluded; stock value and low-stock flag; item-wise sales net of credit notes; Stock summary report |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
 | `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7 and v7 → v8 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `ScaleTest` | 30,000 entries, 300 parties, 5,000 invoices / 10,000 lines / 3,000 payment links, 200 products: snapshot reload after an edit, invoice balances, account balances, stock, overdue list and every report stay within generous bounds (JVM: reload ≈ 0.15 s, balances ≈ 10 ms, slowest report ≈ 0.25 s; timings printed) |
+| `app` `Phase11Test` | PDF sent to WhatsApp with the customer's chat id, file and caption; exact caption text; cached balances |
 | `app` `Phase10Test` | Schedule creates Jan 31 / Feb 28 / Mar 31 invoices once, with filled placeholders, due dates and numbering; pause/resume; deleting keeps invoices; end date; editing affects only future invoices; transport normalised, copied from a challan, printed; backup keeps schedules, templates, links and transport without re-creating invoices |
 | `app` `Phase9Test` | Challans forced to sales with no due date; stock by date; two challans billed in one invoice (amount, items in order, description, links); mixed customers, re-billing and cancelled challans refused; deleting the invoice re-opens them; backup; challan PDF without QR; overdue customers ordering and exact customer reminder text |
 | `app` `Phase8Test` | Purchase order stays out of payables and stock, converts to a bill (stock in), prints as PURCHASE ORDER without a QR, survives backup; statement built from real repository data agrees with outstanding; exact reminder text (overdue and due) |
@@ -369,5 +375,9 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
   doesn't change stock — stock follows the challans; edit or cancel the challan instead.
 * Recurring invoices are created when the app opens or the daily job runs (Android picks the time, usually within a
   day). The app records transport details; it does not generate e-way bills on the government portal.
-* Suggested next phases: sending recurring invoices automatically by WhatsApp, multi-currency, and an instrumented test pass on
+* WhatsApp is opened with the PDF and caption ready; you still tap send (Android doesn't let apps send messages for
+  you). The direct-to-chat link uses WhatsApp's widely used but undocumented `jid` extra; if a WhatsApp update ignores
+  it, WhatsApp asks you to pick the chat. ScaleTest timings come from the JVM test runner; a phone with an encrypted
+  database will be several times slower.
+* Suggested next phases: multi-currency, and an instrumented test pass on
   physical devices.
