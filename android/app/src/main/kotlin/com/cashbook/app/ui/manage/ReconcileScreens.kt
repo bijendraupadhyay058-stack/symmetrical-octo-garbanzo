@@ -148,6 +148,10 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                         SummaryLine(stringResource(R.string.difference), diff?.let { if (done) stringResource(R.string.reconciled_ok) else f.amount(it) } ?: "—",
                             if (done) fc.income else if (diff != null) fc.expense else null)
                     }
+                    TextButton(onClick = {
+                        vm.pendingReportAccounts = listOf(account.id)
+                        nav.navigate(com.cashbook.app.ui.nav.Routes.report("BANK_RECONCILIATION"))
+                    }) { Text(stringResource(R.string.brs_open)) }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.uncleared_x, open.size), Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                         TextButton(onClick = { ticked = open.map { it.id } }) { Text(stringResource(R.string.tick_all)) }

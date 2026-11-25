@@ -233,6 +233,12 @@ class LedgerRepository(
         val removedFiles = ArrayList<String>()
         val id = db.withTransaction {
             val id = if (txn.id == 0L) {
+                // a new categorised entry teaches its wording, but never overrides what was already learned
+                if (txn.type != TxnType.TRANSFER && txn.categoryId != null) {
+                    val key = com.cashbook.core.CategoryRules.key(txn.description)
+                    if (key.isNotEmpty() && db.reconcile().rules().none { it.key == key })
+                        db.reconcile().upsertRule(CategoryRuleEntity(key = key, categoryId = txn.categoryId!!, createdAt = now))
+                }
                 db.transactions().insert(txn.copy(createdAt = now, updatedAt = now, deletedAt = null).toEntity())
             } else {
                 val old = db.transactions().get(txn.id) ?: error("missing")

@@ -133,6 +133,7 @@
     <string name="bp_signature_image">Signature</string>
     <string name="bp_terms">Terms &amp; notes on invoices</string>
     <string name="bp_upi">UPI ID</string>
+    <string name="brs_open">Reconciliation statement (PDF / Excel)</string>
     <string name="budget_alerts">Budget alerts</string>
     <string name="budget_alerts_desc">Notify when a category reaches 80% or goes over its monthly budget.</string>
     <string name="budget_left">%s left</string>
@@ -757,6 +758,8 @@
     <string name="replace">Replace</string>
     <string name="report_account">Account-wise Report</string>
     <string name="report_account_desc">Opening balance, entries, transfers and closing balance for each account</string>
+    <string name="report_brs">Bank reconciliation statement</string>
+    <string name="report_brs_desc">Balance as per books vs bank, with deposits and payments not yet cleared</string>
     <string name="report_category">Category-wise Report</string>
     <string name="report_category_desc">Number of entries, totals and share of each category</string>
     <string name="report_custom">Custom Report</string>
@@ -803,10 +806,14 @@
     <string name="resume">Resume</string>
     <string name="retention_info">Entries in the recycle bin are permanently deleted %d days after deletion.</string>
     <string name="retention_off">Deleted entries stay in the recycle bin until you remove them.</string>
+    <string name="rl_add_payments">Add: payments not yet debited by the bank</string>
     <string name="rl_adjusted">Adjusted</string>
     <string name="rl_ageing">Ageing</string>
     <string name="rl_balance">Balance</string>
+    <string name="rl_balance_bank">Balance as per bank statement</string>
+    <string name="rl_balance_books">Balance as per Cashbook</string>
     <string name="rl_bill_x">Bill %s</string>
+    <string name="rl_brs_note">Entries count as cleared only if they were reconciled on or before the report date. The balance as per bank statement is what the bank should show on that date if every uncleared entry is genuinely outstanding.</string>
     <string name="rl_cash_basis_note">This report reflects recorded cash movements only. It is not an accrual-based profit and loss account.</string>
     <string name="rl_closing_stock">Closing</string>
     <string name="rl_count">No. of entries</string>
@@ -821,6 +828,7 @@
     <string name="rl_days_overdue">Days overdue</string>
     <string name="rl_debit">Debit</string>
     <string name="rl_debit_note_x">Debit note %s</string>
+    <string name="rl_deposits_not_credited">Deposits not yet credited</string>
     <string name="rl_expense_by_category">Expenses by category</string>
     <string name="rl_from">From</string>
     <string name="rl_gst_note">Based on itemised invoices and bills by invoice date (cancelled ones excluded). Invoices entered as a single amount carry no tax detail and are not included. This is a summary for review, not a GST return.</string>
@@ -832,6 +840,8 @@
     <string name="rl_item">Item</string>
     <string name="rl_item_sales_note">Sales invoices in the period, net of sales credit notes. Lines not picked from saved items are grouped by description.</string>
     <string name="rl_items">Items</string>
+    <string name="rl_last_reconciled">Last reconciled</string>
+    <string name="rl_less_deposits">Less: deposits not yet credited by the bank</string>
     <string name="rl_month">Month</string>
     <string name="rl_month_wise">Month-wise totals</string>
     <string name="rl_net">Net</string>
@@ -839,6 +849,7 @@
     <string name="rl_net_surplus">Net surplus</string>
     <string name="rl_net_surplus_deficit">Net surplus / (deficit)</string>
     <string name="rl_net_tax">Net tax (output − input)</string>
+    <string name="rl_never_reconciled">Not reconciled yet</string>
     <string name="rl_not_due">Not yet due</string>
     <string name="rl_opening_of">Opening balance – %s</string>
     <string name="rl_out">Out</string>
@@ -848,6 +859,7 @@
     <string name="rl_particulars">Particulars</string>
     <string name="rl_party_note">Shows money actually received from and paid to each party. It is not a receivables/payables ledger.</string>
     <string name="rl_payments">Payments</string>
+    <string name="rl_payments_not_debited">Payments not yet debited</string>
     <string name="rl_percent">% of total</string>
     <string name="rl_quantity">Quantity</string>
     <string name="rl_receipts">Receipts</string>
@@ -934,9 +946,9 @@
     <string name="state_hint">Filled automatically from the GSTIN.</string>
     <string name="state_ut">State / UT</string>
     <string name="statement_balance">Statement balance</string>
-    <string name="statement_categories">Statement categories</string>
-    <string name="statement_categories_desc">Learned from your imports: %d</string>
-    <string name="statement_categories_intro">When you give an imported bank line a category, Cashbook remembers its wording (the first words, without numbers). Lines worded the same way in later statements get that category when you add them.</string>
+    <string name="statement_categories">Learned categories</string>
+    <string name="statement_categories_desc">Remembered from your entries: %d</string>
+    <string name="statement_categories_intro">Cashbook remembers which category goes with a description\'s wording (its first words, without numbers) — from new entries, and when you categorise an imported bank line. Lines worded the same way in later statements get that category, and the entry form suggests it.</string>
     <string name="statement_date">Statement date</string>
     <string name="statement_summary_x">Statement: %1$d lines · %2$d matched · %3$d not in Cashbook</string>
     <string name="statement_unreadable">This file doesn\'t look like a bank statement. %s</string>
@@ -996,6 +1008,7 @@
     <string name="upi_qr_for_x">UPI QR code to pay %1$s to %2$s</string>
     <string name="upi_qr_hint">Unpaid invoices show a UPI QR code for this ID</string>
     <string name="use_biometric">Use fingerprint</string>
+    <string name="use_category_x">Use category: %s</string>
     <string name="use_pin">Use PIN</string>
     <string name="used_in_n">Used in %d entries</string>
     <string name="user_guide">User guide</string>

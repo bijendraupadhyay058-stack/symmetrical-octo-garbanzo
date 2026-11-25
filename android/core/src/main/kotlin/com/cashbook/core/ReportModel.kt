@@ -4,7 +4,7 @@ import java.time.LocalDate
 
 enum class ReportType {
     DAILY_CASHBOOK, MONTHLY_SUMMARY, YEARLY_SUMMARY, FINANCIAL_YEAR, CATEGORY_WISE,
-    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY, STOCK_SUMMARY, ITEM_SALES, PARTY_STATEMENT;
+    PARTY_WISE, ACCOUNT_WISE, INCOME_EXPENSE, TRANSFERS, CUSTOM, OUTSTANDING, GST_SUMMARY, STOCK_SUMMARY, ITEM_SALES, PARTY_STATEMENT, BANK_RECONCILIATION;
 
     /** Balance-based reports only accept an account filter; others accept every filter. */
     val supportsDetailFilters: Boolean
@@ -70,6 +70,7 @@ data class ReportLabels(
         ReportType.STOCK_SUMMARY to "Stock Summary",
         ReportType.ITEM_SALES to "Item-wise Sales",
         ReportType.PARTY_STATEMENT to "Statement of Account",
+        ReportType.BANK_RECONCILIATION to "Bank Reconciliation Statement",
     ),
     val types: Map<TxnType, String> = mapOf(TxnType.INCOME to "Income", TxnType.EXPENSE to "Expense", TxnType.TRANSFER to "Transfer"),
     val modes: Map<PaymentMode, String> = mapOf(
@@ -175,6 +176,15 @@ data class ReportLabels(
     val refundX: String = "Refund – %1${"$"}s (%2${"$"}s)",
     val unlinkedReceipts: String = "Receipts not linked to invoices",
     val unlinkedPayments: String = "Payments not linked to invoices",
+    val balancePerBooks: String = "Balance as per Cashbook",
+    val lessUncreditedDeposits: String = "Less: deposits not yet credited by the bank",
+    val addUnpresentedPayments: String = "Add: payments not yet debited by the bank",
+    val balancePerBank: String = "Balance as per bank statement",
+    val depositsNotCredited: String = "Deposits not yet credited",
+    val paymentsNotDebited: String = "Payments not yet debited",
+    val lastReconciled: String = "Last reconciled",
+    val neverReconciled: String = "Not reconciled yet",
+    val brsNote: String = "Entries count as cleared only if they were reconciled on or before the report date. The balance as per bank statement is what the bank should show on that date if every uncleared entry is genuinely outstanding.",
     val statementNote: String = "Built from invoices, bills, credit/debit notes and the payments linked to them. For a customer, debit = amount billed and credit = amount received (balance = owed to you); for a supplier, credit = amount billed and debit = amount paid (balance = you owe). A negative balance is an advance or refund due. Entries not linked to an invoice are shown separately in the summary.",
     val transferNote: String = "Transfers move money between your own accounts and are not counted as income or expenses.",
 )

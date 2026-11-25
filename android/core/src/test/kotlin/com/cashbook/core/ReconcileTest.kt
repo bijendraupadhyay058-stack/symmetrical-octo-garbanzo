@@ -38,4 +38,26 @@ class ReconcileTest {
         assertEquals(-12_000L, CashCountRecord(1, 1, d(5, 1), 488_000, 500_000, emptyMap()).difference)
         assertFalse(2000 in CashCount.DENOMINATIONS)
     }
+
+    @Test fun bankReconciliationStatement() {
+        fun brs(asOf: LocalDate) = ReportEngine(ReportInput(ReportType.BANK_RECONCILIATION, "Office", accounts = listOf(bank, hdfc), categories = emptyMap(),
+            parties = emptyMap(), txns = txns, range = DateRange(d(4, 1), asOf), generatedAt = "now",
+            reconciliations = listOf(Reconciliation(1, 2, d(4, 30), 6_000_000, 1)))).build()
+        val may = brs(d(5, 31))
+        val sbi = may.tables.first { it.title == "SBI Bank" }.rows
+        // books 50,000 + 10,000 − 2,000 − 3,000 + 500 = 55,500; deposit 500 not credited; payments 2,000 + 3,000 not debited
+        assertEquals(Cell.Amount(5_550_000), sbi[0].cells[2])
+        assertEquals(Cell.Amount(-50_000), sbi[1].cells[2])
+        val lessAt = sbi.indexOfFirst { it.cells[1] == Cell.Text("Less: deposits not yet credited by the bank") }
+        val addAt = sbi.indexOfFirst { it.cells[1] == Cell.Text("Add: payments not yet debited by the bank") }
+        assertEquals(listOf(Cell.Amount(50_000)), sbi.subList(lessAt + 1, addAt).map { it.cells[2] })                   // the ₹500 receipt of 20 May
+        assertEquals(listOf(d(5, 2), d(5, 5)), sbi.subList(addAt + 1, sbi.indexOfFirst { it.style == RowStyle.TOTAL }).map { (it.cells[0] as Cell.Day).date })
+        val total = sbi.single { it.style == RowStyle.TOTAL }
+        assertEquals(Cell.Amount(5_550_000 - 50_000 + 500_000), total.cells[2])                       // the bank should show 60,000
+        assertEquals(Cell.Amount(6_000_000), sbi.last().cells[2])                                      // last reconciled balance
+        // HDFC: the transfer was cleared on 31 May, so on 15 May it is still outstanding, on 31 May it isn't
+        assertEquals(Cell.Amount(0), brs(d(5, 15)).tables.first { it.title == "HDFC Bank" }.rows.single { it.style == RowStyle.TOTAL }.cells[2])
+        assertEquals(Cell.Amount(300_000), may.tables.first { it.title == "HDFC Bank" }.rows.single { it.style == RowStyle.TOTAL }.cells[2])
+        assertTrue(may.notes.isNotEmpty())
+    }
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.14.0 (versionCode 15)
+
+**New**
+- **Bank reconciliation statement** (Reports, or "Reconciliation statement" on the reconciliation screen with the
+  account already chosen): balance as per Cashbook, less deposits not yet credited, add payments not yet debited
+  (each listed with date, particulars and reference) = balance as per bank statement, plus the last reconciliation.
+  Choose any date: entries count as cleared only if they were reconciled by then. PDF and Excel, for your accountant.
+- **Category suggestions**: type a description in a new entry and, if you've used that wording before, a
+  "Use category: …" chip appears — one tap fills it in. Nothing is chosen for you.
+- Learned categories (Settings › Learned categories) now also come from entries you type, ignore month names
+  ("Electricity bill May" and "… June" are the same), and match when the remembered words begin the description.
+
+**Data**
+- No database change.
+
 ## 1.13.0 (versionCode 14)
 
 **New**

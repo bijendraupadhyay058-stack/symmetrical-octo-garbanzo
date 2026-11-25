@@ -133,6 +133,7 @@
     <string name="bp_signature_image">हस्ताक्षर</string>
     <string name="bp_terms">इनवॉइस पर शर्तें और टिप्पणी</string>
     <string name="bp_upi">UPI ID</string>
+    <string name="brs_open">मिलान विवरण (PDF / Excel)</string>
     <string name="budget_alerts">बजट चेतावनी</string>
     <string name="budget_alerts_desc">जब कोई श्रेणी अपने मासिक बजट के 80% तक पहुँचे या उससे अधिक हो, तब सूचित करें।</string>
     <string name="budget_left">%s बाकी</string>
@@ -757,6 +758,8 @@
     <string name="replace">बदलें</string>
     <string name="report_account">खाता-वार रिपोर्ट</string>
     <string name="report_account_desc">प्रत्येक खाते का प्रारंभिक शेष, प्रविष्टियाँ, ट्रांसफ़र और अंतिम शेष</string>
+    <string name="report_brs">बैंक मिलान विवरण</string>
+    <string name="report_brs_desc">खाते और बैंक के बैलेंस का मिलान, अभी क्लियर न हुई जमा व भुगतान सहित</string>
     <string name="report_category">श्रेणी-वार रिपोर्ट</string>
     <string name="report_category_desc">प्रत्येक श्रेणी की प्रविष्टियाँ, योग और हिस्सा</string>
     <string name="report_custom">कस्टम रिपोर्ट</string>
@@ -803,10 +806,14 @@
     <string name="resume">फिर शुरू करें</string>
     <string name="retention_info">रीसायकल बिन की प्रविष्टियाँ हटाने के %d दिन बाद स्थायी रूप से मिट जाती हैं।</string>
     <string name="retention_off">हटाई गई प्रविष्टियाँ तब तक रीसायकल बिन में रहेंगी जब तक आप उन्हें न मिटाएँ।</string>
+    <string name="rl_add_payments">जोड़ें: भुगतान जो बैंक से अभी डेबिट नहीं हुए</string>
     <string name="rl_adjusted">समायोजित</string>
     <string name="rl_ageing">अवधि-विश्लेषण</string>
     <string name="rl_balance">शेष</string>
+    <string name="rl_balance_bank">बैंक स्टेटमेंट के अनुसार बैलेंस</string>
+    <string name="rl_balance_books">Cashbook के अनुसार बैलेंस</string>
     <string name="rl_bill_x">बिल %s</string>
+    <string name="rl_brs_note">प्रविष्टियाँ तभी क्लियर मानी जाती हैं जब उनका मिलान रिपोर्ट की तारीख तक हुआ हो। बैंक स्टेटमेंट के अनुसार बैलेंस वह है जो उस तारीख को बैंक में दिखना चाहिए, यदि हर अनक्लियर प्रविष्टि सच में बकाया है।</string>
     <string name="rl_cash_basis_note">यह रिपोर्ट केवल दर्ज नकद लेन-देन दर्शाती है। यह उपार्जन-आधारित लाभ-हानि खाता नहीं है।</string>
     <string name="rl_closing_stock">अंतिम</string>
     <string name="rl_count">प्रविष्टियों की संख्या</string>
@@ -821,6 +828,7 @@
     <string name="rl_days_overdue">अतिदेय दिन</string>
     <string name="rl_debit">नामे</string>
     <string name="rl_debit_note_x">डेबिट नोट %s</string>
+    <string name="rl_deposits_not_credited">अभी क्रेडिट न हुई जमा</string>
     <string name="rl_expense_by_category">श्रेणी-वार व्यय</string>
     <string name="rl_from">से</string>
     <string name="rl_gst_note">इनवॉइस तिथि के अनुसार आइटम-वार इनवॉइस और बिल पर आधारित (रद्द शामिल नहीं)। एक राशि वाले इनवॉइस में कर विवरण नहीं होता, इसलिए शामिल नहीं। यह समीक्षा के लिए सारांश है, GST रिटर्न नहीं।</string>
@@ -832,6 +840,8 @@
     <string name="rl_item">आइटम</string>
     <string name="rl_item_sales_note">अवधि के बिक्री इनवॉइस, बिक्री क्रेडिट नोट घटाकर। जो आइटम सहेजे आइटम से नहीं चुने गए, वे विवरण के अनुसार समूहित हैं।</string>
     <string name="rl_items">आइटम</string>
+    <string name="rl_last_reconciled">पिछला मिलान</string>
+    <string name="rl_less_deposits">घटाएँ: जमा जो बैंक में अभी क्रेडिट नहीं हुई</string>
     <string name="rl_month">माह</string>
     <string name="rl_month_wise">माह-वार योग</string>
     <string name="rl_net">शुद्ध</string>
@@ -839,6 +849,7 @@
     <string name="rl_net_surplus">शुद्ध अधिशेष</string>
     <string name="rl_net_surplus_deficit">शुद्ध अधिशेष / (घाटा)</string>
     <string name="rl_net_tax">शुद्ध कर (आउटपुट − इनपुट)</string>
+    <string name="rl_never_reconciled">अभी मिलान नहीं हुआ</string>
     <string name="rl_not_due">अभी देय नहीं</string>
     <string name="rl_opening_of">प्रारंभिक शेष – %s</string>
     <string name="rl_out">जावक</string>
@@ -848,6 +859,7 @@
     <string name="rl_particulars">विवरण</string>
     <string name="rl_party_note">प्रत्येक पक्ष से वास्तव में प्राप्त और उसे दिया गया पैसा दर्शाती है। यह प्राप्य/देय खाता-बही नहीं है।</string>
     <string name="rl_payments">भुगतान</string>
+    <string name="rl_payments_not_debited">अभी डेबिट न हुए भुगतान</string>
     <string name="rl_percent">कुल का %</string>
     <string name="rl_quantity">मात्रा</string>
     <string name="rl_receipts">प्राप्तियाँ</string>
@@ -934,9 +946,9 @@
     <string name="state_hint">GSTIN से अपने-आप भरा जाता है।</string>
     <string name="state_ut">राज्य / केंद्र शासित प्रदेश</string>
     <string name="statement_balance">स्टेटमेंट बैलेंस</string>
-    <string name="statement_categories">स्टेटमेंट श्रेणियाँ</string>
-    <string name="statement_categories_desc">आपके आयात से सीखी गईं: %d</string>
-    <string name="statement_categories_intro">जब आप आयात की गई बैंक पंक्ति को श्रेणी देते हैं, Cashbook उसके शब्द (पहले शब्द, बिना नंबर) याद रखता है। बाद के स्टेटमेंट में वैसे ही शब्दों वाली पंक्तियों को जोड़ते समय वही श्रेणी मिलती है।</string>
+    <string name="statement_categories">सीखी गई श्रेणियाँ</string>
+    <string name="statement_categories_desc">आपकी प्रविष्टियों से याद की गईं: %d</string>
+    <string name="statement_categories_intro">Cashbook याद रखता है कि विवरण के शब्दों (पहले शब्द, बिना नंबर) के साथ कौन-सी श्रेणी जाती है — नई प्रविष्टियों से, और जब आप आयात की गई बैंक पंक्ति को श्रेणी देते हैं। बाद के स्टेटमेंट में वैसे शब्दों वाली पंक्तियों को वही श्रेणी मिलती है, और प्रविष्टि फ़ॉर्म इसे सुझाता है।</string>
     <string name="statement_date">स्टेटमेंट तारीख</string>
     <string name="statement_summary_x">स्टेटमेंट: %1$d पंक्तियाँ · %2$d मिलीं · %3$d Cashbook में नहीं</string>
     <string name="statement_unreadable">यह फ़ाइल बैंक स्टेटमेंट जैसी नहीं लगती। %s</string>
@@ -996,6 +1008,7 @@
     <string name="upi_qr_for_x">%2$s को %1$s भुगतान करने के लिए UPI QR कोड</string>
     <string name="upi_qr_hint">बकाया इनवॉइस पर इस ID का UPI QR कोड दिखेगा</string>
     <string name="use_biometric">फ़िंगरप्रिंट का उपयोग करें</string>
+    <string name="use_category_x">श्रेणी चुनें: %s</string>
     <string name="use_pin">पिन का उपयोग करें</string>
     <string name="used_in_n">%d प्रविष्टियों में उपयोग</string>
     <string name="user_guide">उपयोग गाइड</string>

@@ -143,13 +143,29 @@ object HtmlTable {
 data class CategoryRule(val id: Long, val key: String, val categoryId: Long)
 
 object CategoryRules {
+    /** Month names change every month ("Electricity bill May" / "… June"), so they're not part of the wording. */
+    private val MONTHS = setOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "SEPT", "OCT", "NOV", "DEC",
+        "JANUARY", "FEBRUARY", "MARCH", "APRIL", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER")
+
+    /** Words of letters (two or more), upper-case, without month names. */
+    fun words(description: String): List<String> =
+        description.uppercase().split(Regex("[^\\p{L}]+")).filter { it.length >= 2 && it !in MONTHS }
+
     /**
-     * The stable part of a bank narration: its first three words of letters, upper-case. Reference numbers, dates and
-     * amounts change every month, the wording doesn't: "SMS CHARGES INCL GST 0525" → "SMS CHARGES INCL",
+     * The stable part of a narration: its first three words of letters, upper-case, no months. Reference numbers, dates
+     * and amounts change every month, the wording doesn't: "SMS CHARGES INCL GST 0525" → "SMS CHARGES INCL",
      * "UPI/ACME TRADERS/4521987/PAYMENT" → "UPI ACME TRADERS". Blank when there are no words.
      */
-    fun key(description: String): String =
-        description.uppercase().split(Regex("[^\\p{L}]+")).filter { it.length >= 2 }.take(3).joinToString(" ")
+    fun key(description: String): String = words(description).take(3).joinToString(" ")
 
-    fun find(rules: List<CategoryRule>, description: String): CategoryRule? = key(description).takeIf { it.isNotEmpty() }?.let { k -> rules.firstOrNull { it.key == k } }
+    /**
+     * The rule whose words begin this description's words ("SMS CHARGES" fits "SMS CHARGES INCL GST"); the longest
+     * such rule wins, so a specific rule beats a general one.
+     */
+    fun find(rules: List<CategoryRule>, description: String): CategoryRule? {
+        val w = words(description)
+        if (w.isEmpty()) return null
+        return rules.mapNotNull { r -> r.key.split(' ').let { rk -> if (rk.size <= w.size && w.subList(0, rk.size) == rk) r to rk.size else null } }
+            .maxByOrNull { it.second }?.first
+    }
 }

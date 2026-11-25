@@ -43,6 +43,9 @@ fun reportLabels(c: Context): ReportLabels {
         creditNoteX = s(R.string.rl_credit_note_x), debitNoteX = s(R.string.rl_debit_note_x), paymentReceivedX = s(R.string.rl_received_x),
         paymentMadeX = s(R.string.rl_paid_x), refundX = s(R.string.rl_refund_x), unlinkedReceipts = s(R.string.rl_unlinked_receipts),
         unlinkedPayments = s(R.string.rl_unlinked_payments), statementNote = s(R.string.rl_statement_note),
+        balancePerBooks = s(R.string.rl_balance_books), lessUncreditedDeposits = s(R.string.rl_less_deposits), addUnpresentedPayments = s(R.string.rl_add_payments),
+        balancePerBank = s(R.string.rl_balance_bank), depositsNotCredited = s(R.string.rl_deposits_not_credited), paymentsNotDebited = s(R.string.rl_payments_not_debited),
+        lastReconciled = s(R.string.rl_last_reconciled), neverReconciled = s(R.string.rl_never_reconciled), brsNote = s(R.string.rl_brs_note),
         cashBasisNote = s(R.string.rl_cash_basis_note), partyNote = s(R.string.rl_party_note), transferNote = s(R.string.rl_transfer_note),
     )
 }

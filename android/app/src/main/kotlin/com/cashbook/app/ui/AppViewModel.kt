@@ -70,6 +70,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** One-shot parameters for the next report screen (e.g. "export this party / cashbook"). */
     var pendingReportFilter: TxnFilter? = null
     var pendingReportAllTime: Boolean = false
+    /** Accounts to preselect on the next report screen (e.g. the account being reconciled). */
+    var pendingReportAccounts: List<Long>? = null
 
     /** Screen requested from outside (widget button, notification): "add_INCOME", "invoices", "budgets", "backup"… */
     private val _openRequest = MutableStateFlow<String?>(null)

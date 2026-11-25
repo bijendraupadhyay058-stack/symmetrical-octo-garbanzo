@@ -86,5 +86,13 @@ class StatementFilesTest {
         assertEquals(40L, CategoryRules.find(rules, "sms charges incl gst 0625")?.categoryId)
         assertNull(CategoryRules.find(rules, "SMS ALERT CHARGES"))
         assertNull(CategoryRules.find(rules, "0525"))
+        // months aren't wording; a shorter rule fits a longer description; the most specific rule wins
+        assertEquals("ELECTRICITY BILL", CategoryRules.key("Electricity bill May 2026"))
+        assertEquals("ELECTRICITY BILL", CategoryRules.key("Electricity bill – June"))
+        val more = listOf(CategoryRule(2, "SMS CHARGES", 41), CategoryRule(3, "SMS CHARGES INCL", 42), CategoryRule(4, "UPI", 43))
+        assertEquals(41L, CategoryRules.find(more, "Sms charges").let { it?.categoryId })
+        assertEquals(42L, CategoryRules.find(more, "SMS CHARGES INCL GST").let { it?.categoryId })
+        assertEquals(43L, CategoryRules.find(more, "UPI/RAMESH/1234").let { it?.categoryId })
+        assertNull(CategoryRules.find(more, "CHARGES SMS"))
     }
 }

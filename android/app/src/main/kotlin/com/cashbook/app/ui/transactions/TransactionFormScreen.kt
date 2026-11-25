@@ -249,6 +249,16 @@ fun TransactionFormScreen(vm: AppViewModel, nav: NavHostController, type: TxnTyp
             }
             OutlinedTextField(form.description, { form.description = it }, label = { Text(stringResource(R.string.description)) },
                 modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), maxLines = 3)
+            // a learned category for this wording, offered while no category is chosen (never applied silently)
+            if (form.type != TxnType.TRANSFER && form.categoryId <= 0) {
+                val kind = if (form.type == TxnType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
+                com.cashbook.core.CategoryRules.find(snap.categoryRules, form.description)
+                    ?.let { r -> snap.categoryById[r.categoryId] }?.takeIf { it.kind == kind && !it.archived }?.let { c ->
+                        androidx.compose.material3.AssistChip(onClick = { form.categoryId = c.id },
+                            label = { Text(stringResource(R.string.use_category_x, snap.categoryName(c.id))) },
+                            leadingIcon = { androidx.compose.material3.Icon(categoryIcon(c.icon), null) })
+                    }
+            }
             OutlinedTextField(form.reference, { form.reference = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(when (form.type) { TxnType.EXPENSE -> R.string.bill_number; TxnType.INCOME -> R.string.reference_number; else -> R.string.reference_number })) })
             OutlinedTextField(form.tags, { form.tags = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),

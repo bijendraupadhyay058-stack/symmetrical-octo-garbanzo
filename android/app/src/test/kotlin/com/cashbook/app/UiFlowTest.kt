@@ -801,8 +801,8 @@ class UiFlowTest {
         val xlsx = java.io.ByteArrayOutputStream().also { com.cashbook.core.XlsxWriter.write(listOf(sheet), it) }.toByteArray()
         tab("Settings")
         compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
-            .performScrollToNode(hasText("Statement categories"))
-        waitFor("Learned from your imports: 1")
+            .performScrollToNode(hasText("Learned categories"))
+        waitFor("Remembered from your entries:", substring = true)
         compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
             .performScrollToNode(hasText("Bank reconciliation"))
         click("Bank reconciliation")
@@ -816,6 +816,40 @@ class UiFlowTest {
         assertEquals(charges, added.categoryId)
         compose.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Import bank statement"))
         waitFor("Matches ✓")
+    }
+
+    @Test fun categorySuggestionAndReconciliationStatement() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            val s = d.snap { it.categories.isNotEmpty() }
+            val power = s.categories.first { it.name == "Electricity" }.id
+            d.db.reconcile().upsertRule(com.cashbook.app.data.db.CategoryRuleEntity(key = "ELECTRICITY BILL", categoryId = power, createdAt = 0))
+            d.snap { it.categoryRules.isNotEmpty() }
+        }
+        launch()
+        waitFor("Total balance")
+        openFromAddSheet("Add Expense")
+        waitFor("Description")
+        field("Description").performTextInput("Electricity bill June")
+        waitFor("Use category: Electricity", substring = true)
+        shot("63_category_suggestion")
+        click("Use category: Electricity")
+        compose.onAllNodesWithText("Use category", substring = true).assertCountEquals(0)
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        waitFor("Discard this entry?"); click("Discard")
+        waitFor("Total balance")
+
+        // the reconciliation statement from the reconciliation screen, preselected on the account
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Bank reconciliation"))
+        click("Bank reconciliation")
+        waitFor("Reconciliation statement (PDF / Excel)")
+        click("Reconciliation statement (PDF / Excel)")
+        waitFor("Balance as per Cashbook"); waitFor("Balance as per bank statement")
+        waitFor("Add: payments not yet debited by the bank")
+        shot("64_reconciliation_statement")
     }
 
     @Test fun outstandingReport() {

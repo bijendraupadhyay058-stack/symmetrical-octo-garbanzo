@@ -36,6 +36,8 @@ data class ReportInput(
     /** Saved products/services and stock adjustments (stock and item-wise reports). */
     val catalog: List<CatalogItem> = emptyList(),
     val adjustments: List<StockAdjustment> = emptyList(),
+    /** Finished bank reconciliations (bank reconciliation statement). */
+    val reconciliations: List<Reconciliation> = emptyList(),
 )
 
 /**
@@ -82,9 +84,10 @@ class ReportEngine(private val input: ReportInput) {
             ReportType.STOCK_SUMMARY -> stockSummary()
             ReportType.ITEM_SALES -> itemSales()
             ReportType.PARTY_STATEMENT -> partyStatement()
+            ReportType.BANK_RECONCILIATION -> bankReconciliation()
         }
         val exportTxns = when {
-            input.type in setOf(ReportType.OUTSTANDING, ReportType.GST_SUMMARY, ReportType.STOCK_SUMMARY, ReportType.ITEM_SALES, ReportType.PARTY_STATEMENT) -> emptyList()
+            input.type in setOf(ReportType.OUTSTANDING, ReportType.GST_SUMMARY, ReportType.STOCK_SUMMARY, ReportType.ITEM_SALES, ReportType.PARTY_STATEMENT, ReportType.BANK_RECONCILIATION) -> emptyList()
             input.type.supportsDetailFilters -> detail
             else -> inRange
         }
@@ -447,6 +450,44 @@ class ReportEngine(private val input: ReportInput) {
         loose.filter { it.type == TxnType.INCOME }.sumOf { it.amount }.takeIf { it > 0 }?.let { summary += SummaryItem(l.unlinkedReceipts, Cell.Amount(it)) }
         loose.filter { it.type == TxnType.EXPENSE }.sumOf { it.amount }.takeIf { it > 0 }?.let { summary += SummaryItem(l.unlinkedPayments, Cell.Amount(it)) }
         return Parts(summary, tables, listOf(l.statementNote))
+    }
+
+    /**
+     * Bank reconciliation statement as at the end of the period, per account (bank / wallet accounts, or the ones
+     * selected): balance as per books, less deposits not yet credited, add payments not yet debited = balance the bank
+     * should show. An entry counts as cleared only if its side was cleared on or before that date.
+     */
+    private fun bankReconciliation(): Parts {
+        val asOf = range.end
+        val accounts = (if (input.selectedAccountIds.isEmpty()) input.accounts.filter { it.type != AccountType.CASH && !it.archived } else scope)
+        val summary = ArrayList<SummaryItem>()
+        val tables = ArrayList<ReportTable>()
+        for (a in accounts) {
+            val clearedBy = { t: Txn -> (if (t.accountId == a.id) t.clearedOn else t.toClearedOn)?.let { !it.isAfter(asOf) } == true }
+            val open = input.txns.filter { Ledger.touches(it, setOf(a.id)) && !it.date.isAfter(asOf) && !clearedBy(it) }.sortedWith(TxnChronological)
+            val deposits = open.filter { Ledger.effect(it, a.id) > 0 }
+            val payments = open.filter { Ledger.effect(it, a.id) < 0 }
+            val books = Ledger.balanceAsOf(a, input.txns, asOf)
+            val inDeposits = deposits.sumOf { Ledger.effect(it, a.id) }
+            val outPayments = -payments.sumOf { Ledger.effect(it, a.id) }
+            val bank = books - inDeposits + outPayments
+            val last = input.reconciliations.filter { it.accountId == a.id && !it.statementDate.isAfter(asOf) }.maxByOrNull { it.statementDate }
+            // three columns so it fits a phone: the reference (cheque / UTR no.) goes with the particulars
+            fun row(t: Txn) = Row(listOf(Cell.Day(t.date), Cell.Text(t.description.ifBlank { names.category(t.categoryId).ifBlank { names.party(t.partyId) } } +
+                (if (t.reference.isNotBlank()) " · ${t.reference}" else "")), Cell.Amount(kotlin.math.abs(Ledger.effect(t, a.id)))))
+            val rows = ArrayList<Row>()
+            rows += Row(listOf(Cell.Day(asOf), Cell.Text(l.balancePerBooks), Cell.Amount(books)), RowStyle.SUBTOTAL)
+            rows += Row(listOf(Cell.Empty, Cell.Text(l.lessUncreditedDeposits), Cell.Amount(-inDeposits)), RowStyle.HEADING)
+            deposits.forEach { rows += row(it) }
+            rows += Row(listOf(Cell.Empty, Cell.Text(l.addUnpresentedPayments), Cell.Amount(outPayments)), RowStyle.HEADING)
+            payments.forEach { rows += row(it) }
+            rows += Row(listOf(Cell.Day(asOf), Cell.Text(l.balancePerBank), Cell.Amount(bank)), RowStyle.TOTAL)
+            rows += Row(listOf(last?.let { Cell.Day(it.statementDate) } ?: Cell.Empty, Cell.Text(last?.let { l.lastReconciled } ?: l.neverReconciled),
+                last?.let { Cell.Amount(it.statementBalance) } ?: Cell.Empty))
+            tables += ReportTable(a.name, listOf(Column(l.date, 1.25f), Column(l.particulars, 2.9f), Column(l.amount, 1.45f, Align.END)), rows)
+            summary += SummaryItem("${a.name} · ${l.balancePerBank}", Cell.Amount(bank))
+        }
+        return Parts(summary, tables, listOf(l.brsNote))
     }
 
     private fun outstanding(): Parts {

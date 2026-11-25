@@ -117,13 +117,14 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
     val mode = when (type) { ReportType.MONTHLY_SUMMARY -> Mode.MONTH; ReportType.YEARLY_SUMMARY -> Mode.YEAR; ReportType.FINANCIAL_YEAR -> Mode.FY; else -> Mode.PRESET }
     val allTime = remember { vm.pendingReportAllTime.also { vm.pendingReportAllTime = false } }
     val initialFilter = remember { vm.pendingReportFilter.also { vm.pendingReportFilter = null } }
-    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK || type == ReportType.OUTSTANDING -> PeriodPreset.TODAY; type == ReportType.PARTY_STATEMENT -> PeriodPreset.THIS_FY; else -> PeriodPreset.THIS_MONTH }) }
+    var preset by rememberSaveable { mutableStateOf(when { allTime -> PeriodPreset.ALL_TIME; type == ReportType.DAILY_CASHBOOK || type == ReportType.OUTSTANDING || type == ReportType.BANK_RECONCILIATION -> PeriodPreset.TODAY; type == ReportType.PARTY_STATEMENT -> PeriodPreset.THIS_FY; else -> PeriodPreset.THIS_MONTH }) }
     var customStart by rememberSaveable { mutableLongStateOf(today.withDayOfMonth(1).toEpochDay()) }
     var customEnd by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     var month by rememberSaveable { mutableStateOf(YearMonth.from(today).toString()) }
     var year by rememberSaveable { mutableStateOf(today.year) }
     var fy by rememberSaveable { mutableStateOf(FinancialYear.of(today).startYear) }
-    var accountIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
+    val initialAccounts = remember { vm.pendingReportAccounts.also { vm.pendingReportAccounts = null } }
+    var accountIds by rememberSaveable { mutableStateOf(initialAccounts ?: listOf<Long>()) }
     var detailFilter by remember { mutableStateOf(initialFilter ?: TxnFilter()) }
     var showFilters by remember { mutableStateOf(false) }
     var exportMenu by remember { mutableStateOf(false) }
@@ -154,7 +155,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
                 locale = Locale.getDefault(), txnsWithAttachments = snap.withAttachments,
                 invoices = snap.invoices.filter { it.cashbookId in cbIds }, allocations = snap.allocations,
                 invoiceItems = snap.invoiceItems, sellerState = vm.businessProfile.value.stateCode,
-                catalog = snap.catalog, adjustments = snap.stockAdjustments,
+                catalog = snap.catalog, adjustments = snap.stockAdjustments, reconciliations = snap.reconciliations,
             )).build()
         }
     }

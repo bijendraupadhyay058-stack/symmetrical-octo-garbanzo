@@ -67,6 +67,7 @@ fun reportTitleRes(t: ReportType) = when (t) {
     ReportType.STOCK_SUMMARY -> R.string.report_stock
     ReportType.ITEM_SALES -> R.string.report_item_sales
     ReportType.PARTY_STATEMENT -> R.string.report_party_statement
+    ReportType.BANK_RECONCILIATION -> R.string.report_brs
 }
 
 fun reportDescRes(t: ReportType) = when (t) {
@@ -80,4 +81,5 @@ fun reportDescRes(t: ReportType) = when (t) {
     ReportType.STOCK_SUMMARY -> R.string.report_stock_desc
     ReportType.ITEM_SALES -> R.string.report_item_sales_desc
     ReportType.PARTY_STATEMENT -> R.string.report_party_statement_desc
+    ReportType.BANK_RECONCILIATION -> R.string.report_brs_desc
 }
