@@ -73,7 +73,7 @@ fun CashbooksScreen(vm: AppViewModel, nav: NavHostController) {
     val archived = snap.cashbooks.filter { it.archived }
 
     AppScaffold(title = stringResource(R.string.cashbooks), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.cashbook(0)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_cashbook)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_cashbook), onClick = { nav.navigate(Routes.cashbook(0)) })
     }) { pad ->
         LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (snap.cashbooks.isEmpty()) item { EmptyState(Icons.AutoMirrored.Filled.MenuBook, stringResource(R.string.no_cashbook)) }

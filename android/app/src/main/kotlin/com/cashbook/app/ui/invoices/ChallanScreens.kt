@@ -1,6 +1,7 @@
 package com.cashbook.app.ui.invoices
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -181,9 +182,9 @@ fun ChallanDetailScreen(vm: AppViewModel, nav: NavHostController, c: InvoiceInfo
                 SectionCard(stringResource(R.string.bill_challans)) {
                     Text(stringResource(R.string.bill_challans_explain), style = MaterialTheme.typography.bodySmall)
                     openForParty.forEach { o ->
-                        Row(Modifier.fillMaxWidth().clickable { selected = if (o.id in selected) selected - o.id else selected + o.id },
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(o.id in selected, { selected = if (it) selected + o.id else selected - o.id })
+                        Row(Modifier.fillMaxWidth().toggleable(o.id in selected, role = androidx.compose.ui.semantics.Role.Checkbox) {
+                            selected = if (it) selected + o.id else selected - o.id }, verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(o.id in selected, null, Modifier.padding(12.dp))
                             Text("${o.number} · ${f.date(o.issueDate)}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                             Text(f.amount(o.amount), style = MaterialTheme.typography.bodyMedium)
                         }

@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.15.0 (versionCode 16)
+
+**Accessibility**
+- TalkBack now reads every picker and date field as one control with its label and value ("Expense category,
+  Electricity, button") — before, the tap area had no label.
+- Switch rows ("Itemised with GST", backup options…) and checkbox rows (reconciliation, billing challans) are one
+  control each, read with their text and state, instead of a row plus an unlabelled switch or box.
+- "New invoice", "New party" and the other floating "New …" buttons are announced by name (Material's extended button
+  hid its text from TalkBack).
+- Text contrast meets WCAG AA (4.5:1) everywhere in light and dark theme: income green and warning amber are slightly
+  darker in light theme, and "Cancelled" / "Declined" labels no longer use the light border grey.
+- Large text: bottom-bar labels shrink to fit instead of being cut off, invoice tabs scroll, the reconciliation date
+  and balance fields are stacked, and the dashboard's net row keeps a gap before the amount.
+
+**Tests**
+- An accessibility sweep of 22 screens (labels and 48 dp touch targets) with a control case, a theme contrast test,
+  and large-text and Hindi screenshots of the newer screens. (Google's accessibility checker was tried first but
+  doesn't run under the JVM test runner — its control case found nothing — so the checks are done on Compose
+  semantics instead.)
+
+**Data**
+- No database change.
+
 ## 1.14.0 (versionCode 15)
 
 **New**

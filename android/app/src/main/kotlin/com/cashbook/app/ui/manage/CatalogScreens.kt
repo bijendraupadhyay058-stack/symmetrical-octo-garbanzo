@@ -87,7 +87,7 @@ fun CatalogScreen(vm: AppViewModel, nav: NavHostController) {
     val list = snap.catalog.filter { (query.isBlank() || it.name.contains(query, true) || it.hsn.contains(query)) }
         .filter { !lowOnly || (it.tracksStock && it.reorderLevelMilli > 0 && snap.onHand(it) <= it.reorderLevelMilli) }
     AppScaffold(title = stringResource(R.string.products_services), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.catalogItem(0)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_item)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_item), onClick = { nav.navigate(Routes.catalogItem(0)) })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             OutlinedTextField(query, { query = it }, leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text(stringResource(R.string.search_items)) },

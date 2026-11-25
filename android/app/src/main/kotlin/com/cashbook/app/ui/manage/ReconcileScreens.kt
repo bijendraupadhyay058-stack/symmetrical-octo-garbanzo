@@ -1,6 +1,7 @@
 package com.cashbook.app.ui.manage
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -134,13 +135,12 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         accounts.forEach { a -> FilterChip(a.id == accountId, { accountId = a.id; ticked = emptyList() }, { Text(a.name) }) }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DateField(stringResource(R.string.statement_date), statementDate, { date = it.toEpochDay(); ticked = emptyList() }, Modifier.weight(1f))
-                        OutlinedTextField(balanceText, { v -> balanceText = v.filter { it.isDigit() || it in ".,-" }.take(16) },
-                            label = { Text(stringResource(R.string.statement_balance)) }, prefix = { Text("₹ ") }, singleLine = true,
-                            isError = balanceText.isNotBlank() && statement == null, modifier = Modifier.weight(1f),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text))
-                    }
+                    // one under the other: side by side, the date wrapped with large text and in Hindi
+                    DateField(stringResource(R.string.statement_date), statementDate, { date = it.toEpochDay(); ticked = emptyList() })
+                    OutlinedTextField(balanceText, { v -> balanceText = v.filter { it.isDigit() || it in ".,-" }.take(16) },
+                        label = { Text(stringResource(R.string.statement_balance)) }, prefix = { Text("₹ ") }, singleLine = true,
+                        isError = balanceText.isNotBlank() && statement == null, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text))
                     SectionCard {
                         SummaryLine(stringResource(R.string.cleared_balance), f.amount(cleared))
                         SummaryLine(stringResource(R.string.statement_balance), statement?.let { f.amount(it) } ?: "—")
@@ -185,9 +185,11 @@ fun ReconcileScreen(vm: AppViewModel, nav: NavHostController) {
             if (open.isEmpty()) item { EmptyState(Icons.Filled.CheckCircle, stringResource(R.string.all_cleared)) }
             items(open, key = { it.id }) { t ->
                 val e = Ledger.effect(t, account.id)
-                Row(Modifier.fillMaxWidth().clickable { ticked = if (t.id in ticked) ticked - t.id else ticked + t.id }.padding(horizontal = 8.dp, vertical = 2.dp),
+                // the whole row is one checkbox for TalkBack (its text is the label)
+                Row(Modifier.fillMaxWidth().toggleable(t.id in ticked, role = androidx.compose.ui.semantics.Role.Checkbox) {
+                    ticked = if (it) ticked + t.id else ticked - t.id }.padding(horizontal = 8.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(t.id in ticked, { ticked = if (it) ticked + t.id else ticked - t.id })
+                    Checkbox(t.id in ticked, null, Modifier.padding(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(t.description.ifBlank { snap.categoryName(t.categoryId).ifBlank { snap.names.party(t.partyId) } }.ifBlank { "—" },
                             style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)

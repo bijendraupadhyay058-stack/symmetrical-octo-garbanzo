@@ -71,7 +71,7 @@ fun CategoriesScreen(vm: AppViewModel, nav: NavHostController) {
     val usage = snap.txns.groupingBy { it.categoryId }.eachCount()
     val ordered = cats.filter { it.parentId == null }.flatMap { p -> listOf(p) + cats.filter { it.parentId == p.id } }
     AppScaffold(title = stringResource(R.string.categories), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.category(0, kind.name)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_category)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_category), onClick = { nav.navigate(Routes.category(0, kind.name)) })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             TabRow(tab) {

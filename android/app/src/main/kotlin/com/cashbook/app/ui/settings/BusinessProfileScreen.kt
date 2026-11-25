@@ -134,7 +134,7 @@ private fun BrandingSection(vm: AppViewModel) {
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.small), contentAlignment = androidx.compose.ui.Alignment.Center) {
                 if (bmp != null) androidx.compose.foundation.Image(bmp.asImageBitmap(), stringResource(if (brand == com.cashbook.app.data.AttachmentStore.Brand.LOGO) R.string.bp_logo else R.string.bp_signature_image),
                     Modifier.padding(4.dp).fillMaxSize(), contentScale = androidx.compose.ui.layout.ContentScale.Fit)
-                else Text(stringResource(R.string.none), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                else Text(stringResource(R.string.none), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(stringResource(if (brand == com.cashbook.app.data.AttachmentStore.Brand.LOGO) R.string.bp_logo else R.string.bp_signature_image), style = MaterialTheme.typography.bodyLarge)

@@ -32,6 +32,12 @@ import com.cashbook.core.TxnType
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.activity.compose.setContent
+import androidx.compose.ui.test.onRoot
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -89,6 +95,35 @@ class UiFlowTest {
         click("Add")
         compose.waitUntil(10_000) { compose.onAllNodesWithText(option, useUnmergedTree = true).fetchSemanticsNodes().size >= 2 }
         compose.onAllNodesWithText(option, useUnmergedTree = true).onLast().performClick()
+    }
+
+    /**
+     * Accessibility checks on the Compose semantics tree (works under Robolectric, unlike the platform scanner): every
+     * tappable element on screen needs a label TalkBack can read, and a touch target of at least 48 × 48 dp.
+     */
+    private fun a11yIssues(): List<String> {
+        val density = app().resources.displayMetrics.density
+        val window = compose.onAllNodes(isRoot()).fetchSemanticsNodes().first().boundsInRoot
+        return compose.onAllNodes(androidx.compose.ui.test.hasClickAction()).fetchSemanticsNodes().mapNotNull { n ->
+            val b = n.touchBoundsInRoot
+            if (b.width <= 0f || b.height <= 0f || b.bottom <= window.top || b.top >= window.bottom) return@mapNotNull null   // off screen
+            val c = n.config
+            val label = listOfNotNull(
+                c.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.joinToString(" "),
+                c.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.ContentDescription) { null }?.joinToString(" "),
+                c.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.EditableText) { null }?.text,
+            ).joinToString(" ").trim()
+            // real size (a list item cut off by the bottom bar is still full size), at least the touch area
+            val w = maxOf(b.width, n.layoutInfo.width.toFloat()) / density; val h = maxOf(b.height, n.layoutInfo.height.toFloat()) / density
+            // partly scrolled off screen: its visible size says nothing about its real size
+            val clipped = b.left <= window.left + 1 || b.right >= window.right - 1 || b.top <= window.top + 1 || b.bottom >= window.bottom - 1
+            when {
+                label.isEmpty() -> "unlabelled control (%.0f×%.0f dp at %.0f,%.0f) %s".format(w, h, b.left / density, b.top / density,
+                    c.toString().take(1500) + " children=" + n.children.map { it.config.toString().take(300) })
+                !clipped && (w < 47.5f || h < 47.5f) -> "small target \"${label.take(40)}\" %.0f×%.0f dp".format(w, h)
+                else -> null
+            }
+        }.distinct()
     }
 
     /** Waits for [cond] while letting the main looper (where view-model work runs under Robolectric) make progress. */
@@ -851,6 +886,108 @@ class UiFlowTest {
         waitFor("Add: payments not yet debited by the bank")
         shot("64_reconciliation_statement")
     }
+
+    /**
+     * Accessibility sweep of the main screens: labels for TalkBack and 48 dp touch targets on everything tappable that's
+     * on screen (see [a11yIssues]; text contrast is checked separately in ThemeContrastTest). Every finding on every
+     * screen is collected, then the test fails listing them all.
+     */
+    @Test fun accessibilityChecks() {
+        seed("en")
+        val d = deps()
+        runBlocking {
+            val s = d.snap { it.cashbooks.isNotEmpty() }
+            val cb = s.cashbooks.single().id
+            val p = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = "ABC Enterprises", type = "CUSTOMER", mobile = "98765 43210", createdAt = 0, updatedAt = 0))
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, cb, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/001", p, LocalDate.now().minusDays(40),
+                LocalDate.now().minusDays(25), 590_000))
+            d.snap { it.invoices.isNotEmpty() }
+        }
+        val findings = LinkedHashMap<String, String>()
+        fun check(screen: String) {
+            compose.waitForIdle()
+            a11yIssues().takeIf { it.isNotEmpty() }?.let { findings[screen] = it.joinToString("; ") }
+        }
+        val settingsScroll = androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange)
+        fun back() { scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }
+        fun settingsRow(text: String) { compose.onNode(settingsScroll).performScrollToNode(hasText(text)); click(text) }
+
+        launch()
+        waitFor("Total balance"); check("Dashboard")
+        tab("Transactions"); waitFor("Office rent", substring = true); check("Transactions")
+        tab("Reports"); waitFor("Daily Cashbook"); check("Reports")
+        click("Monthly Summary"); waitFor("Report options"); check("Report view"); back()
+        tab("Settings"); waitFor("Backup & restore"); check("Settings")
+        settingsRow("Invoices & bills"); waitFor("INV/26-27/001", substring = true); check("Invoices")
+        click("ABC Enterprises"); waitFor("Record receipt"); check("Invoice detail"); back()
+        click(" Remind overdue customers (1)"); waitFor("Overdue collections"); check("Collections"); back(); back()
+        settingsRow("Bank reconciliation"); waitFor("Statement balance"); check("Bank reconciliation"); back()
+        settingsRow("Cash count"); waitFor("No. of ₹500"); check("Cash count"); back()
+        settingsRow("Products & services"); waitFor("New item"); check("Products"); back()
+        settingsRow("Parties"); waitFor("New party"); check("Parties"); back()
+        settingsRow("Recurring entries"); waitFor("New recurring entry"); check("Recurring entries"); back()
+        settingsRow("Business profile"); waitFor("Business / trade name"); check("Business profile"); back()
+        settingsRow("Backup & restore"); waitFor("Create backup", substring = true); check("Backup"); back()
+        settingsRow("Learned categories"); waitFor("Learned categories"); check("Learned categories"); back()
+        settingsRow("Invoices & bills"); waitFor("Receivables")
+        compose.onNodeWithContentDescription("Recurring invoices").performClick(); waitFor("New recurring invoice"); check("Recurring invoices"); back()
+        tab("Quotes & orders"); waitFor("Delivery challans"); check("Quotes & orders")
+        tab("Receivables"); click("New invoice"); waitFor("Customer / client *"); check("New invoice"); back(); back()
+        tab("Dashboard"); waitFor("Total balance")
+        openFromAddSheet("Add Expense"); waitFor("Description"); check("Add expense")
+        println("A11Y findings: " + findings.size)
+        findings.forEach { (k, v) -> println("A11Y [$k] $v") }
+        assertEquals(findings.entries.joinToString("\n\n") { "[${it.key}] ${it.value}" }, 0, findings.size)
+    }
+
+    /** Control: the checker must flag a deliberately bad button, or a clean sweep above would mean nothing. */
+    @Test fun accessibilityCheckerCatchesProblems() {
+        // the bare test activity is declared only in the debug variant's test manifest
+        val sc = runCatching { ActivityScenario.launch(androidx.activity.ComponentActivity::class.java) }
+            .getOrElse { org.junit.Assume.assumeNoException("test activity only in the debug variant", it); return }
+        try {
+            sc.onActivity { a -> a.setContent {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.size(12.dp).clickable { }
+                    .background(androidx.compose.ui.graphics.Color.LightGray))
+            } }
+            val issues = a11yIssues()
+            println("A11Y control: $issues")
+            org.junit.Assert.assertTrue("the checker found nothing wrong with a 12dp unlabelled button", issues.any { it.startsWith("unlabelled") })
+        } finally { sc.close() }
+    }
+
+    /** Screens drawn at 1.5× text size (Android's "Largest" font setting is 1.3–2×) and in Hindi, for review. */
+    private fun newerScreens(prefix: String, hi: Boolean) {
+        val d = deps()
+        runBlocking {
+            val s = d.snap { it.cashbooks.isNotEmpty() }
+            val p = d.ledger.saveParty(com.cashbook.app.data.db.PartyEntity(name = if (hi) "एबीसी एंटरप्राइज़ेज़" else "ABC Enterprises", type = "CUSTOMER",
+                mobile = "98765 43210", createdAt = 0, updatedAt = 0))
+            d.ledger.saveInvoice(com.cashbook.core.InvoiceInfo(0, s.cashbooks.single().id, com.cashbook.core.InvoiceKind.SALE, "INV/26-27/001", p,
+                LocalDate.now().minusDays(40), LocalDate.now().minusDays(25), 1_180_000))
+            d.snap { it.invoices.isNotEmpty() }
+        }
+        val scroll = androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange)
+        fun back() { scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }; compose.waitForIdle() }
+        launch()
+        waitFor(if (hi) "कुल शेष" else "Total balance"); shot("${prefix}_dashboard")
+        tab(if (hi) "सेटिंग" else "Settings")
+        val invoices = if (hi) "इनवॉइस और बिल" else "Invoices & bills"
+        compose.onNode(scroll).performScrollToNode(hasText(invoices)); click(invoices)
+        waitFor("INV/26-27/001", substring = true); shot("${prefix}_invoices")
+        compose.onAllNodesWithText("INV/26-27/001", substring = true, useUnmergedTree = true).onFirst().performClick()
+        waitFor(if (hi) "प्राप्ति दर्ज करें" else "Record receipt"); shot("${prefix}_invoice_detail"); back(); back()
+        val recon = if (hi) "बैंक मिलान" else "Bank reconciliation"
+        compose.onNode(scroll).performScrollToNode(hasText(recon)); click(recon)
+        waitFor(if (hi) "स्टेटमेंट बैलेंस" else "Statement balance"); shot("${prefix}_reconcile"); back()
+        val cash = if (hi) "नकद गिनती" else "Cash count"
+        compose.onNode(scroll).performScrollToNode(hasText(cash)); click(cash)
+        waitFor("₹500 ×"); shot("${prefix}_cash_count")
+    }
+
+    @Test fun largeTextScreens() { org.robolectric.RuntimeEnvironment.setFontScale(1.5f); seed("en"); newerScreens("large", hi = false) }
+
+    @Test @Config(qualifiers = "hi") fun hindiNewerScreens() { seed("hi"); newerScreens("hindi2", hi = true) }
 
     @Test fun outstandingReport() {
         seed("en")

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -180,7 +181,10 @@ fun MainNav(vm: AppViewModel) {
                         selected = current == t.route,
                         onClick = { if (t.route == "add") addSheet = true else nav.openTab(t.route) },
                         icon = { Icon(t.icon, null, modifier = if (t.route == "add") Modifier.size(32.dp) else Modifier) },
-                        label = { Text(stringResource(t.label), maxLines = 1, style = MaterialTheme.typography.labelSmall, softWrap = false) },
+                        // shrinks to fit rather than cutting "Dashboard" to "Dashboar" with large text
+                        label = { androidx.compose.foundation.text.BasicText(stringResource(t.label), maxLines = 1,
+                            style = MaterialTheme.typography.labelSmall.copy(color = androidx.compose.material3.LocalContentColor.current),
+                            autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize)) },
                     )
                 }
             }

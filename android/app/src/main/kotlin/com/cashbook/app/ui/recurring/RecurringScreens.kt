@@ -105,7 +105,7 @@ fun RecurringListScreen(vm: AppViewModel, nav: NavHostController) {
     val rules = snap.recurring.filter { it.cashbookId in scope }.sortedWith(compareBy({ !it.active || it.finished }, { it.nextDate }))
     val transfer = stringResource(R.string.type_transfer)
     AppScaffold(title = stringResource(R.string.recurring_entries), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.recurringEdit(0)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_recurring)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_recurring), onClick = { nav.navigate(Routes.recurringEdit(0)) })
     }) { pad ->
         LazyColumn(Modifier.fillMaxSize().padding(pad)) {
             item { InfoBanner(stringResource(R.string.recurring_intro), Modifier.padding(16.dp), icon = Icons.Filled.Info) }

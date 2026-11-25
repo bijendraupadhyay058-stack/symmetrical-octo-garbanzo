@@ -50,8 +50,7 @@ fun RecurringInvoicesScreen(vm: AppViewModel, nav: NavHostController) {
     val rows = snap.schedules.mapNotNull { sc -> snap.templates.firstOrNull { it.id == sc.templateId && it.cashbookId in scope }?.let { sc to it } }
         .sortedWith(compareBy({ !it.first.active || it.first.finished }, { it.first.nextDate }))
     AppScaffold(title = stringResource(R.string.recurring_invoices), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.templateEdit(0)) }, icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text(stringResource(R.string.new_recurring_invoice)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_recurring_invoice), onClick = { nav.navigate(Routes.templateEdit(0)) })
     }) { pad ->
         LazyColumn(Modifier.fillMaxSize().padding(pad)) {
             item { InfoBanner(stringResource(R.string.recurring_invoices_intro), Modifier.padding(16.dp), icon = Icons.Filled.Info) }
@@ -72,7 +71,7 @@ fun RecurringInvoicesScreen(vm: AppViewModel, nav: NavHostController) {
                             color = if (sc.active && !sc.finished) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(stringResource(R.string.invoices_made_x, made), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(f.amount(t.amount), style = MaterialTheme.typography.titleSmall, color = if (sc.active) fc.income else MaterialTheme.colorScheme.outline)
+                    Text(f.amount(t.amount), style = MaterialTheme.typography.titleSmall, color = if (sc.active) fc.income else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 HorizontalDivider()
             }

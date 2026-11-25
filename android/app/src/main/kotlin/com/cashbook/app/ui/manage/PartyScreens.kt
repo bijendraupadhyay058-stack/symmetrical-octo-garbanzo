@@ -71,7 +71,7 @@ fun PartiesScreen(vm: AppViewModel, nav: NavHostController) {
     val list = snap.parties.filter { query.isBlank() || it.name.contains(query, true) || it.mobile.replace(" ", "").contains(query.replace(" ", "")) }
     val counts = snap.txns.groupingBy { it.partyId }.eachCount()
     AppScaffold(title = stringResource(R.string.parties), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.party(0)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_party)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_party), onClick = { nav.navigate(Routes.party(0)) })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
             OutlinedTextField(query, { query = it }, leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text(stringResource(R.string.search_party)) },

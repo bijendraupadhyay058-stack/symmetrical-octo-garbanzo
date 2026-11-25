@@ -45,7 +45,10 @@ English and Hindi.
 <p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.14** — a **bank reconciliation statement** report (balance per books, deposits not yet credited,
+**What's new in 1.15** — an **accessibility pass**: every tappable element on 22 screens has a TalkBack label and a
+48 dp touch target (checked automatically), text colours meet WCAG AA contrast in light and dark theme, and layouts
+hold up at large font sizes and in Hindi.
+**1.14** — a **bank reconciliation statement** report (balance per books, deposits not yet credited,
 payments not yet debited, balance per bank; PDF / Excel) and **category suggestions** in the entry form from the
 wording you've used before.
 **1.13** — statements from **Excel (.xlsx)** and the **HTML ".xls"** files many banks download, and
@@ -89,10 +92,10 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.14.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.15.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.14.0-test.apk`.
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.15.0-test.apk`.
    Installing it over any earlier version keeps your data (the database upgrades automatically to v10).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
@@ -296,6 +299,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.15** Accessibility: labelled pick/date fields, row-level switches and checkboxes, labelled "New …" buttons, AA text contrast, scrollable invoice tabs, auto-sizing bottom-bar labels, large-text layout fixes | `ui/components/Components.kt` (`fieldSemantics`, `SwitchRow`, `AppFab`), `ui/theme/Theme.kt` |
 | **1.14** Bank reconciliation statement report (PDF / Excel), opened from the reconciliation screen with the account preselected; category suggestion chip in the entry form; rules learned from typed entries, month names ignored, prefix matching | `core/ReportEngine.bankReconciliation`, `CategoryRules`, `TransactionFormScreen` |
 | **1.13** Excel (.xlsx) and HTML ".xls" statements; learned narration → category rules applied when adding statement lines, shown on the line before adding, managed in Settings | `core/StatementFiles.kt`, `LedgerRepository.ruleCategory`, `CategoryRulesScreen` |
 | **1.12** Import a bank statement CSV into the reconciliation: date and closing balance filled in, matches auto-ticked, missing lines added (uncategorised) with one tap; overlapping statements don't re-offer cleared lines | `core/StatementImport.kt`, `ui/manage/ReconcileScreens.kt`, `LedgerRepository.addStatementLine` |
@@ -343,7 +347,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-193 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+198 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -366,6 +370,8 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `core` `StockTest` | Stock from purchases, sales, credit notes, adjustments and opening stock (by date); debit notes and cancelled documents ignored; services excluded; stock value and low-stock flag; item-wise sales net of credit notes; Stock summary report |
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
 | `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7, v7 → v8, v8 → v9 and v9 → v10 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
+| `app` `ThemeContrastTest` | WCAG AA (4.5:1) for every text colour on surface, background, tinted rows and status chips, light and dark |
+| `app` `UiFlowTest` accessibility | Sweep of 22 screens: every on-screen tappable element has a label and a ≥ 48 dp target; a control test proves the checker flags a 12 dp unlabelled button; screens at 1.5× text and in Hindi for review |
 | `app` `Phase15Test` | Typed entries teach rules without overriding, month names ignored, uncategorised entries teach nothing; reconciliation statement on real data with an uncleared cheque (books, bank, last reconciliation) |
 | `app` `Phase14Test` | A categorised imported line teaches a rule; the next month's line comes in categorised; kind mismatch ignored; only uncategorised → categorised edits learn; rules survive backup; deleted rule stops applying |
 | `app` `Phase13Test` | Statement built from the sample bank account plus charges and interest: all entries matched, the two missing lines added and matched, reconciled at the statement's closing balance |

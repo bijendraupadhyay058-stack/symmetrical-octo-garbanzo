@@ -26,12 +26,12 @@ val NavyDark = Color(0xFF101C40)
 data class FinanceColors(val income: Color, val expense: Color, val transfer: Color, val incomeBg: Color, val expenseBg: Color,
                          val transferBg: Color, val header: Color, val onHeader: Color, val warning: Color)
 
-private val LightFinance = FinanceColors(
-    income = Color(0xFF1B7F3B), expense = Color(0xFFC62828), transfer = Color(0xFF5E35B1),
+internal val LightFinance = FinanceColors(
+    income = Color(0xFF166B32), expense = Color(0xFFC62828), transfer = Color(0xFF5E35B1),
     incomeBg = Color(0xFFE3F4E8), expenseBg = Color(0xFFFCE4E4), transferBg = Color(0xFFEDE7F6),
-    header = Navy, onHeader = Color.White, warning = Color(0xFFB26A00),
+    header = Navy, onHeader = Color.White, warning = Color(0xFF8A5300),
 )
-private val DarkFinance = FinanceColors(
+internal val DarkFinance = FinanceColors(
     income = Color(0xFF7BD89A), expense = Color(0xFFFF8A80), transfer = Color(0xFFC3B1F0),
     incomeBg = Color(0xFF173524), expenseBg = Color(0xFF3B1C1C), transferBg = Color(0xFF2A2140),
     header = Color(0xFF17213F), onHeader = Color(0xFFE6EAF5), warning = Color(0xFFFFC266),
@@ -39,7 +39,7 @@ private val DarkFinance = FinanceColors(
 
 val LocalFinanceColors = staticCompositionLocalOf { LightFinance }
 
-private val LightScheme = lightColorScheme(
+internal val LightScheme = lightColorScheme(
     primary = Navy, onPrimary = Color.White, primaryContainer = Color(0xFFDCE3F7), onPrimaryContainer = NavyDark,
     secondary = Color(0xFF3D5A99), onSecondary = Color.White, secondaryContainer = Color(0xFFDDE5FA), onSecondaryContainer = Color(0xFF14254F),
     tertiary = Color(0xFF5E35B1), background = Color(0xFFF4F6FA), onBackground = Color(0xFF151A24),
@@ -47,7 +47,7 @@ private val LightScheme = lightColorScheme(
     surfaceContainer = Color(0xFFF0F2F7), surfaceContainerHigh = Color(0xFFE9ECF3), surfaceContainerLow = Color.White,
     outline = Color(0xFF7A8091), outlineVariant = Color(0xFFD3D8E2), error = Color(0xFFB3261E),
 )
-private val DarkScheme = darkColorScheme(
+internal val DarkScheme = darkColorScheme(
     primary = Color(0xFFB2C5FF), onPrimary = Color(0xFF0E1B3D), primaryContainer = Color(0xFF2A3D73), onPrimaryContainer = Color(0xFFDCE3F7),
     secondary = Color(0xFFBCC7E8), onSecondary = Color(0xFF1F2A44), secondaryContainer = Color(0xFF34405E), onSecondaryContainer = Color(0xFFDDE5FA),
     tertiary = Color(0xFFC3B1F0), background = Color(0xFF0E121B), onBackground = Color(0xFFE3E6EE),

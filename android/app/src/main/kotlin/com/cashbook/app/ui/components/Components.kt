@@ -1,5 +1,6 @@
 package com.cashbook.app.ui.components
 
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +71,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -219,9 +223,9 @@ fun DateField(label: String, date: LocalDate, onChange: (LocalDate) -> Unit, mod
             value = f.date(date), onValueChange = {}, readOnly = true, label = { Text(label) },
             trailingIcon = { Icon(Icons.Filled.CalendarMonth, null) }, isError = isError,
             supportingText = supporting?.let { { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },     // TalkBack reads the overlay below instead
         )
-        Box(Modifier.matchParentSize().clickable(onClickLabel = label) { open = true })
+        Box(Modifier.matchParentSize().clickable(onClickLabel = label) { open = true }.fieldSemantics(label, f.date(date), if (isError) supporting else null))
     }
     if (open) {
         val state = rememberDatePickerState(initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
@@ -276,8 +280,9 @@ fun SwitchRow(title: String, checked: Boolean, onChange: (Boolean) -> Unit, subt
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = subtitle?.let { { Text(it) } },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange, enabled = enabled) },
-        modifier = Modifier.clickable(enabled = enabled) { onChange(!checked) }.semantics { contentDescription = title },
+        // the whole row is the switch for TalkBack: "Itemised with GST, on, switch" — not a row plus an unlabelled switch
+        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
+        modifier = Modifier.toggleable(checked, enabled = enabled, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange),
     )
 }
 
@@ -300,10 +305,21 @@ fun PickerField(label: String, value: String, onClick: () -> Unit, modifier: Mod
             leadingIcon = leading?.let { { Icon(it, null) } },
             trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) },
             supportingText = supporting?.let { { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },
         )
-        Box(Modifier.matchParentSize().clickable(onClickLabel = label, onClick = onClick))
+        Box(Modifier.matchParentSize().clickable(onClickLabel = label, onClick = onClick).fieldSemantics(label, value, if (isError) supporting else null))
     }
+}
+
+/**
+ * What TalkBack reads for a tap-to-pick field drawn as a read-only text field with a clickable overlay: "Category,
+ * Rent, button" (and the error, if any) — one element instead of an unlabelled tap area plus a text field.
+ */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+private fun Modifier.fieldSemantics(label: String, value: String, error: String?) = semantics {
+    contentDescription = if (value.isBlank()) label else "$label, $value"
+    role = androidx.compose.ui.semantics.Role.Button
+    if (error != null) error(error)
 }
 
 data class PickItem(val id: Long, val title: String, val subtitle: String = "", val icon: ImageVector? = null, val indent: Boolean = false)
@@ -389,4 +405,14 @@ fun <T> InlineChoice(label: String, options: List<T>, selected: T?, labelOf: @Co
             }
         }
     }
+}
+
+/**
+ * Extended "New …" button. Material's extended FAB leaves its text out of the accessibility tree, so TalkBack would just
+ * say "button": the text is set as its description.
+ */
+@Composable
+fun AppFab(text: String, onClick: () -> Unit, icon: ImageVector = Icons.Filled.Add) {
+    androidx.compose.material3.ExtendedFloatingActionButton(onClick = onClick, icon = { Icon(icon, null) }, text = { Text(text) },
+        modifier = Modifier.semantics { contentDescription = text })
 }

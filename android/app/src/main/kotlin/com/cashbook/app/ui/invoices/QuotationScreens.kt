@@ -76,7 +76,7 @@ import java.time.LocalDate
 @Composable
 fun quoteStatusColor(s: QuoteStatus): Color = LocalFinanceColors.current.let {
     when (s) { QuoteStatus.OPEN -> MaterialTheme.colorScheme.primary; QuoteStatus.EXPIRED -> it.warning; QuoteStatus.CONVERTED -> it.income
-        QuoteStatus.DECLINED -> MaterialTheme.colorScheme.outline }
+        QuoteStatus.DECLINED -> MaterialTheme.colorScheme.onSurfaceVariant }
 }
 
 /** Purchase orders read Open / Overdue (expected date passed) / Billed / Cancelled. */

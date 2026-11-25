@@ -99,7 +99,7 @@ import java.time.LocalDate
 @Composable
 fun statusColor(s: InvoiceStatus): Color = LocalFinanceColors.current.let {
     when (s) { InvoiceStatus.PAID -> it.income; InvoiceStatus.OVERDUE -> it.expense; InvoiceStatus.PARTIAL -> it.warning
-        InvoiceStatus.OPEN -> MaterialTheme.colorScheme.primary; InvoiceStatus.CANCELLED -> MaterialTheme.colorScheme.outline
+        InvoiceStatus.OPEN -> MaterialTheme.colorScheme.primary; InvoiceStatus.CANCELLED -> MaterialTheme.colorScheme.onSurfaceVariant
         InvoiceStatus.REFUND_DUE -> it.transfer }
 }
 
@@ -160,16 +160,16 @@ fun InvoicesScreen(vm: AppViewModel, nav: NavHostController) {
     AppScaffold(title = stringResource(R.string.invoices_bills), onBack = { nav.popBackStack() }, actions = {
         IconButton(onClick = { nav.navigate(Routes.RECURRING_INVOICES) }) { Icon(Icons.Filled.Repeat, stringResource(R.string.recurring_invoices)) }
     }, floating = {
-        if (tab == 2) ExtendedFloatingActionButton(onClick = {
+        if (tab == 2) com.cashbook.app.ui.components.AppFab(stringResource(when (docView) {
+            PreDocView.QUOTATIONS -> R.string.new_quotation; PreDocView.PURCHASE_ORDERS -> R.string.new_purchase_order; PreDocView.CHALLANS -> R.string.new_challan }), onClick = {
             nav.navigate(when (docView) { PreDocView.QUOTATIONS -> Routes.quoteEdit(0, "SALE"); PreDocView.PURCHASE_ORDERS -> Routes.quoteEdit(0, "PURCHASE")
                 PreDocView.CHALLANS -> Routes.challanEdit(0) })
-        }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(when (docView) {
-            PreDocView.QUOTATIONS -> R.string.new_quotation; PreDocView.PURCHASE_ORDERS -> R.string.new_purchase_order; PreDocView.CHALLANS -> R.string.new_challan })) })
-        else ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.invoiceEdit(0, kind.name)) }, icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text(stringResource(if (kind == InvoiceKind.SALE) R.string.new_invoice else R.string.new_bill)) })
+        })
+        else com.cashbook.app.ui.components.AppFab(stringResource(if (kind == InvoiceKind.SALE) R.string.new_invoice else R.string.new_bill), onClick = { nav.navigate(Routes.invoiceEdit(0, kind.name)) })
     }) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
-            TabRow(tab) {
+            // scrollable: tab labels keep their full width with large text or in Hindi
+            androidx.compose.material3.PrimaryScrollableTabRow(tab, edgePadding = 0.dp) {
                 Tab(tab == 0, { tab = 0 }, text = { Text(stringResource(R.string.receivables), maxLines = 1) })
                 Tab(tab == 1, { tab = 1 }, text = { Text(stringResource(R.string.payables), maxLines = 1) })
                 Tab(tab == 2, { tab = 2 }, text = { Text(stringResource(R.string.quotes_and_orders), maxLines = 1) })

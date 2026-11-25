@@ -72,7 +72,7 @@ fun AccountsScreen(vm: AppViewModel, nav: NavHostController, cashbookId: Long) {
     val cb = snap.cashbookById[cashbookId]
     val accounts = snap.accounts.filter { it.cashbookId == cashbookId }
     AppScaffold(title = stringResource(R.string.accounts) + (cb?.let { " · ${it.name}" } ?: ""), onBack = { nav.popBackStack() }, floating = {
-        ExtendedFloatingActionButton(onClick = { nav.navigate(Routes.account(cashbookId, 0)) }, icon = { Icon(Icons.Filled.Add, null) }, text = { Text(stringResource(R.string.new_account)) })
+        com.cashbook.app.ui.components.AppFab(stringResource(R.string.new_account), onClick = { nav.navigate(Routes.account(cashbookId, 0)) })
     }) { pad ->
         LazyColumn(Modifier.fillMaxSize().padding(pad)) {
             item { InfoBanner(stringResource(R.string.account_vs_mode_info), Modifier.padding(16.dp), icon = Icons.Filled.Info) }

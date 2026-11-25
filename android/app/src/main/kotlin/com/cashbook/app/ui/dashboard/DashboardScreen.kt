@@ -193,7 +193,7 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
                         StatCard(stringResource(R.string.month_expenses), monthT.expense, TxnType.EXPENSE, Modifier.weight(1f))
                     }
                     SectionCard {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             Column(Modifier.weight(1f)) {
                                 Text(stringResource(R.string.net_for_period, periodLabel(preset)), style = MaterialTheme.typography.labelLarge)
                                 Text(range.label(s.dateFormat), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
