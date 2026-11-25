@@ -236,9 +236,9 @@ Business calculations never live in UI code: every screen, report and export cal
   that date, so past dates reproduce. Last reconciliation shown.
 * **Learned categories**: words of the description (letters only, no month names). New categorised entries teach a
   rule unless one exists; giving an uncategorised entry a category stores / replaces it. A rule matches when its words
-  begin the description's (longest wins). Earlier rule: giving an uncategorised entry a category stores its narration key → category (latest wins);
-  statement lines added later with the same key get that category if its kind (income / expense) fits and it isn't
-  archived. Rules can be reviewed and deleted in Settings › Statement categories.
+  begin the description's (longest wins). Statement lines added later get the matching category if its kind
+  (income / expense) fits and it isn't archived; the entry form only suggests it. Rules can be reviewed and deleted
+  in Settings › Learned categories.
 * **UPI QR**: for a sales invoice with a balance and a valid UPI ID in the business profile, the app shows and the PDF
   prints a QR code for `upi://pay?pa=…&pn=…&am=<balance>&cu=INR&tn=<invoice no.>` (error correction M).
 * **Stock** is never stored, it is derived (`core/Catalog.kt`): opening stock (from its date) + purchase bill
