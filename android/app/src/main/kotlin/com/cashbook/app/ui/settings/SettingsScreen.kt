@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Store
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Savings
@@ -90,6 +91,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             Header(stringResource(R.string.settings_data))
             NavRow(stringResource(R.string.backup_restore), Icons.Filled.Backup,
                 if (s.lastBackupAt > 0) stringResource(R.string.last_backup, f.dateTime(s.lastBackupAt)) else stringResource(R.string.never_backed_up)) { nav.navigate(Routes.BACKUP) }
+            NavRow(stringResource(R.string.import_entries), Icons.Filled.Upload, stringResource(R.string.import_entries_desc)) { nav.navigate(Routes.IMPORT_ENTRIES) }
             NavRow(stringResource(R.string.export_data), Icons.Filled.Download, stringResource(R.string.export_data_desc)) { vm.pendingReportAllTime = true; nav.navigate(Routes.report("CUSTOM")) }
             NavRow(stringResource(R.string.recycle_bin), Icons.Filled.DeleteSweep, stringResource(R.string.recycle_bin_count, snap.deleted.size)) { nav.navigate(Routes.RECYCLE) }
             NavRow(stringResource(if (hasSample) R.string.remove_sample else R.string.add_sample), Icons.Filled.Science, stringResource(R.string.sample_desc)) {

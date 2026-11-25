@@ -276,6 +276,53 @@ class LedgerRepository(
     /** Moves an entry (both sides of a transfer) to the recycle bin. */
     suspend fun deleteTxn(id: Long) = db.transactions().softDelete(id, now)
 
+    // ---------- importing entries from another app / a spreadsheet ----------
+
+    data class ImportResult(val created: Int, val duplicates: Int, val newCategories: Int, val newParties: Int, val tag: String)
+
+    /**
+     * Adds imported rows as income / expense entries in [cashbookId], all in one database transaction and tagged with
+     * [tag] (so [undoImport] can take them back out). Accounts are matched by name in the cashbook, otherwise
+     * [defaultAccountId]; categories and parties by name (created when missing and [createMissing], else left empty);
+     * an empty category falls back to a learned one. Rows already in the books (same day, type, amount, description and
+     * account) are skipped, so importing a file twice is harmless.
+     */
+    suspend fun importEntries(cashbookId: Long, defaultAccountId: Long, rows: List<com.cashbook.core.LedgerImport.ImportRow>, createMissing: Boolean,
+                              tag: String): ImportResult = db.withTransaction {
+        val accounts = db.accounts().getAll().filter { it.cashbookId == cashbookId && !it.archived }
+        require(accounts.any { it.id == defaultAccountId })
+        val existing = db.transactions().getLive().map { it.toTxn() }.filter { it.cashbookId == cashbookId }
+        val cats = db.categories().getAll().toMutableList()
+        val parties = db.parties().getAll().toMutableList()
+        var created = 0; var dups = 0; var newCats = 0; var newParties = 0
+        fun key(s: String) = s.trim().lowercase().replace(Regex("\\s+"), " ")
+        for (r in rows) {
+            val acc = accounts.firstOrNull { r.account.isNotBlank() && key(it.name) == key(r.account) } ?: accounts.first { it.id == defaultAccountId }
+            if (com.cashbook.core.LedgerImport.isDuplicate(r, existing, acc.id)) { dups++; continue }
+            val kind = if (r.type == TxnType.INCOME) CategoryKind.INCOME else CategoryKind.EXPENSE
+            val catName = r.category.split('›', '>', '/').last().trim()
+            val catId = if (catName.isEmpty()) ruleCategory(r.description, r.type) else
+                cats.firstOrNull { it.kind == kind.name && key(it.name) == key(catName) && !it.archived }?.id
+                    ?: if (createMissing) CategoryEntity(kind = kind.name, name = catName, createdAt = now, updatedAt = now).let { e ->
+                        db.categories().insert(e).also { cats += e.copy(id = it); newCats++ } } else null
+            val partyId = if (r.party.isEmpty()) null else parties.firstOrNull { key(it.name) == key(r.party) }?.id
+                ?: if (createMissing) PartyEntity(name = r.party.trim(), type = if (r.type == TxnType.INCOME) "CUSTOMER" else "SUPPLIER", createdAt = now, updatedAt = now)
+                    .let { e -> db.parties().insert(e).also { parties += e.copy(id = it); newParties++ } } else null
+            val mode = r.mode ?: if (enumValueOf<AccountType>(acc.type) == AccountType.CASH) PaymentMode.CASH else PaymentMode.BANK_TRANSFER
+            db.transactions().insert(Txn(0, cashbookId, r.type, r.date, r.amount, acc.id, categoryId = catId, partyId = partyId, paymentMode = mode,
+                description = r.description, reference = r.reference, notes = r.notes, tags = tag, createdAt = now, updatedAt = now).toEntity())
+            created++
+        }
+        ImportResult(created, dups, newCats, newParties, tag)
+    }
+
+    /** Moves every live entry tagged [tag] to the recycle bin (restorable from there). Returns how many. */
+    suspend fun undoImport(tag: String): Int = db.withTransaction {
+        val ids = db.transactions().getLive().map { it.toTxn() }.filter { tag in it.tagList }.map { it.id }
+        ids.forEach { db.transactions().softDelete(it, now) }
+        ids.size
+    }
+
     /** Restores an entry (a transfer is one row, so both account effects return together). */
     suspend fun restoreTxn(id: Long) = db.transactions().restore(id)
 

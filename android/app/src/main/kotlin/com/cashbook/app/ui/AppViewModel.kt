@@ -53,6 +53,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val listFilter = MutableStateFlow(TxnFilter())
     val listSort = MutableStateFlow(SortOrder.LATEST)
 
+    /** Rows of a file being imported as entries (Settings › Import entries). */
+    val importRows = MutableStateFlow<List<List<String>>?>(null)
+
+    fun loadImportFile(bytes: ByteArray) {
+        try { importRows.value = com.cashbook.core.StatementFiles.rows(bytes).takeIf { it.isNotEmpty() } }
+        catch (e: com.cashbook.core.StatementImport.FormatException) {
+            toast(getApplication<Application>().getString(com.cashbook.app.R.string.statement_unreadable, e.message ?: ""))
+        }
+    }
+
     /** The bank statement imported on the reconciliation screen (kept while the user works through it). */
     val statement = MutableStateFlow<com.cashbook.core.StatementImport.Result?>(null)
 

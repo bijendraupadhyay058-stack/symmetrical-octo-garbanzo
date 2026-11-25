@@ -929,6 +929,7 @@ class UiFlowTest {
         settingsRow("Business profile"); waitFor("Business / trade name"); check("Business profile"); back()
         settingsRow("Backup & restore"); waitFor("Create backup", substring = true); check("Backup"); back()
         settingsRow("Learned categories"); waitFor("Learned categories"); check("Learned categories"); back()
+        settingsRow("Import entries"); waitFor("Choose a file (CSV or Excel)"); check("Import entries"); back()
         settingsRow("Invoices & bills"); waitFor("Receivables")
         compose.onNodeWithContentDescription("Recurring invoices").performClick(); waitFor("New recurring invoice"); check("Recurring invoices"); back()
         tab("Quotes & orders"); waitFor("Delivery challans"); check("Quotes & orders")
@@ -988,6 +989,35 @@ class UiFlowTest {
     @Test fun largeTextScreens() { org.robolectric.RuntimeEnvironment.setFontScale(1.5f); seed("en"); newerScreens("large", hi = false) }
 
     @Test @Config(qualifiers = "hi") fun hindiNewerScreens() { seed("hi"); newerScreens("hindi2", hi = true) }
+
+    @Test fun importEntriesFlow() {
+        seed("en")
+        val d = deps()
+        val csv = "Exported from MyKhata\nDate,Remark,Category,Cash In,Cash Out\n" +
+            "01/10/2026,Old sale,Sales,\"5,000\",\n02/10/2026,Tea,Food and refreshments,,120\n03/10/2026,Mystery,,,\n"
+        launch()
+        waitFor("Total balance")
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Import entries"))
+        click("Import entries")
+        waitFor("Choose a file (CSV or Excel)")
+        scenario?.onActivity { a -> androidx.lifecycle.ViewModelProvider(a)[com.cashbook.app.ui.AppViewModel::class.java].loadImportFile(csv.toByteArray()) }
+        waitFor("Entries: 2 · already in Cashbook (skipped): 0 · not importable: 1")
+        waitFor("Row 5: no amount — Mystery")
+        shot("65_import_preview")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Import 2 entries"))
+        click("Import 2 entries")
+        assertTrue(idleUntil(10_000) { runBlocking { d.snap { true } }.txns.any { it.description == "Old sale" } })
+        waitFor("Undo this import")
+        shot("66_import_done")
+        val tea = runBlocking { d.snap { true } }.txns.single { it.description == "Tea" }
+        assertEquals(12_000L, tea.amount); assertTrue(tea.tagList.single().startsWith("import-"))
+        click("Undo this import")
+        assertTrue(idleUntil(10_000) { runBlocking { d.snap { true } }.txns.none { it.description == "Tea" } })
+        waitFor("2 entries moved to the recycle bin.")
+    }
 
     @Test fun outstandingReport() {
         seed("en")

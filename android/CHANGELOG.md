@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.16.0 (versionCode 17)
+
+**New**
+- **Import entries** (Settings › Import entries): bring in income and expenses from another cashbook app's export
+  or your own spreadsheet — CSV, Excel .xlsx, or a bank's HTML ".xls".
+  - Columns are recognised from their names (Date, Remark/Particulars, Amount, Cash In/Cash Out, Debit/Credit, Type,
+    Category, Party, Account, Mode, Reference, Notes); change any guess from a list.
+  - Accounts, categories and parties are matched by name; missing ones can be created. A learned category is used
+    when the file has none.
+  - Preview first: entries ready, rows already in Cashbook (skipped), and rows that can't be imported with the reason
+    (no date, no amount, a transfer…). Totals rows are ignored.
+  - Every import is tagged and can be **undone** in one tap (entries go to the recycle bin).
+
+**Data**
+- No database change.
+
 ## 1.15.0 (versionCode 16)
 
 **Accessibility**
