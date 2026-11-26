@@ -128,6 +128,7 @@ object Routes {
     const val CASH_COUNT = "cash_count"
     const val CATEGORY_RULES = "category_rules"
     const val IMPORT_ENTRIES = "import_entries"
+    const val HEALTH = "health_check"
     fun catalogItem(id: Long) = "catalog_item/$id"
 }
 
@@ -255,6 +256,7 @@ fun MainNav(vm: AppViewModel) {
                 InvoiceEditScreen(vm, nav, e.arguments!!.getLong("id"), e.arguments?.getString("kind") ?: "SALE", 0, docType = com.cashbook.core.DocType.QUOTATION)
             }
             composable(Routes.RECONCILE) { com.cashbook.app.ui.manage.ReconcileScreen(vm, nav) }
+            composable(Routes.HEALTH) { com.cashbook.app.ui.settings.HealthCheckScreen(vm, nav) }
             composable(Routes.IMPORT_ENTRIES) { com.cashbook.app.ui.manage.ImportEntriesScreen(vm, nav) }
             composable(Routes.CATEGORY_RULES) { com.cashbook.app.ui.manage.CategoryRulesScreen(vm, nav) }
             composable(Routes.CASH_COUNT) { com.cashbook.app.ui.manage.CashCountScreen(vm, nav) }

@@ -14,6 +14,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <queries>
+        <!-- health check: is WhatsApp there for sending PDFs and reminders (Android 11+ hides other apps otherwise) -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>

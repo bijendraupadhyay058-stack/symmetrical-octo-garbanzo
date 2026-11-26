@@ -276,6 +276,11 @@ class LedgerRepository(
     /** Moves an entry (both sides of a transfer) to the recycle bin. */
     suspend fun deleteTxn(id: Long) = db.transactions().softDelete(id, now)
 
+    /** SQLite's own check of the (encrypted) database file: "ok", or a description of the damage. */
+    suspend fun integrityCheck(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        db.openHelper.writableDatabase.query("PRAGMA integrity_check").use { c -> if (c.moveToFirst()) c.getString(0) else "no result" }
+    }
+
     // ---------- importing entries from another app / a spreadsheet ----------
 
     data class ImportResult(val created: Int, val duplicates: Int, val newCategories: Int, val newParties: Int, val tag: String)

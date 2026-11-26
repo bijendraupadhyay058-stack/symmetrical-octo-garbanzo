@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Savings
@@ -106,6 +107,7 @@ fun SettingsScreen(vm: AppViewModel, nav: NavHostController) {
             Header(stringResource(R.string.settings_other))
             NavRow(stringResource(R.string.user_guide), Icons.AutoMirrored.Filled.HelpOutline) { nav.navigate(Routes.GUIDE) }
             NavRow(stringResource(R.string.privacy_policy), Icons.Filled.PrivacyTip) { nav.navigate(Routes.PRIVACY) }
+            NavRow(stringResource(R.string.health_check), Icons.Filled.HealthAndSafety, stringResource(R.string.health_check_desc)) { nav.navigate(Routes.HEALTH) }
             NavRow(stringResource(R.string.about), Icons.Filled.Info, stringResource(R.string.version_x, BuildConfig.VERSION_NAME)) { nav.navigate(Routes.ABOUT) }
             NavRow(stringResource(R.string.feedback), Icons.Filled.Feedback, stringResource(R.string.feedback_desc)) {
                 vm.allowExternalActivity()

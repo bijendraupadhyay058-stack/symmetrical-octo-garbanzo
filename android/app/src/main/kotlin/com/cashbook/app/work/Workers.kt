@@ -49,7 +49,7 @@ class DailyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(
     }
 
     companion object {
-        private const val NAME = "cashbook-daily"
+        const val NAME = "cashbook-daily"
         private const val CHANNEL = "backup_reminders"
 
         fun schedule(context: Context) {

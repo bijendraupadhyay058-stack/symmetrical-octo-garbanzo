@@ -43,5 +43,6 @@ class Phase17Test {
         assertEquals(listOf("1.17"), releasesSince(17, onboarded = true, current = 18).map { it.name })
         assertTrue(releasesSince(18, onboarded = true, current = 18).isEmpty())          // already seen
         assertEquals(listOf("1.16", "1.17"), releasesSince(16, onboarded = true, current = 18).map { it.name })
+        assertEquals(listOf("1.18"), releasesSince(18, onboarded = true, current = 19).map { it.name })
     }
 }

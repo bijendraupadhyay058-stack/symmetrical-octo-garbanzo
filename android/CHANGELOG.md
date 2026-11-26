@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.18.0 (versionCode 19)
+
+**New**
+- **App health check** (Settings › App health check), for your own peace of mind and for support:
+  - *This phone*: notifications allowed, the daily background job scheduled, battery optimisation, the automatic
+    backup folder still writable, how long since the last backup, WhatsApp installed, a PDF viewer available, free
+    storage, and the encrypted database's own integrity check.
+  - *Your data*: payment links, over-applied payments, transfers, entries in the wrong cashbook or category type,
+    quotation / challan links, accounts below zero.
+  - Each problem says what it means and what to do. **Share report** sends it as text — no amounts or names.
+- "What's new" now lists 1.18.
+
+**Data**
+- No database change. The app can now see whether WhatsApp is installed (Android 11+ needs this declared).
+
 ## 1.17.0 (versionCode 18)
 
 **New**

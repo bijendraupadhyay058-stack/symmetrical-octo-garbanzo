@@ -100,6 +100,7 @@ data class Release(val code: Int, val name: String, val highlights: List<Int>)
 val RELEASES = listOf(
     Release(17, "1.16", listOf(R.string.wn_16_1)),
     Release(18, "1.17", listOf(R.string.wn_17_1, R.string.wn_17_2)),
+    Release(19, "1.18", listOf(R.string.wn_18_1)),
 )
 
 /** Releases newer than the one last seen (installs that updated from before 1.17 count as 1.16 = code 17). */

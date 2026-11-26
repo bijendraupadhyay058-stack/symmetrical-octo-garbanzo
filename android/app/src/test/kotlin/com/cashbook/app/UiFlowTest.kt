@@ -932,6 +932,7 @@ class UiFlowTest {
         settingsRow("Backup & restore"); waitFor("Create backup", substring = true); check("Backup"); back()
         settingsRow("Learned categories"); waitFor("Learned categories"); check("Learned categories"); back()
         settingsRow("Import entries"); waitFor("Choose a file (CSV or Excel)"); check("Import entries"); back()
+        settingsRow("App health check"); waitFor("Database integrity"); check("Health check"); back()
         settingsRow("Invoices & bills"); waitFor("Receivables")
         compose.onNodeWithContentDescription("Recurring invoices").performClick(); waitFor("New recurring invoice"); check("Recurring invoices"); back()
         tab("Quotes & orders"); waitFor("Delivery challans"); check("Quotes & orders")
@@ -1049,6 +1050,23 @@ class UiFlowTest {
         click("Got it")
         compose.waitUntil(10_000) { !exists("What's new") }
         assertTrue(idleUntil(10_000) { runBlocking { d.settings.settings.first() }.lastSeenVersion == BuildConfig.VERSION_CODE })
+    }
+
+    @Test fun healthCheckScreen() {
+        seed("en")
+        launch()
+        waitFor("Total balance")
+        tab("Settings")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("App health check"))
+        click("App health check")
+        waitFor("Database integrity")
+        waitFor("Your data"); waitFor("Payment links point to existing invoices and entries")
+        assertEquals(emptyList<String>(), a11yIssues())
+        shot("69_health_check")
+        compose.onNode(androidx.compose.ui.test.SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange))
+            .performScrollToNode(hasText("Share report", substring = true))
+        shot("70_health_check_data")
     }
 
     @Test fun outstandingReport() {

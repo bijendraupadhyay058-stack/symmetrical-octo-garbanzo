@@ -41,11 +41,14 @@ English and Hindi.
 <p><img src="docs/screenshots/45_invoice_reminder.jpg" width="180"> <img src="docs/screenshots/43_purchase_order_detail.jpg" width="180"> <img src="docs/screenshots/44_purchase_orders_list.jpg" width="180"> <img src="docs/screenshots/46_statement_of_account.jpg" width="180"></p>
 <p><img src="docs/screenshots/50_challan_detail.jpg" width="180"> <img src="docs/screenshots/51_invoice_from_challans.jpg" width="180"> <img src="docs/screenshots/52_challans_list.jpg" width="180"> <img src="docs/screenshots/48_overdue_collections.jpg" width="180"></p>
 <p><img src="docs/screenshots/54_recurring_form.jpg" width="180"> <img src="docs/screenshots/55_recurring_list.jpg" width="180"> <img src="docs/screenshots/56_invoice_transport.jpg" width="180"></p>
-<p><img src="docs/screenshots/67_getting_started.jpg" width="180"> <img src="docs/screenshots/65_import_preview.jpg" width="180"> <img src="docs/screenshots/66_import_done.jpg" width="180"> <img src="docs/screenshots/64_reconciliation_statement.jpg" width="180"> <img src="docs/screenshots/63_category_suggestion.jpg" width="180"> <img src="docs/screenshots/62_excel_statement_rule.jpg" width="180"> <img src="docs/screenshots/60_statement_import.jpg" width="180"> <img src="docs/screenshots/61_statement_matched.jpg" width="180"> <img src="docs/screenshots/57_cash_count.jpg" width="180"> <img src="docs/screenshots/58_bank_reconciliation.jpg" width="180"> <img src="docs/screenshots/59_reconciled.jpg" width="180"></p>
+<p><img src="docs/screenshots/69_health_check.jpg" width="180"> <img src="docs/screenshots/70_health_check_data.jpg" width="180"> <img src="docs/screenshots/67_getting_started.jpg" width="180"> <img src="docs/screenshots/65_import_preview.jpg" width="180"> <img src="docs/screenshots/66_import_done.jpg" width="180"> <img src="docs/screenshots/64_reconciliation_statement.jpg" width="180"> <img src="docs/screenshots/63_category_suggestion.jpg" width="180"> <img src="docs/screenshots/62_excel_statement_rule.jpg" width="180"> <img src="docs/screenshots/60_statement_import.jpg" width="180"> <img src="docs/screenshots/61_statement_matched.jpg" width="180"> <img src="docs/screenshots/57_cash_count.jpg" width="180"> <img src="docs/screenshots/58_bank_reconciliation.jpg" width="180"> <img src="docs/screenshots/59_reconciled.jpg" width="180"></p>
 <p><img src="docs/screenshots/35_invoice_pdf_upi_qr.jpg" width="380" alt="Tax invoice PDF with UPI QR code"></p>
 <p><img src="docs/screenshots/22_invoice_pdf_p1.jpg" width="380" alt="Tax invoice PDF"> <img src="docs/screenshots/27_credit_note_pdf.jpg" width="380" alt="Credit note PDF with logo and signature"></p>
 
-**What's new in 1.17** — a **Getting started** checklist on the dashboard for new users (first entry, business
+**What's new in 1.18** — an **app health check** (Settings): is this phone set up for reminders, automatic backups,
+WhatsApp and PDFs, does the encrypted database pass its integrity check, and is the ledger consistent — with a
+shareable report (no amounts or names) for support.
+**1.17** — a **Getting started** checklist on the dashboard for new users (first entry, business
 profile, PIN, backup, invoice, report — ticked from your data) and a **What's new** note after each update.
 **1.16** — **import entries** from another app's export or your own spreadsheet (CSV / Excel):
 columns recognised automatically, categories / parties / accounts matched by name, duplicates skipped, and every
@@ -97,10 +100,10 @@ release signing. See [CHANGELOG.md](CHANGELOG.md).
 
 ## 1. Install the test APK
 
-`dist/Cashbook-1.17.0-test.apk` is a ready-to-install release build (minified, signed with the
+`dist/Cashbook-1.18.0-test.apk` is a ready-to-install release build (minified, signed with the
 **test key** committed in `app/cashbook-test.keystore`). SHA-256 is in the `.sha256` file next to it.
 
-1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.17.0-test.apk`.
+1. Copy the APK to the phone (USB, email, Drive…) or run `adb install dist/Cashbook-1.18.0-test.apk`.
    Installing it over any earlier version keeps your data (the database upgrades automatically to v10).
 2. On the phone, allow *Install unknown apps* for the app you open it with.
 3. Open **Cashbook** and follow the 7-step setup.
@@ -309,6 +312,7 @@ Business calculations never live in UI code: every screen, report and export cal
 | Sample data (Office Cashbook) — add / remove any time | Settings › Data |
 | **1.1** Recurring entries: daily → yearly with intervals, end date, pause, auto-post or confirm (Post / Skip on the dashboard, amount can vary), "Make recurring" from any entry, catch-up after the app was closed | `core/Recurrence.kt`, `ui/recurring`, `LedgerRepository.postDueRecurring` |
 | **1.1** Monthly budgets per expense category with dashboard progress (OK / ≥ 80 % / over) | `core/Budget.kt`, `ui/manage/BudgetsScreen.kt` |
+| **1.18** App health check: notifications, daily job, battery optimisation, backup folder access, last backup, WhatsApp, PDF viewer, storage, `PRAGMA integrity_check`; ledger checks (orphaned or over-applied payment links, broken transfers, cashbook / category-type mismatches, broken conversion links, negative accounts); share as text | `core/HealthCheck.kt`, `data/Diagnostics.kt`, `ui/settings/HealthCheckScreen.kt` |
 | **1.17** Getting-started checklist (six steps derived from data and settings, one tap each, hideable) and "What's new" after updates (installs updated from 1.16 count as 1.16; fresh installs skip it) | `ui/dashboard/GettingStarted.kt` |
 | **1.16** Import entries from CSV / Excel / HTML ".xls": column mapping (guessed, editable), target cashbook and account, create missing categories and parties, preview with problems and duplicates, undo | `core/LedgerImport.kt`, `ui/manage/ImportScreens.kt`, `LedgerRepository.importEntries` |
 | **1.15** Accessibility: labelled pick/date fields, row-level switches and checkboxes, labelled "New …" buttons, AA text contrast, scrollable invoice tabs, auto-sizing bottom-bar labels, large-text layout fixes | `ui/components/Components.kt` (`fieldSemantics`, `SwitchRow`, `AppFab`), `ui/theme/Theme.kt` |
@@ -359,7 +363,7 @@ Business calculations never live in UI code: every screen, report and export cal
 ./gradlew test
 ```
 
-208 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
+213 automated tests, all passing (`./gradlew test` also runs the release unit-test variant, where
 the migration test is skipped because schemas are packaged only into debug assets):
 
 | Suite | What it checks |
@@ -383,6 +387,8 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `core` `GstTest` | GSTIN check digit (GST-portal sample), rate labels, CGST/SGST vs IGST per line, paisa rounding, round-off both ways, amount in words up to crores, exact quantity/percent parsing, GST summary report |
 | `app` `MigrationTest` | v1 → v2, v1 → v3, v3 → v4, v4 → v5, v5 → v6, v6 → v7, v7 → v8, v8 → v9 and v9 → v10 upgrades keep every row, fill party states from GSTINs, and match Room's expected schema exactly |
 | `core` `LedgerImportTest` | Cash in / out export with totals row, typed spreadsheet with account / head / ref columns and every problem reason, signed amounts and "Dr", duplicate rule, header / type / mode words |
+| `core` `HealthCheckTest` | A clean ledger passes every check; a crafted ledger trips each one (orphaned and over-applied links, self-transfer, wrong cashbook, wrong category type, broken quotation link, negative cash) |
+| `app` `Phase18Test` | Health check on a real database: integrity "ok", a lost backup folder flagged, never-backed-up flagged, an income entry in an expense category found |
 | `app` `Phase17Test` | Checklist steps from real data (sample entries don't count); which releases "What's new" shows for fresh installs, updates from 1.16, and later updates |
 | `app` `Phase16Test` | Import matching accounts and categories by name, creating categories and parties, identical rows in the file kept, re-import adds nothing, no-create leaves fields empty, undo by tag |
 | `app` `ThemeContrastTest` | WCAG AA (4.5:1) for every text colour on surface, background, tinted rows and status chips, light and dark |
@@ -405,7 +411,7 @@ the migration test is skipped because schemas are packaged only into debug asset
 | `app` `UiFlowTest` (Robolectric + Compose) | Full first-run setup through the UI, adding an expense and a transfer through the real forms (balances verified), validation messages, confirming a due recurring entry from the dashboard, creating a schedule through its form, the budgets
 screen, creating a simple invoice and recording a receipt against it, filling the business profile and creating an
 itemised GST invoice (IGST for another state), issuing a credit note from a paid invoice and recording the
-refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, creating a monthly recurring invoice through its form (today's invoice created), transport details on an invoice, a cash count with a shortage entry, a bank reconciliation to zero, importing entries from a CSV and undoing it, the getting-started checklist (a report ticks a step, Hide), "What's new" once after an update, importing a statement and adding its missing lines, an Excel statement whose new line shows and gets its learned category, the category suggestion chip, the reconciliation statement opened from the reconciliation screen, the Outstanding report, deleting an entry
+refund, adding a product through its form and picking it on an invoice (stock shown, low-stock card on the dashboard), creating a quotation and converting it to an invoice with its UPI QR card, the WhatsApp reminder button, creating a purchase order and converting it to a bill, the statement of account for one party, the overdue collections screen, creating a delivery challan and billing two challans in one invoice, creating a monthly recurring invoice through its form (today's invoice created), transport details on an invoice, a cash count with a shortage entry, a bank reconciliation to zero, importing entries from a CSV and undoing it, the getting-started checklist (a report ticks a step, Hide), "What's new" once after an update, the health check screen, importing a statement and adding its missing lines, an Excel statement whose new line shows and gets its learned category, the category suggestion chip, the reconciliation statement opened from the reconciliation screen, the Outstanding report, deleting an entry
 through its confirmation dialog, and screenshots in light, dark, Hindi and a small 360 dp phone (`app/build/screenshots/`) |
 
 Not automated here (please check on a device): writing the PDF file itself (Android's native `PdfDocument`
@@ -450,5 +456,7 @@ The string tables for both languages live in `tools/strings/` (`strings1-3.py`);
 * Statement import reads CSV / tab / semicolon text, Excel .xlsx and HTML ".xls". Old binary .xls and PDF statements
   need to be saved as .xlsx or CSV first. Lines without a learned category are added uncategorised.
 * Import adds income and expense entries; transfers in the file are listed so you can add them by hand.
+* The health check reports; it doesn't repair data. Device checks reflect what Android lets an app see (for example it
+  can't tell whether a phone maker's own battery manager will stop the daily job).
 * Suggested next phases: multi-currency, and an instrumented test pass on
   physical devices.
