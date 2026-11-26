@@ -92,8 +92,10 @@ class UiFlowTest {
 
     /** Opens the bottom-bar Add sheet and taps an option in it (the dashboard has same-named quick actions underneath). */
     private fun openFromAddSheet(option: String) {
+        // the dashboard may or may not show a same-named quick action (it can be scrolled out of the list): wait for one more
+        val before = compose.onAllNodesWithText(option, useUnmergedTree = true).fetchSemanticsNodes().size
         click("Add")
-        compose.waitUntil(10_000) { compose.onAllNodesWithText(option, useUnmergedTree = true).fetchSemanticsNodes().size >= 2 }
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(option, useUnmergedTree = true).fetchSemanticsNodes().size > before }
         compose.onAllNodesWithText(option, useUnmergedTree = true).onLast().performClick()
     }
 
@@ -1019,6 +1021,36 @@ class UiFlowTest {
         waitFor("2 entries moved to the recycle bin.")
     }
 
+    @Test fun gettingStartedChecklist() {
+        seed("en", newUser = true)
+        val d = deps()
+        launch()
+        waitFor("Getting started")
+        waitFor("0 of 6 done")
+        assertEquals(emptyList<String>(), a11yIssues())                    // labelled rows, 48 dp targets
+        shot("67_getting_started")
+        click("Open a report")
+        waitFor("Daily Cashbook")                                        // the Reports tab
+        click("Monthly Summary"); waitFor("Report options")                 // opening a report ticks the step
+        scenario?.onActivity { it.onBackPressedDispatcher.onBackPressed() }
+        tab("Dashboard"); waitFor("1 of 6 done")
+        click("Hide")
+        compose.waitUntil(10_000) { !exists("Getting started") }
+    }
+
+    @Test fun whatsNewAfterUpdate() {
+        seed("en")
+        val d = deps()
+        runBlocking { d.settings.update { it.copy(lastSeenVersion = 0) } }      // updated from 1.16, which didn't record it
+        launch()
+        waitFor("What's new"); waitFor("Version 1.17")
+        waitFor("A \"Getting started\" checklist", substring = true)
+        shot("68_whats_new")
+        click("Got it")
+        compose.waitUntil(10_000) { !exists("What's new") }
+        assertTrue(idleUntil(10_000) { runBlocking { d.settings.settings.first() }.lastSeenVersion == BuildConfig.VERSION_CODE })
+    }
+
     @Test fun outstandingReport() {
         seed("en")
         runBlocking {
@@ -1040,7 +1072,7 @@ class UiFlowTest {
     }
 
     /** Sample cashbook plus a few entries in the current month so charts have data. */
-    private fun seed(lang: String) = runBlocking {
+    private fun seed(lang: String, newUser: Boolean = false) = runBlocking {
         val d = deps()
         val names = if (lang == "hi") SAMPLE_NAMES.copy(cashbook = "ऑफ़िस कैशबुक", cash = "ऑफ़िस नकद", bank = "SBI बैंक",
             t1 = "व्यावसायिक शुल्क प्राप्त", t2 = "ऑफ़िस स्टेशनरी", t3 = "इंटरनेट बिल", t4 = "SBI बैंक से ऑफ़िस नकद") else SAMPLE_NAMES
@@ -1059,7 +1091,9 @@ class UiFlowTest {
             Txn(0, cb, TxnType.EXPENSE, today, 250_000, cash, categoryId = exp[1].id, paymentMode = PaymentMode.CASH, description = rent, reference = "RENT-001"),
             Txn(0, cb, TxnType.EXPENSE, today, 80_000, cash, categoryId = exp[12].id, paymentMode = PaymentMode.CASH),
         ).forEach { d.ledger.saveTxn(it, emptyList(), emptyList()) }
-        d.settings.update { it.copy(onboarded = true, language = lang, defaultCashbookId = cb, currentCashbookId = cb) }
+        // an established user: "What's new" already seen, getting-started card out of the way (unless [newUser])
+        d.settings.update { it.copy(onboarded = true, language = lang, defaultCashbookId = cb, currentCashbookId = cb,
+            lastSeenVersion = BuildConfig.VERSION_CODE, checklistHidden = !newUser) }
         d.snap { it.txns.size == 9 }
     }
 }

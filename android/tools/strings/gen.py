@@ -19,7 +19,8 @@ from strings14 import S14
 from strings15 import S15
 from strings16 import S16
 from strings17 import S17
-allS = S + S2 + S3 + S4 + S5 + S6 + S7 + S8 + S9 + S10 + S11 + S12 + S13 + S14 + S15 + S16 + S17
+from strings18 import S18
+allS = S + S2 + S3 + S4 + S5 + S6 + S7 + S8 + S9 + S10 + S11 + S12 + S13 + S14 + S15 + S16 + S17 + S18
 keys = [k for k,_,_ in allS]
 dups = {k for k in keys if keys.count(k) > 1}
 assert not dups, dups

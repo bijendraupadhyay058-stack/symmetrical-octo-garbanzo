@@ -1,0 +1,20 @@
+# Strings added in app 1.17 (getting started, what's new).
+S18 = [
+("gs_title","Getting started","शुरुआत करें"),
+("gs_hide","Hide","छिपाएँ"),
+("gs_progress_x","%1$d of %2$d done","%2$d में से %1$d पूरे"),
+("gs_done","Done","पूरा"),
+("gs_todo","To do","बाकी"),
+("gs_first_entry","Record your first income or expense","अपनी पहली आय या व्यय दर्ज करें"),
+("gs_profile","Add your business name and GSTIN","अपने व्यवसाय का नाम और GSTIN जोड़ें"),
+("gs_lock","Protect the app with a PIN","PIN से ऐप सुरक्षित करें"),
+("gs_backup","Make a backup (or turn on automatic backup)","बैकअप बनाएँ (या स्वचालित बैकअप चालू करें)"),
+("gs_invoice","Create an invoice or quotation","इनवॉइस या कोटेशन बनाएँ"),
+("gs_report","Open a report","कोई रिपोर्ट खोलें"),
+("wn_title","What's new","नया क्या है"),
+("wn_version_x","Version %s","संस्करण %s"),
+("wn_ok","Got it","ठीक है"),
+("wn_16_1","Import entries from another app or a spreadsheet (Settings › Import entries), with undo.","किसी अन्य ऐप या स्प्रेडशीट से प्रविष्टियाँ आयात करें (सेटिंग › प्रविष्टियाँ आयात करें), पूर्ववत सहित।"),
+("wn_17_1","A \"Getting started\" checklist on the dashboard for your first week.","पहले सप्ताह के लिए डैशबोर्ड पर \"शुरुआत करें\" सूची।"),
+("wn_17_2","This \"What's new\" note after each update.","हर अपडेट के बाद यह \"नया क्या है\" संदेश।"),
+]

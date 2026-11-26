@@ -124,6 +124,7 @@ fun ReportViewScreen(vm: AppViewModel, nav: NavHostController, typeName: String)
     var year by rememberSaveable { mutableStateOf(today.year) }
     var fy by rememberSaveable { mutableStateOf(FinancialYear.of(today).startYear) }
     val initialAccounts = remember { vm.pendingReportAccounts.also { vm.pendingReportAccounts = null } }
+    androidx.compose.runtime.LaunchedEffect(Unit) { if (vm.settings.value?.seenReports == false) vm.updateSettings { it.copy(seenReports = true) } }
     var accountIds by rememberSaveable { mutableStateOf(initialAccounts ?: listOf<Long>()) }
     var detailFilter by remember { mutableStateOf(initialFilter ?: TxnFilter()) }
     var showFilters by remember { mutableStateOf(false) }

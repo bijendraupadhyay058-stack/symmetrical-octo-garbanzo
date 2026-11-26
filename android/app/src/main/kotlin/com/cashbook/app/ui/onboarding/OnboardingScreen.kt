@@ -86,7 +86,7 @@ fun OnboardingScreen(vm: AppViewModel) {
             val date = LocalDate.ofEpochDay(openingDate)
             val id = ledger.createCashbook(cashbookName.ifBlank { defaultName }, "", date, drafts.filter { it.enabled }.map { it.toNew(date) })
             val sampleId = if (withSample) ledger.addSampleData(s.language, sampleNames(ctx)) else null
-            this.settings.update { it.copy(onboarded = true, defaultCashbookId = id, currentCashbookId = id, lockEnabled = pinSet) }
+            this.settings.update { it.copy(onboarded = true, lastSeenVersion = com.cashbook.app.BuildConfig.VERSION_CODE, defaultCashbookId = id, currentCashbookId = id, lockEnabled = pinSet) }
             if (sampleId != null) vm.toast(ctx.getString(R.string.sample_added))
             vm.unlocked()
         }

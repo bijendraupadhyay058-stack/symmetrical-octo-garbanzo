@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.17.0 (versionCode 18)
+
+**New**
+- **Getting started** card on the dashboard for your first week: record your first entry, add your business name,
+  set a PIN, make a backup, create an invoice or quotation, open a report. Each step ticks itself when it's done
+  (entries in the sample cashbook don't count); tap a step to go there; **Hide** removes the card.
+- **What's new** after each update — a short list of what changed since the version you had. New installs don't
+  see it.
+
+**Data**
+- No database change (three small settings).
+
 ## 1.16.0 (versionCode 17)
 
 **New**

@@ -104,6 +104,7 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
     val fc = LocalFinanceColors.current
     val today = LocalDate.now()
 
+    val businessName = vm.businessProfile.collectAsStateWithLifecycle().value.name
     var preset by rememberSaveable { mutableStateOf(PeriodPreset.THIS_MONTH) }
     var customStart by rememberSaveable { mutableLongStateOf(today.withDayOfMonth(1).toEpochDay()) }
     var customEnd by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
@@ -140,6 +141,8 @@ fun DashboardScreen(vm: AppViewModel, nav: NavHostController) {
             return@AppScaffold
         }
         LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // ----- getting started (new users; hides itself when done) -----
+            item { GettingStartedCard(vm, nav, snap, s, businessName) }
             // ----- filters -----
             item {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

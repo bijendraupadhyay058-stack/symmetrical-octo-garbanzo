@@ -143,6 +143,8 @@ fun NavHostController.openTab(route: String) = navigate(route) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainNav(vm: AppViewModel) {
+    // "What's new" once after an update
+    vm.settings.collectAsStateWithLifecycle().value?.let { com.cashbook.app.ui.dashboard.WhatsNewDialog(vm, it) }
     val nav = rememberNavController()
     var addSheet by rememberSaveable { mutableStateOf(false) }
     val tabs = listOf(

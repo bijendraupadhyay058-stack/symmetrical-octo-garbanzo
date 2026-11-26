@@ -59,6 +59,13 @@ data class AppSettings(
     val sentBudgetAlerts: Set<String> = emptySet(),
     /** Show the total balance on the home-screen widget (always hidden while the app lock is on). */
     val widgetShowBalance: Boolean = false,
+    // ---- onboarding (v1.17) ----
+    /** The "Getting started" card was hidden by the user. */
+    val checklistHidden: Boolean = false,
+    /** A report has been opened at least once (a getting-started step). */
+    val seenReports: Boolean = false,
+    /** versionCode whose "What's new" was shown (0 = not recorded yet). */
+    val lastSeenVersion: Int = 0,
 ) {
     companion object { const val ALL_CASHBOOKS = -1L }
 }
@@ -97,6 +104,9 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
         val budgetAlerts = booleanPreferencesKey("budget_alerts")
         val sentBudgetAlerts = stringSetPreferencesKey("sent_budget_alerts")
         val widgetBalance = booleanPreferencesKey("widget_show_balance")
+        val checklistHidden = booleanPreferencesKey("checklist_hidden")
+        val seenReports = booleanPreferencesKey("seen_reports")
+        val lastSeenVersion = intPreferencesKey("last_seen_version")
     }
 
     val settings: Flow<AppSettings> = dataStore.data.map { p -> p.toSettings() }
@@ -151,6 +161,9 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             budgetAlerts = this[K.budgetAlerts] ?: d.budgetAlerts,
             sentBudgetAlerts = this[K.sentBudgetAlerts] ?: d.sentBudgetAlerts,
             widgetShowBalance = this[K.widgetBalance] ?: d.widgetShowBalance,
+            checklistHidden = this[K.checklistHidden] ?: d.checklistHidden,
+            seenReports = this[K.seenReports] ?: d.seenReports,
+            lastSeenVersion = this[K.lastSeenVersion] ?: d.lastSeenVersion,
         )
     }
 
@@ -186,6 +199,9 @@ class SettingsRepository(context: Context, fileName: String = "settings") {
             p[K.budgetAlerts] = n.budgetAlerts
             p[K.sentBudgetAlerts] = n.sentBudgetAlerts
             p[K.widgetBalance] = n.widgetShowBalance
+            p[K.checklistHidden] = n.checklistHidden
+            p[K.seenReports] = n.seenReports
+            p[K.lastSeenVersion] = n.lastSeenVersion
         }
     }
 }
